@@ -1,249 +1,193 @@
 const express = require("express");
 
 const app = express();
+app.use(express.urlencoded({ extended: true }));
 
-let scans = [];
+let events = [];
 
-const placementCost = 800;
-const conversionRate = 0.10;
-
-const campaigns = [
-  {
-    name: "Dunkin",
-    weight: 70,
-    url: "https://www.dunkindonuts.com",
-    campaignCost: 500,
-    avgCustomerValue: 50
-  },
-  {
-    name: "Chick-fil-A",
-    weight: 30,
-    url: "https://www.chick-fil-a.com",
-    campaignCost: 300,
-    avgCustomerValue: 40
+const placements = {
+  school1: {
+    name: "Gulf Coast HS Car Line",
+    cost: 800,
+    advertisers: [
+      {
+        name: "Dunkin",
+        weight: 70,
+        campaignCost: 500,
+        avgCustomerValue: 50,
+        campaigns: [
+          {
+            name: "Morning Coffee Offer",
+            offerUrl: "https://www.dunkindonuts.com",
+            stores: [
+              {
+                name: "Dunkin - Pine Ridge",
+                weight: 70,
+                inventory: "high",
+                mapsUrl: "https://www.google.com/maps/search/?api=1&query=Dunkin+Pine+Ridge+Naples+FL",
+                wazeUrl: "https://waze.com/ul?q=Dunkin%20Pine%20Ridge%20Naples%20FL&navigate=yes"
+              },
+              {
+                name: "Dunkin - Immokalee",
+                weight: 30,
+                inventory: "normal",
+                mapsUrl: "https://www.google.com/maps/search/?api=1&query=Dunkin+Immokalee+Naples+FL",
+                wazeUrl: "https://waze.com/ul?q=Dunkin%20Immokalee%20Naples%20FL&navigate=yes"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        name: "Chick-fil-A",
+        weight: 30,
+        campaignCost: 300,
+        avgCustomerValue: 40,
+        campaigns: [
+          {
+            name: "Lunch Family Meal",
+            offerUrl: "https://www.chick-fil-a.com",
+            stores: [
+              {
+                name: "Chick-fil-A - Naples",
+                weight: 100,
+                inventory: "normal",
+                mapsUrl: "https://www.google.com/maps/search/?api=1&query=Chick-fil-A+Naples+FL",
+                wazeUrl: "https://waze.com/ul?q=Chick-fil-A%20Naples%20FL&navigate=yes"
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
-];
+};
 
 app.get("/", (req, res) => {
   res.send(`
     <h1>Vivid Smart Routing is live 🚀</h1>
     <p><a href="/r/school1">Test School QR</a></p>
-    <p><a href="/dashboard">View Dashboard</a></p>
+    <p><a href="/dashboard">Dashboard</a></p>
+    <p><a href="/admin">Admin</a></p>
   `);
 });
 
-app.get("/r/:slug", (req, res) => {
-  const slug = req.params.slug;
-  const selected = pickCampaign(campaigns);
+app.get("/r/:placementId", (req, res) => {
+  const placementId = req.params.placementId;
+  const placement = placements[placementId];
 
-  scans.push({
-    location: slug,
-    advertiser: selected.name,
+  if (!placement) return res.send("Placement not found");
+
+  const advertiser = pickWeighted(placement.advertisers);
+  const campaign = advertiser.campaigns[0];
+  const store = pickWeighted(campaign.stores);
+
+  events.push({
+    type: "scan",
+    placementId,
+    placementName: placement.name,
+    advertiser: advertiser.name,
+    campaign: campaign.name,
+    store: store.name,
     time: new Date().toLocaleString()
   });
 
-  console.log("Scan from:", slug, "→ Sending to:", selected.name);
+  res.send(renderChoicePage({ placementId, placement, advertiser, campaign, store }));
+});
 
-  res.redirect(selected.url);
+app.get("/go/:type/:placementId/:advertiser/:campaign/:store", (req, res) => {
+  const { type, placementId, advertiser, campaign, store } = req.params;
+
+  const placement = placements[placementId];
+  const ad = placement.advertisers.find(a => a.name === advertiser);
+  const camp = ad.campaigns.find(c => c.name === campaign);
+  const selectedStore = camp.stores.find(s => s.name === store);
+
+  events.push({
+    type,
+    placementId,
+    placementName: placement.name,
+    advertiser,
+    campaign,
+    store,
+    time: new Date().toLocaleString()
+  });
+
+  if (type === "maps") return res.redirect(selectedStore.mapsUrl);
+  if (type === "waze") return res.redirect(selectedStore.wazeUrl);
+  if (type === "offer") return res.redirect(camp.offerUrl);
+
+  res.redirect("/");
 });
 
 app.get("/dashboard", (req, res) => {
-  const totalScans = scans.length;
-  const estimatedCustomers = Math.round(totalScans * conversionRate);
-  const estimatedRevenue = campaigns.reduce((sum, c) => {
-    const count = scans.filter(s => s.advertiser === c.name).length;
-    return sum + Math.round(count * conversionRate) * c.avgCustomerValue;
-  }, 0);
-
-  const placementROI = placementCost
-    ? Math.round(((estimatedRevenue - placementCost) / placementCost) * 100)
-    : 0;
-
-  const costPerScan = totalScans ? (placementCost / totalScans).toFixed(2) : "0.00";
-  const blendedCAC = estimatedCustomers ? (placementCost / estimatedCustomers).toFixed(2) : "0.00";
-
-  const campaignRows = campaigns.map(c => {
-    const scanCount = scans.filter(s => s.advertiser === c.name).length;
-    const customers = Math.round(scanCount * conversionRate);
-    const revenue = customers * c.avgCustomerValue;
-    const cac = customers ? (c.campaignCost / customers).toFixed(2) : "0.00";
-    const roi = c.campaignCost
-      ? Math.round(((revenue - c.campaignCost) / c.campaignCost) * 100)
-      : 0;
-
-    return { ...c, scanCount, customers, revenue, cac, roi };
-  });
+  const scans = events.filter(e => e.type === "scan").length;
+  const maps = events.filter(e => e.type === "maps").length;
+  const waze = events.filter(e => e.type === "waze").length;
+  const offers = events.filter(e => e.type === "offer").length;
+  const navClicks = maps + waze;
+  const intentRate = scans ? Math.round((navClicks / scans) * 100) : 0;
 
   res.send(`
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Vivid ROI Dashboard</title>
+      <title>Vivid Routing Dashboard</title>
       <style>
-        body {
-          margin: 0;
-          font-family: Arial, sans-serif;
-          background: #f4f7f1;
-          color: #16301f;
-        }
-        .header {
-          background: #123d25;
-          color: white;
-          padding: 28px 40px;
-        }
-        .container {
-          padding: 35px 40px;
-        }
-        .cards {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 18px;
-          margin-bottom: 30px;
-        }
-        .card {
-          background: white;
-          border-radius: 16px;
-          padding: 22px;
-          box-shadow: 0 8px 20px rgba(0,0,0,.08);
-        }
-        .label {
-          color: #6a7a70;
-          font-size: 13px;
-          margin-bottom: 8px;
-        }
-        .number {
-          font-size: 32px;
-          font-weight: bold;
-        }
-        table {
-          width: 100%;
-          background: white;
-          border-collapse: collapse;
-          border-radius: 16px;
-          overflow: hidden;
-          box-shadow: 0 8px 20px rgba(0,0,0,.08);
-          margin-bottom: 30px;
-        }
-        th, td {
-          padding: 15px;
-          border-bottom: 1px solid #e6eee6;
-          text-align: left;
-        }
-        th {
-          background: #eaf3e8;
-        }
-        .button {
-          display: inline-block;
-          background: #2f7d46;
-          color: white;
-          padding: 12px 18px;
-          border-radius: 12px;
-          text-decoration: none;
-          margin-right: 10px;
-          font-weight: bold;
-        }
-        .good {
-          color: #1f7a3f;
-          font-weight: bold;
-        }
-        .bad {
-          color: #b00020;
-          font-weight: bold;
-        }
+        body { font-family: Arial; margin:0; background:#f4f7f1; color:#123d25; }
+        .header { background:#123d25; color:white; padding:28px 40px; }
+        .wrap { padding:30px 40px; }
+        .cards { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:30px; }
+        .card { background:white; border-radius:16px; padding:22px; box-shadow:0 8px 20px rgba(0,0,0,.08); }
+        .label { color:#6b7b70; font-size:13px; }
+        .num { font-size:32px; font-weight:bold; margin-top:8px; }
+        table { width:100%; background:white; border-collapse:collapse; border-radius:16px; overflow:hidden; box-shadow:0 8px 20px rgba(0,0,0,.08); }
+        th, td { padding:14px; border-bottom:1px solid #e6eee6; text-align:left; }
+        th { background:#eaf3e8; }
+        .btn { background:#2f7d46; color:white; padding:10px 14px; border-radius:10px; text-decoration:none; font-weight:bold; }
       </style>
     </head>
     <body>
       <div class="header">
-        <h1>Vivid ROI Dashboard</h1>
-        <p>Physical Placements. Digital Intelligence.</p>
+        <h1>Vivid Traffic Routing Dashboard</h1>
+        <p>Scans → Store Intent → Offers → ROI</p>
       </div>
 
-      <div class="container">
+      <div class="wrap">
         <p>
-          <a class="button" href="/r/school1">Test School QR</a>
-          <a class="button" href="/dashboard">Refresh Dashboard</a>
+          <a class="btn" href="/r/school1">Test QR</a>
+          <a class="btn" href="/admin">Admin</a>
         </p>
 
         <div class="cards">
-          <div class="card">
-            <div class="label">Total Scans</div>
-            <div class="number">${totalScans}</div>
-          </div>
-
-          <div class="card">
-            <div class="label">Estimated Customers</div>
-            <div class="number">${estimatedCustomers}</div>
-          </div>
-
-          <div class="card">
-            <div class="label">Estimated Revenue</div>
-            <div class="number">$${estimatedRevenue}</div>
-          </div>
-
-          <div class="card">
-            <div class="label">Placement ROI</div>
-            <div class="number ${placementROI >= 0 ? "good" : "bad"}">${placementROI}%</div>
-          </div>
-
-          <div class="card">
-            <div class="label">Placement Cost</div>
-            <div class="number">$${placementCost}</div>
-          </div>
-
-          <div class="card">
-            <div class="label">Cost Per Scan</div>
-            <div class="number">$${costPerScan}</div>
-          </div>
-
-          <div class="card">
-            <div class="label">Blended CAC</div>
-            <div class="number">$${blendedCAC}</div>
-          </div>
-
-          <div class="card">
-            <div class="label">Conversion Assumption</div>
-            <div class="number">${conversionRate * 100}%</div>
-          </div>
+          <div class="card"><div class="label">Total Scans</div><div class="num">${scans}</div></div>
+          <div class="card"><div class="label">Map Clicks</div><div class="num">${maps}</div></div>
+          <div class="card"><div class="label">Waze Clicks</div><div class="num">${waze}</div></div>
+          <div class="card"><div class="label">Store Intent Rate</div><div class="num">${intentRate}%</div></div>
+          <div class="card"><div class="label">Offer Clicks</div><div class="num">${offers}</div></div>
+          <div class="card"><div class="label">Navigation Clicks</div><div class="num">${navClicks}</div></div>
+          <div class="card"><div class="label">Active Placement</div><div class="num">school1</div></div>
+          <div class="card"><div class="label">Model</div><div class="num">Rotating</div></div>
         </div>
 
-        <h2>Advertiser ROI</h2>
-        <table>
-          <tr>
-            <th>Advertiser</th>
-            <th>Scans</th>
-            <th>Est. Customers</th>
-            <th>Campaign Cost</th>
-            <th>Avg Customer Value</th>
-            <th>Est. Revenue</th>
-            <th>CAC</th>
-            <th>ROI</th>
-          </tr>
-          ${campaignRows.map(c => `
-            <tr>
-              <td>${c.name}</td>
-              <td>${c.scanCount}</td>
-              <td>${c.customers}</td>
-              <td>$${c.campaignCost}</td>
-              <td>$${c.avgCustomerValue}</td>
-              <td>$${c.revenue}</td>
-              <td>$${c.cac}</td>
-              <td class="${c.roi >= 0 ? "good" : "bad"}">${c.roi}%</td>
-            </tr>
-          `).join("")}
-        </table>
-
-        <h2>Recent Scan Activity</h2>
+        <h2>Recent Activity</h2>
         <table>
           <tr>
             <th>Time</th>
+            <th>Event</th>
             <th>Placement</th>
-            <th>Routed To</th>
+            <th>Advertiser</th>
+            <th>Campaign</th>
+            <th>Store</th>
           </tr>
-          ${scans.slice(-20).reverse().map(scan => `
+          ${events.slice(-30).reverse().map(e => `
             <tr>
-              <td>${scan.time}</td>
-              <td>${scan.location}</td>
-              <td>${scan.advertiser}</td>
+              <td>${e.time}</td>
+              <td>${e.type}</td>
+              <td>${e.placementName}</td>
+              <td>${e.advertiser}</td>
+              <td>${e.campaign}</td>
+              <td>${e.store}</td>
             </tr>
           `).join("")}
         </table>
@@ -253,42 +197,84 @@ app.get("/dashboard", (req, res) => {
   `);
 });
 
-function pickCampaign(campaigns) {
-  const total = campaigns.reduce((sum, c) => sum + c.weight, 0);
-  let random = Math.random() * total;
+app.get("/admin", (req, res) => {
+  const placement = placements.school1;
 
-  for (const c of campaigns) {
-    if (random < c.weight) return c;
-    random -= c.weight;
-  }
+  res.send(`
+    <h1>Vivid Admin</h1>
+    <p>This is the control center preview.</p>
 
-  return campaigns[0];
+    <h2>${placement.name}</h2>
+
+    <table border="1" cellpadding="10">
+      <tr>
+        <th>Advertiser</th>
+        <th>Weight</th>
+        <th>Campaign</th>
+        <th>Stores</th>
+      </tr>
+      ${placement.advertisers.map(ad => `
+        <tr>
+          <td>${ad.name}</td>
+          <td>${ad.weight}%</td>
+          <td>${ad.campaigns[0].name}</td>
+          <td>${ad.campaigns[0].stores.map(s => `${s.name} (${s.inventory})`).join("<br>")}</td>
+        </tr>
+      `).join("")}
+    </table>
+
+    <p><a href="/dashboard">Back to Dashboard</a></p>
+  `);
+});
+
+function renderChoicePage({ placementId, placement, advertiser, campaign, store }) {
+  const enc = encodeURIComponent;
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${advertiser.name} Offer</title>
+      <style>
+        body { font-family: Arial; background:#f4f7f1; color:#123d25; padding:30px; }
+        .card { max-width:520px; margin:auto; background:white; padding:28px; border-radius:20px; box-shadow:0 8px 24px rgba(0,0,0,.12); }
+        h1 { margin-top:0; }
+        .btn { display:block; background:#2f7d46; color:white; padding:16px; margin:12px 0; text-align:center; text-decoration:none; border-radius:12px; font-weight:bold; }
+        .sub { color:#6b7b70; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <h1>${advertiser.name}</h1>
+        <p class="sub">${campaign.name}</p>
+        <h2>${store.name}</h2>
+        <p>Choose how you want to continue:</p>
+
+        <a class="btn" href="/go/maps/${enc(placementId)}/${enc(advertiser.name)}/${enc(campaign.name)}/${enc(store.name)}">Open in Google Maps</a>
+        <a class="btn" href="/go/waze/${enc(placementId)}/${enc(advertiser.name)}/${enc(campaign.name)}/${enc(store.name)}">Open in Waze</a>
+        <a class="btn" href="/go/offer/${enc(placementId)}/${enc(advertiser.name)}/${enc(campaign.name)}/${enc(store.name)}">View Offer</a>
+
+        <p class="sub">Powered by Vivid Spots</p>
+      </div>
+    </body>
+    </html>
+  `;
 }
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
-});
-app.get("/dashboard", (req, res) => {
-  res.json({
-    spots: [
-      {
-        name: "School Car Line",
-        impressions: 146000,
-        scans: 10000,
-        customers: 104,
-        spend: 800,
-        cac: (800 / 104).toFixed(2),
-        roi: ((104 * 25 - 800) / 800).toFixed(2) // assuming $25 value per customer
-      },
-      {
-        name: "Gym Entrance",
-        impressions: 120000,
-        scans: 8500,
-        customers: 90,
-        spend: 800,
-        cac: (800 / 90).toFixed(2),
-        roi: ((90 * 25 - 800) / 800).toFixed(2)
-      }
-    ]
-  });
+function pickWeighted(items) {
+  const total = items.reduce((sum, item) => sum + item.weight, 0);
+  let random = Math.random() * total;
+
+  for (const item of items) {
+    if (random < item.weight) return item;
+    random -= item.weight;
+  }
+
+  return items[0];
+}
+
+const port = process.env.PORT || 3000;
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
