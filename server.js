@@ -268,3 +268,27 @@ function pickCampaign(campaigns) {
 app.listen(3000, () => {
   console.log("Server running on port 3000");
 });
+app.get("/dashboard", (req, res) => {
+  res.json({
+    spots: [
+      {
+        name: "School Car Line",
+        impressions: 146000,
+        scans: 10000,
+        customers: 104,
+        spend: 800,
+        cac: (800 / 104).toFixed(2),
+        roi: ((104 * 25 - 800) / 800).toFixed(2) // assuming $25 value per customer
+      },
+      {
+        name: "Gym Entrance",
+        impressions: 120000,
+        scans: 8500,
+        customers: 90,
+        spend: 800,
+        cac: (800 / 90).toFixed(2),
+        roi: ((90 * 25 - 800) / 800).toFixed(2)
+      }
+    ]
+  });
+});
