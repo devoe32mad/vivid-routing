@@ -1,10 +1,13 @@
 const express = require("express");
 const app = express();
 
-const PORT = process.env.PORT || 8080;
+const port = process.env.PORT || 8080;
 
 let events = [];
 
+/**
+ * SIMPLE ROTATING ADS
+ */
 const placements = {
   school1: {
     name: "School 1 Car Line",
@@ -28,6 +31,9 @@ const placements = {
   }
 };
 
+/**
+ * HOME
+ */
 app.get("/", (req, res) => {
   res.send(`
     <h1>Vivid Smart Routing 🚀</h1>
@@ -37,111 +43,49 @@ app.get("/", (req, res) => {
   `);
 });
 
+/**
+ * ROUTING → CHOICE PAGE
+ */
 app.get("/r/:placementId", (req, res) => {
-  const placementId = req.params.placementId;
-  const placement = placements[placementId];
+  const placement = placements[req.params.placementId];
 
-  if (!placement) {
-    return res.status(404).send("Placement not found");
-  }
+  if (!placement) return res.send("Placement not found");
 
   const ad = placement.ads[placement.currentIndex];
 
-  placement.currentIndex = (placement.currentIndex + 1) % placement.ads.length;
+  placement.currentIndex =
+    (placement.currentIndex + 1) % placement.ads.length;
 
   events.push({
     type: "scan",
-    placementId,
-    placementName: placement.name,
     advertiser: ad.advertiser,
     campaign: ad.campaign,
     time: new Date().toLocaleString()
   });
 
   res.send(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>${ad.advertiser} | Vivid</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            background: #f4f7f1;
-            color: #123d25;
-            padding: 30px;
-          }
-          .card {
-            max-width: 520px;
-            margin: 40px auto;
-            background: white;
-            padding: 28px;
-            border-radius: 20px;
-            box-shadow: 0 8px 24px rgba(0,0,0,.12);
-          }
-          h1 {
-            margin-top: 0;
-            font-size: 34px;
-          }
-          .sub {
-            color: #63756b;
-            font-size: 16px;
-          }
-          .btn {
-            display: block;
-            background: #2f7d46;
-            color: white;
-            padding: 16px;
-            margin: 12px 0;
-            text-align: center;
-            text-decoration: none;
-            border-radius: 12px;
-            font-weight: bold;
-          }
-          .footer {
-            margin-top: 24px;
-            font-size: 13px;
-            color: #63756b;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <h1>${ad.advertiser}</h1>
-          <p class="sub">${ad.campaign}</p>
-          <p>Choose how you want to continue:</p>
+    <h1>${ad.advertiser}</h1>
+    <p>${ad.campaign}</p>
 
-          <a class="btn" href="/click/offer/${placementId}/${encodeURIComponent(ad.advertiser)}">Get Offer</a>
-          <a class="btn" href="/click/maps/${placementId}/${encodeURIComponent(ad.advertiser)}">Open in Google Maps</a>
-          <a class="btn" href="/click/waze/${placementId}/${encodeURIComponent(ad.advertiser)}">Open in Waze</a>
-
-          <p class="footer">Powered by Vivid Spots — Physical Placements. Digital Intelligence.</p>
-        </div>
-      </body>
-    </html>
+    <a href="/click/offer/${ad.advertiser}">Get Offer</a><br/>
+    <a href="/click/maps/${ad.advertiser}">Google Maps</a><br/>
+    <a href="/click/waze/${ad.advertiser}">Waze</a>
   `);
 });
 
-app.get("/click/:type/:placementId/:advertiser", (req, res) => {
-  const { type, placementId, advertiser } = req.params;
-  const placement = placements[placementId];
+/**
+ * CLICK TRACKING
+ */
+app.get("/click/:type/:advertiser", (req, res) => {
+  const { type, advertiser } = req.params;
 
-  if (!placement) {
-    return res.status(404).send("Placement not found");
-  }
+  const ad = placements.school1.ads.find(a => a.advertiser === advertiser);
 
-  const decodedAdvertiser = decodeURIComponent(advertiser);
-  const ad = placement.ads.find((item) => item.advertiser === decodedAdvertiser);
-
-  if (!ad) {
-    return res.status(404).send("Advertiser not found");
-  }
+  if (!ad) return res.send("Ad not found");
 
   events.push({
     type,
-    placementId,
-    placementName: placement.name,
-    advertiser: ad.advertiser,
-    campaign: ad.campaign,
+    advertiser,
     time: new Date().toLocaleString()
   });
 
@@ -149,231 +93,79 @@ app.get("/click/:type/:placementId/:advertiser", (req, res) => {
   if (type === "maps") return res.redirect(ad.mapsUrl);
   if (type === "waze") return res.redirect(ad.wazeUrl);
 
-  return res.redirect("/");
+  res.redirect("/");
 });
 
+/**
+ * DASHBOARD (MONEY METRICS)
+ */
 app.get("/dashboard", (req, res) => {
-  const scans = events.filter((e) => e.type === "scan").length;
-  const offers = events.filter((e) => e.type === "offer").length;
-  const maps = events.filter((e) => e.type === "maps").length;
-  const waze = events.filter((e) => e.type === "waze").length;
+  const placementCost = 800;
+
+  const scans = events.filter(e => e.type === "scan").length;
+  const offers = events.filter(e => e.type === "offer").length;
+  const maps = events.filter(e => e.type === "maps").length;
+  const waze = events.filter(e => e.type === "waze").length;
+
   const intentClicks = offers + maps + waze;
-  const intentRate = scans ? Math.round((intentClicks / scans) * 100) : 0;
+  const intentRate = scans ? ((intentClicks / scans) * 100).toFixed(1) : 0;
+
+  const conversionRate = 0.1;
+  const avgCustomerValue = 50;
+
+  const customers = Math.round(intentClicks * conversionRate);
+  const revenue = customers * avgCustomerValue;
+
+  const cac = customers ? (placementCost / customers).toFixed(2) : 0;
+  const costPerScan = scans ? (placementCost / scans).toFixed(2) : 0;
+  const roi = ((revenue - placementCost) / placementCost * 100).toFixed(1);
 
   res.send(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Vivid Dashboard</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            background: #f4f7f1;
-            color: #123d25;
-          }
-          .header {
-            background: #123d25;
-            color: white;
-            padding: 28px 40px;
-          }
-          .wrap {
-            padding: 30px 40px;
-          }
-          .cards {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            margin-bottom: 30px;
-          }
-          .card {
-            background: white;
-            border-radius: 16px;
-            padding: 22px;
-            box-shadow: 0 8px 20px rgba(0,0,0,.08);
-          }
-          .label {
-            color: #6b7b70;
-            font-size: 13px;
-          }
-          .num {
-            font-size: 32px;
-            font-weight: bold;
-            margin-top: 8px;
-          }
-          table {
-            width: 100%;
-            background: white;
-            border-collapse: collapse;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 8px 20px rgba(0,0,0,.08);
-          }
-          th, td {
-            padding: 14px;
-            border-bottom: 1px solid #e6eee6;
-            text-align: left;
-          }
-          th {
-            background: #eaf3e8;
-          }
-          .btn {
-            background: #2f7d46;
-            color: white;
-            padding: 10px 14px;
-            border-radius: 10px;
-            text-decoration: none;
-            font-weight: bold;
-            margin-right: 8px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Vivid Traffic Routing Dashboard</h1>
-          <p>Scans → Store Intent → Offers → ROI</p>
-        </div>
+    <h1>📊 Vivid ROI Dashboard</h1>
 
-        <div class="wrap">
-          <p>
-            <a class="btn" href="/r/school1">Test QR</a>
-            <a class="btn" href="/admin">Admin</a>
-          </p>
+    <h2>Top Metrics</h2>
+    <p>Impressions: 146,000 (modeled)</p>
+    <p>Scans: ${scans}</p>
+    <p>Intent Clicks: ${intentClicks}</p>
+    <p>Intent Rate: ${intentRate}%</p>
 
-          <div class="cards">
-            <div class="card"><div class="label">Total Scans</div><div class="num">${scans}</div></div>
-            <div class="card"><div class="label">Offer Clicks</div><div class="num">${offers}</div></div>
-            <div class="card"><div class="label">Google Maps Clicks</div><div class="num">${maps}</div></div>
-            <div class="card"><div class="label">Waze Clicks</div><div class="num">${waze}</div></div>
-            <div class="card"><div class="label">Intent Clicks</div><div class="num">${intentClicks}</div></div>
-            <div class="card"><div class="label">Intent Rate</div><div class="num">${intentRate}%</div></div>
-            <div class="card"><div class="label">Active Placement</div><div class="num">school1</div></div>
-            <div class="card"><div class="label">Model</div><div class="num">Rotating</div></div>
-          </div>
+    <h2>Revenue Model</h2>
+    <p>Customers: ${customers}</p>
+    <p>Revenue: $${revenue}</p>
 
-          <h2>Recent Activity</h2>
-          <table>
-            <tr>
-              <th>Time</th>
-              <th>Event</th>
-              <th>Placement</th>
-              <th>Advertiser</th>
-              <th>Campaign</th>
-            </tr>
-            ${events.slice(-30).reverse().map((e) => `
-              <tr>
-                <td>${e.time}</td>
-                <td>${e.type}</td>
-                <td>${e.placementName}</td>
-                <td>${e.advertiser}</td>
-                <td>${e.campaign}</td>
-              </tr>
-            `).join("")}
-          </table>
-        </div>
-      </body>
-    </html>
+    <h2>Efficiency</h2>
+    <p>Placement Cost: $${placementCost}</p>
+    <p>Cost per Scan: $${costPerScan}</p>
+    <p>CAC: $${cac}</p>
+    <p>ROI: ${roi}%</p>
+
+    <hr/>
+
+    <h3>Breakdown</h3>
+    <p>Offer Clicks: ${offers}</p>
+    <p>Maps Clicks: ${maps}</p>
+    <p>Waze Clicks: ${waze}</p>
   `);
 });
 
+/**
+ * ADMIN
+ */
 app.get("/admin", (req, res) => {
-  const placement = placements.school1;
-
   res.send(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Vivid Admin</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            background: #f4f7f1;
-            color: #123d25;
-          }
-          .header {
-            background: #123d25;
-            color: white;
-            padding: 28px 40px;
-          }
-          .wrap {
-            padding: 30px 40px;
-          }
-          table {
-            width: 100%;
-            background: white;
-            border-collapse: collapse;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 8px 20px rgba(0,0,0,.08);
-          }
-          th, td {
-            padding: 14px;
-            border-bottom: 1px solid #e6eee6;
-            text-align: left;
-          }
-          th {
-            background: #eaf3e8;
-          }
-          .btn {
-            background: #2f7d46;
-            color: white;
-            padding: 10px 14px;
-            border-radius: 10px;
-            text-decoration: none;
-            font-weight: bold;
-            margin-right: 8px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Vivid Admin</h1>
-          <p>Campaign routing control preview</p>
-        </div>
-
-        <div class="wrap">
-          <p>
-            <a class="btn" href="/">Home</a>
-            <a class="btn" href="/dashboard">Dashboard</a>
-            <a class="btn" href="/r/school1">Test QR</a>
-          </p>
-
-          <h2>${placement.name}</h2>
-
-          <table>
-            <tr>
-              <th>Advertiser</th>
-              <th>Campaign</th>
-              <th>Offer URL</th>
-              <th>Maps URL</th>
-              <th>Waze URL</th>
-            </tr>
-            ${placement.ads.map((ad) => `
-              <tr>
-                <td>${ad.advertiser}</td>
-                <td>${ad.campaign}</td>
-                <td>${ad.offerUrl}</td>
-                <td>${ad.mapsUrl}</td>
-                <td>${ad.wazeUrl}</td>
-              </tr>
-            `).join("")}
-          </table>
-
-          <h2>Next Admin Features</h2>
-          <ul>
-            <li>Change advertiser rotation percentages</li>
-            <li>Turn advertisers on/off</li>
-            <li>Edit offer links</li>
-            <li>Edit Google Maps / Waze destination links</li>
-            <li>Add multiple placements and stores</li>
-          </ul>
-        </div>
-      </body>
-    </html>
+    <h1>Admin Panel</h1>
+    <p>Advertisers:</p>
+    <ul>
+      <li>Dunkin</li>
+      <li>Chick-fil-A</li>
+    </ul>
+    <a href="/dashboard">View Dashboard</a>
   `);
 });
 
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+/**
+ * START SERVER (CRITICAL)
+ */
+app.listen(port, () => {
+  console.log("Server running on port " + port);
 });
