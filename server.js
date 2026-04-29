@@ -11,12 +11,15 @@ const placements = {
     host: "Demo School",
     annualImpressions: 146000,
     placementCost: 800,
-    currentIndex: 0,
+    dealOfDayRevenue: 50,
     ads: [
       {
         advertiser: "Dunkin",
         campaign: "Morning Coffee Offer",
         deal: "Start your day with a local coffee stop.",
+        featured: true,
+        featuredWeight: 80,
+        standardWeight: 20,
         offerUrl: "https://www.dunkindonuts.com",
         mapsUrl: "https://www.google.com/maps/search/?api=1&query=Dunkin+Naples+FL",
         wazeUrl: "https://waze.com/ul?q=Dunkin%20Naples%20FL&navigate=yes",
@@ -27,6 +30,9 @@ const placements = {
         advertiser: "Chick-fil-A",
         campaign: "Lunch Family Meal",
         deal: "Quick lunch option for busy families.",
+        featured: false,
+        featuredWeight: 80,
+        standardWeight: 20,
         offerUrl: "https://www.chick-fil-a.com",
         mapsUrl: "https://www.google.com/maps/search/?api=1&query=Chick-fil-A+Naples+FL",
         wazeUrl: "https://waze.com/ul?q=Chick-fil-A%20Naples%20FL&navigate=yes",
@@ -36,6 +42,23 @@ const placements = {
     ]
   }
 };
+
+function pickWeightedAd(ads) {
+  const totalWeight = ads.reduce((sum, ad) => {
+    return sum + (ad.featured ? ad.featuredWeight : ad.standardWeight);
+  }, 0);
+
+  let random = Math.random() * totalWeight;
+
+  for (const ad of ads) {
+    const weight = ad.featured ? ad.featuredWeight : ad.standardWeight;
+
+    if (random < weight) return ad;
+    random -= weight;
+  }
+
+  return ads[0];
+}
 
 function pageShell(title, content) {
   return `
@@ -170,6 +193,17 @@ function pageShell(title, content) {
           color: #123d25;
           font-size: 13px;
           font-weight: bold;
+          margin-bottom: 10px;
+        }
+        .deal-pill {
+          display: inline-block;
+          background: #fff4d6;
+          padding: 8px 12px;
+          border-radius: 999px;
+          color: #7a4b00;
+          font-size: 13px;
+          font-weight: bold;
+          margin-bottom: 10px;
         }
         .footer {
           color: #65776b;
@@ -192,6 +226,7 @@ function pageShell(title, content) {
 
 function getStats(placement) {
   const scans = events.filter(e => e.type === "scan").length;
+  const featuredScans = events.filter(e => e.type === "scan" && e.featured).length;
   const offers = events.filter(e => e.type === "offer").length;
   const maps = events.filter(e => e.type === "maps").length;
   const waze = events.filter(e => e.type === "waze").length;
@@ -209,8 +244,13 @@ function getStats(placement) {
   const roi = (((revenue - placement.placementCost) / placement.placementCost) * 100).toFixed(1);
   const cpm = ((placement.placementCost / placement.annualImpressions) * 1000).toFixed(2);
 
+  const adminRevenue = placement.placementCost + placement.dealOfDayRevenue;
+  const hostPayout = 300;
+  const vividNet = adminRevenue - hostPayout;
+
   return {
     scans,
+    featuredScans,
     offers,
     maps,
     waze,
@@ -222,7 +262,10 @@ function getStats(placement) {
     costPerScan,
     costPerIntent,
     roi,
-    cpm
+    cpm,
+    adminRevenue,
+    hostPayout,
+    vividNet
   };
 }
 
@@ -236,7 +279,7 @@ app.get("/", (req, res) => {
 
     <div class="wrap">
       <div class="note">
-        Scan traffic can rotate between advertisers, route users to offers or stores, and track real-world intent.
+        Scan traffic rotates between advertisers, prioritizes the Deal of the Day, routes users to offers or stores, and tracks real-world intent.
       </div>
 
       <a class="btn" href="/r/school1">Test QR Experience</a>
@@ -253,14 +296,14 @@ app.get("/r/:placementId", (req, res) => {
 
   if (!placement) return res.status(404).send("Placement not found");
 
-  const ad = placement.ads[placement.currentIndex];
-  placement.currentIndex = (placement.currentIndex + 1) % placement.ads.length;
+  const ad = pickWeightedAd(placement.ads);
 
   events.push({
     type: "scan",
     placement: placement.name,
     advertiser: ad.advertiser,
     campaign: ad.campaign,
+    featured: ad.featured,
     time: new Date().toLocaleString()
   });
 
@@ -273,9 +316,9 @@ app.get("/r/:placementId", (req, res) => {
 
     <div class="wrap">
       <div class="choice-card">
-        <span class="pill">Featured Local Offer</span>
+        ${ad.featured ? `<span class="deal-pill">🔥 Deal of the Day</span>` : `<span class="pill">Featured Local Offer</span>`}
         <h1>${ad.advertiser}</h1>
-        <p class="subtitle" style="color:#65776b;">${ad.deal}</p>
+        <p style="color:#65776b;">${ad.deal}</p>
 
         <a class="choice-btn" href="/click/offer/${encodeURIComponent(ad.advertiser)}">View Offer</a>
         <a class="choice-btn dark" href="/click/maps/${encodeURIComponent(ad.advertiser)}">Open in Google Maps</a>
@@ -301,6 +344,7 @@ app.get("/click/:type/:advertiser", (req, res) => {
     placement: placements.school1.name,
     advertiser: ad.advertiser,
     campaign: ad.campaign,
+    featured: ad.featured,
     time: new Date().toLocaleString()
   });
 
@@ -326,8 +370,9 @@ app.get("/dashboard", (req, res) => {
 
     return `
       <tr>
-        <td>${ad.advertiser}</td>
+        <td>${ad.featured ? "🔥 " : ""}${ad.advertiser}</td>
         <td>${ad.campaign}</td>
+        <td>${ad.featured ? "Deal of the Day" : "Standard"}</td>
         <td>${scans}</td>
         <td>${clicks}</td>
         <td>${intentRate}%</td>
@@ -352,12 +397,13 @@ app.get("/dashboard", (req, res) => {
       <div class="note">
         <strong>Placement:</strong> ${placement.name}<br/>
         <strong>Host:</strong> ${placement.host}<br/>
-        <strong>Model:</strong> Rotating ad placement with offer, Google Maps, and Waze intent tracking.
+        <strong>Model:</strong> Rotating ad placement with Deal of the Day priority and store-intent tracking.
       </div>
 
       <div class="cards">
         <div class="card"><div class="label">Annual Impressions</div><div class="num">${placement.annualImpressions.toLocaleString()}</div></div>
         <div class="card"><div class="label">Total Scans</div><div class="num">${stats.scans}</div></div>
+        <div class="card"><div class="label">Featured Scans</div><div class="num">${stats.featuredScans}</div></div>
         <div class="card"><div class="label">Intent Clicks</div><div class="num">${stats.intentClicks}</div></div>
         <div class="card"><div class="label">Intent Rate</div><div class="num">${stats.intentRate}%</div></div>
         <div class="card"><div class="label">Estimated Customers</div><div class="num">${stats.customers}</div></div>
@@ -366,7 +412,6 @@ app.get("/dashboard", (req, res) => {
         <div class="card"><div class="label">ROI</div><div class="num ${stats.roi >= 0 ? "good" : "bad"}">${stats.roi}%</div></div>
         <div class="card"><div class="label">Placement Cost</div><div class="num">$${placement.placementCost}</div></div>
         <div class="card"><div class="label">CPM</div><div class="num">$${stats.cpm}</div></div>
-        <div class="card"><div class="label">Cost Per Scan</div><div class="num">$${stats.costPerScan}</div></div>
         <div class="card"><div class="label">Cost Per Intent</div><div class="num">$${stats.costPerIntent}</div></div>
       </div>
 
@@ -375,6 +420,7 @@ app.get("/dashboard", (req, res) => {
         <tr>
           <th>Advertiser</th>
           <th>Campaign</th>
+          <th>Placement Type</th>
           <th>Scans</th>
           <th>Intent Clicks</th>
           <th>Intent Rate</th>
@@ -392,6 +438,7 @@ app.get("/dashboard", (req, res) => {
           <th>Event</th>
           <th>Advertiser</th>
           <th>Campaign</th>
+          <th>Featured</th>
         </tr>
         ${events.slice(-20).reverse().map(e => `
           <tr>
@@ -399,6 +446,7 @@ app.get("/dashboard", (req, res) => {
             <td>${e.type}</td>
             <td>${e.advertiser}</td>
             <td>${e.campaign}</td>
+            <td>${e.featured ? "Yes" : "No"}</td>
           </tr>
         `).join("")}
       </table>
@@ -410,11 +458,14 @@ app.get("/dashboard", (req, res) => {
 
 app.get("/admin", (req, res) => {
   const placement = placements.school1;
+  const stats = getStats(placement);
 
   const rows = placement.ads.map(ad => `
     <tr>
-      <td>${ad.advertiser}</td>
+      <td>${ad.featured ? "🔥 " : ""}${ad.advertiser}</td>
       <td>${ad.campaign}</td>
+      <td>${ad.featured ? "Deal of the Day" : "Standard"}</td>
+      <td>${ad.featured ? ad.featuredWeight : ad.standardWeight}</td>
       <td>$${ad.campaignCost}</td>
       <td>$${ad.avgCustomerValue}</td>
       <td>${ad.offerUrl}</td>
@@ -433,14 +484,20 @@ app.get("/admin", (req, res) => {
       <a class="btn secondary" href="/r/school1">Test QR</a>
 
       <div class="note">
-        <strong>Coming next:</strong> change campaigns anytime, preserve historical campaign metrics, create “Deal of the Day,” and show admin-only revenue breakdown from QR placements.
+        <strong>Admin-only revenue view:</strong><br/>
+        Advertiser/placement revenue: $${placement.placementCost}<br/>
+        Deal of the Day revenue: $${placement.dealOfDayRevenue}<br/>
+        Host payout: $${stats.hostPayout}<br/>
+        <strong>Vivid net revenue: $${stats.vividNet}</strong>
       </div>
 
-      <h2>Active Placement</h2>
+      <h2>Active Campaigns</h2>
       <table>
         <tr>
           <th>Advertiser</th>
           <th>Campaign</th>
+          <th>Type</th>
+          <th>Routing Weight</th>
           <th>Campaign Cost</th>
           <th>Avg Customer Value</th>
           <th>Offer URL</th>
@@ -454,7 +511,8 @@ app.get("/admin", (req, res) => {
         <tr><td>Change Campaign Anytime</td><td>Swap offers without changing the QR code.</td></tr>
         <tr><td>Campaign History</td><td>Preserve performance by campaign, advertiser, and date range.</td></tr>
         <tr><td>Deal of the Day</td><td>Monetize priority placement for the best daily offer.</td></tr>
-        <tr><td>Admin Revenue View</td><td>Show Vivid revenue, host payout, margin, and advertiser spend.</td></tr>
+        <tr><td>Admin Login</td><td>Separate Vivid, host, and advertiser dashboards.</td></tr>
+        <tr><td>Database</td><td>Save historical scans and campaign metrics permanently.</td></tr>
       </table>
     </div>
   `;
