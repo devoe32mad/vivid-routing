@@ -1,7 +1,10 @@
 const express = require("express");
 
 const app = express();
+const port = process.env.PORT || 3000;
+
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 let events = [];
 
@@ -24,19 +27,23 @@ const placements = {
                 name: "Dunkin - Pine Ridge",
                 weight: 70,
                 inventory: "high",
-                mapsUrl: "https://www.google.com/maps/search/?api=1&query=Dunkin+Pine+Ridge+Naples+FL",
-                wazeUrl: "https://waze.com/ul?q=Dunkin%20Pine%20Ridge%20Naples%20FL&navigate=yes"
+                mapsUrl:
+                  "https://www.google.com/maps/search/?api=1&query=Dunkin+Pine+Ridge+Naples+FL",
+                wazeUrl:
+                  "https://waze.com/ul?q=Dunkin%20Pine%20Ridge%20Naples%20FL&navigate=yes",
               },
               {
                 name: "Dunkin - Immokalee",
                 weight: 30,
                 inventory: "normal",
-                mapsUrl: "https://www.google.com/maps/search/?api=1&query=Dunkin+Immokalee+Naples+FL",
-                wazeUrl: "https://waze.com/ul?q=Dunkin%20Immokalee%20Naples%20FL&navigate=yes"
-              }
-            ]
-          }
-        ]
+                mapsUrl:
+                  "https://www.google.com/maps/search/?api=1&query=Dunkin+Immokalee+Naples+FL",
+                wazeUrl:
+                  "https://waze.com/ul?q=Dunkin%20Immokalee%20Naples%20FL&navigate=yes",
+              },
+            ],
+          },
+        ],
       },
       {
         name: "Chick-fil-A",
@@ -52,15 +59,17 @@ const placements = {
                 name: "Chick-fil-A - Naples",
                 weight: 100,
                 inventory: "normal",
-                mapsUrl: "https://www.google.com/maps/search/?api=1&query=Chick-fil-A+Naples+FL",
-                wazeUrl: "https://waze.com/ul?q=Chick-fil-A%20Naples%20FL&navigate=yes"
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  }
+                mapsUrl:
+                  "https://www.google.com/maps/search/?api=1&query=Chick-fil-A+Naples+FL",
+                wazeUrl:
+                  "https://waze.com/ul?q=Chick-fil-A%20Naples%20FL&navigate=yes",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 };
 
 app.get("/", (req, res) => {
@@ -76,7 +85,9 @@ app.get("/r/:placementId", (req, res) => {
   const placementId = req.params.placementId;
   const placement = placements[placementId];
 
-  if (!placement) return res.send("Placement not found");
+  if (!placement) {
+    return res.status(404).send("Placement not found");
+  }
 
   const advertiser = pickWeighted(placement.advertisers);
   const campaign = advertiser.campaigns[0];
@@ -89,42 +100,54 @@ app.get("/r/:placementId", (req, res) => {
     advertiser: advertiser.name,
     campaign: campaign.name,
     store: store.name,
-    time: new Date().toLocaleString()
+    time: new Date().toLocaleString(),
   });
 
   res.send(renderChoicePage({ placementId, placement, advertiser, campaign, store }));
 });
 
 app.get("/go/:type/:placementId/:advertiser/:campaign/:store", (req, res) => {
-  const { type, placementId, advertiser, campaign, store } = req.params;
+  try {
+    const { type, placementId, advertiser, campaign, store } = req.params;
 
-  const placement = placements[placementId];
-  const ad = placement.advertisers.find(a => a.name === advertiser);
-  const camp = ad.campaigns.find(c => c.name === campaign);
-  const selectedStore = camp.stores.find(s => s.name === store);
+    const placement = placements[placementId];
+    if (!placement) return res.status(404).send("Placement not found");
 
-  events.push({
-    type,
-    placementId,
-    placementName: placement.name,
-    advertiser,
-    campaign,
-    store,
-    time: new Date().toLocaleString()
-  });
+    const ad = placement.advertisers.find((a) => a.name === advertiser);
+    if (!ad) return res.status(404).send("Advertiser not found");
 
-  if (type === "maps") return res.redirect(selectedStore.mapsUrl);
-  if (type === "waze") return res.redirect(selectedStore.wazeUrl);
-  if (type === "offer") return res.redirect(camp.offerUrl);
+    const camp = ad.campaigns.find((c) => c.name === campaign);
+    if (!camp) return res.status(404).send("Campaign not found");
 
-  res.redirect("/");
+    const selectedStore = camp.stores.find((s) => s.name === store);
+    if (!selectedStore) return res.status(404).send("Store not found");
+
+    events.push({
+      type,
+      placementId,
+      placementName: placement.name,
+      advertiser,
+      campaign,
+      store,
+      time: new Date().toLocaleString(),
+    });
+
+    if (type === "maps") return res.redirect(selectedStore.mapsUrl);
+    if (type === "waze") return res.redirect(selectedStore.wazeUrl);
+    if (type === "offer") return res.redirect(camp.offerUrl);
+
+    res.redirect("/");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Routing error");
+  }
 });
 
 app.get("/dashboard", (req, res) => {
-  const scans = events.filter(e => e.type === "scan").length;
-  const maps = events.filter(e => e.type === "maps").length;
-  const waze = events.filter(e => e.type === "waze").length;
-  const offers = events.filter(e => e.type === "offer").length;
+  const scans = events.filter((e) => e.type === "scan").length;
+  const maps = events.filter((e) => e.type === "maps").length;
+  const waze = events.filter((e) => e.type === "waze").length;
+  const offers = events.filter((e) => e.type === "offer").length;
   const navClicks = maps + waze;
   const intentRate = scans ? Math.round((navClicks / scans) * 100) : 0;
 
@@ -180,7 +203,11 @@ app.get("/dashboard", (req, res) => {
             <th>Campaign</th>
             <th>Store</th>
           </tr>
-          ${events.slice(-30).reverse().map(e => `
+          ${events
+            .slice(-30)
+            .reverse()
+            .map(
+              (e) => `
             <tr>
               <td>${e.time}</td>
               <td>${e.type}</td>
@@ -189,7 +216,9 @@ app.get("/dashboard", (req, res) => {
               <td>${e.campaign}</td>
               <td>${e.store}</td>
             </tr>
-          `).join("")}
+          `
+            )
+            .join("")}
         </table>
       </div>
     </body>
@@ -201,33 +230,77 @@ app.get("/admin", (req, res) => {
   const placement = placements.school1;
 
   res.send(`
-    <h1>Vivid Admin</h1>
-    <p>This is the control center preview.</p>
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Vivid Admin</title>
+      <style>
+        body { font-family: Arial; margin:0; background:#f4f7f1; color:#123d25; }
+        .header { background:#123d25; color:white; padding:28px 40px; }
+        .wrap { padding:30px 40px; }
+        table { width:100%; background:white; border-collapse:collapse; border-radius:16px; overflow:hidden; box-shadow:0 8px 20px rgba(0,0,0,.08); }
+        th, td { padding:14px; border-bottom:1px solid #e6eee6; text-align:left; }
+        th { background:#eaf3e8; }
+        .btn { background:#2f7d46; color:white; padding:10px 14px; border-radius:10px; text-decoration:none; font-weight:bold; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>Vivid Admin</h1>
+        <p>Campaign routing control preview</p>
+      </div>
 
-    <h2>${placement.name}</h2>
+      <div class="wrap">
+        <p>
+          <a class="btn" href="/">Home</a>
+          <a class="btn" href="/dashboard">Dashboard</a>
+          <a class="btn" href="/r/school1">Test QR</a>
+        </p>
 
-    <table border="1" cellpadding="10">
-      <tr>
-        <th>Advertiser</th>
-        <th>Weight</th>
-        <th>Campaign</th>
-        <th>Stores</th>
-      </tr>
-      ${placement.advertisers.map(ad => `
-        <tr>
-          <td>${ad.name}</td>
-          <td>${ad.weight}%</td>
-          <td>${ad.campaigns[0].name}</td>
-          <td>${ad.campaigns[0].stores.map(s => `${s.name} (${s.inventory})`).join("<br>")}</td>
-        </tr>
-      `).join("")}
-    </table>
+        <h2>${placement.name}</h2>
 
-    <p><a href="/dashboard">Back to Dashboard</a></p>
+        <table>
+          <tr>
+            <th>Advertiser</th>
+            <th>Rotation Weight</th>
+            <th>Campaign</th>
+            <th>Campaign Cost</th>
+            <th>Avg Customer Value</th>
+            <th>Stores</th>
+          </tr>
+          ${placement.advertisers
+            .map(
+              (ad) => `
+            <tr>
+              <td>${ad.name}</td>
+              <td>${ad.weight}%</td>
+              <td>${ad.campaigns[0].name}</td>
+              <td>$${ad.campaignCost}</td>
+              <td>$${ad.avgCustomerValue}</td>
+              <td>${ad.campaigns[0].stores
+                .map((s) => `${s.name} — ${s.inventory} inventory`)
+                .join("<br>")}</td>
+            </tr>
+          `
+            )
+            .join("")}
+        </table>
+
+        <h2>Next Admin Features</h2>
+        <ul>
+          <li>Turn advertisers on/off</li>
+          <li>Change rotation weights</li>
+          <li>Update campaign destination URLs</li>
+          <li>Route traffic to specific stores</li>
+          <li>Adjust inventory priority</li>
+        </ul>
+      </div>
+    </body>
+    </html>
   `);
 });
 
-function renderChoicePage({ placementId, placement, advertiser, campaign, store }) {
+function renderChoicePage({ placementId, advertiser, campaign, store }) {
   const enc = encodeURIComponent;
 
   return `
@@ -272,24 +345,6 @@ function pickWeighted(items) {
 
   return items[0];
 }
-
-const port = process.env.PORT || 3000;
-app.get('/admin', (req, res) => {
-  res.send(`
-    <h1>Vivid Admin</h1>
-
-    <h2>Active Campaigns</h2>
-    <ul>
-      <li>Dunkin – Active</li>
-      <li>Chick-fil-A – Active</li>
-    </ul>
-
-    <h2>Controls (Phase 1)</h2>
-    <p>Coming next: toggle campaigns, weights, and locations</p>
-
-    <a href="/">Back Home</a>
-  `);
-});
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
