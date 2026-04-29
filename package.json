@@ -4,11 +4,10 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-      "start": "node server.js"
-}
+    "start": "node server.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Mike DeVoe",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
