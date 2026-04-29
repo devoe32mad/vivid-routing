@@ -274,6 +274,22 @@ function pickWeighted(items) {
 }
 
 const port = process.env.PORT || 3000;
+app.get('/admin', (req, res) => {
+  res.send(`
+    <h1>Vivid Admin</h1>
+
+    <h2>Active Campaigns</h2>
+    <ul>
+      <li>Dunkin – Active</li>
+      <li>Chick-fil-A – Active</li>
+    </ul>
+
+    <h2>Controls (Phase 1)</h2>
+    <p>Coming next: toggle campaigns, weights, and locations</p>
+
+    <a href="/">Back Home</a>
+  `);
+});
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
