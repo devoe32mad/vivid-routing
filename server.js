@@ -50,7 +50,11 @@ const placements = {
 };
 
 function pickWeightedAd(ads) {
-  const totalWeight = ads.reduce((sum, ad) => sum + (ad.featured ? ad.featuredWeight : ad.standardWeight), 0);
+  const totalWeight = ads.reduce(
+    (sum, ad) => sum + (ad.featured ? ad.featuredWeight : ad.standardWeight),
+    0
+  );
+
   let random = Math.random() * totalWeight;
 
   for (const ad of ads) {
@@ -63,30 +67,39 @@ function pickWeightedAd(ads) {
 }
 
 async function saveEvent(event) {
-  await pool.query(
-    `INSERT INTO events
-    (placement_id, placement_name, advertiser, campaign, type, featured)
-    VALUES ($1, $2, $3, $4, $5, $6)`,
-    [
-      event.placementId,
-      event.placementName,
-      event.advertiser,
-      event.campaign,
-      event.type,
-      event.featured
-    ]
-  );
+  try {
+    await pool.query(
+      `INSERT INTO events
+        (placement_id, placement_name, advertiser, campaign, type, featured)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        event.placementId,
+        event.placementName,
+        event.advertiser,
+        event.campaign,
+        event.type,
+        event.featured
+      ]
+    );
+  } catch (err) {
+    console.error("DB save failed:", err.message);
+  }
 }
 
 async function getEvents() {
-  const result = await pool.query(`
-    SELECT placement_id, placement_name, advertiser, campaign, type, featured, created_at
-    FROM events
-    ORDER BY created_at DESC
-    LIMIT 500
-  `);
+  try {
+    const result = await pool.query(`
+      SELECT placement_id, placement_name, advertiser, campaign, type, featured, created_at
+      FROM events
+      ORDER BY created_at DESC
+      LIMIT 500
+    `);
 
-  return result.rows;
+    return result.rows;
+  } catch (err) {
+    console.error("DB read failed:", err.message);
+    return [];
+  }
 }
 
 function page(title, body) {
@@ -101,6 +114,7 @@ function page(title, body) {
       .topbar { background:linear-gradient(135deg,#123d25,#2f7d46); color:white; padding:30px 40px; }
       .brand { font-size:14px; letter-spacing:2px; text-transform:uppercase; color:#d7eadb; font-weight:bold; }
       h1 { margin:8px 0 6px; font-size:34px; }
+      h2 { margin-top:34px; }
       .subtitle { color:#d7eadb; margin:0; }
       .wrap { padding:30px 40px; max-width:1180px; margin:0 auto; }
       .btn { display:inline-block; background:#2f7d46; color:white; padding:12px 16px; border-radius:12px; text-decoration:none; font-weight:bold; margin:5px 8px 5px 0; }
@@ -133,6 +147,7 @@ function calcStats(placement, events) {
   const maps = events.filter(e => e.type === "maps").length;
   const waze = events.filter(e => e.type === "waze").length;
   const featuredScans = events.filter(e => e.type === "scan" && e.featured).length;
+
   const intentClicks = offers + maps + waze;
   const intentRate = scans ? ((intentClicks / scans) * 100).toFixed(1) : "0.0";
   const customers = Math.round(intentClicks * 0.1);
