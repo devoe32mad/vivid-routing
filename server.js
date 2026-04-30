@@ -1,6 +1,11 @@
 const express = require("express");
 const app = express();
+const { Pool } = require("pg");
 
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 const port = process.env.PORT || 8080;
 
 let events = [];
@@ -519,7 +524,14 @@ app.get("/admin", (req, res) => {
 
   res.send(pageShell("Vivid Admin", content));
 });
-
+app.get("/db-test", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
 app.listen(port, () => {
   console.log("Server running on port " + port);
 });
