@@ -609,6 +609,7 @@ app.get("/analytics", async (req, res) => {
 
 app.get("/init-db", async (req, res) => {
   try {
+    // Create table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS events (
         id SERIAL PRIMARY KEY,
@@ -619,10 +620,20 @@ app.get("/init-db", async (req, res) => {
         type TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
 
+    // Add featured column (separate query ✅)
+    await pool.query(`
       ALTER TABLE events
       ADD COLUMN IF NOT EXISTS featured BOOLEAN DEFAULT false;
     `);
+
+    res.send("DB initialized and updated");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error initializing DB: " + err.message);
+  }
+});
 
     res.send("DB initialized and updated");
   } catch (err) {
