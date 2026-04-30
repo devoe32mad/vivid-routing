@@ -337,7 +337,7 @@ app.get('/r/:placementId', async (req, res) => {
   res.send(pageShell(`${ad.advertiser} Offer`, content));
 });
 
-app.get("/click/:type/:advertiser", (req, res) => {
+app.get('/click/:type/:advertiser', async (req, res) => {
   const type = req.params.type;
   const advertiser = decodeURIComponent(req.params.advertiser);
   const ad = placements.school1.ads.find(a => a.advertiser === advertiser);
