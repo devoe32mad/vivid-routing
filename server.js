@@ -617,10 +617,19 @@ app.get("/init-db", async (req, res) => {
         advertiser TEXT,
         campaign TEXT,
         type TEXT,
-        featured BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      ALTER TABLE events
+      ADD COLUMN IF NOT EXISTS featured BOOLEAN DEFAULT false;
     `);
+
+    res.send("DB initialized and updated");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error initializing DB: " + err.message);
+  }
+});
 
     res.send("DB initialized");
   } catch (err) {
