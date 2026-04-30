@@ -274,7 +274,7 @@ function getStats(placement) {
   };
 }
 
-app.get("/", (req, res) => {
+app.get('/r/:placementId', async (req, res) => {
   const content = `
     <div class="topbar">
       <div class="brand">Vivid Spots</div>
@@ -296,7 +296,7 @@ app.get("/", (req, res) => {
   res.send(pageShell("Vivid Smart Routing", content));
 });
 
-app.get("/r/:placementId", (req, res) => {
+app.get('/r/:placementId', async (req, res) => {
   const placement = placements[req.params.placementId];
 
   if (!placement) return res.status(404).send("Placement not found");
