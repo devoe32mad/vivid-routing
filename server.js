@@ -628,21 +628,26 @@ app.get("/init-db", async (req, res) => {
       ADD COLUMN IF NOT EXISTS featured BOOLEAN DEFAULT false;
     `);
 
-    res.send("DB initialized and updated");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error initializing DB: " + err.message);
-  }
-});
+app.get("/init-db", async (req, res) => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS events (
+        id SERIAL PRIMARY KEY,
+        placement_id TEXT,
+        placement_name TEXT,
+        advertiser TEXT,
+        campaign TEXT,
+        type TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      ALTER TABLE events
+      ADD COLUMN IF NOT EXISTS featured BOOLEAN DEFAULT false;
+    `);
 
     res.send("DB initialized and updated");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error initializing DB: " + err.message);
-  }
-});
-
-    res.send("DB initialized");
   } catch (err) {
     console.error(err);
     res.status(500).send("Error initializing DB: " + err.message);
