@@ -376,17 +376,147 @@ app.get("/analytics", async (req, res) => {
 
 app.get("/init-db", async (req, res) => {
   try {
+    // USERS (admin + customers)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE,
+        password TEXT,
+        role TEXT DEFAULT 'customer'
+      );
+    `);
+
+    // CUSTOMERS (companies / advertisers)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // QR CODES (locations / placements)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS qr_codes (
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        description TEXT,
+        annual_impressions INT,
+        placement_cost INT,
+        customer_id INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // CAMPAIGNS (what rotates on QR)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS campaigns (
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        url TEXT,
+        avg_customer_value INT,
+        campaign_cost INT,
+        customer_id INT,
+        start_date TIMESTAMP,
+        end_date TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // QR → CAMPAIGN ASSIGNMENT (this is the magic)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS qr_campaigns (
+        id SERIAL PRIMARY KEY,
+        qr_id INT,
+        campaign_id INT,
+        is_active BOOLEAN DEFAULT true,
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // EVENTS (your tracking engine)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS events (
         id SERIAL PRIMARY KEY,
-        placement_id TEXT,
-        placement_name TEXT,
-        advertiser TEXT,
-        campaign TEXT,
+        qr_id INT,
+        campaign_id INT,
         type TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    res.send("Full Vivid DB initialized");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send(err.message);
+  }
+});
+
+    // CUSTOMERS (companies / advertisers)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // QR CODES (locations / placements)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS qr_codes (
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        description TEXT,
+        annual_impressions INT,
+        placement_cost INT,
+        customer_id INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // CAMPAIGNS (what rotates on QR)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS campaigns (
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        url TEXT,
+        avg_customer_value INT,
+        campaign_cost INT,
+        customer_id INT,
+        start_date TIMESTAMP,
+        end_date TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // QR → CAMPAIGN ASSIGNMENT (this is the magic)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS qr_campaigns (
+        id SERIAL PRIMARY KEY,
+        qr_id INT,
+        campaign_id INT,
+        is_active BOOLEAN DEFAULT true,
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // EVENTS (your tracking engine)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS events (
+        id SERIAL PRIMARY KEY,
+        qr_id INT,
+        campaign_id INT,
+        type TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    res.send("Full Vivid DB initialized");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send(err.message);
+  }
+});
 
     await pool.query(`
       ALTER TABLE events
