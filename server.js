@@ -532,6 +532,40 @@ app.get("/db-test", async (req, res) => {
     res.status(500).send(err.message);
   }
 });
+app.get('/init-db', async (req, res) => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS placements (
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        location TEXT,
+        annual_impressions INT,
+        cost INT
+      );
+
+      CREATE TABLE IF NOT EXISTS campaigns (
+        id SERIAL PRIMARY KEY,
+        placement_id INT,
+        advertiser TEXT,
+        offer TEXT,
+        revenue_per_conversion INT
+      );
+
+      CREATE TABLE IF NOT EXISTS events (
+        id SERIAL PRIMARY KEY,
+        placement_id INT,
+        campaign_id INT,
+        type TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    res.send("DB initialized");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error initializing DB");
+  }
+});
 app.listen(port, () => {
   console.log("Server running on port " + port);
 });
