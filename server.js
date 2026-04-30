@@ -1,12 +1,13 @@
 const express = require("express");
-const app = express();
 const { Pool } = require("pg");
+
+const app = express();
+const port = process.env.PORT || 3000;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
-const port = process.env.PORT || 8080;
 
 let events = [];
 
@@ -14,9 +15,11 @@ const placements = {
   school1: {
     name: "School 1 Car Line",
     host: "Demo School",
+    location: "Naples, FL",
     annualImpressions: 146000,
     placementCost: 800,
     dealOfDayRevenue: 50,
+    hostPayout: 300,
     ads: [
       {
         advertiser: "Dunkin",
@@ -57,12 +60,55 @@ function pickWeightedAd(ads) {
 
   for (const ad of ads) {
     const weight = ad.featured ? ad.featuredWeight : ad.standardWeight;
-
     if (random < weight) return ad;
     random -= weight;
   }
 
   return ads[0];
+}
+
+async function saveEventToDb(event) {
+  try {
+    await pool.query(
+      `INSERT INTO events
+       (placement_id, placement_name, advertiser, campaign, type, featured)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        event.placementId || "school1",
+        event.placement || event.placementName || "School 1 Car Line",
+        event.advertiser || "",
+        event.campaign || "",
+        event.type || "",
+        event.featured || false
+      ]
+    );
+  } catch (err) {
+    console.error("DB save failed:", err.message);
+  }
+}
+
+async function getDbEvents() {
+  try {
+    const result = await pool.query(
+      `SELECT placement_id, placement_name, advertiser, campaign, type, featured, created_at
+       FROM events
+       ORDER BY created_at DESC
+       LIMIT 500`
+    );
+
+    return result.rows.map(row => ({
+      placementId: row.placement_id,
+      placement: row.placement_name,
+      advertiser: row.advertiser,
+      campaign: row.campaign,
+      type: row.type,
+      featured: row.featured,
+      time: new Date(row.created_at).toLocaleString()
+    }));
+  } catch (err) {
+    console.error("DB read failed:", err.message);
+    return events.slice().reverse();
+  }
 }
 
 function pageShell(title, content) {
@@ -80,20 +126,23 @@ function pageShell(title, content) {
           color: #123d25;
         }
         .topbar {
-          background: #123d25;
+          background: linear-gradient(135deg, #123d25, #2f7d46);
           color: white;
-          padding: 28px 40px;
+          padding: 30px 40px;
         }
         .brand {
           font-size: 14px;
           letter-spacing: 2px;
           text-transform: uppercase;
-          color: #bfe2c7;
+          color: #d7eadb;
           font-weight: bold;
         }
         h1 {
           margin: 8px 0 6px;
           font-size: 34px;
+        }
+        h2 {
+          margin-top: 34px;
         }
         .subtitle {
           color: #d7eadb;
@@ -168,11 +217,11 @@ function pageShell(title, content) {
           margin: 20px 0;
         }
         .choice-card {
-          max-width: 540px;
+          max-width: 560px;
           margin: 36px auto;
           background: white;
           border-radius: 24px;
-          padding: 30px;
+          padding: 32px;
           box-shadow: 0 10px 28px rgba(0,0,0,.14);
         }
         .choice-btn {
@@ -229,12 +278,14 @@ function pageShell(title, content) {
   `;
 }
 
-function getStats(placement) {
-  const scans = events.filter(e => e.type === "scan").length;
-  const featuredScans = events.filter(e => e.type === "scan" && e.featured).length;
-  const offers = events.filter(e => e.type === "offer").length;
-  const maps = events.filter(e => e.type === "maps").length;
-  const waze = events.filter(e => e.type === "waze").length;
+function calculateStats(placement, sourceEvents) {
+  const placementEvents = sourceEvents.filter(e => e.placementId === "school1" || e.placement === placement.name);
+
+  const scans = placementEvents.filter(e => e.type === "scan").length;
+  const featuredScans = placementEvents.filter(e => e.type === "scan" && e.featured).length;
+  const offers = placementEvents.filter(e => e.type === "offer").length;
+  const maps = placementEvents.filter(e => e.type === "maps").length;
+  const waze = placementEvents.filter(e => e.type === "waze").length;
 
   const intentClicks = offers + maps + waze;
   const intentRate = scans ? ((intentClicks / scans) * 100).toFixed(1) : "0.0";
@@ -243,6 +294,7 @@ function getStats(placement) {
   const avgCustomerValue = 50;
   const customers = Math.round(intentClicks * conversionRate);
   const revenue = customers * avgCustomerValue;
+
   const cac = customers ? (placement.placementCost / customers).toFixed(2) : "0.00";
   const costPerScan = scans ? (placement.placementCost / scans).toFixed(2) : "0.00";
   const costPerIntent = intentClicks ? (placement.placementCost / intentClicks).toFixed(2) : "0.00";
@@ -250,8 +302,7 @@ function getStats(placement) {
   const cpm = ((placement.placementCost / placement.annualImpressions) * 1000).toFixed(2);
 
   const adminRevenue = placement.placementCost + placement.dealOfDayRevenue;
-  const hostPayout = 300;
-  const vividNet = adminRevenue - hostPayout;
+  const vividNet = adminRevenue - placement.hostPayout;
 
   return {
     scans,
@@ -269,12 +320,12 @@ function getStats(placement) {
     roi,
     cpm,
     adminRevenue,
-    hostPayout,
+    hostPayout: placement.hostPayout,
     vividNet
   };
 }
 
-app.get('/r/:placementId', async (req, res) => {
+app.get("/", (req, res) => {
   const content = `
     <div class="topbar">
       <div class="brand">Vivid Spots</div>
@@ -290,27 +341,33 @@ app.get('/r/:placementId', async (req, res) => {
       <a class="btn" href="/r/school1">Test QR Experience</a>
       <a class="btn secondary" href="/dashboard">View Dashboard</a>
       <a class="btn secondary" href="/admin">Admin Preview</a>
+      <a class="btn secondary" href="/analytics">Analytics JSON</a>
     </div>
   `;
 
   res.send(pageShell("Vivid Smart Routing", content));
 });
 
-app.get('/r/:placementId', async (req, res) => {
-  const placement = placements[req.params.placementId];
+app.get("/r/:placementId", async (req, res) => {
+  const placementId = req.params.placementId;
+  const placement = placements[placementId];
 
   if (!placement) return res.status(404).send("Placement not found");
 
   const ad = pickWeightedAd(placement.ads);
 
-  events.push({
+  const event = {
     type: "scan",
+    placementId,
     placement: placement.name,
     advertiser: ad.advertiser,
     campaign: ad.campaign,
     featured: ad.featured,
     time: new Date().toLocaleString()
-  });
+  };
+
+  events.push(event);
+  await saveEventToDb(event);
 
   const content = `
     <div class="topbar">
@@ -337,21 +394,25 @@ app.get('/r/:placementId', async (req, res) => {
   res.send(pageShell(`${ad.advertiser} Offer`, content));
 });
 
-app.get('/click/:type/:advertiser', async (req, res) => {
+app.get("/click/:type/:advertiser", async (req, res) => {
   const type = req.params.type;
   const advertiser = decodeURIComponent(req.params.advertiser);
   const ad = placements.school1.ads.find(a => a.advertiser === advertiser);
 
   if (!ad) return res.status(404).send("Ad not found");
 
-  events.push({
+  const event = {
     type,
+    placementId: "school1",
     placement: placements.school1.name,
     advertiser: ad.advertiser,
     campaign: ad.campaign,
     featured: ad.featured,
     time: new Date().toLocaleString()
-  });
+  };
+
+  events.push(event);
+  await saveEventToDb(event);
 
   if (type === "offer") return res.redirect(ad.offerUrl);
   if (type === "maps") return res.redirect(ad.mapsUrl);
@@ -360,12 +421,13 @@ app.get('/click/:type/:advertiser', async (req, res) => {
   res.redirect("/");
 });
 
-app.get("/dashboard", (req, res) => {
+app.get("/dashboard", async (req, res) => {
   const placement = placements.school1;
-  const stats = getStats(placement);
+  const dbEvents = await getDbEvents();
+  const stats = calculateStats(placement, dbEvents);
 
   const advertiserRows = placement.ads.map(ad => {
-    const adEvents = events.filter(e => e.advertiser === ad.advertiser);
+    const adEvents = dbEvents.filter(e => e.advertiser === ad.advertiser);
     const scans = adEvents.filter(e => e.type === "scan").length;
     const clicks = adEvents.filter(e => e.type !== "scan").length;
     const intentRate = scans ? ((clicks / scans) * 100).toFixed(1) : "0.0";
@@ -388,6 +450,16 @@ app.get("/dashboard", (req, res) => {
     `;
   }).join("");
 
+  const activityRows = dbEvents.slice(0, 25).map(e => `
+    <tr>
+      <td>${e.time}</td>
+      <td>${e.type}</td>
+      <td>${e.advertiser}</td>
+      <td>${e.campaign}</td>
+      <td>${e.featured ? "Yes" : "No"}</td>
+    </tr>
+  `).join("");
+
   const content = `
     <div class="topbar">
       <div class="brand">Vivid Spots</div>
@@ -398,6 +470,7 @@ app.get("/dashboard", (req, res) => {
     <div class="wrap">
       <a class="btn" href="/r/school1">Test QR</a>
       <a class="btn secondary" href="/admin">Admin</a>
+      <a class="btn secondary" href="/analytics">Analytics JSON</a>
 
       <div class="note">
         <strong>Placement:</strong> ${placement.name}<br/>
@@ -445,15 +518,7 @@ app.get("/dashboard", (req, res) => {
           <th>Campaign</th>
           <th>Featured</th>
         </tr>
-        ${events.slice(-20).reverse().map(e => `
-          <tr>
-            <td>${e.time}</td>
-            <td>${e.type}</td>
-            <td>${e.advertiser}</td>
-            <td>${e.campaign}</td>
-            <td>${e.featured ? "Yes" : "No"}</td>
-          </tr>
-        `).join("")}
+        ${activityRows}
       </table>
     </div>
   `;
@@ -461,9 +526,10 @@ app.get("/dashboard", (req, res) => {
   res.send(pageShell("Vivid ROI Dashboard", content));
 });
 
-app.get("/admin", (req, res) => {
+app.get("/admin", async (req, res) => {
   const placement = placements.school1;
-  const stats = getStats(placement);
+  const dbEvents = await getDbEvents();
+  const stats = calculateStats(placement, dbEvents);
 
   const rows = placement.ads.map(ad => `
     <tr>
@@ -513,17 +579,56 @@ app.get("/admin", (req, res) => {
       <h2>Next Admin Controls</h2>
       <table>
         <tr><th>Feature</th><th>Purpose</th></tr>
-        <tr><td>Change Campaign Anytime</td><td>Swap offers without changing the QR code.</td></tr>
+        <tr><td>Change Campaign Anytime</td><td>Swap offers without changing the QR code while keeping historical metrics.</td></tr>
         <tr><td>Campaign History</td><td>Preserve performance by campaign, advertiser, and date range.</td></tr>
         <tr><td>Deal of the Day</td><td>Monetize priority placement for the best daily offer.</td></tr>
         <tr><td>Admin Login</td><td>Separate Vivid, host, and advertiser dashboards.</td></tr>
-        <tr><td>Database</td><td>Save historical scans and campaign metrics permanently.</td></tr>
+        <tr><td>QR Generator</td><td>Generate printable QR codes for every placement.</td></tr>
       </table>
     </div>
   `;
 
   res.send(pageShell("Vivid Admin", content));
 });
+
+app.get("/analytics", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE type = 'scan') AS scans,
+        COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks,
+        COUNT(*) FILTER (WHERE featured = true AND type = 'scan') AS featured_scans
+      FROM events
+    `);
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+app.get("/init-db", async (req, res) => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS events (
+        id SERIAL PRIMARY KEY,
+        placement_id TEXT,
+        placement_name TEXT,
+        advertiser TEXT,
+        campaign TEXT,
+        type TEXT,
+        featured BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    res.send("DB initialized");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error initializing DB: " + err.message);
+  }
+});
+
 app.get("/db-test", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");
@@ -532,74 +637,7 @@ app.get("/db-test", async (req, res) => {
     res.status(500).send(err.message);
   }
 });
-app.get('/init-db', async (req, res) => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS placements (
-        id SERIAL PRIMARY KEY,
-        name TEXT,
-        location TEXT,
-        annual_impressions INT,
-        cost INT
-      );
 
-      CREATE TABLE IF NOT EXISTS campaigns (
-        id SERIAL PRIMARY KEY,
-        placement_id INT,
-        advertiser TEXT,
-        offer TEXT,
-        revenue_per_conversion INT
-      );
-
-      CREATE TABLE IF NOT EXISTS events (
-        id SERIAL PRIMARY KEY,
-        placement_id INT,
-        campaign_id INT,
-        type TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    res.send("DB initialized");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error initializing DB");
-  }
-});
-app.get('/init-db', async (req, res) => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS placements (
-        id SERIAL PRIMARY KEY,
-        name TEXT,
-        location TEXT,
-        annual_impressions INT,
-        cost INT
-      );
-
-      CREATE TABLE IF NOT EXISTS campaigns (
-        id SERIAL PRIMARY KEY,
-        placement_id INT,
-        advertiser TEXT,
-        offer TEXT,
-        revenue_per_conversion INT
-      );
-
-      CREATE TABLE IF NOT EXISTS events (
-        id SERIAL PRIMARY KEY,
-        placement_id INT,
-        campaign_id INT,
-        type TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    res.send("DB initialized");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error initializing DB");
-  }
-});
 app.listen(port, () => {
   console.log("Server running on port " + port);
 });
