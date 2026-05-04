@@ -635,21 +635,20 @@ app.get("/admin/new-campaign", async (req, res) => {
   `));
 });
 
-app.post("/admin/new-campaign", async (req, res) => {
-  try {
-    await q(
-      `INSERT INTO campaigns 
-      (name, advertiser, campaign_url, avg_customer_value, campaign_cost)
-      VALUES ($1, $2, $3, $4, $5)`,
-      [
-        req.body.name,
-        req.body.advertiser,
-        req.body.campaign_url,
-        parseInt(req.body.avg_customer_value) || 0,
-        parseInt(req.body.campaign_cost) || 0
-      ]
-    );
-
+await q(`
+  INSERT INTO campaigns 
+  (customer_id, name, advertiser, campaign_url, avg_customer_value, campaign_cost, conversion_rate, is_deal_of_day)
+  VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+`, [
+  req.body.customer_id,
+  req.body.name,
+  req.body.advertiser,
+  req.body.campaign_url,
+  req.body.avg_customer_value,
+  req.body.campaign_cost,
+  req.body.conversion_rate || 10,
+  req.body.is_deal_of_day === "on"
+]);
     res.send("✅ Campaign created <br><a href='/admin/assign'>Go Assign</a>");
   } catch (err) {
     console.error("CREATE CAMPAIGN ERROR:", err);
