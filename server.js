@@ -635,7 +635,8 @@ app.get("/admin/new-campaign", async (req, res) => {
   `));
 });
 
-await q(`
+app.get("/admin", async (req, res) => {
+
   INSERT INTO campaigns 
   (customer_id, name, advertiser, campaign_url, avg_customer_value, campaign_cost, conversion_rate, is_deal_of_day)
   VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
