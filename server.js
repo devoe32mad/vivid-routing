@@ -588,10 +588,7 @@ app.get("/dashboard", async (req, res) => {
         </table>
       </div>
     `));
-  } catch (err) {
-    console.error("DASHBOARD ERROR:", err);
-    res.status(500).send("Dashboard error: " + err.message);
-  }
+
 });
 
 app.get("/admin", async (req, res) => {
