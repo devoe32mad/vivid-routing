@@ -626,6 +626,8 @@ app.get("/admin/new-campaign", async (req, res) => {
         <div><label>Campaign URL</label><input name="campaign_url" value="https://www.pepsi.com"></div>
         <div><label>Average Customer Value</label><input name="avg_customer_value" value="35"></div>
         <div><label>Campaign Cost</label><input name="campaign_cost" value="700"></div>
+        <label>Conversion Rate (%)</label>
+<input name="conversion_rate" value="10" />
       </div>
       <label><input type="checkbox" name="is_deal_of_day" style="width:auto"> Deal of the Day</label><br><br>
       <button class="btn" type="submit">Create Campaign</button>
