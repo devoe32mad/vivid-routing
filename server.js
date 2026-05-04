@@ -345,9 +345,24 @@ app.get("/click/:type/:qrId", async (req, res) => {
 
   await saveEvent({ qrId, campaignId: campaign.id, storeId: store ? store.id : null, type });
 
-  if (type === "offer") return res.redirect(campaign.campaign_url || "/");
-  if (type === "maps") return res.redirect(store?.maps_url || campaign.campaign_url || "/");
-  if (type === "waze") return res.redirect(store?.waze_url || campaign.campaign_url || "/");
+if (type === "offer") return res.redirect(campaign.campaign_url || "/");
+
+if (type === "maps") {
+  const fallbackMapsUrl =
+    "https://www.google.com/maps/search/?api=1&query=" +
+    encodeURIComponent((campaign.advertiser || campaign.name || "store") + " Naples FL");
+
+  return res.redirect(store?.maps_url || fallbackMapsUrl);
+}
+
+if (type === "waze") {
+  const fallbackWazeUrl =
+    "https://waze.com/ul?q=" +
+    encodeURIComponent((campaign.advertiser || campaign.name || "store") + " Naples FL") +
+    "&navigate=yes";
+
+  return res.redirect(store?.waze_url || fallbackWazeUrl);
+}
 
   res.redirect("/");
 });
