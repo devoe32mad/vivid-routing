@@ -647,10 +647,7 @@ await q(`
   req.body.is_deal_of_day === "on"
 ]);
     res.send("✅ Campaign created <br><a href='/admin/assign'>Go Assign</a>");
-  } catch (err) {
-    console.error("CREATE CAMPAIGN ERROR:", err);
-    res.send("ERROR: " + err.message);
-  }
+  
 });
 
 app.get("/admin/assign", async (req, res) => {
