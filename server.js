@@ -232,20 +232,11 @@ async function pickStoreForCampaign(campaignId) {
     FROM campaign_stores cs
     JOIN stores st ON st.id = cs.store_id
     WHERE cs.campaign_id = $1 AND cs.is_active = true
+    ORDER BY st.inventory_priority DESC, cs.weight DESC, st.id ASC
+    LIMIT 1
   `, [campaignId]);
 
-  if (result.rows.length === 0) return null;
-
-  const total = result.rows.reduce((sum, s) => sum + Number(s.weight || s.inventory_priority || 1), 0);
-  let r = Math.random() * total;
-
-  for (const store of result.rows) {
-    const w = Number(store.weight || store.inventory_priority || 1);
-    if (r < w) return store;
-    r -= w;
-  }
-
-  return result.rows[0];
+  return result.rows[0] || null;
 }
 
 async function saveEvent({ qrId, campaignId, storeId = null, type }) {
