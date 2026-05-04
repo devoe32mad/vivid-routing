@@ -589,8 +589,6 @@ app.get("/dashboard", async (req, res) => {
       </div>
     `));
 
-});
-
 app.get("/admin", async (req, res) => {
   const customers = await q(`SELECT * FROM customers ORDER BY id`);
   const qrs = await q(`SELECT q.*, s.name AS space_name FROM qr_codes q JOIN spaces s ON s.id=q.space_id ORDER BY q.id`);
