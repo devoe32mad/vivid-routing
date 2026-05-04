@@ -110,6 +110,7 @@ async function initDb() {
     campaign_url TEXT,
     avg_customer_value INT DEFAULT 50,
     campaign_cost INT DEFAULT 500,
+    conversion_rate INT DEFAULT 10,
     is_deal_of_day BOOLEAN DEFAULT false,
     featured_weight INT DEFAULT 80,
     standard_weight INT DEFAULT 20,
@@ -124,7 +125,9 @@ async function initDb() {
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP
   )`);
-
+  
+await q(`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS conversion_rate INT DEFAULT 10`);
+  
   await q(`CREATE TABLE IF NOT EXISTS stores (
     id SERIAL PRIMARY KEY,
     customer_id INT,
