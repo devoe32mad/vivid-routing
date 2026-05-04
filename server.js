@@ -491,7 +491,9 @@ app.get("/dashboard", async (req, res) => {
 
       const campaignCost = Number(c.campaign_cost || 0);
       const avgCustomerValue = Number(c.avg_customer_value || 50);
-      const customers = Math.round(intent * 0.10);
+      for (const c of campaignRows.rows) {
+  const conversionRate = Number(c.conversion_rate || 10);
+  customers = Math.round(intent * (conversionRate / 100));
       const revenue = customers * avgCustomerValue;
       const cac = customers ? campaignCost / customers : 0;
       const roi = campaignCost ? ((revenue - campaignCost) / campaignCost) * 100 : 0;
