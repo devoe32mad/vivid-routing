@@ -635,25 +635,6 @@ app.get("/admin/new-campaign", async (req, res) => {
   `));
 });
 
-app.get("/admin", async (req, res) => {
-
-  INSERT INTO campaigns 
-  (customer_id, name, advertiser, campaign_url, avg_customer_value, campaign_cost, conversion_rate, is_deal_of_day)
-  VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-`, [
-  req.body.customer_id,
-  req.body.name,
-  req.body.advertiser,
-  req.body.campaign_url,
-  req.body.avg_customer_value,
-  req.body.campaign_cost,
-  req.body.conversion_rate || 10,
-  req.body.is_deal_of_day === "on"
-]);
-    res.send("✅ Campaign created <br><a href='/admin/assign'>Go Assign</a>");
-  
-});
-
 app.get("/admin/assign", async (req, res) => {
   const qrs = await q(`SELECT * FROM qr_codes ORDER BY id`);
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
