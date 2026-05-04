@@ -439,7 +439,8 @@ app.get("/dashboard", async (req, res) => {
 
       const placementCost = Number(qr.placement_cost || 800);
       const avgCustomerValue = 50;
-      const customers = Math.round(intent * 0.10);
+      const conversionRate = Number(c.conversion_rate || 10);
+const customers = Math.round(calc.intent * (conversionRate / 100));
       const revenue = customers * avgCustomerValue;
       const cac = customers ? placementCost / customers : 0;
       const roi = placementCost ? ((revenue - placementCost) / placementCost) * 100 : 0;
