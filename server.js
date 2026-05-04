@@ -368,49 +368,225 @@ if (type === "waze") {
 });
 
 app.get("/dashboard", async (req, res) => {
-  const qrRows = await q(`
-    SELECT q.id, q.name, s.name AS space_name, s.location, s.annual_impressions, s.placement_cost
-    FROM qr_codes q JOIN spaces s ON s.id=q.space_id
-    ORDER BY q.id
-  `);
+  try {
+    const qrRows = await q(`
+      SELECT 
+        q.id AS qr_id,
+        q.name AS qr_name,
+        q.description AS qr_description,
+        s.name AS location_name,
+        s.location,
+        s.annual_impressions,
+        s.placement_cost,
+        s.host_payout
+      FROM qr_codes q
+      LEFT JOIN spaces s ON s.id = q.space_id
+      ORDER BY q.id
+    `);
 
-  const campaignRows = await q(`SELECT * FROM campaigns ORDER BY id`);
+    const campaignRows = await q(`
+      SELECT 
+        c.id AS campaign_id,
+        c.name AS campaign_name,
+        c.advertiser,
+        c.campaign_url,
+        c.avg_customer_value,
+        c.campaign_cost,
+        c.is_deal_of_day
+      FROM campaigns c
+      ORDER BY c.id
+    `);
 
-  let qrTable = "";
-  for (const qr of qrRows.rows) {
-    const m = await metrics(`WHERE e.qr_id=$1`, [qr.id]);
-    const calc = kpis(m, qr.placement_cost, 50, qr.annual_impressions);
-    qrTable += `<tr><td>${qr.name}</td><td>${qr.space_name}</td><td>${qr.location}</td><td>${calc.scans}</td><td>${m.maps_clicks}</td><td>${m.offer_clicks}</td><td>${money(qr.placement_cost)}</td><td>${money(calc.revenue)}</td><td class="${calc.roi >= 0 ? "good" : "bad"}">${pct(calc.roi)}</td></tr>`;
-  }
+    const totals = await q(`
+      SELECT
+        COUNT(*) FILTER (WHERE type = 'scan') AS scans,
+        COUNT(*) FILTER (WHERE type = 'offer') AS offer_clicks,
+        COUNT(*) FILTER (WHERE type = 'maps') AS maps_clicks,
+        COUNT(*) FILTER (WHERE type = 'waze') AS waze_clicks,
+        COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks
+      FROM events
+    `);
 
-  let campaignTable = "";
-  for (const c of campaignRows.rows) {
-    const m = await metrics(`WHERE e.campaign_id=$1`, [c.id]);
-    const calc = kpis(m, c.campaign_cost, c.avg_customer_value);
-    campaignTable += `<tr><td>${c.advertiser}</td><td>${c.name}</td><td>${c.is_deal_of_day ? "🔥 Deal" : "Standard"}</td><td>${calc.scans}</td><td>${m.maps_clicks}</td><td>${m.waze_clicks}</td><td>${m.offer_clicks}</td><td>${money(c.campaign_cost)}</td><td>${money(calc.revenue)}</td><td class="${calc.roi >= 0 ? "good" : "bad"}">${pct(calc.roi)}</td></tr>`;
-  }
+    const total = totals.rows[0];
+    const totalIntent = Number(total.intent_clicks || 0);
+    const totalScans = Number(total.scans || 0);
+    const totalIntentRate = totalScans ? ((totalIntent / totalScans) * 100).toFixed(1) : "0.0";
 
-  const total = await metrics();
-  const totalCalc = kpis(total, 800, 50);
+    let qrTable = "";
 
-  res.send(page("Vivid Dashboard", `
-    <div class="topbar"><div class="brand">Vivid Spots</div><h1>ROI Dashboard</h1><p class="subtitle">ROI by QR code, campaign, location, and store-intent clicks.</p></div>
-    <div class="wrap">
-      <a class="btn" href="/r/1">Test QR</a><a class="btn secondary" href="/admin">Admin</a><a class="btn gold" href="/export/events.csv">Export CSV</a>
-      <div class="cards">
-        <div class="card"><div class="label">Total Scans</div><div class="num">${total.scans}</div></div>
-        <div class="card"><div class="label">Google Maps Clicks</div><div class="num">${total.maps_clicks}</div></div>
-        <div class="card"><div class="label">Offer Clicks</div><div class="num">${total.offer_clicks}</div></div>
-        <div class="card"><div class="label">Intent Rate</div><div class="num">${pct(totalCalc.intentRate)}</div></div>
+    for (const qr of qrRows.rows) {
+      const m = await q(`
+        SELECT
+          COUNT(*) FILTER (WHERE type = 'scan') AS scans,
+          COUNT(*) FILTER (WHERE type = 'offer') AS offer_clicks,
+          COUNT(*) FILTER (WHERE type = 'maps') AS maps_clicks,
+          COUNT(*) FILTER (WHERE type = 'waze') AS waze_clicks,
+          COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks
+        FROM events
+        WHERE qr_id = $1
+      `, [qr.qr_id]);
+
+      const row = m.rows[0];
+
+      const scans = Number(row.scans || 0);
+      const intent = Number(row.intent_clicks || 0);
+      const maps = Number(row.maps_clicks || 0);
+      const offers = Number(row.offer_clicks || 0);
+      const waze = Number(row.waze_clicks || 0);
+
+      const placementCost = Number(qr.placement_cost || 800);
+      const avgCustomerValue = 50;
+      const customers = Math.round(intent * 0.10);
+      const revenue = customers * avgCustomerValue;
+      const cac = customers ? placementCost / customers : 0;
+      const roi = placementCost ? ((revenue - placementCost) / placementCost) * 100 : 0;
+      const intentRate = scans ? ((intent / scans) * 100).toFixed(1) : "0.0";
+      const cpm = qr.annual_impressions ? ((placementCost / Number(qr.annual_impressions)) * 1000).toFixed(2) : "0.00";
+
+      qrTable += `
+        <tr>
+          <td>${qr.qr_name || "QR " + qr.qr_id}</td>
+          <td>${qr.location_name || ""}</td>
+          <td>${qr.location || ""}</td>
+          <td>${Number(qr.annual_impressions || 0).toLocaleString()}</td>
+          <td>${scans}</td>
+          <td>${maps}</td>
+          <td>${offers}</td>
+          <td>${waze}</td>
+          <td>${intentRate}%</td>
+          <td>${customers}</td>
+          <td>${money(revenue)}</td>
+          <td>${money(placementCost)}</td>
+          <td>${money(cac)}</td>
+          <td>$${cpm}</td>
+          <td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td>
+        </tr>
+      `;
+    }
+
+    let campaignTable = "";
+
+    for (const c of campaignRows.rows) {
+      const m = await q(`
+        SELECT
+          COUNT(*) FILTER (WHERE type = 'scan') AS scans,
+          COUNT(*) FILTER (WHERE type = 'offer') AS offer_clicks,
+          COUNT(*) FILTER (WHERE type = 'maps') AS maps_clicks,
+          COUNT(*) FILTER (WHERE type = 'waze') AS waze_clicks,
+          COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks
+        FROM events
+        WHERE campaign_id = $1
+      `, [c.campaign_id]);
+
+      const row = m.rows[0];
+
+      const scans = Number(row.scans || 0);
+      const intent = Number(row.intent_clicks || 0);
+      const maps = Number(row.maps_clicks || 0);
+      const offers = Number(row.offer_clicks || 0);
+      const waze = Number(row.waze_clicks || 0);
+
+      const campaignCost = Number(c.campaign_cost || 0);
+      const avgCustomerValue = Number(c.avg_customer_value || 50);
+      const customers = Math.round(intent * 0.10);
+      const revenue = customers * avgCustomerValue;
+      const cac = customers ? campaignCost / customers : 0;
+      const roi = campaignCost ? ((revenue - campaignCost) / campaignCost) * 100 : 0;
+      const intentRate = scans ? ((intent / scans) * 100).toFixed(1) : "0.0";
+
+      campaignTable += `
+        <tr>
+          <td>${c.advertiser || ""}</td>
+          <td>${c.campaign_name || ""}</td>
+          <td>${c.is_deal_of_day ? "🔥 Deal of the Day" : "Standard"}</td>
+          <td>${scans}</td>
+          <td>${maps}</td>
+          <td>${offers}</td>
+          <td>${waze}</td>
+          <td>${intentRate}%</td>
+          <td>${customers}</td>
+          <td>${money(avgCustomerValue)}</td>
+          <td>${money(revenue)}</td>
+          <td>${money(campaignCost)}</td>
+          <td>${money(cac)}</td>
+          <td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td>
+        </tr>
+      `;
+    }
+
+    res.send(page("Vivid ROI Dashboard", `
+      <div class="topbar">
+        <div class="brand">Vivid Spots</div>
+        <h1>ROI Dashboard</h1>
+        <p class="subtitle">QR Code ROI + Campaign ROI + Store Intent</p>
       </div>
 
-      <h2>ROI by QR Code / Location</h2>
-      <table><tr><th>QR Code</th><th>Location</th><th>Market</th><th>Scans</th><th>Maps</th><th>Offer</th><th>Cost</th><th>Est. Revenue</th><th>ROI</th></tr>${qrTable}</table>
+      <div class="wrap">
+        <a class="btn" href="/r/1">Test QR</a>
+        <a class="btn secondary" href="/admin">Admin</a>
+        <a class="btn secondary" href="/admin/assign">Assign Campaign</a>
+        <a class="btn gold" href="/export/events.csv">Export CSV</a>
 
-      <h2>ROI by Campaign</h2>
-      <table><tr><th>Advertiser</th><th>Campaign</th><th>Type</th><th>Scans</th><th>Maps</th><th>Waze</th><th>Offer</th><th>Cost</th><th>Est. Revenue</th><th>ROI</th></tr>${campaignTable}</table>
-    </div>
-  `));
+        <div class="note">
+          <strong>Money View:</strong> This dashboard separates ROI by permanent QR/location and by campaign. 
+          The QR stays the same. Campaigns can change. Historical ROI stays intact.
+        </div>
+
+        <div class="cards">
+          <div class="card"><div class="label">Total Scans</div><div class="num">${total.scans || 0}</div></div>
+          <div class="card"><div class="label">Google Maps Clicks</div><div class="num">${total.maps_clicks || 0}</div></div>
+          <div class="card"><div class="label">Offer Clicks</div><div class="num">${total.offer_clicks || 0}</div></div>
+          <div class="card"><div class="label">Intent Rate</div><div class="num">${totalIntentRate}%</div></div>
+        </div>
+
+        <h2>ROI by QR Code / Location</h2>
+        <table>
+          <tr>
+            <th>QR Code</th>
+            <th>Location</th>
+            <th>Market</th>
+            <th>Annual Impressions</th>
+            <th>Scans</th>
+            <th>Maps</th>
+            <th>Offers</th>
+            <th>Waze</th>
+            <th>Intent Rate</th>
+            <th>Est. Customers</th>
+            <th>Est. Revenue</th>
+            <th>Placement Cost</th>
+            <th>CAC</th>
+            <th>CPM</th>
+            <th>ROI</th>
+          </tr>
+          ${qrTable}
+        </table>
+
+        <h2>ROI by Campaign</h2>
+        <table>
+          <tr>
+            <th>Advertiser</th>
+            <th>Campaign</th>
+            <th>Type</th>
+            <th>Scans</th>
+            <th>Maps</th>
+            <th>Offers</th>
+            <th>Waze</th>
+            <th>Intent Rate</th>
+            <th>Est. Customers</th>
+            <th>Avg Value</th>
+            <th>Est. Revenue</th>
+            <th>Campaign Cost</th>
+            <th>CAC</th>
+            <th>ROI</th>
+          </tr>
+          ${campaignTable}
+        </table>
+      </div>
+    `));
+  } catch (err) {
+    console.error("DASHBOARD ERROR:", err);
+    res.status(500).send("Dashboard error: " + err.message);
+  }
 });
 
 app.get("/admin", async (req, res) => {
