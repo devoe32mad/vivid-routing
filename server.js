@@ -587,6 +587,10 @@ app.get("/dashboard", async (req, res) => {
         </table>
       </div>
     `));
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
 
 app.get("/admin", async (req, res) => {
   const customers = await q(`SELECT * FROM customers ORDER BY id`);
