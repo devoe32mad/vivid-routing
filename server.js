@@ -187,7 +187,29 @@ async function initDb() {
       ($1,$2,90,true),($1,$3,30,true)`, [pepsi.rows[0].id, store1.rows[0].id, store2.rows[0].id]);
   }
 }
+app.get("/fix-schema", async (req, res) => {
+  try {
+    await q(`ALTER TABLE spaces ADD COLUMN IF NOT EXISTS annual_impressions INT DEFAULT 146000`);
+    await q(`ALTER TABLE spaces ADD COLUMN IF NOT EXISTS placement_cost INT DEFAULT 800`);
+    await q(`ALTER TABLE spaces ADD COLUMN IF NOT EXISTS host_payout INT DEFAULT 300`);
+    await q(`ALTER TABLE spaces ADD COLUMN IF NOT EXISTS location TEXT`);
+    await q(`ALTER TABLE spaces ADD COLUMN IF NOT EXISTS host_name TEXT`);
 
+    await q(`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS advertiser TEXT`);
+    await q(`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS campaign_url TEXT`);
+    await q(`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS avg_customer_value INT DEFAULT 50`);
+    await q(`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS campaign_cost INT DEFAULT 500`);
+    await q(`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS is_deal_of_day BOOLEAN DEFAULT false`);
+
+    await q(`ALTER TABLE events ADD COLUMN IF NOT EXISTS qr_id INT`);
+    await q(`ALTER TABLE events ADD COLUMN IF NOT EXISTS campaign_id INT`);
+    await q(`ALTER TABLE events ADD COLUMN IF NOT EXISTS store_id INT`);
+
+    res.send("Schema fixed");
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
 async function activeCampaignForQr(qrId) {
   const result = await q(`
     SELECT c.*, q.id AS qr_id, q.name AS qr_name, s.name AS space_name, s.location, s.annual_impressions, s.placement_cost, s.host_payout
