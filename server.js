@@ -69,6 +69,7 @@ async function initDb() {
     email TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
+  await q(`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS name TEXT;`);
 
   await q(`CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
