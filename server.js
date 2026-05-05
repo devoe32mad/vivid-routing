@@ -526,6 +526,13 @@ let bestQR = null;
       const revenue = customers * avgCustomerValue;
       const cac = customers ? campaignCost / customers : 0;
       const roi = campaignCost ? ((revenue - campaignCost) / campaignCost) * 100 : 0;
+      if (!topCampaign || roi > topCampaign.roi) {
+  topCampaign = {
+    name: c.name || "Campaign " + c.id,
+    roi,
+    revenue
+  };
+}
       const intentRate = scans ? ((intent / scans) * 100).toFixed(1) : "0.0";
 
       campaignTable += `
