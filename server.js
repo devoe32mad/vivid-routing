@@ -409,7 +409,27 @@ app.get("/dashboard", async (req, res) => {
         COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks
       FROM events
     `);
-
+const locationRows = await q(`
+  SELECT
+    c.id AS campaign_id,
+    c.name AS campaign_name,
+    c.advertiser,
+    s.name AS location_name,
+    s.location,
+    s.placement_cost,
+    c.avg_customer_value,
+    c.conversion_rate,
+    COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
+    COUNT(*) FILTER (WHERE e.type = 'maps') AS maps_clicks,
+    COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
+    COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+  FROM events e
+  JOIN campaigns c ON c.id = e.campaign_id
+  JOIN qr_codes qr ON qr.id = e.qr_id
+  JOIN spaces s ON s.id = qr.space_id
+  GROUP BY c.id, s.id
+  ORDER BY c.id, intent_clicks DESC
+`);
     const total = totals.rows[0];
     const totalIntent = Number(total.intent_clicks || 0);
     const totalScans = Number(total.scans || 0);
