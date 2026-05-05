@@ -777,7 +777,7 @@ app.post("/admin/new-campaign", async (req, res) => {
   Number(req.body.campaign_cost || 500),
   Number(req.body.conversion_rate || 10),
   req.body.is_deal_of_day === "on"
-] 
+
     ]);
 
     res.send("✅ Campaign created <br><a href='/admin/assign'>Go Assign</a>");
