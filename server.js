@@ -561,14 +561,7 @@ for (const row of locationRows.rows) {
 
   const cost = Number(row.placement_cost || 800);
   const roi = cost ? ((revenue - cost) / cost) * 100 : 0;
-if (!bestQR || roi > bestQR.roi) {
-  bestQR = {
-    name: qr.qr_name || "QR " + qr.qr_id,
-    roi,
-    revenue,
-    customers
-  };
-}
+
   const intentRate = scans ? (intent / scans) * 100 : 0;
 
   locationTable += `
