@@ -770,14 +770,14 @@ app.post("/admin/new-campaign", async (req, res) => {
 (name,advertiser,campaign_url,avg_customer_value,campaign_cost,conversion_rate,is_deal_of_day)
       VALUES ($1,$2,$3,$4,$5,$6,$7)
     `, [
-      Number(req.body.customer_id || 1),
-      req.body.name || "",
-      req.body.advertiser || "",
-      req.body.campaign_url || "",
-      Number(req.body.avg_customer_value || 50),
-      Number(req.body.campaign_cost || 500),
-      Number(req.body.conversion_rate || 10),
-      req.body.is_deal_of_day === "on"
+  req.body.name || "",
+  req.body.advertiser || "",
+  req.body.campaign_url || "",
+  Number(req.body.avg_customer_value || 50),
+  Number(req.body.campaign_cost || 500),
+  Number(req.body.conversion_rate || 10),
+  req.body.is_deal_of_day === "on"
+] 
     ]);
 
     res.send("✅ Campaign created <br><a href='/admin/assign'>Go Assign</a>");
