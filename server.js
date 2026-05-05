@@ -767,8 +767,8 @@ app.post("/admin/new-campaign", async (req, res) => {
   try {
     await q(`
       INSERT INTO campaigns 
-      (customer_id,name,advertiser,campaign_url,avg_customer_value,campaign_cost,conversion_rate,is_deal_of_day)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+(name,advertiser,campaign_url,avg_customer_value,campaign_cost,conversion_rate,is_deal_of_day)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
     `, [
       Number(req.body.customer_id || 1),
       req.body.name || "",
