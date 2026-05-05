@@ -605,11 +605,18 @@ if (!bestLocation || revenue > bestLocation.revenue) {
       <div class="wrap">
       <div style="display:flex; gap:20px; margin-bottom:20px;">
 
-  <div style="background:#fff; padding:15px; border-radius:8px;">
-    <h3>🏆 Top Campaign</h3>
-    <div>${topCampaign?.name || '-'}</div>
-    <div>ROI: ${topCampaign ? topCampaign.roi.toFixed(1) : 0}%</div>
+<div>
+  <h3>🏆 Top Campaign</h3>
+  <div>${topCampaign?.name || '-'}</div>
+
+  <div style="font-size:12px; color:#666;">
+    ${topCampaign?.advertiser || ''}
   </div>
+
+  <div>Revenue: $${topCampaign ? topCampaign.revenue.toLocaleString() : 0}</div>
+
+  <div>ROI: ${topCampaign ? topCampaign.roi.toFixed(1) : 0}%</div>
+</div>
 
   <div style="background:#fff; padding:15px; border-radius:8px;">
     <h3>📍 Best Location</h3>
