@@ -588,6 +588,21 @@ for (const row of locationRows.rows) {
       </div>
 
       <div class="wrap">
+      <div style="display:flex; gap:20px; margin-bottom:20px;">
+
+  <div style="background:#fff; padding:15px; border-radius:8px;">
+    <h3>🏆 Top Campaign</h3>
+    <div>${topCampaign?.name || '-'}</div>
+    <div>ROI: ${topCampaign ? topCampaign.roi.toFixed(1) : 0}%</div>
+  </div>
+
+  <div style="background:#fff; padding:15px; border-radius:8px;">
+    <h3>📍 Best Location</h3>
+    <div>${bestLocation?.name || '-'}</div>
+    <div>Revenue: $${bestLocation ? bestLocation.revenue.toLocaleString() : 0}</div>
+  </div>
+
+</div>
         <a class="btn" href="/r/1">Test QR</a>
         <a class="btn secondary" href="/admin">Admin</a>
         <a class="btn secondary" href="/admin/assign">Assign Campaign</a>
