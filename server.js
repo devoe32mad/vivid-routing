@@ -427,8 +427,8 @@ const locationRows = await q(`
   JOIN campaigns c ON c.id = e.campaign_id
   JOIN qr_codes qr ON qr.id = e.qr_id
   JOIN spaces s ON s.id = qr.space_id
-  GROUP BY c.id, s.id
-  ORDER BY c.id, intent_clicks DESC
+GROUP BY c.id, s.id
+ORDER BY intent_clicks DESC, scans DESC, campaign_name ASC
 `);
     const total = totals.rows[0];
     const totalIntent = Number(total.intent_clicks || 0);
