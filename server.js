@@ -568,7 +568,13 @@ for (const row of locationRows.rows) {
 
   const cost = Number(row.placement_cost || 800);
   const roi = cost ? ((revenue - cost) / cost) * 100 : 0;
-
+if (!bestLocation || revenue > bestLocation.revenue) {
+  bestLocation = {
+    name: row.location_name || row.location || "Location",
+    revenue,
+    roi
+  };
+}
   const intentRate = scans ? (intent / scans) * 100 : 0;
 
   locationTable += `
