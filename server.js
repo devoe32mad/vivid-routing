@@ -351,11 +351,48 @@ app.get("/click/:type/:qrId", async (req, res) => {
 if (type === "offer") return res.redirect(campaign.campaign_url || "/");
 
 if (type === "maps") {
+
+  // get all stores tied to this campaign
+  const stores = await q(`
+    SELECT s.*
+    FROM campaign_stores cs
+    JOIN stores s ON s.id = cs.store_id
+    WHERE cs.campaign_id = $1
+  `, [campaign.id]);
+
+  let bestStore = null;
+
+  for (const s of stores.rows) {
+
+    const metrics = await q(`
+      SELECT 
+        COUNT(*) FILTER (WHERE type='scan') AS scans,
+        COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent
+      FROM events
+      WHERE store_id = $1
+    `, [s.id]);
+
+    const row = metrics.rows[0];
+
+    const intent = Number(row.intent || 0);
+
+    const conversionRate = Number(campaign.conversion_rate || 10);
+    const customers = Math.round(intent * (conversionRate / 100));
+    const revenue = customers * Number(campaign.avg_customer_value || 50);
+
+    if (!bestStore || revenue > bestStore.revenue) {
+      bestStore = {
+        store: s,
+        revenue
+      };
+    }
+  }
+
   const fallbackMapsUrl =
     "https://www.google.com/maps/search/?api=1&query=" +
     encodeURIComponent((campaign.advertiser || campaign.name || "store") + " Naples FL");
 
-  return res.redirect(store?.maps_url || fallbackMapsUrl);
+  return res.redirect(bestStore?.store?.maps_url || fallbackMapsUrl);
 }
 
 if (type === "waze") {
