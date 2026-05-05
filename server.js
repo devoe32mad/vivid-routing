@@ -763,7 +763,29 @@ app.get("/admin/assign", async (req, res) => {
     </form></div>
   `));
 });
+app.post("/admin/new-campaign", async (req, res) => {
+  try {
+    await q(`
+      INSERT INTO campaigns 
+      (customer_id,name,advertiser,campaign_url,avg_customer_value,campaign_cost,conversion_rate,is_deal_of_day)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+    `, [
+      Number(req.body.customer_id || 1),
+      req.body.name || "",
+      req.body.advertiser || "",
+      req.body.campaign_url || "",
+      Number(req.body.avg_customer_value || 50),
+      Number(req.body.campaign_cost || 500),
+      Number(req.body.conversion_rate || 10),
+      req.body.is_deal_of_day === "on"
+    ]);
 
+    res.send("✅ Campaign created <br><a href='/admin/assign'>Go Assign</a>");
+  } catch (err) {
+    console.error("CREATE CAMPAIGN ERROR:", err);
+    res.send("ERROR: " + err.message);
+  }
+});
 app.post("/admin/assign", async (req, res) => {
   await q(`UPDATE qr_campaigns SET is_active=false, ended_at=CURRENT_TIMESTAMP WHERE qr_id=$1 AND is_active=true`, [req.body.qr_id]);
   await q(`INSERT INTO qr_campaigns (qr_id,campaign_id,is_active) VALUES ($1,$2,true)`, [req.body.qr_id, req.body.campaign_id]);
