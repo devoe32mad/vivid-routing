@@ -527,14 +527,7 @@ let bestQR = null;
       const cac = customers ? campaignCost / customers : 0;
       const roi = campaignCost ? ((revenue - campaignCost) / campaignCost) * 100 : 0;
       const intentRate = scans ? ((intent / scans) * 100).toFixed(1) : "0.0";
-if (!bestQR || roi > bestQR.roi) {
-  bestQR = {
-    name: qr.qr_name || "QR " + qr.qr_id,
-    roi,
-    revenue,
-    customers
-  };
-}
+
       campaignTable += `
         <tr>
           <td>${c.advertiser || ""}</td>
