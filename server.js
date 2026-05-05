@@ -637,6 +637,23 @@ for (const row of locationRows.rows) {
           </tr>
           ${campaignTable}
         </table>
+        <h2>Location Comparison (Campaign vs Location)</h2>
+<table>
+  <tr>
+    <th>Advertiser</th>
+    <th>Campaign</th>
+    <th>Location</th>
+    <th>Market</th>
+    <th>Scans</th>
+    <th>Maps</th>
+    <th>Offers</th>
+    <th>Intent Rate</th>
+    <th>Customers</th>
+    <th>Revenue</th>
+    <th>ROI</th>
+  </tr>
+  ${locationTable}
+</table>
       </div>
     `));
   } catch (err) {
