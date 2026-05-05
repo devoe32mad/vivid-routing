@@ -769,7 +769,7 @@ app.post("/admin/new-campaign", async (req, res) => {
       INSERT INTO campaigns 
 (name,advertiser,campaign_url,avg_customer_value,campaign_cost,conversion_rate,is_deal_of_day)
       VALUES ($1,$2,$3,$4,$5,$6,$7)
-    `, [
+    [
   req.body.name || "",
   req.body.advertiser || "",
   req.body.campaign_url || "",
