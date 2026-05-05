@@ -274,6 +274,14 @@ function kpis(m, cost, avgValue, annualImpressions = 146000) {
   const cac = customers ? cost / customers : 0;
   const cpm = annualImpressions ? (cost / annualImpressions) * 1000 : 0;
   const intentRate = scans ? (intent / scans) * 100 : 0;
+  if (!topCampaign || roi > topCampaign.roi) {
+  topCampaign = {
+    name: c.name || "Campaign " + c.id,
+    advertiser: c.advertiser || "",
+    roi,
+    revenue
+  };
+}
   return { scans, intent, customers, revenue, roi, cac, cpm, intentRate };
 }
 
