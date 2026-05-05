@@ -487,7 +487,9 @@ ORDER BY intent_clicks DESC, scans DESC, campaign_name ASC
         </tr>
       `;
     }
-
+let topCampaign = null;
+let bestLocation = null;
+let bestQR = null;
     let campaignTable = "";
 
     for (const c of campaignRows.rows) {
