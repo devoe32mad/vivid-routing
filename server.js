@@ -526,7 +526,7 @@ let bestQR = null;
       const revenue = customers * avgCustomerValue;
       const cac = customers ? campaignCost / customers : 0;
       const roi = campaignCost ? ((revenue - campaignCost) / campaignCost) * 100 : 0;
-      if (!topCampaign || roi > topCampaign.roi) {
+    
 if (!topCampaign || roi > topCampaign.roi) {
   topCampaign = {
     name: c.campaign_name || c.name || c.advertiser || "Campaign " + c.id,
