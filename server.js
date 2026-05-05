@@ -537,7 +537,39 @@ const locationRows = await q(`
         </tr>
       `;
     }
+let locationTable = "";
 
+for (const row of locationRows.rows) {
+  const scans = Number(row.scans || 0);
+  const intent = Number(row.intent_clicks || 0);
+
+  const conversionRate = Number(row.conversion_rate || 10);
+  const customers = Math.round(intent * (conversionRate / 100));
+
+  const avgValue = Number(row.avg_customer_value || 50);
+  const revenue = customers * avgValue;
+
+  const cost = Number(row.placement_cost || 800);
+  const roi = cost ? ((revenue - cost) / cost) * 100 : 0;
+
+  const intentRate = scans ? (intent / scans) * 100 : 0;
+
+  locationTable += `
+    <tr>
+      <td>${row.advertiser || ""}</td>
+      <td>${row.campaign_name || ""}</td>
+      <td>${row.location_name || ""}</td>
+      <td>${row.location || ""}</td>
+      <td>${scans}</td>
+      <td>${row.maps_clicks || 0}</td>
+      <td>${row.offer_clicks || 0}</td>
+      <td>${intentRate.toFixed(1)}%</td>
+      <td>${customers}</td>
+      <td>$${revenue.toLocaleString()}</td>
+      <td class="${roi >= 0 ? "good" : "bad"}">${roi.toFixed(1)}%</td>
+    </tr>
+  `;
+}
     res.send(page("Vivid ROI Dashboard", `
       <div class="topbar">
         <div class="brand">Vivid Spots</div>
