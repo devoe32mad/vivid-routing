@@ -750,10 +750,25 @@ app.get("/admin", async (req, res) => {
       <h2>Customers</h2>
       <table><tr><th>ID</th><th>Name</th><th>Email</th></tr>${customers.rows.map(c=>`<tr><td>${c.id}</td><td>${c.name}</td><td>${c.email || ""}</td></tr>`).join("")}</table>
 
-      <h2>QR Codes</h2>
-      <table><tr><th>ID</th><th>QR</th><th>Space</th><th>Routing URL</th></tr>${qrs.rows.map(qr=>`<tr><td>${qr.id}</td><td>${qr.name}</td><td>${qr.space_name}</td><td>${BASE_URL}/r/${qr.id}</td></tr>`).join("")}</table>
-      <h2>Campaigns</h2>
-      <table><tr><th>ID</th><th>Advertiser</th><th>Campaign</th><th>URL</th><th>Avg Value</th><th>Cost</th><th>Deal</th></tr>${campaigns.rows.map(c=>`<tr><td>${c.id}</td><td>${c.advertiser}</td><td>${c.name}</td><td>${c.campaign_url}</td><td>${money(c.avg_customer_value)}</td><td>${money(c.campaign_cost)}</td><td>${c.is_deal_of_day ? "Yes" : "No"}</td></tr>`).join("")}</table>
+<h2>QR Codes</h2>
+<table>
+  <tr>
+    <th>ID</th>
+    <th>QR</th>
+    <th>Space</th>
+    <th>Routing URL</th>
+    <th>QR Image</th>
+  </tr>
+  ${qrs.rows.map(qr => `
+    <tr>
+      <td>${qr.id}</td>
+      <td>${qr.name || ""}</td>
+      <td>${qr.space_name || ""}</td>
+      <td><a href="/r/${qr.id}" target="_blank">${BASE_URL}/r/${qr.id}</a></td>
+      <td><a href="/qr/${qr.id}.png" target="_blank">Download QR</a></td>
+    </tr>
+  `).join("")}
+</table>
     </div>
   `));
 });
