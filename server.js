@@ -933,7 +933,14 @@ app.get("/stores", async (req, res) => {
     </div>
   `));
 });
+app.get("/qr/:qrId.png", (req, res) => {
+  const qrId = req.params.qrId;
+  const url = `${BASE_URL}/r/${qrId}`;
 
+  res.redirect(
+    `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(url)}`
+  );
+});
 app.get("/analytics", async (req, res) => {
   const total = await metrics();
   res.json(total);
