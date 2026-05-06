@@ -963,6 +963,105 @@ app.get("/qr/:qrId.png", (req, res) => {
     `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(url)}`
   );
 });
+app.get("/qr-admin/:qrId", async (req, res) => {
+  const qrId = req.params.qrId;
+
+  const qr = await q(`
+    SELECT qr.*, s.name AS space_name, s.location, s.annual_impressions, s.placement_cost
+    FROM qr_codes qr
+    LEFT JOIN spaces s ON s.id = qr.space_id
+    WHERE qr.id = $1
+  `, [qrId]);
+
+  const events = await q(`
+    SELECT e.*, c.name AS campaign_name, c.advertiser
+    FROM events e
+    LEFT JOIN campaigns c ON c.id = e.campaign_id
+    WHERE e.qr_id = $1
+    ORDER BY e.created_at DESC
+    LIMIT 100
+  `, [qrId]);
+
+  res.send(page("QR Detail", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>${qr.rows[0]?.name || "QR Detail"}</h1>
+      <p class="subtitle">${qr.rows[0]?.space_name || ""} — ${qr.rows[0]?.location || ""}</p>
+    </div>
+
+    <div class="wrap">
+      <a class="btn" href="/dashboard">Back to Dashboard</a>
+      <a class="btn secondary" href="/r/${qrId}" target="_blank">Open QR</a>
+      <a class="btn gold" href="/qr/${qrId}.png" target="_blank">Download QR</a>
+
+      <div class="note">
+        <strong>Live Link:</strong> ${BASE_URL}/r/${qrId}
+      </div>
+
+      <h2>Recent QR Activity</h2>
+      <table>
+        <tr><th>Time</th><th>Type</th><th>Advertiser</th><th>Campaign</th></tr>
+        ${events.rows.map(e => `
+          <tr>
+            <td>${new Date(e.created_at).toLocaleString()}</td>
+            <td>${e.type}</td>
+            <td>${e.advertiser || ""}</td>
+            <td>${e.campaign_name || ""}</td>
+          </tr>
+        `).join("")}
+      </table>
+    </div>
+  `));
+});
+app.get("/campaign-admin/:campaignId", async (req, res) => {
+  const campaignId = req.params.campaignId;
+
+  const campaign = await q(`
+    SELECT * FROM campaigns WHERE id = $1
+  `, [campaignId]);
+
+  const events = await q(`
+    SELECT e.*, qr.name AS qr_name, s.name AS location_name
+    FROM events e
+    LEFT JOIN qr_codes qr ON qr.id = e.qr_id
+    LEFT JOIN spaces s ON s.id = qr.space_id
+    WHERE e.campaign_id = $1
+    ORDER BY e.created_at DESC
+    LIMIT 100
+  `, [campaignId]);
+
+  res.send(page("Campaign Detail", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>${campaign.rows[0]?.name || "Campaign Detail"}</h1>
+      <p class="subtitle">${campaign.rows[0]?.advertiser || ""}</p>
+    </div>
+
+    <div class="wrap">
+      <a class="btn" href="/dashboard">Back to Dashboard</a>
+      <a class="btn secondary" href="${campaign.rows[0]?.campaign_url || "/"}" target="_blank">Open Campaign URL</a>
+
+      <div class="note">
+        <strong>Avg Customer Value:</strong> ${money(campaign.rows[0]?.avg_customer_value || 0)}<br>
+        <strong>Campaign Cost:</strong> ${money(campaign.rows[0]?.campaign_cost || 0)}<br>
+        <strong>Conversion Rate:</strong> ${campaign.rows[0]?.conversion_rate || 10}%
+      </div>
+
+      <h2>Recent Campaign Activity</h2>
+      <table>
+        <tr><th>Time</th><th>Type</th><th>QR</th><th>Location</th></tr>
+        ${events.rows.map(e => `
+          <tr>
+            <td>${new Date(e.created_at).toLocaleString()}</td>
+            <td>${e.type}</td>
+            <td>${e.qr_name || ""}</td>
+            <td>${e.location_name || ""}</td>
+          </tr>
+        `).join("")}
+      </table>
+    </div>
+  `));
+});
 app.get("/analytics", async (req, res) => {
   const total = await metrics();
   res.json(total);
