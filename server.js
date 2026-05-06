@@ -779,7 +779,30 @@ app.get("/admin/new-campaign", async (req, res) => {
     </form></div>
   `));
 });
+app.get("/admin/new-location", async (req, res) => {
+  res.send(page(`
+    <h2>Add Location / Space</h2>
 
+    <form method="POST" action="/admin/new-location">
+      <label>Name</label>
+      <input name="name" required />
+
+      <label>Market (City, State)</label>
+      <input name="location" placeholder="Naples, FL" />
+
+      <label>Description</label>
+      <input name="description" />
+
+      <label>Annual Impressions</label>
+      <input name="annual_impressions" type="number" value="100000" />
+
+      <label>Placement Cost</label>
+      <input name="placement_cost" type="number" value="800" />
+
+      <button type="submit">Create Location</button>
+    </form>
+  `));
+});
 app.get("/admin/assign", async (req, res) => {
   const qrs = await q(`SELECT * FROM qr_codes ORDER BY id`);
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
@@ -791,6 +814,68 @@ app.get("/admin/assign", async (req, res) => {
       <button class="btn" type="submit">Assign Campaign</button>
     </form></div>
   `));
+});
+app.post("/admin/new-location", async (req, res) => {
+  try {
+    await q(
+      `INSERT INTO spaces (name, location, description, annual_impressions, placement_cost)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [
+        req.body.name,
+        req.body.location,
+        req.body.description,
+        Number(req.body.annual_impressions || 0),
+        Number(req.body.placement_cost || 0)
+      ]
+    );
+
+    res.send("✅ Location created <br><a href='/admin/new-qr'>Add QR</a>");
+  } catch (err) {
+    res.send("ERROR: " + err.message);
+  }
+});
+app.get("/admin/new-qr", async (req, res) => {
+  const spaces = await q(`SELECT * FROM spaces ORDER BY id`);
+
+  res.send(page(`
+    <h2>Add QR Code</h2>
+
+    <form method="POST" action="/admin/new-qr">
+
+      <label>Select Location</label>
+      <select name="space_id">
+        ${spaces.rows.map(s => `
+          <option value="${s.id}">${s.name} (${s.location})</option>
+        `).join("")}
+      </select>
+
+      <label>QR Name</label>
+      <input name="name" placeholder="Car Line QR" />
+
+      <label>Description</label>
+      <input name="description" />
+
+      <button type="submit">Create QR</button>
+
+    </form>
+  `));
+});
+app.post("/admin/new-qr", async (req, res) => {
+  try {
+    await q(
+      `INSERT INTO qr_codes (space_id, name, description)
+       VALUES ($1,$2,$3)`,
+      [
+        Number(req.body.space_id),
+        req.body.name,
+        req.body.description
+      ]
+    );
+
+    res.send("✅ QR created <br><a href='/admin/assign'>Assign Campaign</a>");
+  } catch (err) {
+    res.send("ERROR: " + err.message);
+  }
 });
 app.post("/admin/new-campaign", async (req, res) => {
   try {
