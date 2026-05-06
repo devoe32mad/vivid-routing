@@ -839,8 +839,10 @@ app.post("/admin/new-location", async (req, res) => {
 app.get("/admin/new-qr", async (req, res) => {
   const spaces = await q(`SELECT * FROM spaces ORDER BY id`);
 
-  res.send(page(`
-    <h2>Add QR Code</h2>
+res.send(page("Add QR", `
+  <h2>Add QR Code</h2>
+  ...
+`));
 
     <form method="POST" action="/admin/new-qr">
 
