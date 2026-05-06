@@ -838,9 +838,6 @@ app.get("/admin/new-qr", async (req, res) => {
 
 res.send(page("Add QR", `
   <h2>Add QR Code</h2>
-  ...
-`));
-
     <form method="POST" action="/admin/new-qr">
 
       <label>Select Location</label>
