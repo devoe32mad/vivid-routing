@@ -506,7 +506,11 @@ ORDER BY intent_clicks DESC, scans DESC, campaign_name ASC
 
       qrTable += `
         <tr>
-          <td>${qr.qr_name || "QR " + qr.qr_id}</td>
+         <td>
+  <a href="/qr-admin/${qr.qr_id}">
+    ${qr.qr_name || "QR " + qr.qr_id}
+  </a>
+</td>
           <td>${qr.location_name || ""}</td>
           <td>${qr.location || ""}</td>
           <td>${Number(qr.annual_impressions || 0).toLocaleString()}</td>
