@@ -752,7 +752,11 @@ app.get("/admin", async (req, res) => {
       <a class="btn" href="/dashboard">Dashboard</a><a class="btn secondary" href="/admin/new-campaign">New Campaign</a><a class="btn secondary" href="/admin/assign">Assign Campaign</a>
 
       <h2>Customers</h2>
-      <table><tr><th>ID</th><th>Name</th><th>Email</th></tr>${customers.rows.map(c=>`<tr><td>${c.id}</td><td>${c.name}</td><td>${c.email || ""}</td></tr>`).join("")}</table>
+      <table><tr><th>ID</th><th>Name</th><th>Email</th></tr>${customers.rows.map(c=>`<tr><td>${c.id}<td>
+  <a href="/campaign-admin/${c.id}">
+    ${c.name || ""}
+  </a>
+</td><td>${c.email || ""}</td></tr>`).join("")}</table>
 
 <h2>QR Codes</h2>
 <table>
