@@ -780,8 +780,10 @@ app.get("/admin/new-campaign", async (req, res) => {
   `));
 });
 app.get("/admin/new-location", async (req, res) => {
-  res.send(page(`
-    <h2>Add Location / Space</h2>
+ res.send(page("Add Location", `
+  <h2>Add Location / Space</h2>
+  ...
+`));
 
     <form method="POST" action="/admin/new-location">
       <label>Name</label>
