@@ -409,6 +409,8 @@ if (type === "waze") {
 
 app.get("/dashboard", async (req, res) => {
   try {
+    const start = req.query.start || "";
+const end = req.query.end || "";
     const qrRows = await q(`
       SELECT 
         q.id AS qr_id,
