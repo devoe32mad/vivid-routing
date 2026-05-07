@@ -645,6 +645,15 @@ if (!bestLocation || revenue > bestLocation.revenue) {
       </div>
 
       <div class="wrap">
+      <form method="GET" action="/dashboard" style="margin-bottom:20px;">
+  <label>Start Date</label>
+  <input type="date" name="start" value="${start}" />
+
+  <label>End Date</label>
+  <input type="date" name="end" value="${end}" />
+
+  <button class="btn" type="submit">Apply Date Filter</button>
+</form>
       <div style="display:flex; gap:20px; margin-bottom:20px;">
 
 <div>
