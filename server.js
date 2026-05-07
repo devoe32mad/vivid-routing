@@ -411,6 +411,13 @@ app.get("/dashboard", async (req, res) => {
   try {
     const start = req.query.start || "";
 const end = req.query.end || "";
+    let dateWhere = "";
+let dateParams = [];
+
+if (start && end) {
+  dateWhere = "AND created_at BETWEEN $1 AND $2";
+  dateParams = [start, end];
+}
     const qrRows = await q(`
       SELECT 
         q.id AS qr_id,
