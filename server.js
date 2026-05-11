@@ -660,6 +660,7 @@ for (const row of locationRows.rows) {
       </div>
 
       <div class="wrap">
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
       <form method="GET" action="/dashboard" style="margin-bottom:20px;">
   <label>Start Date</label>
   <input type="date" name="start" value="${start}" />
