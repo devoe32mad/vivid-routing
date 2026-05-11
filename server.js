@@ -539,7 +539,41 @@ app.get("/dashboard", async (req, res) => {
       const customers = Math.round(intent * (conversionRate / 100));
       const avgValue = Number(c.avg_customer_value || 50);
       const revenue = customers * avgValue;
-      const cost = Number(c.campaign_cost || 0);
+      let allocatedCost = 0;
+
+const assignments = await q(`
+  SELECT
+    qc.started_at,
+    qc.ended_at,
+    s.placement_cost
+  FROM qr_campaigns qc
+  JOIN qr_codes qr ON qr.id = qc.qr_id
+  JOIN spaces s ON s.id = qr.space_id
+  WHERE qc.campaign_id = $1
+`, [c.id]);
+
+for (const a of assignments.rows) {
+
+  const startDate = new Date(a.started_at);
+
+  const endDate = a.ended_at
+    ? new Date(a.ended_at)
+    : new Date();
+
+  const diffMs = endDate - startDate;
+
+  const daysRunning = Math.max(
+    1,
+    Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+  );
+
+  const placementCost = Number(a.placement_cost || 0);
+
+  allocatedCost +=
+    (placementCost / 365) * daysRunning;
+}
+
+const cost = allocatedCost;
       const cac = customers ? cost / customers : 0;
       const roi = cost ? ((revenue - cost) / cost) * 100 : 0;
       const intentRate = scans ? (intent / scans) * 100 : 0;
