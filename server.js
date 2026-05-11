@@ -994,13 +994,18 @@ const end = req.query.end || "";
   `, [qrId]);
 
   const events = await q(`
-    SELECT e.*, c.name AS campaign_name, c.advertiser
-    FROM events e
-    LEFT JOIN campaigns c ON c.id = e.campaign_id
-    WHERE e.qr_id = $1
-    ORDER BY e.created_at DESC
-    LIMIT 100
-  `, [qrId]);
+  SELECT e.*, c.name AS campaign_name, c.advertiser
+  FROM events e
+  LEFT JOIN campaigns c ON c.id = e.campaign_id
+  WHERE e.qr_id = $1
+  ${start && end ? "AND e.created_at BETWEEN $2 AND $3" : ""}
+  ORDER BY e.created_at DESC
+  LIMIT 100
+`,
+start && end
+  ? [qrId, start, end]
+  : [qrId]
+);
 
   res.send(page("QR Detail", `
     <div class="topbar">
