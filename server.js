@@ -537,7 +537,7 @@ app.get("/dashboard", async (req, res) => {
       const intent = Number(row.intent_clicks || 0);
       const conversionRate = Number(c.conversion_rate || 10);
       const customers = Math.round(intent * (conversionRate / 100));
-      
+      const cost = Number(c.campaign_cost || 0);
       const revenue = customers * avgValue;
       let allocatedCost = 0;
 
