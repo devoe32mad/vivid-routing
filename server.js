@@ -776,7 +776,7 @@ for (const row of locationRows.rows) {
   } catch (err) {
     res.status(500).send(err.message);
   }
-  <script>
+
 
 });
 
