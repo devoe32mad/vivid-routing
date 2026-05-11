@@ -561,7 +561,18 @@ app.get("/dashboard", async (req, res) => {
         </tr>
       `;
     }
-
+const activeSchedules = await q(`
+  SELECT
+    cs.*,
+    qr.name AS qr_name,
+    c.name AS campaign_name,
+    c.advertiser
+  FROM campaign_schedules cs
+  JOIN qr_codes qr ON qr.id = cs.qr_id
+  JOIN campaigns c ON c.id = cs.campaign_id
+  WHERE cs.is_active = true
+  ORDER BY cs.qr_id, cs.priority DESC
+`);
     let campaignTable = "";
     for (const c of campaignRows.rows) {
       const m = await q(`
