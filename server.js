@@ -708,7 +708,10 @@ for (const row of locationRows.rows) {
           <div class="card"><div class="label">Offer Clicks</div><div class="num">${total.offer_clicks || 0}</div></div>
           <div class="card"><div class="label">Intent Rate</div><div class="num">${totalIntentRate}%</div></div>
         </div>
-
+<div style="background:white;padding:20px;border-radius:16px;margin-bottom:20px;">
+  <h2>Trend Activity</h2>
+  <canvas id="trendChart" style="height:320px;"></canvas>
+</div>
         <h2>ROI by QR Code / Location</h2>
         <table>
           <tr>
