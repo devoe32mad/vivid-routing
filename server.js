@@ -782,6 +782,17 @@ for (const row of locationRows.rows) {
     type: 'line',
     data: {
       labels: ${JSON.stringify(trendLabels)},
+      let trendTable = "";
+
+for (const r of trendResult.rows) {
+  trendTable += `
+    <tr>
+      <td>${new Date(r.day).toLocaleDateString()}</td>
+      <td>${r.scans || 0}</td>
+      <td>${r.intent || 0}</td>
+    </tr>
+  `;
+}
       datasets: [
         { label: 'Scans', data: ${JSON.stringify(trendScans)}, borderWidth: 2 },
         { label: 'Intent', data: ${JSON.stringify(trendIntent)}, borderWidth: 2 }
