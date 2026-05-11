@@ -776,6 +776,32 @@ for (const row of locationRows.rows) {
   } catch (err) {
     res.status(500).send(err.message);
   }
+  <script>
+const ctx = document.getElementById('trendChart');
+
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: ${JSON.stringify(trendLabels)},
+    datasets: [
+      {
+        label: 'Scans',
+        data: ${JSON.stringify(trendScans)},
+        borderWidth: 2
+      },
+      {
+        label: 'Intent',
+        data: ${JSON.stringify(trendIntent)},
+        borderWidth: 2
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false
+  }
+});
+</script>
 });
 
 app.get("/admin", async (req, res) => {
