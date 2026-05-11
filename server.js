@@ -486,15 +486,20 @@ ORDER BY intent_clicks DESC, scans DESC, campaign_name ASC
 
     for (const qr of qrRows.rows) {
       const m = await q(`
-        SELECT
-          COUNT(*) FILTER (WHERE type = 'scan') AS scans,
-          COUNT(*) FILTER (WHERE type = 'offer') AS offer_clicks,
-          COUNT(*) FILTER (WHERE type = 'maps') AS maps_clicks,
-          COUNT(*) FILTER (WHERE type = 'waze') AS waze_clicks,
-          COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks
-        FROM events
-        WHERE qr_id = $1
-      `, [qr.qr_id]);
+  SELECT
+    COUNT(*) FILTER (WHERE type='scan') AS scans,
+    COUNT(*) FILTER (WHERE type='offer') AS offer_clicks,
+    COUNT(*) FILTER (WHERE type='maps') AS maps_clicks,
+    COUNT(*) FILTER (WHERE type='waze') AS waze_clicks,
+    COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks
+  FROM events
+  WHERE qr_id = $1
+  ${start && end ? "AND created_at BETWEEN $2 AND $3" : ""}
+`,
+start && end
+  ? [qr.qr_id, start, end]
+  : [qr.qr_id]
+);
 
       const row = m.rows[0];
 
