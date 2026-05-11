@@ -680,6 +680,37 @@ for (const row of storeRows.rows) {
       <td>${revenue.toLocaleString()}</td>
       <td class="${roi >= 0 ? "good" : "bad"}">${roi.toFixed(1)}%</td>
     </tr>
+    let storeTable = "";
+
+for (const row of storeRows.rows) {
+  const intent = Number(row.intent_clicks || 0);
+  const conversionRate = Number(row.conversion_rate || 10);
+  const avgValue = Number(row.avg_customer_value || 50);
+  const customers = Math.round(intent * (conversionRate / 100));
+  const revenue = customers * avgValue;
+
+  const routingStatus =
+    Number(row.inventory_priority || 0) >= 80 ? "High Priority" :
+    Number(row.inventory_priority || 0) >= 50 ? "Normal Priority" :
+    "Low Priority";
+
+  storeTable += `
+    <tr>
+      <td>${row.store_name || ""}</td>
+      <td>${row.address || ""}</td>
+      <td>${row.advertiser || ""}</td>
+      <td>${row.campaign_name || ""}</td>
+      <td>${row.inventory_priority || 0}</td>
+      <td>${row.inventory_note || ""}</td>
+      <td>${row.maps_clicks || 0}</td>
+      <td>${row.waze_clicks || 0}</td>
+      <td>${intent}</td>
+      <td>${customers}</td>
+      <td>${money(revenue)}</td>
+      <td>${routingStatus}</td>
+    </tr>
+  `;
+}
   `;
 }
     res.send(page("Vivid ROI Dashboard", `
