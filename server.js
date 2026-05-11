@@ -708,11 +708,9 @@ for (const row of locationRows.rows) {
           <div class="card"><div class="label">Offer Clicks</div><div class="num">${total.offer_clicks || 0}</div></div>
           <div class="card"><div class="label">Intent Rate</div><div class="num">${totalIntentRate}%</div></div>
         </div>
-<div style="background:white;padding:20px;border-radius:16px;margin-bottom:20px;">
+<div style="background:white;padding:20px;border-radius:16px;margin-bottom:20px;height:300px;overflow:hidden;">
   <h2>Trend Activity</h2>
-<div style="background:white;padding:20px;border-radius:16px;margin-bottom:20px;height:360px;max-height:360px;overflow:hidden;">
-  <h2>Trend Activity</h2>
-  <div style="height:280px;max-height:280px;">
+  <div style="height:220px;">
     <canvas id="trendChart"></canvas>
   </div>
 </div>
