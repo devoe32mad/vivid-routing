@@ -984,7 +984,8 @@ app.get("/qr/:qrId.png", (req, res) => {
 });
 app.get("/qr-admin/:qrId", async (req, res) => {
   const qrId = req.params.qrId;
-
+const start = req.query.start || "";
+const end = req.query.end || "";
   const qr = await q(`
     SELECT qr.*, s.name AS space_name, s.location, s.annual_impressions, s.placement_cost
     FROM qr_codes qr
