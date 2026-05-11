@@ -1015,6 +1015,13 @@ start && end
     </div>
 
     <div class="wrap">
+    <form method="GET" action="/qr-admin/${qrId}" style="margin-bottom:20px;">
+  <label>Start Date</label>
+  <input type="date" name="start" value="${start}" />
+  <label>End Date</label>
+  <input type="date" name="end" value="${end}" />
+  <button class="btn" type="submit">Apply Date Filter</button>
+</form>
       <a class="btn" href="/dashboard">Back to Dashboard</a>
       <a class="btn secondary" href="/r/${qrId}" target="_blank">Open QR</a>
       <a class="btn gold" href="/qr/${qrId}.png" target="_blank">Download QR</a>
