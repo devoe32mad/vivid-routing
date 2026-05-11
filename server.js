@@ -470,13 +470,14 @@ const locationRows = await q(`
     COUNT(*) FILTER (WHERE e.type = 'maps') AS maps_clicks,
     COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
     COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
-  FROM events e
-  JOIN campaigns c ON c.id = e.campaign_id
-  JOIN qr_codes qr ON qr.id = e.qr_id
-  JOIN spaces s ON s.id = qr.space_id
+FROM events e
+JOIN campaigns c ON c.id = e.campaign_id
+JOIN qr_codes qr ON qr.id = e.qr_id
+JOIN spaces s ON s.id = qr.space_id
+WHERE 1=1 ${dateWhere.replace("created_at", "e.created_at")}
 GROUP BY c.id, s.id
 ORDER BY intent_clicks DESC, scans DESC, campaign_name ASC
-`);
+`, dateParams);
     const total = totals.rows[0];
     const totalIntent = Number(total.intent_clicks || 0);
     const totalScans = Number(total.scans || 0);
