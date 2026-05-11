@@ -225,7 +225,31 @@ await q(`CREATE TABLE IF NOT EXISTS campaign_schedules (
 }
 
 async function activeCampaignForQr(qrId) {
-  const result = await q(`
+  const scheduled = await q(`
+    SELECT
+      c.*,
+      qr.id AS qr_id,
+      qr.name AS qr_name,
+      s.name AS space_name,
+      s.location
+    FROM campaign_schedules cs
+    JOIN campaigns c ON c.id = cs.campaign_id
+    JOIN qr_codes qr ON qr.id = cs.qr_id
+    JOIN spaces s ON s.id = qr.space_id
+    WHERE cs.qr_id = $1
+      AND cs.is_active = true
+      AND (
+        cs.day_of_week = EXTRACT(DOW FROM CURRENT_TIMESTAMP)::INT
+        OR cs.day_of_week = 0
+      )
+      AND CURRENT_TIME BETWEEN cs.start_time::time AND cs.end_time::time
+    ORDER BY cs.priority DESC, cs.created_at DESC
+    LIMIT 1
+  `, [qrId]);
+
+  if (scheduled.rows[0]) return scheduled.rows[0];
+
+  const fallback = await q(`
     SELECT 
       c.*,
       qr.id AS qr_id,
@@ -241,7 +265,7 @@ async function activeCampaignForQr(qrId) {
     LIMIT 1
   `, [qrId]);
 
-  return result.rows[0] || null;
+  return fallback.rows[0] || null;
 }
 
 async function pickBestStoreForCampaign(campaign) {
