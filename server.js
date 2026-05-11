@@ -485,7 +485,7 @@ ORDER BY intent_clicks DESC, scans DESC, campaign_name ASC
     let qrTable = "";
 
     for (const qr of qrRows.rows) {
-      const m = await q(`
+const m = await q(`
   SELECT
     COUNT(*) FILTER (WHERE type='scan') AS scans,
     COUNT(*) FILTER (WHERE type='offer') AS offer_clicks,
@@ -500,7 +500,6 @@ start && end
   ? [qr.qr_id, start, end]
   : [qr.qr_id]
 );
-
       const row = m.rows[0];
 
       const scans = Number(row.scans || 0);
