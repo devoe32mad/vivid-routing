@@ -447,19 +447,6 @@ if (start && end) {
     `);
 
     const totals = await q(`
-    const trendResult = await q(`
-  SELECT
-    DATE(created_at) AS day,
-    COUNT(*) FILTER (WHERE type='scan') AS scans,
-    COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent
-  FROM events
-  WHERE 1=1 ${dateWhere}
-  GROUP BY DATE(created_at)
-  ORDER BY day ASC
-`, dateParams);
-const trendLabels = trendResult.rows.map(r => r.day);
-const trendScans = trendResult.rows.map(r => Number(r.scans || 0));
-const trendIntent = trendResult.rows.map(r => Number(r.intent || 0));
       SELECT
         COUNT(*) FILTER (WHERE type = 'scan') AS scans,
         COUNT(*) FILTER (WHERE type = 'offer') AS offer_clicks,
@@ -467,8 +454,22 @@ const trendIntent = trendResult.rows.map(r => Number(r.intent || 0));
         COUNT(*) FILTER (WHERE type = 'waze') AS waze_clicks,
         COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks
       FROM events
-WHERE 1=1 ${dateWhere}
+      WHERE 1=1 ${dateWhere}
     `, dateParams);
+
+    const trendResult = await q(`
+      SELECT
+        DATE(created_at) AS day,
+        COUNT(*) FILTER (WHERE type='scan') AS scans,
+        COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent
+      FROM events
+      WHERE 1=1 ${dateWhere}
+      GROUP BY DATE(created_at)
+      ORDER BY day ASC
+    `, dateParams);
+    const trendLabels = trendResult.rows.map(r => r.day);
+    const trendScans = trendResult.rows.map(r => Number(r.scans || 0));
+    const trendIntent = trendResult.rows.map(r => Number(r.intent || 0));
 const locationRows = await q(`
   SELECT
     c.id AS campaign_id,
