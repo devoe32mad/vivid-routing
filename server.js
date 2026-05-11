@@ -178,7 +178,10 @@ async function initDb() {
   await q(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS inventory_velocity INT DEFAULT 0`);
   await q(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS inventory_note TEXT`);
   await q(`ALTER TABLE events ADD COLUMN IF NOT EXISTS store_id INT`);
-
+await q(`
+  ALTER TABLE qr_campaigns
+  ADD COLUMN IF NOT EXISTS started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+`);
   const customers = await q(`SELECT COUNT(*) FROM customers`);
   if (Number(customers.rows[0].count) === 0) {
     await q(`INSERT INTO customers (name,email) VALUES ('Demo Brand / Vendor','demo@vividspots.com')`);
