@@ -802,6 +802,25 @@ for (const row of activeSchedules.rows) {
           </tr>
           ${storeTable}
         </table>
+        <h2>Active Campaign Schedules</h2>
+
+<table>
+  <tr>
+    <th>QR</th>
+    <th>Advertiser</th>
+    <th>Campaign</th>
+    <th>Day</th>
+    <th>Start</th>
+    <th>End</th>
+    <th>Priority</th>
+    <th>Status</th>
+  </tr>
+
+  ${activeScheduleTable}
+</table>
+
+</div>
+`));
       </div>
     `));
   } catch (err) {
