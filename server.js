@@ -118,6 +118,7 @@ async function initDb() {
     qr_id INT,
     campaign_id INT,
     is_active BOOLEAN DEFAULT true,
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP
   )`);
