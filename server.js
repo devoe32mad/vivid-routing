@@ -120,7 +120,17 @@ async function initDb() {
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP
   )`);
-
+await q(`CREATE TABLE IF NOT EXISTS campaign_schedules (
+  id SERIAL PRIMARY KEY,
+  qr_id INT,
+  campaign_id INT,
+  day_of_week INT DEFAULT 0,
+  start_time TEXT DEFAULT '00:00',
+  end_time TEXT DEFAULT '23:59',
+  priority INT DEFAULT 50,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)`);
   await q(`CREATE TABLE IF NOT EXISTS stores (
     id SERIAL PRIMARY KEY,
     name TEXT,
