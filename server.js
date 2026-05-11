@@ -635,7 +635,37 @@ for (const row of locationRows.rows) {
   const placementCost = Number(row.placement_cost || 0);
   const roi = placementCost ? ((revenue - placementCost) / placementCost) * 100 : 0;
   const intentRate = scans ? (intent / scans) * 100 : 0;
+let storeTable = "";
 
+for (const row of storeRows.rows) {
+  const intent = Number(row.intent_clicks || 0);
+  const conversionRate = Number(row.conversion_rate || 10);
+  const avgValue = Number(row.avg_customer_value || 50);
+  const customers = Math.round(intent * (conversionRate / 100));
+  const revenue = customers * avgValue;
+
+  const routingStatus =
+    Number(row.inventory_priority || 0) >= 80 ? "High Priority" :
+    Number(row.inventory_priority || 0) >= 50 ? "Normal Priority" :
+    "Low Priority";
+
+  storeTable += `
+    <tr>
+      <td>${row.store_name || ""}</td>
+      <td>${row.address || ""}</td>
+      <td>${row.advertiser || ""}</td>
+      <td>${row.campaign_name || ""}</td>
+      <td>${row.inventory_priority || 0}</td>
+      <td>${row.inventory_note || ""}</td>
+      <td>${row.maps_clicks || 0}</td>
+      <td>${row.waze_clicks || 0}</td>
+      <td>${intent}</td>
+      <td>${customers}</td>
+      <td>${money(revenue)}</td>
+      <td>${routingStatus}</td>
+    </tr>
+  `;
+}
   locationTable += `
     <tr>
       <td>${row.advertiser || ""}</td>
