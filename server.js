@@ -710,7 +710,11 @@ for (const row of locationRows.rows) {
         </div>
 <div style="background:white;padding:20px;border-radius:16px;margin-bottom:20px;">
   <h2>Trend Activity</h2>
-  <canvas id="trendChart" style="height:320px;"></canvas>
+<div style="background:white;padding:20px;border-radius:16px;margin-bottom:20px;height:360px;max-height:360px;overflow:hidden;">
+  <h2>Trend Activity</h2>
+  <div style="height:280px;max-height:280px;">
+    <canvas id="trendChart"></canvas>
+  </div>
 </div>
         <h2>ROI by QR Code / Location</h2>
         <table>
@@ -788,6 +792,7 @@ for (const row of locationRows.rows) {
     options: {
       responsive: true,
       maintainAspectRatio: false
+      animation: false
     }
   });
 })();
