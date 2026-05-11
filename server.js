@@ -821,7 +821,90 @@ app.post("/admin/new-store", async (req, res) => {
     res.send("ERROR: " + err.message);
   }
 });
+app.get("/admin/edit-store/:storeId", async (req, res) => {
+  const storeId = req.params.storeId;
 
+  const store = await q(`SELECT * FROM stores WHERE id = $1`, [storeId]);
+  const s = store.rows[0];
+
+  if (!s) return res.status(404).send("Store not found");
+
+  res.send(page("Edit Store", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>Edit Store / Inventory</h1>
+      <p class="subtitle">${s.name || ""}</p>
+    </div>
+
+    <div class="wrap">
+      <a class="btn" href="/admin">Back to Admin</a>
+
+      <form method="POST" action="/admin/edit-store/${storeId}">
+        <label>Store Name</label>
+        <input name="name" value="${s.name || ""}" />
+
+        <label>Address / Market</label>
+        <input name="address" value="${s.address || ""}" />
+
+        <label>Google Maps URL</label>
+        <input name="maps_url" value="${s.maps_url || ""}" />
+
+        <label>Waze URL</label>
+        <input name="waze_url" value="${s.waze_url || ""}" />
+
+        <label>Inventory Priority (0-100)</label>
+        <input name="inventory_priority" type="number" value="${s.inventory_priority || 0}" />
+
+        <label>Units On Hand</label>
+        <input name="inventory_units" type="number" value="${s.inventory_units || 0}" />
+
+        <label>Days On Hand</label>
+        <input name="days_on_hand" type="number" value="${s.days_on_hand || 0}" />
+
+        <label>Velocity</label>
+        <input name="inventory_velocity" type="number" value="${s.inventory_velocity || 0}" />
+
+        <label>Inventory Note</label>
+        <input name="inventory_note" value="${s.inventory_note || ""}" />
+
+        <button class="btn" type="submit">Save Store</button>
+      </form>
+    </div>
+  `));
+});
+app.post("/admin/edit-store/:storeId", async (req, res) => {
+  try {
+    await q(`
+      UPDATE stores
+      SET
+        name = $1,
+        address = $2,
+        maps_url = $3,
+        waze_url = $4,
+        inventory_priority = $5,
+        inventory_units = $6,
+        days_on_hand = $7,
+        inventory_velocity = $8,
+        inventory_note = $9
+      WHERE id = $10
+    `, [
+      req.body.name,
+      req.body.address,
+      req.body.maps_url,
+      req.body.waze_url,
+      Number(req.body.inventory_priority || 0),
+      Number(req.body.inventory_units || 0),
+      Number(req.body.days_on_hand || 0),
+      Number(req.body.inventory_velocity || 0),
+      req.body.inventory_note,
+      req.params.storeId
+    ]);
+
+    res.send("✅ Store updated <br><a href='/admin'>Back to Admin</a> | <a href='/dashboard'>Dashboard</a>");
+  } catch (err) {
+    res.send("ERROR: " + err.message);
+  }
+});
 app.get("/admin/schedule", async (req, res) => {
   const qrs = await q(`SELECT * FROM qr_codes ORDER BY id`);
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
