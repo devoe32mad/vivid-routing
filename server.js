@@ -547,7 +547,8 @@ let bestLocation = null;
 let bestQR = null;
     let campaignTable = "";
 
- const m = await q(`
+    for (const c of campaignRows.rows) {
+      const m = await q(`
   SELECT
     COUNT(*) FILTER (WHERE type='scan') AS scans,
     COUNT(*) FILTER (WHERE type='offer') AS offer_clicks,
@@ -558,10 +559,10 @@ let bestQR = null;
   WHERE campaign_id = $1
   ${start && end ? "AND created_at BETWEEN $2 AND $3" : ""}
 `,
-start && end
-  ? [c.id, start, end]
-  : [c.id]
-);
+        start && end
+          ? [c.id, start, end]
+          : [c.id]
+      );
 
       const row = m.rows[0];
 
