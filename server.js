@@ -547,17 +547,21 @@ let bestLocation = null;
 let bestQR = null;
     let campaignTable = "";
 
-    for (const c of campaignRows.rows) {
-      const m = await q(`
-        SELECT
-          COUNT(*) FILTER (WHERE type = 'scan') AS scans,
-          COUNT(*) FILTER (WHERE type = 'offer') AS offer_clicks,
-          COUNT(*) FILTER (WHERE type = 'maps') AS maps_clicks,
-          COUNT(*) FILTER (WHERE type = 'waze') AS waze_clicks,
-          COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks
-        FROM events
-        WHERE campaign_id = $1
-      `, [c.campaign_id]);
+ const m = await q(`
+  SELECT
+    COUNT(*) FILTER (WHERE type='scan') AS scans,
+    COUNT(*) FILTER (WHERE type='offer') AS offer_clicks,
+    COUNT(*) FILTER (WHERE type='maps') AS maps_clicks,
+    COUNT(*) FILTER (WHERE type='waze') AS waze_clicks,
+    COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks
+  FROM events
+  WHERE campaign_id = $1
+  ${start && end ? "AND created_at BETWEEN $2 AND $3" : ""}
+`,
+start && end
+  ? [c.id, start, end]
+  : [c.id]
+);
 
       const row = m.rows[0];
 
