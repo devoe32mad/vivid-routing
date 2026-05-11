@@ -771,6 +771,27 @@ for (const row of locationRows.rows) {
   </tr>
   ${locationTable}
 </table>
+<script>
+(function () {
+  const ctx = document.getElementById('trendChart');
+  if (!ctx) return;
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ${JSON.stringify(trendLabels)},
+      datasets: [
+        { label: 'Scans', data: ${JSON.stringify(trendScans)}, borderWidth: 2 },
+        { label: 'Intent', data: ${JSON.stringify(trendIntent)}, borderWidth: 2 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  });
+})();
+</script>
       </div>
     `));
   } catch (err) {
