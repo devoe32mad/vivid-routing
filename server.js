@@ -539,6 +539,7 @@ app.get("/dashboard", async (req, res) => {
       const customers = Math.round(intent * (conversionRate / 100));
       const cost = Number(c.campaign_cost || 0);
       const revenue = customers * avgValue;
+      const avgValue = Number(c.avg_customer_value || 0);
       let allocatedCost = 0;
 
 const assignments = await q(`
