@@ -690,7 +690,32 @@ const activeSchedules = await q(`
         </tr>
       `;
     }
+let activeScheduleTable = "";
 
+for (const row of activeSchedules.rows) {
+
+  let dayText =
+    row.day_of_week == 0 ? "Every Day / Sunday" :
+    row.day_of_week == 1 ? "Monday" :
+    row.day_of_week == 2 ? "Tuesday" :
+    row.day_of_week == 3 ? "Wednesday" :
+    row.day_of_week == 4 ? "Thursday" :
+    row.day_of_week == 5 ? "Friday" :
+    "Saturday";
+
+  activeScheduleTable += `
+    <tr>
+      <td>${row.qr_name || row.qr_id}</td>
+      <td>${row.advertiser || ""}</td>
+      <td>${row.campaign_name || ""}</td>
+      <td>${dayText}</td>
+      <td>${row.start_time}</td>
+      <td>${row.end_time}</td>
+      <td>${row.priority}</td>
+      <td>${row.is_active ? "Active" : "Inactive"}</td>
+    </tr>
+  `;
+}
     res.send(page("Vivid ROI Dashboard", `
       <div class="topbar">
         <div class="brand">Vivid Spots</div>
