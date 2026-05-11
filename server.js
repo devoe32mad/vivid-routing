@@ -610,24 +610,27 @@ if (!topCampaign || revenue > topCampaign.revenue) {
     }
 let locationTable = "";
 
-for (const row of locationRows.rows) {
-  const scans = Number(row.scans || 0);
-  const intent = Number(row.intent_clicks || 0);
+const m = await q(`
+  SELECT
+    COUNT(*) FILTER (WHERE type='scan') AS scans,
+    COUNT(*) FILTER (WHERE type='offer') AS offer_clicks,
+    COUNT(*) FILTER (WHERE type='maps') AS maps_clicks,
+    COUNT(*) FILTER (WHERE type='waze') AS waze_clicks,
+    COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks
+  FROM events
+  WHERE campaign_id = $1
+  AND qr_id IN (
+    SELECT qr.id
+    FROM qr_codes qr
+    WHERE qr.space_id = $2
+  )
+  ${start && end ? "AND created_at BETWEEN $3 AND $4" : ""}
+`,
+start && end
+  ? [row.campaign_id, row.space_id, start, end]
+  : [row.campaign_id, row.space_id]
+);
 
-  const conversionRate = Number(row.conversion_rate || 10);
-  const customers = Math.round(intent * (conversionRate / 100));
-
-  const avgValue = Number(row.avg_customer_value || 50);
-  const revenue = customers * avgValue;
-
-  const cost = Number(row.placement_cost || 800);
-  const roi = cost ? ((revenue - cost) / cost) * 100 : 0;
-if (!bestLocation || revenue > bestLocation.revenue) {
-  bestLocation = {
-    name: row.location_name || row.location || "Location",
-    revenue,
-    roi
-  };
 }
   const intentRate = scans ? (intent / scans) * 100 : 0;
 
