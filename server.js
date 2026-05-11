@@ -7,7 +7,8 @@ const port = process.env.PORT || 3000;
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-const BASE_URL = process.env.BASE_URL || "https://vivid-routing-production.up.railway.app";
+const BASE_URL =
+  process.env.BASE_URL || "https://vivid-routing-production.up.railway.app";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -120,17 +121,19 @@ async function initDb() {
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP
   )`);
-await q(`CREATE TABLE IF NOT EXISTS campaign_schedules (
-  id SERIAL PRIMARY KEY,
-  qr_id INT,
-  campaign_id INT,
-  day_of_week INT DEFAULT 0,
-  start_time TEXT DEFAULT '00:00',
-  end_time TEXT DEFAULT '23:59',
-  priority INT DEFAULT 50,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)`);
+
+  await q(`CREATE TABLE IF NOT EXISTS campaign_schedules (
+    id SERIAL PRIMARY KEY,
+    qr_id INT,
+    campaign_id INT,
+    day_of_week INT DEFAULT 0,
+    start_time TEXT DEFAULT '00:00',
+    end_time TEXT DEFAULT '23:59',
+    priority INT DEFAULT 50,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   await q(`CREATE TABLE IF NOT EXISTS stores (
     id SERIAL PRIMARY KEY,
     name TEXT,
@@ -175,26 +178,26 @@ await q(`CREATE TABLE IF NOT EXISTS campaign_schedules (
   await q(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS inventory_note TEXT`);
   await q(`ALTER TABLE events ADD COLUMN IF NOT EXISTS store_id INT`);
 
-  const customerCount = await q(`SELECT COUNT(*) FROM customers`);
-  if (Number(customerCount.rows[0].count) === 0) {
+  const customers = await q(`SELECT COUNT(*) FROM customers`);
+  if (Number(customers.rows[0].count) === 0) {
     await q(`INSERT INTO customers (name,email) VALUES ('Demo Brand / Vendor','demo@vividspots.com')`);
   }
 
-  const spaceCount = await q(`SELECT COUNT(*) FROM spaces`);
-  if (Number(spaceCount.rows[0].count) === 0) {
+  const spaces = await q(`SELECT COUNT(*) FROM spaces`);
+  if (Number(spaces.rows[0].count) === 0) {
     await q(`
       INSERT INTO spaces (customer_id,name,description,location,host_name,annual_impressions,placement_cost,host_payout)
       VALUES (1,'School 1 Car Line','High-traffic parent pickup placement','Naples, FL','Demo School',146000,800,300)
     `);
   }
 
-  const qrCount = await q(`SELECT COUNT(*) FROM qr_codes`);
-  if (Number(qrCount.rows[0].count) === 0) {
+  const qrs = await q(`SELECT COUNT(*) FROM qr_codes`);
+  if (Number(qrs.rows[0].count) === 0) {
     await q(`INSERT INTO qr_codes (space_id,name,description) VALUES (1,'QR 1 - Car Line','Primary QR for car line placement')`);
   }
 
-  const campaignCount = await q(`SELECT COUNT(*) FROM campaigns`);
-  if (Number(campaignCount.rows[0].count) === 0) {
+  const campaigns = await q(`SELECT COUNT(*) FROM campaigns`);
+  if (Number(campaigns.rows[0].count) === 0) {
     await q(`
       INSERT INTO campaigns (name,advertiser,campaign_url,avg_customer_value,campaign_cost,conversion_rate,is_deal_of_day)
       VALUES 
@@ -203,8 +206,8 @@ await q(`CREATE TABLE IF NOT EXISTS campaign_schedules (
     `);
   }
 
-  const storeCount = await q(`SELECT COUNT(*) FROM stores`);
-  if (Number(storeCount.rows[0].count) === 0) {
+  const stores = await q(`SELECT COUNT(*) FROM stores`);
+  if (Number(stores.rows[0].count) === 0) {
     await q(`
       INSERT INTO stores (name,address,maps_url,waze_url,inventory_priority,inventory_units,days_on_hand,inventory_velocity,inventory_note)
       VALUES 
@@ -213,35 +216,27 @@ await q(`CREATE TABLE IF NOT EXISTS campaign_schedules (
     `);
   }
 
-  const assignmentCount = await q(`SELECT COUNT(*) FROM qr_campaigns`);
-  if (Number(assignmentCount.rows[0].count) === 0) {
+  const assignments = await q(`SELECT COUNT(*) FROM qr_campaigns`);
+  if (Number(assignments.rows[0].count) === 0) {
     await q(`INSERT INTO qr_campaigns (qr_id,campaign_id,is_active) VALUES (1,1,true)`);
   }
 
-  const csCount = await q(`SELECT COUNT(*) FROM campaign_stores`);
-  if (Number(csCount.rows[0].count) === 0) {
+  const campaignStores = await q(`SELECT COUNT(*) FROM campaign_stores`);
+  if (Number(campaignStores.rows[0].count) === 0) {
     await q(`INSERT INTO campaign_stores (campaign_id,store_id,weight,is_active) VALUES (1,1,70,true),(2,2,90,true)`);
   }
 }
 
 async function activeCampaignForQr(qrId) {
   const scheduled = await q(`
-    SELECT
-      c.*,
-      qr.id AS qr_id,
-      qr.name AS qr_name,
-      s.name AS space_name,
-      s.location
+    SELECT c.*, qr.id AS qr_id, qr.name AS qr_name, s.name AS space_name, s.location
     FROM campaign_schedules cs
     JOIN campaigns c ON c.id = cs.campaign_id
     JOIN qr_codes qr ON qr.id = cs.qr_id
     JOIN spaces s ON s.id = qr.space_id
     WHERE cs.qr_id = $1
       AND cs.is_active = true
-      AND (
-        cs.day_of_week = EXTRACT(DOW FROM CURRENT_TIMESTAMP)::INT
-        OR cs.day_of_week = 0
-      )
+      AND (cs.day_of_week = EXTRACT(DOW FROM CURRENT_TIMESTAMP)::INT OR cs.day_of_week = 0)
       AND CURRENT_TIME BETWEEN cs.start_time::time AND cs.end_time::time
     ORDER BY cs.priority DESC, cs.created_at DESC
     LIMIT 1
@@ -250,12 +245,7 @@ async function activeCampaignForQr(qrId) {
   if (scheduled.rows[0]) return scheduled.rows[0];
 
   const fallback = await q(`
-    SELECT 
-      c.*,
-      qr.id AS qr_id,
-      qr.name AS qr_name,
-      s.name AS space_name,
-      s.location
+    SELECT c.*, qr.id AS qr_id, qr.name AS qr_name, s.name AS space_name, s.location
     FROM qr_campaigns qc
     JOIN campaigns c ON c.id = qc.campaign_id
     JOIN qr_codes qr ON qr.id = qc.qr_id
@@ -289,12 +279,13 @@ async function pickBestStoreForCampaign(campaign) {
     const conversionRate = Number(campaign.conversion_rate || 10);
     const customers = Math.round(intent * (conversionRate / 100));
     const revenue = customers * Number(campaign.avg_customer_value || 50);
-    const inventoryScore = Number(s.inventory_priority || 0) * 10;
-    const weightScore = Number(s.weight || 0) * 5;
-    const score = revenue + inventoryScore + weightScore;
+    const score =
+      revenue +
+      Number(s.inventory_priority || 0) * 10 +
+      Number(s.weight || 0) * 5;
 
     if (!bestStore || score > bestStore.score) {
-      bestStore = { store: s, score, revenue };
+      bestStore = { store: s, score };
     }
   }
 
@@ -302,14 +293,10 @@ async function pickBestStoreForCampaign(campaign) {
 }
 
 async function saveEvent({ qrId, campaignId, storeId = null, type }) {
-  try {
-    await q(
-      `INSERT INTO events (qr_id,campaign_id,store_id,type) VALUES ($1,$2,$3,$4)`,
-      [qrId, campaignId, storeId, type]
-    );
-  } catch (err) {
-    console.error("EVENT SAVE ERROR:", err.message);
-  }
+  await q(
+    `INSERT INTO events (qr_id,campaign_id,store_id,type) VALUES ($1,$2,$3,$4)`,
+    [qrId, campaignId, storeId, type]
+  );
 }
 
 app.get("/", (req, res) => {
@@ -317,7 +304,7 @@ app.get("/", (req, res) => {
     <div class="topbar">
       <div class="brand">Vivid Spots</div>
       <h1>Smart QR Routing Platform</h1>
-      <p class="subtitle">Campaign switching, ROI tracking, store routing, and inventory-aware demand activation.</p>
+      <p class="subtitle">Campaign switching, ROI tracking, store routing, schedules, and inventory-aware demand activation.</p>
     </div>
     <div class="wrap">
       <a class="btn" href="/dashboard">Dashboard</a>
@@ -332,7 +319,6 @@ app.get("/init-db", async (req, res) => {
     await initDb();
     res.send("Full Vivid DB initialized and updated");
   } catch (err) {
-    console.error(err);
     res.status(500).send("INIT DB ERROR: " + err.message);
   }
 });
@@ -364,7 +350,7 @@ app.get("/r/:qrId", async (req, res) => {
         <a class="choice-btn" href="/click/offer/${qrId}">View Offer</a>
         <a class="choice-btn dark" href="/click/maps/${qrId}">Find Store on Google Maps</a>
         <a class="choice-btn dark" href="/click/waze/${qrId}">Open in Waze</a>
-        <p class="small">Vivid routes traffic based on campaign, performance, location, and inventory priority.</p>
+        <p class="small">Vivid routes traffic based on campaign, performance, schedule, and inventory priority.</p>
       </div>
     </div>
   `));
@@ -382,16 +368,9 @@ app.get("/click/:type/:qrId", async (req, res) => {
     store = await pickBestStoreForCampaign(campaign);
   }
 
-  await saveEvent({
-    qrId,
-    campaignId: campaign.id,
-    storeId: store ? store.id : null,
-    type
-  });
+  await saveEvent({ qrId, campaignId: campaign.id, storeId: store ? store.id : null, type });
 
-  if (type === "offer") {
-    return res.redirect(campaign.campaign_url || "/");
-  }
+  if (type === "offer") return res.redirect(campaign.campaign_url || "/");
 
   if (type === "maps") {
     const fallback = "https://www.google.com/maps/search/?api=1&query=" +
@@ -429,8 +408,7 @@ app.get("/dashboard", async (req, res) => {
     `, dateParams);
 
     const trendResult = await q(`
-      SELECT
-        DATE(e.created_at) AS day,
+      SELECT DATE(e.created_at) AS day,
         COUNT(*) FILTER (WHERE e.type='scan') AS scans,
         COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
       FROM events e
@@ -439,17 +417,6 @@ app.get("/dashboard", async (req, res) => {
       ORDER BY day DESC
       LIMIT 14
     `, dateParams);
-
-    let trendTable = "";
-    for (const r of trendResult.rows) {
-      trendTable += `
-        <tr>
-          <td>${new Date(r.day).toLocaleDateString()}</td>
-          <td>${r.scans || 0}</td>
-          <td>${r.intent_clicks || 0}</td>
-        </tr>
-      `;
-    }
 
     const qrRows = await q(`
       SELECT qr.id AS qr_id, qr.name AS qr_name, s.name AS space_name, s.location, s.annual_impressions, s.placement_cost
@@ -461,16 +428,9 @@ app.get("/dashboard", async (req, res) => {
     const campaignRows = await q(`SELECT * FROM campaigns ORDER BY id`);
 
     const locationRows = await q(`
-      SELECT
-        c.id AS campaign_id,
-        c.name AS campaign_name,
-        c.advertiser,
-        s.id AS space_id,
-        s.name AS location_name,
-        s.location,
-        s.placement_cost,
-        c.avg_customer_value,
-        c.conversion_rate,
+      SELECT c.id AS campaign_id, c.name AS campaign_name, c.advertiser,
+        s.id AS space_id, s.name AS location_name, s.location, s.placement_cost,
+        c.avg_customer_value, c.conversion_rate,
         COUNT(*) FILTER (WHERE e.type='scan') AS scans,
         COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
@@ -485,19 +445,10 @@ app.get("/dashboard", async (req, res) => {
     `, dateParams);
 
     const storeRows = await q(`
-      SELECT
-        st.id AS store_id,
-        st.name AS store_name,
-        st.address,
-        st.inventory_priority,
-        st.inventory_units,
-        st.days_on_hand,
-        st.inventory_velocity,
-        st.inventory_note,
-        c.name AS campaign_name,
-        c.advertiser,
-        c.avg_customer_value,
-        c.conversion_rate,
+      SELECT st.id AS store_id, st.name AS store_name, st.address,
+        st.inventory_priority, st.inventory_units, st.days_on_hand,
+        st.inventory_velocity, st.inventory_note,
+        c.name AS campaign_name, c.advertiser, c.avg_customer_value, c.conversion_rate,
         COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
         COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
@@ -508,10 +459,24 @@ app.get("/dashboard", async (req, res) => {
       ORDER BY intent_clicks DESC, st.inventory_priority DESC
     `, dateParams);
 
+    const activeSchedules = await q(`
+      SELECT cs.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser
+      FROM campaign_schedules cs
+      JOIN qr_codes qr ON qr.id = cs.qr_id
+      JOIN campaigns c ON c.id = cs.campaign_id
+      WHERE cs.is_active = true
+      ORDER BY cs.qr_id, cs.priority DESC
+    `);
+
     const total = totalResult.rows[0];
     const totalScans = Number(total.scans || 0);
     const totalIntent = Number(total.intent_clicks || 0);
     const totalIntentRate = totalScans ? (totalIntent / totalScans) * 100 : 0;
+
+    let trendTable = "";
+    for (const r of trendResult.rows) {
+      trendTable += `<tr><td>${new Date(r.day).toLocaleDateString()}</td><td>${r.scans || 0}</td><td>${r.intent_clicks || 0}</td></tr>`;
+    }
 
     let topCampaign = null;
     let bestLocation = null;
@@ -519,8 +484,7 @@ app.get("/dashboard", async (req, res) => {
     let qrTable = "";
     for (const qr of qrRows.rows) {
       const m = await q(`
-        SELECT
-          COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+        SELECT COUNT(*) FILTER (WHERE e.type='scan') AS scans,
           COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
           COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
           COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
@@ -541,43 +505,20 @@ app.get("/dashboard", async (req, res) => {
       const cpm = qr.annual_impressions ? (cost / Number(qr.annual_impressions)) * 1000 : 0;
       const intentRate = scans ? (intent / scans) * 100 : 0;
 
-      qrTable += `
-        <tr>
-          <td><a href="/qr-admin/${qr.qr_id}">${qr.qr_name || "QR " + qr.qr_id}</a></td>
-          <td>${qr.space_name || ""}</td>
-          <td>${qr.location || ""}</td>
-          <td>${Number(qr.annual_impressions || 0).toLocaleString()}</td>
-          <td>${scans}</td>
-          <td>${row.maps_clicks || 0}</td>
-          <td>${row.offer_clicks || 0}</td>
-          <td>${row.waze_clicks || 0}</td>
-          <td>${pct(intentRate)}</td>
-          <td>${customers}</td>
-          <td>${money(revenue)}</td>
-          <td>${money(cost)}</td>
-          <td>${money(cac)}</td>
-          <td>$${cpm.toFixed(2)}</td>
-          <td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td>
-        </tr>
-      `;
+      qrTable += `<tr>
+        <td><a href="/qr-admin/${qr.qr_id}">${qr.qr_name || "QR " + qr.qr_id}</a></td>
+        <td>${qr.space_name || ""}</td><td>${qr.location || ""}</td>
+        <td>${Number(qr.annual_impressions || 0).toLocaleString()}</td>
+        <td>${scans}</td><td>${row.maps_clicks || 0}</td><td>${row.offer_clicks || 0}</td><td>${row.waze_clicks || 0}</td>
+        <td>${pct(intentRate)}</td><td>${customers}</td><td>${money(revenue)}</td><td>${money(cost)}</td><td>${money(cac)}</td><td>$${cpm.toFixed(2)}</td>
+        <td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td>
+      </tr>`;
     }
-const activeSchedules = await q(`
-  SELECT
-    cs.*,
-    qr.name AS qr_name,
-    c.name AS campaign_name,
-    c.advertiser
-  FROM campaign_schedules cs
-  JOIN qr_codes qr ON qr.id = cs.qr_id
-  JOIN campaigns c ON c.id = cs.campaign_id
-  WHERE cs.is_active = true
-  ORDER BY cs.qr_id, cs.priority DESC
-`);
+
     let campaignTable = "";
     for (const c of campaignRows.rows) {
       const m = await q(`
-        SELECT
-          COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+        SELECT COUNT(*) FILTER (WHERE e.type='scan') AS scans,
           COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
           COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
           COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
@@ -603,24 +544,12 @@ const activeSchedules = await q(`
         topCampaign = { name: c.name || "Campaign " + c.id, advertiser: c.advertiser || "", revenue, roi };
       }
 
-      campaignTable += `
-        <tr>
-          <td>${c.advertiser || ""}</td>
-          <td><a href="/campaign-admin/${c.id}">${c.name || ""}</a></td>
-          <td>${c.is_deal_of_day ? "🔥 Deal" : "Standard"}</td>
-          <td>${scans}</td>
-          <td>${row.maps_clicks || 0}</td>
-          <td>${row.offer_clicks || 0}</td>
-          <td>${row.waze_clicks || 0}</td>
-          <td>${pct(intentRate)}</td>
-          <td>${customers}</td>
-          <td>${money(avgValue)}</td>
-          <td>${money(revenue)}</td>
-          <td>${money(cost)}</td>
-          <td>${money(cac)}</td>
-          <td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td>
-        </tr>
-      `;
+      campaignTable += `<tr>
+        <td>${c.advertiser || ""}</td><td><a href="/campaign-admin/${c.id}">${c.name || ""}</a></td><td>${c.is_deal_of_day ? "🔥 Deal" : "Standard"}</td>
+        <td>${scans}</td><td>${row.maps_clicks || 0}</td><td>${row.offer_clicks || 0}</td><td>${row.waze_clicks || 0}</td>
+        <td>${pct(intentRate)}</td><td>${customers}</td><td>${money(avgValue)}</td><td>${money(revenue)}</td><td>${money(cost)}</td><td>${money(cac)}</td>
+        <td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td>
+      </tr>`;
     }
 
     let locationTable = "";
@@ -639,21 +568,11 @@ const activeSchedules = await q(`
         bestLocation = { name: row.location_name || row.location || "Location", revenue, roi };
       }
 
-      locationTable += `
-        <tr>
-          <td>${row.advertiser || ""}</td>
-          <td>${row.campaign_name || ""}</td>
-          <td>${row.location_name || ""}</td>
-          <td>${row.location || ""}</td>
-          <td>${scans}</td>
-          <td>${row.maps_clicks || 0}</td>
-          <td>${row.offer_clicks || 0}</td>
-          <td>${pct(intentRate)}</td>
-          <td>${customers}</td>
-          <td>${money(revenue)}</td>
-          <td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td>
-        </tr>
-      `;
+      locationTable += `<tr>
+        <td>${row.advertiser || ""}</td><td>${row.campaign_name || ""}</td><td>${row.location_name || ""}</td><td>${row.location || ""}</td>
+        <td>${scans}</td><td>${row.maps_clicks || 0}</td><td>${row.offer_clicks || 0}</td><td>${pct(intentRate)}</td><td>${customers}</td><td>${money(revenue)}</td>
+        <td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td>
+      </tr>`;
     }
 
     let storeTable = "";
@@ -664,99 +583,57 @@ const activeSchedules = await q(`
       const customers = Math.round(intent * (conversionRate / 100));
       const revenue = customers * avgValue;
       const priority = Number(row.inventory_priority || 0);
+      const status = priority >= 80 ? "High Priority Push" : priority >= 50 ? "Normal Priority" : "Low Priority";
 
-      const status =
-        priority >= 80 ? "High Priority Push" :
-        priority >= 50 ? "Normal Priority" :
-        "Low Priority";
-
-      storeTable += `
-        <tr>
-          <td>${row.store_name || ""}</td>
-          <td>${row.address || ""}</td>
-          <td>${row.advertiser || ""}</td>
-          <td>${row.campaign_name || ""}</td>
-          <td>${priority}</td>
-          <td>${row.inventory_units || 0}</td>
-          <td>${row.days_on_hand || 0}</td>
-          <td>${row.inventory_velocity || 0}</td>
-          <td>${row.inventory_note || ""}</td>
-          <td>${row.maps_clicks || 0}</td>
-          <td>${row.waze_clicks || 0}</td>
-          <td>${intent}</td>
-          <td>${customers}</td>
-          <td>${money(revenue)}</td>
-          <td>${status}</td>
-        </tr>
-      `;
+      storeTable += `<tr>
+        <td>${row.store_name || ""}</td><td>${row.address || ""}</td><td>${row.advertiser || ""}</td><td>${row.campaign_name || ""}</td>
+        <td>${priority}</td><td>${row.inventory_units || 0}</td><td>${row.days_on_hand || 0}</td><td>${row.inventory_velocity || 0}</td><td>${row.inventory_note || ""}</td>
+        <td>${row.maps_clicks || 0}</td><td>${row.waze_clicks || 0}</td><td>${intent}</td><td>${customers}</td><td>${money(revenue)}</td><td>${status}</td>
+      </tr>`;
     }
 
-let activeScheduleTable = "";
+    let activeScheduleTable = "";
+    for (const row of activeSchedules.rows) {
+      const dayText =
+        row.day_of_week == 0 ? "Every Day / Sunday" :
+        row.day_of_week == 1 ? "Monday" :
+        row.day_of_week == 2 ? "Tuesday" :
+        row.day_of_week == 3 ? "Wednesday" :
+        row.day_of_week == 4 ? "Thursday" :
+        row.day_of_week == 5 ? "Friday" : "Saturday";
 
-for (const row of activeSchedules.rows) {
+      activeScheduleTable += `<tr>
+        <td>${row.qr_name || row.qr_id}</td><td>${row.advertiser || ""}</td><td>${row.campaign_name || ""}</td>
+        <td>${dayText}</td><td>${row.start_time}</td><td>${row.end_time}</td><td>${row.priority}</td><td>${row.is_active ? "Active" : "Inactive"}</td>
+      </tr>`;
+    }
 
-  let dayText =
-    row.day_of_week == 0 ? "Every Day / Sunday" :
-    row.day_of_week == 1 ? "Monday" :
-    row.day_of_week == 2 ? "Tuesday" :
-    row.day_of_week == 3 ? "Wednesday" :
-    row.day_of_week == 4 ? "Thursday" :
-    row.day_of_week == 5 ? "Friday" :
-    "Saturday";
-
-  activeScheduleTable += `
-    <tr>
-      <td>${row.qr_name || row.qr_id}</td>
-      <td>${row.advertiser || ""}</td>
-      <td>${row.campaign_name || ""}</td>
-      <td>${dayText}</td>
-      <td>${row.start_time}</td>
-      <td>${row.end_time}</td>
-      <td>${row.priority}</td>
-      <td>${row.is_active ? "Active" : "Inactive"}</td>
-    </tr>
-  `;
-}
     res.send(page("Vivid ROI Dashboard", `
       <div class="topbar">
         <div class="brand">Vivid Spots</div>
         <h1>ROI Dashboard</h1>
-        <p class="subtitle">QR Code ROI + Campaign ROI + Store Intent + Inventory Routing</p>
+        <p class="subtitle">QR ROI + Campaign ROI + Store Intent + Inventory Routing + Scheduled Campaigns</p>
       </div>
 
       <div class="wrap">
         <form method="GET" action="/dashboard" style="margin-bottom:20px;">
-          <label>Start Date</label>
-          <input type="date" name="start" value="${start}" />
-          <label>End Date</label>
-          <input type="date" name="end" value="${end}" />
+          <label>Start Date</label><input type="date" name="start" value="${start}" />
+          <label>End Date</label><input type="date" name="end" value="${end}" />
           <button class="btn" type="submit">Apply Date Filter</button>
         </form>
 
         <div style="display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap;">
-          <div class="card" style="width:220px;">
-            <h3>🏆 Top Campaign</h3>
-            <div>${topCampaign?.name || "-"}</div>
-            <div class="small">${topCampaign?.advertiser || ""}</div>
-            <div>Revenue: ${money(topCampaign?.revenue || 0)}</div>
-            <div>ROI: ${pct(topCampaign?.roi || 0)}</div>
-          </div>
-          <div class="card" style="width:220px;">
-            <h3>📍 Best Location</h3>
-            <div>${bestLocation?.name || "-"}</div>
-            <div>Revenue: ${money(bestLocation?.revenue || 0)}</div>
-            <div>ROI: ${pct(bestLocation?.roi || 0)}</div>
-          </div>
+          <div class="card" style="width:220px;"><h3>🏆 Top Campaign</h3><div>${topCampaign?.name || "-"}</div><div class="small">${topCampaign?.advertiser || ""}</div><div>Revenue: ${money(topCampaign?.revenue || 0)}</div><div>ROI: ${pct(topCampaign?.roi || 0)}</div></div>
+          <div class="card" style="width:220px;"><h3>📍 Best Location</h3><div>${bestLocation?.name || "-"}</div><div>Revenue: ${money(bestLocation?.revenue || 0)}</div><div>ROI: ${pct(bestLocation?.roi || 0)}</div></div>
         </div>
 
         <a class="btn" href="/r/1">Test QR</a>
         <a class="btn secondary" href="/admin">Admin</a>
+        <a class="btn secondary" href="/admin/schedule">Schedule Campaigns</a>
         <a class="btn secondary" href="/admin/assign">Assign Campaign</a>
         <a class="btn gold" href="/export/events.csv">Export CSV</a>
 
-        <div class="note">
-          <strong>Money View:</strong> This dashboard separates ROI by permanent QR/location, campaign, store routing, and inventory priority.
-        </div>
+        <div class="note"><strong>Money View:</strong> This dashboard separates ROI by QR/location, campaign, store routing, inventory priority, and scheduled campaign placements.</div>
 
         <div class="cards">
           <div class="card"><div class="label">Total Scans</div><div class="num">${total.scans || 0}</div></div>
@@ -766,46 +643,22 @@ for (const row of activeSchedules.rows) {
         </div>
 
         <h2>Daily Trend Activity</h2>
-        <table>
-          <tr><th>Date</th><th>Scans</th><th>Intent Clicks</th></tr>
-          ${trendTable || `<tr><td colspan="3">No activity for selected range.</td></tr>`}
-        </table>
+        <table><tr><th>Date</th><th>Scans</th><th>Intent Clicks</th></tr>${trendTable || `<tr><td colspan="3">No activity for selected range.</td></tr>`}</table>
+
+        <h2>Active Campaign Schedules</h2>
+        <table><tr><th>QR</th><th>Advertiser</th><th>Campaign</th><th>Day</th><th>Start</th><th>End</th><th>Priority</th><th>Status</th></tr>${activeScheduleTable || `<tr><td colspan="8">No active schedules.</td></tr>`}</table>
 
         <h2>ROI by QR Code / Location</h2>
-        <table>
-          <tr>
-            <th>QR Code</th><th>Location</th><th>Market</th><th>Annual Impressions</th><th>Scans</th><th>Maps</th><th>Offers</th><th>Waze</th><th>Intent Rate</th><th>Est. Customers</th><th>Est. Revenue</th><th>Placement Cost</th><th>CAC</th><th>CPM</th><th>ROI</th>
-          </tr>
-          ${qrTable}
-        </table>
+        <table><tr><th>QR Code</th><th>Location</th><th>Market</th><th>Annual Impressions</th><th>Scans</th><th>Maps</th><th>Offers</th><th>Waze</th><th>Intent Rate</th><th>Est. Customers</th><th>Est. Revenue</th><th>Placement Cost</th><th>CAC</th><th>CPM</th><th>ROI</th></tr>${qrTable}</table>
 
         <h2>ROI by Campaign</h2>
-        <table>
-          <tr>
-            <th>Advertiser</th><th>Campaign</th><th>Type</th><th>Scans</th><th>Maps</th><th>Offers</th><th>Waze</th><th>Intent Rate</th><th>Est. Customers</th><th>Avg Value</th><th>Est. Revenue</th><th>Campaign Cost</th><th>CAC</th><th>ROI</th>
-          </tr>
-          ${campaignTable}
-        </table>
+        <table><tr><th>Advertiser</th><th>Campaign</th><th>Type</th><th>Scans</th><th>Maps</th><th>Offers</th><th>Waze</th><th>Intent Rate</th><th>Est. Customers</th><th>Avg Value</th><th>Est. Revenue</th><th>Campaign Cost</th><th>CAC</th><th>ROI</th></tr>${campaignTable}</table>
 
-        <h2>Location Comparison (Campaign vs Location)</h2>
-        <table>
-          <tr>
-            <th>Advertiser</th><th>Campaign</th><th>Location</th><th>Market</th><th>Scans</th><th>Maps</th><th>Offers</th><th>Intent Rate</th><th>Customers</th><th>Revenue</th><th>ROI</th>
-          </tr>
-          ${locationTable}
-        </table>
+        <h2>Location Comparison</h2>
+        <table><tr><th>Advertiser</th><th>Campaign</th><th>Location</th><th>Market</th><th>Scans</th><th>Maps</th><th>Offers</th><th>Intent Rate</th><th>Customers</th><th>Revenue</th><th>ROI</th></tr>${locationTable}</table>
 
         <h2>Store Performance / Inventory Routing</h2>
-        <table>
-          <tr>
-            <th>Store</th><th>Address</th><th>Advertiser</th><th>Campaign</th><th>Inventory Priority</th><th>Units</th><th>Days On Hand</th><th>Velocity</th><th>Inventory Note</th><th>Maps</th><th>Waze</th><th>Intent</th><th>Customers</th><th>Revenue</th><th>Routing Status</th>
-          </tr>
-          ${storeTable}
-        </table>
-
-
-</div>
-`));
+        <table><tr><th>Store</th><th>Address</th><th>Advertiser</th><th>Campaign</th><th>Inventory Priority</th><th>Units</th><th>Days On Hand</th><th>Velocity</th><th>Inventory Note</th><th>Maps</th><th>Waze</th><th>Intent</th><th>Customers</th><th>Revenue</th><th>Routing Status</th></tr>${storeTable}</table>
       </div>
     `));
   } catch (err) {
@@ -815,74 +668,34 @@ for (const row of activeSchedules.rows) {
 });
 
 app.get("/admin", async (req, res) => {
-  const customers = await q(`SELECT * FROM customers ORDER BY id`);
-  const qrs = await q(`
-    SELECT qr.*, s.name AS space_name
-    FROM qr_codes qr
-    LEFT JOIN spaces s ON s.id = qr.space_id
-    ORDER BY qr.id
-  `);
+  const qrs = await q(`SELECT qr.*, s.name AS space_name FROM qr_codes qr LEFT JOIN spaces s ON s.id = qr.space_id ORDER BY qr.id`);
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
   const stores = await q(`SELECT * FROM stores ORDER BY inventory_priority DESC`);
 
   res.send(page("Vivid Admin", `
-    <div class="topbar">
-      <div class="brand">Vivid Spots</div>
-      <h1>Admin Control Center</h1>
-      <p class="subtitle">Manage locations, QR codes, campaigns, stores, and inventory routing.</p>
-    </div>
+    <div class="topbar"><div class="brand">Vivid Spots</div><h1>Admin Control Center</h1><p class="subtitle">Manage locations, QR codes, campaigns, stores, inventory, and schedules.</p></div>
     <div class="wrap">
       <a class="btn" href="/dashboard">Dashboard</a>
       <a class="btn secondary" href="/admin/new-location">New Location</a>
       <a class="btn secondary" href="/admin/new-qr">New QR</a>
       <a class="btn secondary" href="/admin/new-campaign">New Campaign</a>
       <a class="btn secondary" href="/admin/new-store">New Store</a>
+      <a class="btn secondary" href="/admin/schedule">Schedule Campaigns</a>
       <a class="btn secondary" href="/admin/assign">Assign Campaign</a>
 
       <h2>QR Codes</h2>
-      <table>
-        <tr><th>ID</th><th>QR</th><th>Space</th><th>Routing URL</th><th>QR Image</th></tr>
-        ${qrs.rows.map(qr => `
-          <tr>
-            <td>${qr.id}</td>
-            <td>${qr.name || ""}</td>
-            <td>${qr.space_name || ""}</td>
-            <td><a href="/r/${qr.id}" target="_blank">${BASE_URL}/r/${qr.id}</a></td>
-            <td><a href="/qr/${qr.id}.png" target="_blank">Download QR</a></td>
-          </tr>
-        `).join("")}
+      <table><tr><th>ID</th><th>QR</th><th>Space</th><th>Routing URL</th><th>QR Image</th></tr>
+      ${qrs.rows.map(qr => `<tr><td>${qr.id}</td><td>${qr.name || ""}</td><td>${qr.space_name || ""}</td><td><a href="/r/${qr.id}" target="_blank">${BASE_URL}/r/${qr.id}</a></td><td><a href="/qr/${qr.id}.png" target="_blank">Download QR</a></td></tr>`).join("")}
       </table>
 
       <h2>Campaigns</h2>
-      <table>
-        <tr><th>ID</th><th>Advertiser</th><th>Campaign</th><th>URL</th><th>Avg Value</th><th>Cost</th><th>Conversion</th></tr>
-        ${campaigns.rows.map(c => `
-          <tr>
-            <td>${c.id}</td>
-            <td>${c.advertiser || ""}</td>
-            <td>${c.name || ""}</td>
-            <td>${c.campaign_url || ""}</td>
-            <td>${money(c.avg_customer_value)}</td>
-            <td>${money(c.campaign_cost)}</td>
-            <td>${c.conversion_rate || 10}%</td>
-          </tr>
-        `).join("")}
+      <table><tr><th>ID</th><th>Advertiser</th><th>Campaign</th><th>URL</th><th>Avg Value</th><th>Cost</th><th>Conversion</th></tr>
+      ${campaigns.rows.map(c => `<tr><td>${c.id}</td><td>${c.advertiser || ""}</td><td>${c.name || ""}</td><td>${c.campaign_url || ""}</td><td>${money(c.avg_customer_value)}</td><td>${money(c.campaign_cost)}</td><td>${c.conversion_rate || 10}%</td></tr>`).join("")}
       </table>
 
       <h2>Stores / Inventory</h2>
-      <table>
-        <tr><th>Store</th><th>Address</th><th>Priority</th><th>Units</th><th>Days</th><th>Velocity</th><th>Note</th></tr>
-        ${stores.rows.map(s => `
-          <tr>
-            <td>${s.name || ""}</td>
-            <td>${s.address || ""}</td>
-            <td>${s.inventory_priority || 0}</td>
-            <td>${s.inventory_units || 0}</td>
-            <td>${s.days_on_hand || 0}</td>
-            <td>${s.inventory_velocity || 0}</td>
-            <td>${s.inventory_note || ""}</td>
-          </tr>
-        `).join("")}
+      <table><tr><th>Store</th><th>Address</th><th>Priority</th><th>Units</th><th>Days</th><th>Velocity</th><th>Note</th></tr>
+      ${stores.rows.map(s => `<tr><td>${s.name || ""}</td><td>${s.address || ""}</td><td>${s.inventory_priority || 0}</td><td>${s.inventory_units || 0}</td><td>${s.days_on_hand || 0}</td><td>${s.inventory_velocity || 0}</td><td>${s.inventory_note || ""}</td></tr>`).join("")}
       </table>
     </div>
   `));
@@ -906,10 +719,8 @@ app.get("/admin/new-location", async (req, res) => {
 
 app.post("/admin/new-location", async (req, res) => {
   try {
-    await q(
-      `INSERT INTO spaces (name,location,description,annual_impressions,placement_cost) VALUES ($1,$2,$3,$4,$5)`,
-      [req.body.name, req.body.location, req.body.description, Number(req.body.annual_impressions || 0), Number(req.body.placement_cost || 0)]
-    );
+    await q(`INSERT INTO spaces (name,location,description,annual_impressions,placement_cost) VALUES ($1,$2,$3,$4,$5)`,
+      [req.body.name, req.body.location, req.body.description, Number(req.body.annual_impressions || 0), Number(req.body.placement_cost || 0)]);
     res.send("✅ Location created <br><a href='/admin/new-qr'>Add QR</a>");
   } catch (err) {
     res.send("ERROR: " + err.message);
@@ -964,19 +775,9 @@ app.get("/admin/new-campaign", async (req, res) => {
 
 app.post("/admin/new-campaign", async (req, res) => {
   try {
-    await q(
-      `INSERT INTO campaigns (name,advertiser,campaign_url,avg_customer_value,campaign_cost,conversion_rate,is_deal_of_day)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [
-        req.body.name || "",
-        req.body.advertiser || "",
-        req.body.campaign_url || "",
-        Number(req.body.avg_customer_value || 50),
-        Number(req.body.campaign_cost || 500),
-        Number(req.body.conversion_rate || 10),
-        req.body.is_deal_of_day === "on"
-      ]
-    );
+    await q(`INSERT INTO campaigns (name,advertiser,campaign_url,avg_customer_value,campaign_cost,conversion_rate,is_deal_of_day)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [req.body.name || "", req.body.advertiser || "", req.body.campaign_url || "", Number(req.body.avg_customer_value || 50), Number(req.body.campaign_cost || 500), Number(req.body.conversion_rate || 10), req.body.is_deal_of_day === "on"]);
     res.send("✅ Campaign created <br><a href='/admin/assign'>Go Assign</a>");
   } catch (err) {
     res.send("ERROR: " + err.message);
@@ -1008,30 +809,17 @@ app.get("/admin/new-store", async (req, res) => {
 
 app.post("/admin/new-store", async (req, res) => {
   try {
-    const store = await q(`
-      INSERT INTO stores (name,address,maps_url,waze_url,inventory_priority,inventory_units,days_on_hand,inventory_velocity,inventory_note)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-      RETURNING id
-    `, [
-      req.body.name,
-      req.body.address,
-      req.body.maps_url,
-      req.body.waze_url,
-      Number(req.body.inventory_priority || 50),
-      Number(req.body.inventory_units || 0),
-      Number(req.body.days_on_hand || 0),
-      Number(req.body.inventory_velocity || 0),
-      req.body.inventory_note
-    ]);
-
+    const store = await q(`INSERT INTO stores (name,address,maps_url,waze_url,inventory_priority,inventory_units,days_on_hand,inventory_velocity,inventory_note)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+      [req.body.name, req.body.address, req.body.maps_url, req.body.waze_url, Number(req.body.inventory_priority || 50), Number(req.body.inventory_units || 0), Number(req.body.days_on_hand || 0), Number(req.body.inventory_velocity || 0), req.body.inventory_note]);
     await q(`INSERT INTO campaign_stores (campaign_id,store_id,weight,is_active) VALUES ($1,$2,50,true)`,
       [Number(req.body.campaign_id), store.rows[0].id]);
-
     res.send("✅ Store created and attached <br><a href='/dashboard'>Dashboard</a>");
   } catch (err) {
     res.send("ERROR: " + err.message);
   }
 });
+
 app.get("/admin/schedule", async (req, res) => {
   const qrs = await q(`SELECT * FROM qr_codes ORDER BY id`);
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
@@ -1044,101 +832,42 @@ app.get("/admin/schedule", async (req, res) => {
   `);
 
   res.send(page("Campaign Schedule", `
-    <div class="topbar">
-      <div class="brand">Vivid Spots</div>
-      <h1>Master QR Campaign Schedule</h1>
-      <p class="subtitle">Add multiple campaigns to one QR and rotate by day/time.</p>
-    </div>
-
+    <div class="topbar"><div class="brand">Vivid Spots</div><h1>Master QR Campaign Schedule</h1><p class="subtitle">Add multiple campaigns to one QR and rotate by day/time.</p></div>
     <div class="wrap">
       <a class="btn" href="/admin">Admin</a>
       <a class="btn secondary" href="/dashboard">Dashboard</a>
 
       <form method="POST" action="/admin/schedule">
         <div class="formgrid">
-          <div>
-            <label>Master QR</label>
-            <select name="qr_id">
-              ${qrs.rows.map(qr => `<option value="${qr.id}">${qr.id} - ${qr.name || "QR"}</option>`).join("")}
-            </select>
-          </div>
-
-          <div>
-            <label>Campaign</label>
-            <select name="campaign_id">
-              ${campaigns.rows.map(c => `<option value="${c.id}">${c.advertiser || ""} - ${c.name || ""}</option>`).join("")}
-            </select>
-          </div>
-
-          <div>
-            <label>Day</label>
-            <select name="day_of_week">
-              <option value="0">Every Day / Sunday</option>
-              <option value="1">Monday</option>
-              <option value="2">Tuesday</option>
-              <option value="3">Wednesday</option>
-              <option value="4">Thursday</option>
-              <option value="5">Friday</option>
-              <option value="6">Saturday</option>
-            </select>
-          </div>
-
-          <div><label>Start Time</label><input name="start_time" value="07:00" /></div>
-          <div><label>End Time</label><input name="end_time" value="10:00" /></div>
-          <div><label>Priority</label><input name="priority" type="number" value="50" /></div>
+          <div><label>Master QR</label><select name="qr_id">${qrs.rows.map(qr => `<option value="${qr.id}">${qr.id} - ${qr.name || "QR"}</option>`).join("")}</select></div>
+          <div><label>Campaign</label><select name="campaign_id">${campaigns.rows.map(c => `<option value="${c.id}">${c.advertiser || ""} - ${c.name || ""}</option>`).join("")}</select></div>
+          <div><label>Day</label><select name="day_of_week"><option value="0">Every Day / Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div>
+          <div><label>Start Time</label><input name="start_time" value="00:00" /></div>
+          <div><label>End Time</label><input name="end_time" value="23:59" /></div>
+          <div><label>Priority</label><input name="priority" type="number" value="100" /></div>
         </div>
-
         <button class="btn" type="submit">Add Campaign to Master QR</button>
       </form>
 
       <h2>Current Scheduled Campaigns</h2>
-      <table>
-        <tr>
-          <th>QR</th>
-          <th>Advertiser</th>
-          <th>Campaign</th>
-          <th>Day</th>
-          <th>Start</th>
-          <th>End</th>
-          <th>Priority</th>
-          <th>Status</th>
-        </tr>
-        ${schedules.rows.map(s => `
-          <tr>
-            <td>${s.qr_name || s.qr_id}</td>
-            <td>${s.advertiser || ""}</td>
-            <td>${s.campaign_name || ""}</td>
-            <td>${s.day_of_week}</td>
-            <td>${s.start_time}</td>
-            <td>${s.end_time}</td>
-            <td>${s.priority}</td>
-            <td>${s.is_active ? "Active" : "Inactive"}</td>
-          </tr>
-        `).join("")}
+      <table><tr><th>QR</th><th>Advertiser</th><th>Campaign</th><th>Day</th><th>Start</th><th>End</th><th>Priority</th><th>Status</th></tr>
+      ${schedules.rows.map(s => `<tr><td>${s.qr_name || s.qr_id}</td><td>${s.advertiser || ""}</td><td>${s.campaign_name || ""}</td><td>${s.day_of_week}</td><td>${s.start_time}</td><td>${s.end_time}</td><td>${s.priority}</td><td>${s.is_active ? "Active" : "Inactive"}</td></tr>`).join("")}
       </table>
     </div>
   `));
 });
+
 app.post("/admin/schedule", async (req, res) => {
   try {
-    await q(`
-      INSERT INTO campaign_schedules
-      (qr_id, campaign_id, day_of_week, start_time, end_time, priority, is_active)
-      VALUES ($1,$2,$3,$4,$5,$6,true)
-    `, [
-      Number(req.body.qr_id),
-      Number(req.body.campaign_id),
-      Number(req.body.day_of_week || 0),
-      req.body.start_time || "00:00",
-      req.body.end_time || "23:59",
-      Number(req.body.priority || 50)
-    ]);
-
+    await q(`INSERT INTO campaign_schedules (qr_id,campaign_id,day_of_week,start_time,end_time,priority,is_active)
+      VALUES ($1,$2,$3,$4,$5,$6,true)`,
+      [Number(req.body.qr_id), Number(req.body.campaign_id), Number(req.body.day_of_week || 0), req.body.start_time || "00:00", req.body.end_time || "23:59", Number(req.body.priority || 50)]);
     res.send("✅ Campaign scheduled <br><a href='/admin/schedule'>Back to Schedule</a> | <a href='/r/" + req.body.qr_id + "'>Test QR</a>");
   } catch (err) {
     res.send("ERROR: " + err.message);
   }
 });
+
 app.get("/admin/assign", async (req, res) => {
   const qrs = await q(`SELECT * FROM qr_codes ORDER BY id`);
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
@@ -1147,10 +876,8 @@ app.get("/admin/assign", async (req, res) => {
     <div class="topbar"><div class="brand">Vivid Spots</div><h1>Assign Campaign to QR</h1></div>
     <div class="wrap">
       <form method="POST" action="/admin/assign">
-        <label>QR Code</label>
-        <select name="qr_id">${qrs.rows.map(qr => `<option value="${qr.id}">${qr.id} - ${qr.name || "QR"}</option>`).join("")}</select>
-        <label>Campaign</label>
-        <select name="campaign_id">${campaigns.rows.map(c => `<option value="${c.id}">${c.advertiser || ""} - ${c.name || ""}</option>`).join("")}</select>
+        <label>QR Code</label><select name="qr_id">${qrs.rows.map(qr => `<option value="${qr.id}">${qr.id} - ${qr.name || "QR"}</option>`).join("")}</select>
+        <label>Campaign</label><select name="campaign_id">${campaigns.rows.map(c => `<option value="${c.id}">${c.advertiser || ""} - ${c.name || ""}</option>`).join("")}</select>
         <button class="btn" type="submit">Assign Campaign</button>
       </form>
     </div>
@@ -1173,34 +900,20 @@ app.get("/qr-admin/:qrId", async (req, res) => {
   const end = req.query.end || "";
   const hasDate = !!(start && end);
 
-  const qr = await q(`
-    SELECT qr.*, s.name AS space_name, s.location
-    FROM qr_codes qr
-    LEFT JOIN spaces s ON s.id = qr.space_id
-    WHERE qr.id = $1
-  `, [qrId]);
+  const qr = await q(`SELECT qr.*, s.name AS space_name, s.location FROM qr_codes qr LEFT JOIN spaces s ON s.id = qr.space_id WHERE qr.id = $1`, [qrId]);
 
   const events = await q(`
     SELECT e.*, c.name AS campaign_name, c.advertiser
-    FROM events e
-    LEFT JOIN campaigns c ON c.id = e.campaign_id
-    WHERE e.qr_id = $1
-    ${hasDate ? "AND e.created_at BETWEEN $2::date AND ($3::date + interval '1 day')" : ""}
-    ORDER BY e.created_at DESC
-    LIMIT 100
+    FROM events e LEFT JOIN campaigns c ON c.id = e.campaign_id
+    WHERE e.qr_id = $1 ${hasDate ? "AND e.created_at BETWEEN $2::date AND ($3::date + interval '1 day')" : ""}
+    ORDER BY e.created_at DESC LIMIT 100
   `, hasDate ? [qrId, start, end] : [qrId]);
 
   res.send(page("QR Detail", `
     <div class="topbar"><div class="brand">Vivid Spots</div><h1>${qr.rows[0]?.name || "QR Detail"}</h1><p class="subtitle">${qr.rows[0]?.space_name || ""}</p></div>
     <div class="wrap">
-      <form method="GET" action="/qr-admin/${qrId}">
-        <input type="date" name="start" value="${start}" />
-        <input type="date" name="end" value="${end}" />
-        <button class="btn" type="submit">Apply Date Filter</button>
-      </form>
-      <a class="btn" href="/dashboard">Back</a>
-      <a class="btn secondary" href="/r/${qrId}" target="_blank">Open QR</a>
-      <a class="btn gold" href="/qr/${qrId}.png" target="_blank">Download QR</a>
+      <form method="GET" action="/qr-admin/${qrId}"><input type="date" name="start" value="${start}" /><input type="date" name="end" value="${end}" /><button class="btn" type="submit">Apply Date Filter</button></form>
+      <a class="btn" href="/dashboard">Back</a><a class="btn secondary" href="/r/${qrId}" target="_blank">Open QR</a><a class="btn gold" href="/qr/${qrId}.png" target="_blank">Download QR</a>
       <div class="note"><strong>Live Link:</strong> ${BASE_URL}/r/${qrId}</div>
       <h2>Recent QR Activity</h2>
       <table><tr><th>Time</th><th>Type</th><th>Advertiser</th><th>Campaign</th></tr>
@@ -1223,26 +936,16 @@ app.get("/campaign-admin/:campaignId", async (req, res) => {
     FROM events e
     LEFT JOIN qr_codes qr ON qr.id = e.qr_id
     LEFT JOIN spaces s ON s.id = qr.space_id
-    WHERE e.campaign_id = $1
-    ${hasDate ? "AND e.created_at BETWEEN $2::date AND ($3::date + interval '1 day')" : ""}
-    ORDER BY e.created_at DESC
-    LIMIT 100
+    WHERE e.campaign_id = $1 ${hasDate ? "AND e.created_at BETWEEN $2::date AND ($3::date + interval '1 day')" : ""}
+    ORDER BY e.created_at DESC LIMIT 100
   `, hasDate ? [campaignId, start, end] : [campaignId]);
 
   res.send(page("Campaign Detail", `
     <div class="topbar"><div class="brand">Vivid Spots</div><h1>${campaign.rows[0]?.name || "Campaign Detail"}</h1><p class="subtitle">${campaign.rows[0]?.advertiser || ""}</p></div>
     <div class="wrap">
-      <form method="GET" action="/campaign-admin/${campaignId}">
-        <input type="date" name="start" value="${start}" />
-        <input type="date" name="end" value="${end}" />
-        <button class="btn" type="submit">Apply Date Filter</button>
-      </form>
+      <form method="GET" action="/campaign-admin/${campaignId}"><input type="date" name="start" value="${start}" /><input type="date" name="end" value="${end}" /><button class="btn" type="submit">Apply Date Filter</button></form>
       <a class="btn" href="/dashboard">Back</a>
-      <div class="note">
-        <strong>Avg Customer Value:</strong> ${money(campaign.rows[0]?.avg_customer_value || 0)}<br>
-        <strong>Campaign Cost:</strong> ${money(campaign.rows[0]?.campaign_cost || 0)}<br>
-        <strong>Conversion Rate:</strong> ${campaign.rows[0]?.conversion_rate || 10}%
-      </div>
+      <div class="note"><strong>Avg Customer Value:</strong> ${money(campaign.rows[0]?.avg_customer_value || 0)}<br><strong>Campaign Cost:</strong> ${money(campaign.rows[0]?.campaign_cost || 0)}<br><strong>Conversion Rate:</strong> ${campaign.rows[0]?.conversion_rate || 10}%</div>
       <h2>Recent Campaign Activity</h2>
       <table><tr><th>Time</th><th>Type</th><th>QR</th><th>Location</th></tr>
       ${events.rows.map(e => `<tr><td>${new Date(e.created_at).toLocaleString()}</td><td>${e.type}</td><td>${e.qr_name || ""}</td><td>${e.location_name || ""}</td></tr>`).join("")}
@@ -1280,8 +983,7 @@ app.get("/export/events.csv", async (req, res) => {
 
 app.get("/analytics", async (req, res) => {
   const result = await q(`
-    SELECT
-      COUNT(*) FILTER (WHERE type='scan') AS scans,
+    SELECT COUNT(*) FILTER (WHERE type='scan') AS scans,
       COUNT(*) FILTER (WHERE type='offer') AS offer_clicks,
       COUNT(*) FILTER (WHERE type='maps') AS maps_clicks,
       COUNT(*) FILTER (WHERE type='waze') AS waze_clicks,
