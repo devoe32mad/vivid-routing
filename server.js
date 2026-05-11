@@ -454,7 +454,8 @@ if (start && end) {
         COUNT(*) FILTER (WHERE type = 'waze') AS waze_clicks,
         COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks
       FROM events
-    `);
+WHERE 1=1 ${dateWhere}
+    `, dateParams);
 const locationRows = await q(`
   SELECT
     c.id AS campaign_id,
