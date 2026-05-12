@@ -505,7 +505,7 @@ app.post("/login", async (req, res) => {
   }
 
 });
-app.get("/dashboard", async (req, res) => {
+app.get("/dashboard", requireLogin, async (req, res) => {
   try {
     const start = req.query.start || "";
     const end = req.query.end || "";
