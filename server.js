@@ -885,7 +885,12 @@ app.get("/admin/assign", async (req, res) => {
 });
 app.post("/admin/assign", async (req, res) => {
   try {
-    await q(`UPDATE qr_campaigns SET is_active=false, ended_at=CURRENT_TIMESTAMP WHERE qr_id=$1 AND is_active=true`, [req.body.qr_id]);
+    await q(`UPDATE qr_campaigns SET is_active=false, ended_at=CURRENT_TIMESTAMP WHERE qr_id=$1 AND is_active=true`, [req.body.qr_id]);await q(`
+  UPDATE qr_campaigns
+  SET is_active = false,
+      ended_at = CURRENT_TIMESTAMP
+  WHERE qr_id = $1
+`, [req.body.qr_id]);
     await q(`INSERT INTO qr_campaigns (qr_id,campaign_id,is_active,started_at) VALUES ($1,$2,true,CURRENT_TIMESTAMP)`, [req.body.qr_id, req.body.campaign_id]);
     res.send("✅ Campaign assigned <br><a href='/r/" + req.body.qr_id + "'>Test QR</a> | <a href='/dashboard'>Dashboard</a>");
   } catch (err) { res.send("ERROR: " + err.message); }
