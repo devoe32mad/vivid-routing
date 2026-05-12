@@ -520,30 +520,34 @@ app.get("/login", (req, res) => {
 
 });
 app.post("/login", async (req, res) => {
-
   try {
+    const result = await q(
+      `SELECT * FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+      [req.body.email]
+    );
 
-    console.log("LOGIN ATTEMPT:", req.body.email);
+    const user = result.rows[0];
 
-    const user = await q(`
-      SELECT *
-      FROM users
-      WHERE LOWER(email) = LOWER($1)
-      LIMIT 1
-    `, [
-      req.body.email
-    ]);
+    if (!user) {
+      return res.send("User not found <br><a href='/login'>Try again</a>");
+    }
 
-    console.log("USER FOUND:", user.rows[0]);
+    if (String(user.password) !== String(req.body.password)) {
+      return res.send("Wrong password <br><a href='/login'>Try again</a>");
+    }
 
-    if (!user.rows[0]) {
+    req.session.user = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    };
 
-      return res.send(`
-        User not found
-        <br><br>
-        <a href="/login">Try Again</a>
-      `);
-
+    res.redirect("/dashboard");
+  } catch (err) {
+    res.send("LOGIN ERROR: " + err.message);
+  }
+});
     }
 
     if (user.rows[0].password !== req.body.password) {
