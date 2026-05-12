@@ -512,7 +512,7 @@ app.get("/reset-admin", async (req, res) => {
 
     await q(`
       INSERT INTO users (email, password, role)
-      VALUES ('admin@vividspots.com', 'admin123', 'admin')
+      VALUES ('admin@vividspots.com', 'admin123', 'super_admin')
       ON CONFLICT (email)
       DO UPDATE SET
         password = EXCLUDED.password,
