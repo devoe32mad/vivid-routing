@@ -483,7 +483,10 @@ app.get("/dashboard", async (req, res) => {
       const intent = Number(row.intent_clicks || 0);
       const customers = Math.round(intent * 0.10);
       const revenue = customers * 50;
-      const cost = Number(qr.placement_cost || 800);
+      const liveDays = daysBetween(qr.created_at, new Date());
+const cost =
+  (Number(qr.placement_cost || 800) / 365) *
+  liveDays;
       const cac = customers ? cost / customers : 0;
       const roi = cost ? ((revenue - cost) / cost) * 100 : 0;
       const cpm = qr.annual_impressions ? (cost / Number(qr.annual_impressions)) * 1000 : 0;
