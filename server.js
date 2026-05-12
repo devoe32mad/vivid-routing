@@ -909,7 +909,108 @@ app.post("/admin/edit-store/:storeId", async (req, res) => {
     res.send("✅ Store updated <br><a href='/admin'>Back to Admin</a> | <a href='/dashboard'>Dashboard</a>");
   } catch (err) { res.send("ERROR: " + err.message); }
 });
+app.get("/admin/bulk-schedule", requireLogin, async (req, res) => {
 
+  const qrs = await q(`
+    SELECT *
+    FROM qr_codes
+    ORDER BY id
+  `);
+
+  const campaigns = await q(`
+    SELECT *
+    FROM campaigns
+    ORDER BY id
+  `);
+
+  res.send(page("Bulk Schedule", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>Bulk Campaign Scheduler</h1>
+      <p class="subtitle">
+        Add multiple campaigns to one QR
+      </p>
+    </div>
+
+    <div class="wrap">
+
+      <form method="POST" action="/admin/bulk-schedule">
+
+        <label>QR Code</label>
+
+        <select name="qr_id">
+
+          ${qrs.rows.map(qr => `
+            <option value="${qr.id}">
+              ${qr.id} - ${qr.name}
+            </option>
+          `).join("")}
+
+        </select>
+
+        <hr>
+
+        <h3>Campaign Slot 1</h3>
+
+        <select name="campaign_id_1">
+
+          ${campaigns.rows.map(c => `
+            <option value="${c.id}">
+              ${c.advertiser} - ${c.name}
+            </option>
+          `).join("")}
+
+        </select>
+
+        <input name="start_time_1" value="07:00" />
+        <input name="end_time_1" value="10:00" />
+
+        <hr>
+
+        <h3>Campaign Slot 2</h3>
+
+        <select name="campaign_id_2">
+
+          ${campaigns.rows.map(c => `
+            <option value="${c.id}">
+              ${c.advertiser} - ${c.name}
+            </option>
+          `).join("")}
+
+        </select>
+
+        <input name="start_time_2" value="10:00" />
+        <input name="end_time_2" value="14:00" />
+
+        <hr>
+
+        <h3>Campaign Slot 3</h3>
+
+        <select name="campaign_id_3">
+
+          ${campaigns.rows.map(c => `
+            <option value="${c.id}">
+              ${c.advertiser} - ${c.name}
+            </option>
+          `).join("")}
+
+        </select>
+
+        <input name="start_time_3" value="14:00" />
+        <input name="end_time_3" value="18:00" />
+
+        <br><br>
+
+        <button class="btn" type="submit">
+          Schedule Campaigns
+        </button>
+
+      </form>
+
+    </div>
+  `));
+
+});
 app.get("/admin/schedule", async (req, res) => {
   const qrs = await q(`SELECT * FROM qr_codes ORDER BY id`);
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
