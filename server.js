@@ -414,7 +414,7 @@ app.get("/dashboard", async (req, res) => {
       GROUP BY DATE(e.created_at) ORDER BY day DESC LIMIT 14
     `, dateParams);
 
-    const qrRows = await q(`SELECT qr.id AS qr_id, qr.name AS qr_name, s.name AS space_name, s.location, s.annual_impressions, s.placement_cost FROM qr_codes qr LEFT JOIN spaces s ON s.id = qr.space_id ORDER BY qr.id`);
+    const qrRows = await q(`SELECT qr.id AS qr_id, qr.name AS qr_name, qr.created_at, s.name AS space_name, s.location, s.annual_impressions, s.placement_costFROM qr_codes qr LEFT JOIN spaces s ON s.id = qr.space_id ORDER BY qr.id`);
     const campaignRows = await q(`SELECT * FROM campaigns ORDER BY id`);
 
     const locationRows = await q(`
