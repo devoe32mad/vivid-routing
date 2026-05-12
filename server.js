@@ -954,7 +954,58 @@ app.post("/admin/schedule", requireLogin, async (req, res) => {
     res.send("ERROR: " + err.message);
   }
 });
+app.get("/qr-admin/:qrId", requireLogin, async (req, res) => {
+  const qrId = req.params.qrId;
 
+  const qr = await q(`
+    SELECT qr.*, s.name AS space_name, s.location
+    FROM qr_codes qr
+    LEFT JOIN spaces s ON s.id = qr.space_id
+    WHERE qr.id = $1
+  `, [qrId]);
+
+  const events = await q(`
+    SELECT e.*, c.name AS campaign_name, c.advertiser
+    FROM events e
+    LEFT JOIN campaigns c ON c.id = e.campaign_id
+    WHERE e.qr_id = $1
+    ORDER BY e.created_at DESC
+    LIMIT 100
+  `, [qrId]);
+
+  res.send(page("QR Detail", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>${qr.rows[0]?.name || "QR Detail"}</h1>
+      <p class="subtitle">${qr.rows[0]?.space_name || ""} ${qr.rows[0]?.location || ""}</p>
+    </div>
+
+    <div class="wrap">
+      <a class="btn" href="/dashboard">Back to Dashboard</a>
+      <a class="btn secondary" href="/r/${qrId}" target="_blank">Open QR</a>
+
+      <h2>Recent QR Activity</h2>
+
+      <table>
+        <tr>
+          <th>Time</th>
+          <th>Type</th>
+          <th>Advertiser</th>
+          <th>Campaign</th>
+        </tr>
+
+        ${events.rows.map(e => `
+          <tr>
+            <td>${new Date(e.created_at).toLocaleString()}</td>
+            <td>${e.type}</td>
+            <td>${e.advertiser || ""}</td>
+            <td>${e.campaign_name || ""}</td>
+          </tr>
+        `).join("")}
+      </table>
+    </div>
+  `));
+});
 app.get("/qr/:qrId.png", (req, res) => {
   const qrId = req.params.qrId;
   const url = `${BASE_URL}/r/${qrId}`;
