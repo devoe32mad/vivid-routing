@@ -918,7 +918,33 @@ app.get("/admin/schedule", async (req, res) => {
 });
 app.post("/admin/schedule", async (req, res) => {
   try {
-    await q(`INSERT INTO campaign_schedules (qr_id,campaign_id,day_of_week,start_time,end_time,priority,is_active) VALUES ($1,$2,$3,$4,$5,$6,true)`, [Number(req.body.qr_id), Number(req.body.campaign_id), Number(req.body.day_of_week || 0), req.body.start_time || "00:00", req.body.end_time || "23:59", Number(req.body.priority || 50)]);
+    await q(for (let i = 1; i <= 3; i++) {
+  const campaignId = req.body[`campaign_id_${i}`];
+  const startTime = req.body[`start_time_${i}`];
+  const endTime = req.body[`end_time_${i}`];
+
+  if (campaignId && startTime && endTime) {
+    await q(`
+      INSERT INTO campaign_schedules (
+        qr_id,
+        campaign_id,
+        day_of_week,
+        start_time,
+        end_time,
+        priority,
+        is_active
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,true)
+    `, [
+      Number(req.body.qr_id),
+      Number(campaignId),
+      Number(req.body.day_of_week || 0),
+      startTime,
+      endTime,
+      110 - (i * 10)
+    ]);
+  }
+} (qr_id,campaign_id,day_of_week,start_time,end_time,priority,is_active) VALUES ($1,$2,$3,$4,$5,$6,true)`, [Number(req.body.qr_id), Number(req.body.campaign_id), Number(req.body.day_of_week || 0), req.body.start_time || "00:00", req.body.end_time || "23:59", Number(req.body.priority || 50)]);
     res.send("✅ Campaign scheduled <br><a href='/admin/schedule'>Back to Schedule</a> | <a href='/r/" + req.body.qr_id + "'>Test QR</a>");
   } catch (err) { res.send("ERROR: " + err.message); }
 });
