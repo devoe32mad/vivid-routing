@@ -111,6 +111,28 @@ async function initDb() {
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `);
+  const userCount = await q(`
+  SELECT COUNT(*) FROM users
+`);
+
+if (Number(userCount.rows[0].count) === 0) {
+
+  await q(`
+    INSERT INTO users (
+      name,
+      email,
+      password,
+      role
+    )
+    VALUES (
+      'Vivid Admin',
+      'admin@vividspots.com',
+      'admin123',
+      'admin'
+    )
+  `);
+
+}
   await q(`CREATE TABLE IF NOT EXISTS customers (
     id SERIAL PRIMARY KEY,
     name TEXT,
