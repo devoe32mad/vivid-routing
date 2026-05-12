@@ -1011,6 +1011,45 @@ app.get("/admin/bulk-schedule", requireLogin, async (req, res) => {
   `));
 
 });
+app.post("/admin/bulk-schedule", requireLogin, async (req, res) => {
+  try {
+    for (let i = 1; i <= 3; i++) {
+      const campaignId = req.body[`campaign_id_${i}`];
+      const startTime = req.body[`start_time_${i}`];
+      const endTime = req.body[`end_time_${i}`];
+
+      if (campaignId && startTime && endTime) {
+        await q(`
+          INSERT INTO campaign_schedules (
+            qr_id,
+            campaign_id,
+            day_of_week,
+            start_time,
+            end_time,
+            priority,
+            is_active
+          )
+          VALUES ($1,$2,$3,$4,$5,$6,true)
+        `, [
+          Number(req.body.qr_id),
+          Number(campaignId),
+          0,
+          startTime,
+          endTime,
+          110 - (i * 10)
+        ]);
+      }
+    }
+
+    res.send(
+      "Bulk campaigns scheduled <br><a href='/admin/schedule'>View Schedule</a> | <a href='/r/" +
+      req.body.qr_id +
+      "'>Test QR</a>"
+    );
+  } catch (err) {
+    res.send("BULK SCHEDULE ERROR: " + err.message);
+  }
+});
 app.get("/admin/schedule", async (req, res) => {
   const qrs = await q(`SELECT * FROM qr_codes ORDER BY id`);
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
