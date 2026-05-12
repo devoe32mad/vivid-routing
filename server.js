@@ -79,6 +79,34 @@ function page(title, body) {
 <body>${body}</body>
 </html>`;
 }
+app.get("/seed-admin", async (req, res) => {
+  try {
+    await q(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        email TEXT UNIQUE,
+        password TEXT,
+        role TEXT DEFAULT 'advertiser',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await q(`
+      INSERT INTO users (name, email, password, role)
+      VALUES ('Vivid Admin', 'admin@vividspots.com', 'admin123', 'admin')
+      ON CONFLICT (email)
+      DO UPDATE SET
+        password = EXCLUDED.password,
+        role = EXCLUDED.role,
+        name = EXCLUDED.name
+    `);
+
+    res.send("✅ Admin user reset. Go to <a href='/login'>Login</a>");
+  } catch (err) {
+    res.send("SEED ADMIN ERROR: " + err.message);
+  }
+});
 function requireLogin(req, res, next) {
 
   if (!req.session.user) {
