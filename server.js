@@ -470,10 +470,14 @@ app.get("/click/:type/:qrId", async (req, res) => {
   if (type === "maps" || type === "waze") store = await pickBestStoreForCampaign(campaign);
   await saveEvent({ qrId, campaignId: campaign.id, storeId: store ? store.id : null, type });
   if (type === "offer") return res.redirect(campaign.campaign_url || "/");
-  if (type === "maps") {
-    const fallback = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent((campaign.advertiser || campaign.name || "store") + " Naples FL");
-    return res.redirect(store?.maps_url || fallback);
-  }
+if (type === "maps") {
+  const searchTerm = campaign.advertiser || campaign.name || "store";
+
+  return res.redirect(
+    "https://www.google.com/maps/search/?api=1&query=" +
+    encodeURIComponent(searchTerm + " near me")
+  );
+}
   if (type === "waze") {
     const fallback = "https://waze.com/ul?q=" + encodeURIComponent((campaign.advertiser || campaign.name || "store") + " Naples FL") + "&navigate=yes";
     return res.redirect(store?.waze_url || fallback);
