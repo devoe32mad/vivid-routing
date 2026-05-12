@@ -115,7 +115,18 @@ function requireLogin(req, res, next) {
 
   next();
 }
+function requireSuperAdmin(req, res, next) {
 
+  if (!req.session.user) {
+    return res.redirect("/login");
+  }
+
+  if (req.session.user.role !== "super_admin") {
+    return res.send("Access denied");
+  }
+
+  next();
+}
 function requireAdmin(req, res, next) {
 
   if (!req.session.user) {
