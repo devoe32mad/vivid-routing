@@ -485,7 +485,6 @@ app.get("/reset-admin", async (req, res) => {
     await q(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        name TEXT,
         email TEXT UNIQUE,
         password TEXT,
         role TEXT DEFAULT 'admin',
@@ -494,11 +493,20 @@ app.get("/reset-admin", async (req, res) => {
     `);
 
     await q(`
-      INSERT INTO users (name, email, password, role)
-      VALUES ('Vivid Admin', 'admin@vividspots.com', 'admin123', 'admin')
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'admin'
+    `);
+
+    await q(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS password TEXT
+    `);
+
+    await q(`
+      INSERT INTO users (email, password, role)
+      VALUES ('admin@vividspots.com', 'admin123', 'admin')
       ON CONFLICT (email)
       DO UPDATE SET
-        name = EXCLUDED.name,
         password = EXCLUDED.password,
         role = EXCLUDED.role
     `);
