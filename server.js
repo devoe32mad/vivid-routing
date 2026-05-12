@@ -76,6 +76,16 @@ function page(title, body) {
 }
 
 async function initDb() {
+  await q(`
+  CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    name TEXT,
+    email TEXT UNIQUE,
+    password TEXT,
+    role TEXT DEFAULT 'advertiser',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`);
   await q(`CREATE TABLE IF NOT EXISTS customers (
     id SERIAL PRIMARY KEY,
     name TEXT,
