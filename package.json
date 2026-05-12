@@ -1,16 +1,17 @@
 {
-  "name": "vivid-routing",
+  "name": "vivid-routing-platform",
   "version": "1.0.0",
-  "description": "",
+  "description": "Vivid Spots routing and analytics platform",
   "main": "server.js",
- {
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "pg": "^8.11.3",
-    "express-session": "^1.18.1"
+    "express-session": "^1.18.1",
+    "pg": "^8.11.3"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
-
