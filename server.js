@@ -520,20 +520,31 @@ app.get("/login", (req, res) => {
 
 });
 app.post("/login", async (req, res) => {
+
   try {
+
     const result = await q(
-      `SELECT * FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+      `
+      SELECT *
+      FROM users
+      WHERE LOWER(email) = LOWER($1)
+      LIMIT 1
+      `,
       [req.body.email]
     );
 
     const user = result.rows[0];
 
     if (!user) {
-      return res.send("User not found <br><a href='/login'>Try again</a>");
+      return res.send(
+        "User not found <br><br><a href='/login'>Try Again</a>"
+      );
     }
 
     if (String(user.password) !== String(req.body.password)) {
-      return res.send("Wrong password <br><a href='/login'>Try again</a>");
+      return res.send(
+        "Wrong password <br><br><a href='/login'>Try Again</a>"
+      );
     }
 
     req.session.user = {
@@ -543,10 +554,16 @@ app.post("/login", async (req, res) => {
       role: user.role
     };
 
-    res.redirect("/dashboard");
+    return res.redirect("/dashboard");
+
   } catch (err) {
-    res.send("LOGIN ERROR: " + err.message);
+
+    return res.send(
+      "LOGIN ERROR: " + err.message
+    );
+
   }
+
 });
     
 
