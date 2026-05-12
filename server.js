@@ -425,7 +425,45 @@ app.get("/click/:type/:qrId", async (req, res) => {
   }
   res.redirect("/");
 });
+app.get("/login", (req, res) => {
 
+  res.send(page("Login", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>Login</h1>
+      <p class="subtitle">
+        Access your Vivid dashboard
+      </p>
+    </div>
+
+    <div class="wrap">
+
+      <form method="POST" action="/login">
+
+        <label>Email</label>
+        <input
+          name="email"
+          type="email"
+          required
+        />
+
+        <label>Password</label>
+        <input
+          name="password"
+          type="password"
+          required
+        />
+
+        <button class="btn" type="submit">
+          Login
+        </button>
+
+      </form>
+
+    </div>
+  `));
+
+});
 app.get("/dashboard", async (req, res) => {
   try {
     const start = req.query.start || "";
