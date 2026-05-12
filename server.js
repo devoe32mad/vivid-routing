@@ -231,13 +231,16 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
   const rangeEnd = hasDate ? new Date(end + "T23:59:59") : new Date();
 
   const assignments = await q(`
-    SELECT s.placement_cost, COALESCE(qc.started_at, qc.assigned_at, qc.created_at, CURRENT_TIMESTAMP) AS started_at, qc.ended_at
-    FROM qr_campaigns qc
-    JOIN qr_codes qr ON qr.id = qc.qr_id
-    JOIN spaces s ON s.id = qr.space_id
-    WHERE qc.campaign_id = $1
-  `, [campaignId]);
-
+  SELECT
+    s.placement_cost,
+    COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP) AS started_at,
+    qc.ended_at
+  FROM qr_campaigns qc
+  JOIN qr_codes qr ON qr.id = qc.qr_id
+  JOIN spaces s ON s.id = qr.space_id
+  WHERE qc.campaign_id = $1
+`, [campaignId]);
+  
   const schedules = await q(`
     SELECT s.placement_cost, cs.created_at AS started_at
     FROM campaign_schedules cs
