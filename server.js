@@ -923,9 +923,10 @@ app.get("/admin/bulk-schedule", requireLogin, async (req, res) => {
   `);
 
   const campaigns = await q(`
-    SELECT *
-    FROM campaigns
-    ORDER BY id
+SELECT *
+FROM campaigns
+WHERE is_archived = false
+ORDER BY id
   `);
 
   res.send(page("Bulk Schedule", `
