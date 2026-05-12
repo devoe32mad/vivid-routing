@@ -269,6 +269,10 @@ if (Number(userCount.rows[0].count) === 0) {
   await q(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS inventory_velocity INT DEFAULT 0`);
   await q(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS inventory_note TEXT`);
   await q(`ALTER TABLE events ADD COLUMN IF NOT EXISTS store_id INT`);
+  await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false
+`);
 await q(`
   ALTER TABLE campaigns
   ADD COLUMN IF NOT EXISTS user_id INT
