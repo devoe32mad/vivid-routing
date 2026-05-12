@@ -954,38 +954,36 @@ app.get("/admin/assign", async (req, res) => {
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
   res.send(page("Assign Campaign", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Assign Campaign to QR</h1></div><div class="wrap"><form method="POST" action="/admin/assign"><label>QR Code</label><select name="qr_id">${qrs.rows.map(qr => `<option value="${qr.id}">${qr.id} - ${qr.name || "QR"}</option>`).join("")}</select><label>Campaign</label><select name="campaign_id">${campaigns.rows.map(c => `<option value="${c.id}">${c.advertiser || ""} - ${c.name || ""}</option>`).join("")}</select><button class="btn" type="submit">Assign Campaign</button></form></div>`));
 });
-app.post("/admin/assign", async (req, res) => {
+app.post("/admin/schedule", requireLogin, async (req, res) => {
   try {
-    await q(`UPDATE qr_campaigns SET is_active=false, ended_at=CURRENT_TIMESTAMP WHERE qr_id=$1 AND is_active=true`, [req.body.qr_id]);await q(`
-  UPDATE qr_campaigns
-  SET is_active = false,
-      ended_at = CURRENT_TIMESTAMP
-  WHERE qr_id = $1
-`, [req.body.qr_id]);
-    await q(`INSERT INTO qr_campaigns (qr_id,campaign_id,is_active,started_at) VALUES ($1,$2,true,CURRENT_TIMESTAMP)`, [req.body.qr_id, req.body.campaign_id]);
-    res.send("✅ Campaign assigned <br><a href='/r/" + req.body.qr_id + "'>Test QR</a> | <a href='/dashboard'>Dashboard</a>");
-  } catch (err) { res.send("ERROR: " + err.message); }
-});
+    await q(`
+      INSERT INTO campaign_schedules (
+        qr_id,
+        campaign_id,
+        day_of_week,
+        start_time,
+        end_time,
+        priority,
+        is_active
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,true)
+    `, [
+      Number(req.body.qr_id),
+      Number(req.body.campaign_id),
+      Number(req.body.day_of_week || 0),
+      req.body.start_time || "00:00",
+      req.body.end_time || "23:59",
+      Number(req.body.priority || 50)
+    ]);
 
-app.get("/qr-admin/:qrId", async (req, res) => {
-  const qrId = req.params.qrId;
-  const start = req.query.start || "";
-  const end = req.query.end || "";
-  const hasDate = Boolean(start && end);
-  const qr = await q(`SELECT qr.*, s.name AS space_name, s.location FROM qr_codes qr LEFT JOIN spaces s ON s.id = qr.space_id WHERE qr.id = $1`, [qrId]);
-  const events = await q(`SELECT e.*, c.name AS campaign_name, c.advertiser FROM events e LEFT JOIN campaigns c ON c.id = e.campaign_id WHERE e.qr_id = $1 ${hasDate ? "AND e.created_at BETWEEN $2::date AND ($3::date + interval '1 day')" : ""} ORDER BY e.created_at DESC LIMIT 100`, hasDate ? [qrId, start, end] : [qrId]);
-  res.send(page("QR Detail", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>${qr.rows[0]?.name || "QR Detail"}</h1><p class="subtitle">${qr.rows[0]?.space_name || ""}</p></div><div class="wrap"><form method="GET" action="/qr-admin/${qrId}"><input type="date" name="start" value="${start}" /><input type="date" name="end" value="${end}" /><button class="btn" type="submit">Apply Date Filter</button></form><a class="btn" href="/dashboard">Back</a><a class="btn secondary" href="/r/${qrId}" target="_blank">Open QR</a><a class="btn gold" href="/qr/${qrId}.png" target="_blank">Download QR</a><div class="note"><strong>Live Link:</strong> ${BASE_URL}/r/${qrId}</div><h2>Recent QR Activity</h2><table><tr><th>Time</th><th>Type</th><th>Advertiser</th><th>Campaign</th></tr>${events.rows.map(e => `<tr><td>${new Date(e.created_at).toLocaleString()}</td><td>${e.type}</td><td>${e.advertiser || ""}</td><td>${e.campaign_name || ""}</td></tr>`).join("")}</table></div>`));
-});
-
-app.get("/campaign-admin/:campaignId", async (req, res) => {
-  const campaignId = req.params.campaignId;
-  const start = req.query.start || "";
-  const end = req.query.end || "";
-  const hasDate = Boolean(start && end);
-  const campaign = await q(`SELECT * FROM campaigns WHERE id=$1`, [campaignId]);
-  const events = await q(`SELECT e.*, qr.name AS qr_name, s.name AS location_name FROM events e LEFT JOIN qr_codes qr ON qr.id = e.qr_id LEFT JOIN spaces s ON s.id = qr.space_id WHERE e.campaign_id = $1 ${hasDate ? "AND e.created_at BETWEEN $2::date AND ($3::date + interval '1 day')" : ""} ORDER BY e.created_at DESC LIMIT 100`, hasDate ? [campaignId, start, end] : [campaignId]);
-  const allocated = await allocatedSpotCostForCampaign(campaignId, start, end);
-  res.send(page("Campaign Detail", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>${campaign.rows[0]?.name || "Campaign Detail"}</h1><p class="subtitle">${campaign.rows[0]?.advertiser || ""}</p></div><div class="wrap"><form method="GET" action="/campaign-admin/${campaignId}"><input type="date" name="start" value="${start}" /><input type="date" name="end" value="${end}" /><button class="btn" type="submit">Apply Date Filter</button></form><a class="btn" href="/dashboard">Back</a><div class="note"><strong>Avg Customer Value:</strong> ${money(campaign.rows[0]?.avg_customer_value || 0)}<br><strong>Allocated Spot Cost:</strong> ${money(allocated)}<br><strong>Conversion Rate:</strong> ${campaign.rows[0]?.conversion_rate || 10}%</div><h2>Recent Campaign Activity</h2><table><tr><th>Time</th><th>Type</th><th>QR</th><th>Location</th></tr>${events.rows.map(e => `<tr><td>${new Date(e.created_at).toLocaleString()}</td><td>${e.type}</td><td>${e.qr_name || ""}</td><td>${e.location_name || ""}</td></tr>`).join("")}</table></div>`));
+    res.send(
+      "Campaign scheduled <br><a href='/admin/schedule'>Back to Schedule</a> | <a href='/r/" +
+      req.body.qr_id +
+      "'>Test QR</a>"
+    );
+  } catch (err) {
+    res.send("ERROR: " + err.message);
+  }
 });
 
 app.get("/qr/:qrId.png", (req, res) => {
