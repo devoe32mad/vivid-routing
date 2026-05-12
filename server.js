@@ -838,7 +838,19 @@ app.post("/admin/new-qr", async (req, res) => {
     res.send("✅ QR created <br><a href='/admin/assign'>Assign Campaign</a>");
   } catch (err) { res.send("ERROR: " + err.message); }
 });
+app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) => {
+  try {
+    await q(`
+      UPDATE campaigns
+      SET is_archived = true
+      WHERE id = $1
+    `, [req.params.campaignId]);
 
+    res.send("Campaign archived <br><a href='/admin'>Back to Admin</a>");
+  } catch (err) {
+    res.send("ARCHIVE ERROR: " + err.message);
+  }
+});
 app.get("/admin/new-campaign", async (req, res) => {
   res.send(page("New Campaign", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Create Campaign</h1></div><div class="wrap"><form method="POST" action="/admin/new-campaign"><div class="formgrid"><div><label>Advertiser</label><input name="advertiser" value="Pepsi" /></div><div><label>Campaign Name</label><input name="name" value="Low Inventory Store Push" /></div><div><label>Campaign URL</label><input name="campaign_url" value="https://www.pepsi.com" /></div><div><label>Avg Customer Value</label><input name="avg_customer_value" value="35" /></div><div><label>Conversion Rate (%)</label><input name="conversion_rate" value="10" /></div></div><label><input type="checkbox" name="is_deal_of_day" style="width:auto" /> Deal of the Day</label><br><br><button class="btn" type="submit">Create Campaign</button></form></div>`));
 });
