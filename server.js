@@ -74,7 +74,27 @@ function page(title, body) {
 <body>${body}</body>
 </html>`;
 }
+function requireLogin(req, res, next) {
 
+  if (!req.session.user) {
+    return res.redirect("/login");
+  }
+
+  next();
+}
+
+function requireAdmin(req, res, next) {
+
+  if (!req.session.user) {
+    return res.redirect("/login");
+  }
+
+  if (req.session.user.role !== "admin") {
+    return res.send("Access denied");
+  }
+
+  next();
+}
 async function initDb() {
   await q(`
   CREATE TABLE IF NOT EXISTS users (
