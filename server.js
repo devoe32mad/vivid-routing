@@ -502,7 +502,7 @@ app.get("/reset-admin", async (req, res) => {
 
     await q(`
       ALTER TABLE users
-      ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'admin'
+      ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'super_admin'
     `);
 
     await q(`
