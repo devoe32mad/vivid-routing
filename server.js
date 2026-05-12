@@ -548,7 +548,7 @@ app.post("/login", async (req, res) => {
     res.send("LOGIN ERROR: " + err.message);
   }
 });
-    }
+    
 
     if (user.rows[0].password !== req.body.password) {
 
