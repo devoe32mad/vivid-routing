@@ -916,38 +916,7 @@ app.get("/admin/schedule", async (req, res) => {
   const schedules = await q(`SELECT cs.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser FROM campaign_schedules cs LEFT JOIN qr_codes qr ON qr.id = cs.qr_id LEFT JOIN campaigns c ON c.id = cs.campaign_id ORDER BY cs.qr_id, cs.day_of_week, cs.start_time`);
   res.send(page("Campaign Schedule", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Master QR Campaign Schedule</h1><p class="subtitle">Add multiple campaigns to one QR and rotate by day/time.</p></div><div class="wrap"><a class="btn" href="/admin">Admin</a><a class="btn secondary" href="/dashboard">Dashboard</a><form method="POST" action="/admin/schedule"><div class="formgrid"><div><label>Master QR</label><select name="qr_id">${qrs.rows.map(qr => `<option value="${qr.id}">${qr.id} - ${qr.name || "QR"}</option>`).join("")}</select></div><div><label>Campaign</label><select name="campaign_id">${campaigns.rows.map(c => `<option value="${c.id}">${c.advertiser || ""} - ${c.name || ""}</option>`).join("")}</select></div><div><label>Day</label><select name="day_of_week"><option value="0">Every Day / Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div><div><label>Start Time</label><input name="start_time" value="00:00" /></div><div><label>End Time</label><input name="end_time" value="23:59" /></div><div><label>Priority</label><input name="priority" type="number" value="100" /></div></div><button class="btn" type="submit">Add Campaign to Master QR</button></form><h2>Current Scheduled Campaigns</h2><table><tr><th>QR</th><th>Advertiser</th><th>Campaign</th><th>Day</th><th>Start</th><th>End</th><th>Priority</th><th>Status</th></tr>${schedules.rows.map(s => `<tr><td>${s.qr_name || s.qr_id}</td><td>${s.advertiser || ""}</td><td>${s.campaign_name || ""}</td><td>${dayLabel(s.day_of_week)}</td><td>${s.start_time}</td><td>${s.end_time}</td><td>${s.priority}</td><td>${s.is_active ? "Active" : "Inactive"}</td></tr>`).join("")}</table></div>`));
 });
-app.post("/admin/schedule", async (req, res) => {
-  try {
-    await q(for (let i = 1; i <= 3; i++) {
-  const campaignId = req.body[`campaign_id_${i}`];
-  const startTime = req.body[`start_time_${i}`];
-  const endTime = req.body[`end_time_${i}`];
 
-  if (campaignId && startTime && endTime) {
-    await q(`
-      INSERT INTO campaign_schedules (
-        qr_id,
-        campaign_id,
-        day_of_week,
-        start_time,
-        end_time,
-        priority,
-        is_active
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,true)
-    `, [
-      Number(req.body.qr_id),
-      Number(campaignId),
-      Number(req.body.day_of_week || 0),
-      startTime,
-      endTime,
-      110 - (i * 10)
-    ]);
-  }
-} (qr_id,campaign_id,day_of_week,start_time,end_time,priority,is_active) VALUES ($1,$2,$3,$4,$5,$6,true)`, [Number(req.body.qr_id), Number(req.body.campaign_id), Number(req.body.day_of_week || 0), req.body.start_time || "00:00", req.body.end_time || "23:59", Number(req.body.priority || 50)]);
-    res.send("✅ Campaign scheduled <br><a href='/admin/schedule'>Back to Schedule</a> | <a href='/r/" + req.body.qr_id + "'>Test QR</a>");
-  } catch (err) { res.send("ERROR: " + err.message); }
-});
 
 app.get("/admin/assign", async (req, res) => {
   const qrs = await q(`SELECT * FROM qr_codes ORDER BY id`);
