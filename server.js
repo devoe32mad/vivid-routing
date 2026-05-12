@@ -480,6 +480,34 @@ app.get("/click/:type/:qrId", async (req, res) => {
   }
   res.redirect("/");
 });
+app.get("/reset-admin", async (req, res) => {
+  try {
+    await q(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        email TEXT UNIQUE,
+        password TEXT,
+        role TEXT DEFAULT 'admin',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await q(`
+      INSERT INTO users (name, email, password, role)
+      VALUES ('Vivid Admin', 'admin@vividspots.com', 'admin123', 'admin')
+      ON CONFLICT (email)
+      DO UPDATE SET
+        name = EXCLUDED.name,
+        password = EXCLUDED.password,
+        role = EXCLUDED.role
+    `);
+
+    res.send("Admin reset complete. Go to <a href='/login'>login</a>.");
+  } catch (err) {
+    res.send("RESET ADMIN ERROR: " + err.message);
+  }
+});
 app.get("/login", (req, res) => {
 
   res.send(page("Login", `
