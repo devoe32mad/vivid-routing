@@ -198,6 +198,10 @@ await q(`
   ALTER TABLE campaigns
   ADD COLUMN IF NOT EXISTS user_id INT
 `);
+  await q(`
+  ALTER TABLE spaces
+  ADD COLUMN IF NOT EXISTS user_id INT
+`);
   const customers = await q(`SELECT COUNT(*) FROM customers`);
   if (Number(customers.rows[0].count) === 0) await q(`INSERT INTO customers (name,email) VALUES ('Demo Brand / Vendor','demo@vividspots.com')`);
 
