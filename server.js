@@ -1,4 +1,5 @@
 const express = require("express");
+const session = require("express-session");
 const { Pool } = require("pg");
 
 const app = express();
@@ -7,7 +8,11 @@ const BASE_URL = process.env.BASE_URL || "https://vivid-routing-production.up.ra
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-
+app.use(session({
+  secret: "vivid-secret-key",
+  resave: false,
+  saveUninitialized: false
+}));
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
