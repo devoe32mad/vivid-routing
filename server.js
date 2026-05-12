@@ -523,24 +523,57 @@ app.post("/login", async (req, res) => {
 
   try {
 
+    console.log("LOGIN ATTEMPT:", req.body.email);
+
     const user = await q(`
       SELECT *
       FROM users
-      WHERE email = $1
-      AND password = $2
+      WHERE LOWER(email) = LOWER($1)
       LIMIT 1
     `, [
-      req.body.email,
-      req.body.password
+      req.body.email
     ]);
+
+    console.log("USER FOUND:", user.rows[0]);
 
     if (!user.rows[0]) {
 
       return res.send(`
-        Invalid login
+        User not found
         <br><br>
         <a href="/login">Try Again</a>
       `);
+
+    }
+
+    if (user.rows[0].password !== req.body.password) {
+
+      return res.send(`
+        Wrong password
+        <br><br>
+        <a href="/login">Try Again</a>
+      `);
+
+    }
+
+    req.session.user = {
+      id: user.rows[0].id,
+      name: user.rows[0].name,
+      email: user.rows[0].email,
+      role: user.rows[0].role
+    };
+
+    res.redirect("/dashboard");
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.send("LOGIN ERROR: " + err.message);
+
+  }
+
+});
 
     }
 
