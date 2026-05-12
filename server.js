@@ -644,9 +644,10 @@ const qrRows = await q(`
 `);
 
 const campaignRows = await q(`
-  SELECT *
-  FROM campaigns
-  ORDER BY id
+SELECT *
+FROM campaigns
+WHERE is_archived = false
+ORDER BY id
 `);
 
     const locationRows = await q(`
