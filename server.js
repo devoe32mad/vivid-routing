@@ -846,7 +846,48 @@ app.post("/admin/new-campaign", async (req, res) => {
 
 app.get("/admin/new-store", async (req, res) => {
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
-  res.send(page("New Store", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add Store / Inventory Target</h1></div><div class="wrap"><form method="POST" action="/admin/new-store"><label>Store Name</label><input name="name" required /><label>Address / Market</label><input name="address" placeholder="Naples FL" /><label>Google Maps URL</label><input name="maps_url" /><label>Waze URL</label><input name="waze_url" /><label>Inventory Priority (0-100)</label><input name="inventory_priority" type="number" value="50" /><label>Units On Hand</label><input name="inventory_units" type="number" value="0" /><label>Days On Hand</label><input name="days_on_hand" type="number" value="0" /><label>Velocity</label><input name="inventory_velocity" type="number" value="0" /><label>Inventory Note</label><input name="inventory_note" /><label>Attach to Campaign</label><select name="campaign_id">${campaigns.rows.map(c => `<option value="${c.id}">${c.advertiser || ""} - ${c.name || ""}</option>`).join("")}</select><button class="btn" type="submit">Create Store</button></form></div>`));
+  res.send(page("New Store", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add Store / Inventory Target</h1></div><div class="wrap"><form method="POST" action="/admin/new-store"><label>Store Name</label><input name="name" required /><label>Address / Market</label><input name="address" placeholder="Naples FL" /><label>Google Maps URL</label><input name="maps_url" /><label>Waze URL</label><input name="waze_url" /><label>Inventory Priority (0-100)</label><input name="inventory_priority" type="number" value="50" /><label>Units On Hand</label><input name="inventory_units" type="number" value="0" /><label>Days On Hand</label><input name="days_on_hand" type="number" value="0" /><label>Velocity</label><input name="inventory_velocity" type="number" value="0" /><label>Inventory Note</label><input name="inventory_note" /><label>Attach to Campaign</label><h3>Campaign Slot 1</h3>
+
+<select name="campaign_id_1">
+  ${campaigns.rows.map(c => `
+    <option value="${c.id}">
+      ${c.advertiser} - ${c.name}
+    </option>
+  `).join("")}
+</select>
+
+<input name="start_time_1" value="07:00" />
+<input name="end_time_1" value="10:00" />
+
+<hr>
+
+<h3>Campaign Slot 2</h3>
+
+<select name="campaign_id_2">
+  ${campaigns.rows.map(c => `
+    <option value="${c.id}">
+      ${c.advertiser} - ${c.name}
+    </option>
+  `).join("")}
+</select>
+
+<input name="start_time_2" value="10:00" />
+<input name="end_time_2" value="14:00" />
+
+<hr>
+
+<h3>Campaign Slot 3</h3>
+
+<select name="campaign_id_3">
+  ${campaigns.rows.map(c => `
+    <option value="${c.id}">
+      ${c.advertiser} - ${c.name}
+    </option>
+  `).join("")}
+</select>
+
+<input name="start_time_3" value="14:00" />
+<input name="end_time_3" value="18:00" />${campaigns.rows.map(c => `<option value="${c.id}">${c.advertiser || ""} - ${c.name || ""}</option>`).join("")}</select><button class="btn" type="submit">Create Store</button></form></div>`));
 });
 app.post("/admin/new-store", async (req, res) => {
   try {
