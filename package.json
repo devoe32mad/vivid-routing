@@ -3,17 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
+ {
   "scripts": {
     "start": "node server.js"
   },
-  "keywords": [],
-  "author": "Mike DeVoe",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "express": "^4.18.2",
-    "pg": "^8.11.5"
-"express-session": "^1.18.1"
+    "pg": "^8.11.3",
+    "express-session": "^1.18.1"
   }
 }
 
