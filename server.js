@@ -1006,6 +1006,62 @@ app.get("/qr-admin/:qrId", requireLogin, async (req, res) => {
     </div>
   `));
 });
+app.get("/campaign-admin/:campaignId", requireLogin, async (req, res) => {
+  const campaignId = req.params.campaignId;
+
+  const campaign = await q(`
+    SELECT *
+    FROM campaigns
+    WHERE id = $1
+  `, [campaignId]);
+
+  const events = await q(`
+    SELECT e.*, qr.name AS qr_name, s.name AS location_name
+    FROM events e
+    LEFT JOIN qr_codes qr ON qr.id = e.qr_id
+    LEFT JOIN spaces s ON s.id = qr.space_id
+    WHERE e.campaign_id = $1
+    ORDER BY e.created_at DESC
+    LIMIT 100
+  `, [campaignId]);
+
+  res.send(page("Campaign Detail", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>${campaign.rows[0]?.name || "Campaign Detail"}</h1>
+      <p class="subtitle">${campaign.rows[0]?.advertiser || ""}</p>
+    </div>
+
+    <div class="wrap">
+      <a class="btn" href="/dashboard">Back to Dashboard</a>
+
+      <div class="note">
+        <strong>Avg Customer Value:</strong> ${money(campaign.rows[0]?.avg_customer_value || 0)}<br>
+        <strong>Conversion Rate:</strong> ${campaign.rows[0]?.conversion_rate || 10}%
+      </div>
+
+      <h2>Recent Campaign Activity</h2>
+
+      <table>
+        <tr>
+          <th>Time</th>
+          <th>Type</th>
+          <th>QR</th>
+          <th>Location</th>
+        </tr>
+
+        ${events.rows.map(e => `
+          <tr>
+            <td>${new Date(e.created_at).toLocaleString()}</td>
+            <td>${e.type}</td>
+            <td>${e.qr_name || ""}</td>
+            <td>${e.location_name || ""}</td>
+          </tr>
+        `).join("")}
+      </table>
+    </div>
+  `));
+});
 app.get("/qr/:qrId.png", (req, res) => {
   const qrId = req.params.qrId;
   const url = `${BASE_URL}/r/${qrId}`;
