@@ -464,6 +464,47 @@ app.get("/login", (req, res) => {
   `));
 
 });
+app.post("/login", async (req, res) => {
+
+  try {
+
+    const user = await q(`
+      SELECT *
+      FROM users
+      WHERE email = $1
+      AND password = $2
+      LIMIT 1
+    `, [
+      req.body.email,
+      req.body.password
+    ]);
+
+    if (!user.rows[0]) {
+
+      return res.send(`
+        Invalid login
+        <br><br>
+        <a href="/login">Try Again</a>
+      `);
+
+    }
+
+    req.session.user = {
+      id: user.rows[0].id,
+      name: user.rows[0].name,
+      email: user.rows[0].email,
+      role: user.rows[0].role
+    };
+
+    res.redirect("/dashboard");
+
+  } catch (err) {
+
+    res.send("LOGIN ERROR: " + err.message);
+
+  }
+
+});
 app.get("/dashboard", async (req, res) => {
   try {
     const start = req.query.start || "";
