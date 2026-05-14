@@ -814,7 +814,83 @@ const cost =
     res.status(500).send("Dashboard error: " + err.message);
   }
 });
+app.get("/admin/users", requireSuperAdmin, async (req, res) => {
+  const users = await q(`
+    SELECT id, email, role, created_at
+    FROM users
+    ORDER BY id
+  `);
 
+  res.send(page("Users", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>User Management</h1>
+      <p class="subtitle">Super admin only</p>
+    </div>
+
+    <div class="wrap">
+      <a class="btn" href="/admin">Back to Admin</a>
+
+      <h2>Create Customer Login</h2>
+
+      <form method="POST" action="/admin/users">
+        <label>Email</label>
+        <input name="email" type="email" required />
+
+        <label>Password</label>
+        <input name="password" required />
+
+        <label>Role</label>
+        <select name="role">
+          <option value="customer">Customer</option>
+          <option value="super_admin">Super Admin</option>
+        </select>
+
+        <button class="btn" type="submit">Create User</button>
+      </form>
+
+      <h2>Existing Users</h2>
+
+      <table>
+        <tr>
+          <th>ID</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Created</th>
+        </tr>
+
+        ${users.rows.map(u => `
+          <tr>
+            <td>${u.id}</td>
+            <td>${u.email}</td>
+            <td>${u.role}</td>
+            <td>${new Date(u.created_at).toLocaleString()}</td>
+          </tr>
+        `).join("")}
+      </table>
+    </div>
+  `));
+});
+app.post("/admin/users", requireSuperAdmin, async (req, res) => {
+  try {
+    await q(`
+      INSERT INTO users (email, password, role)
+      VALUES ($1,$2,$3)
+      ON CONFLICT (email)
+      DO UPDATE SET
+        password = EXCLUDED.password,
+        role = EXCLUDED.role
+    `, [
+      req.body.email,
+      req.body.password,
+      req.body.role || "customer"
+    ]);
+
+    res.send("User saved <br><a href='/admin/users'>Back to Users</a>");
+  } catch (err) {
+    res.send("USER CREATE ERROR: " + err.message);
+  }
+});
 app.get("/admin", async (req, res) => {
   const qrs = await q(`SELECT qr.*, s.name AS space_name FROM qr_codes qr LEFT JOIN spaces s ON s.id = qr.space_id ORDER BY qr.id`);
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
