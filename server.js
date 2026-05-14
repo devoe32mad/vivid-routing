@@ -940,13 +940,14 @@ app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) =>
 });
 app.get("/admin/new-campaign", async (req, res) => {
   res.send(page("New Campaign", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Create Campaign</h1></div><div class="wrap"><form method="POST" action="/admin/new-campaign"><div class="formgrid"><div><label>Advertiser</label><input name="advertiser" value="Pepsi" /></div><div><label>Campaign Name</label><input name="name" value="Low Inventory Store Push" /></div><div><label>Campaign URL</label><input name="campaign_url" value="https://www.pepsi.com" /></div><div><label>Avg Customer Value</label><input name="avg_customer_value" value="35" /></div><div><label>Conversion Rate (%)</label><input name="conversion_rate" value="10" /></div></div><label><input type="checkbox" name="is_deal_of_day" style="width:auto" /> Deal of the Day</label><br><br><button class="btn" type="submit">Create Campaign</button></form></div>`));
-});
 const users = await q(`
   SELECT id, email
   FROM users
   WHERE role = 'customer'
   ORDER BY email
 `);
+});
+
 app.post("/admin/new-campaign", async (req, res) => {
   try {
     await q(`INSERT INTO campaigns (name,advertiser,campaign_url,avg_customer_value,conversion_rate,is_deal_of_day) VALUES ($1,$2,$3,$4,$5,$6)`, [req.body.name || "", req.body.advertiser || "", req.body.campaign_url || "", Number(req.body.avg_customer_value || 50), Number(req.body.conversion_rate || 10), req.body.is_deal_of_day === "on"]);
