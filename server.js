@@ -627,6 +627,8 @@ app.get("/dashboard", requireLogin, async (req, res) => {
    const currentUser = req.session.user;
     console.log("CURRENT USER:", currentUser);
 const isSuperAdmin = currentUser.role === "super_admin"; 
+    const userFilterSql = isSuperAdmin ? "" : "AND c.user_id = $1";
+const userParams = isSuperAdmin ? [] : [currentUser.id];
     const start = req.query.start || "";
     const end = req.query.end || "";
     const hasDate = Boolean(start && end);
@@ -634,13 +636,17 @@ const isSuperAdmin = currentUser.role === "super_admin";
     const dateParams = hasDate ? [start, end] : [];
 
     const totalResult = await q(`
-      SELECT COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-        COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
-        COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
-        COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
-        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
-      FROM events e WHERE 1=1 ${dateSql}
-    `, dateParams);
+  SELECT
+    COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+    COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
+    COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
+    COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
+    COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+  FROM events e
+  JOIN campaigns c ON c.id = e.campaign_id
+  WHERE 1=1
+  ${userFilterSql}
+`, userParams);
 
     const trendResult = await q(`
       SELECT DATE(e.created_at) AS day,
