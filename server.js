@@ -1033,6 +1033,54 @@ app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) =>
     res.send("ARCHIVE ERROR: " + err.message);
   }
 });
+app.get("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
+  const currentUser = req.session.user;
+  const isSuperAdmin = currentUser.role === "super_admin";
+
+  const result = await q(
+    isSuperAdmin
+      ? `SELECT * FROM campaigns WHERE id = $1`
+      : `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2`,
+    isSuperAdmin
+      ? [req.params.campaignId]
+      : [req.params.campaignId, currentUser.id]
+  );
+
+  const c = result.rows[0];
+
+  if (!c) {
+    return res.send("Campaign not found or access denied");
+  }
+
+  res.send(page("Edit Campaign", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>Edit Campaign</h1>
+      <p class="subtitle">${c.advertiser || ""} - ${c.name || ""}</p>
+    </div>
+
+    <div class="wrap">
+      <form method="POST" action="/admin/edit-campaign/${c.id}">
+        <label>Advertiser</label>
+        <input name="advertiser" value="${c.advertiser || ""}" />
+
+        <label>Campaign Name</label>
+        <input name="name" value="${c.name || ""}" />
+
+        <label>Campaign URL</label>
+        <input name="campaign_url" value="${c.campaign_url || ""}" />
+
+        <label>Avg Customer Value</label>
+        <input name="avg_customer_value" value="${c.avg_customer_value || 50}" />
+
+        <label>Conversion Rate (%)</label>
+        <input name="conversion_rate" value="${c.conversion_rate || 10}" />
+
+        <button class="btn" type="submit">Save Campaign</button>
+      </form>
+    </div>
+  `));
+});
 app.get("/admin/new-campaign", async (req, res) => {
   const users = await q(`
   SELECT id, email
