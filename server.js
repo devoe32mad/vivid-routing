@@ -1239,6 +1239,37 @@ app.get("/admin/assign", async (req, res) => {
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
   res.send(page("Assign Campaign", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Assign Campaign to QR</h1></div><div class="wrap"><form method="POST" action="/admin/assign"><label>QR Code</label><select name="qr_id">${qrs.rows.map(qr => `<option value="${qr.id}">${qr.id} - ${qr.name || "QR"}</option>`).join("")}</select><label>Campaign</label><select name="campaign_id">${campaigns.rows.map(c => `<option value="${c.id}">${c.advertiser || ""} - ${c.name || ""}</option>`).join("")}</select><button class="btn" type="submit">Assign Campaign</button></form></div>`));
 });
+app.post("/admin/assign", requireLogin, async (req, res) => {
+  try {
+    await q(`
+      UPDATE qr_campaigns
+      SET is_active = false,
+          ended_at = CURRENT_TIMESTAMP
+      WHERE qr_id = $1
+    `, [req.body.qr_id]);
+
+    await q(`
+      INSERT INTO qr_campaigns (
+        qr_id,
+        campaign_id,
+        is_active,
+        started_at
+      )
+      VALUES ($1,$2,true,CURRENT_TIMESTAMP)
+    `, [
+      Number(req.body.qr_id),
+      Number(req.body.campaign_id)
+    ]);
+
+    res.send(
+      "Campaign assigned <br><a href='/r/" +
+      req.body.qr_id +
+      "'>Test QR</a> | <a href='/dashboard'>Dashboard</a>"
+    );
+  } catch (err) {
+    res.send("ASSIGN ERROR: " + err.message);
+  }
+});
 app.post("/admin/schedule", requireLogin, async (req, res) => {
   try {
     await q(`
