@@ -535,6 +535,13 @@ app.get("/reset-admin", async (req, res) => {
     res.send("RESET ADMIN ERROR: " + err.message);
   }
 });
+app.get("/logout", (req, res) => {
+
+  req.session.destroy(() => {
+    res.redirect("/login");
+  });
+
+});
 app.get("/login", (req, res) => {
 
   res.send(page("Login", `
