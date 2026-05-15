@@ -648,13 +648,17 @@ const userParams = isSuperAdmin ? [] : [currentUser.id];
   ${userFilterSql}
 `, userParams);
 
-    const trendResult = await q(`
-      SELECT DATE(e.created_at) AS day,
-        COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
-      FROM events e WHERE 1=1 ${dateSql}
-      GROUP BY DATE(e.created_at) ORDER BY day DESC LIMIT 14
-    `, dateParams);
+const trendResult = await q(`
+  SELECT DATE(e.created_at) AS day,
+    COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+    COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+  FROM events e
+  JOIN campaigns c ON c.id = e.campaign_id
+  WHERE 1=1 ${userFilterSql} ${dateSql}
+  GROUP BY DATE(e.created_at)
+  ORDER BY day DESC
+  LIMIT 14
+`, [...userParams, ...dateParams]);
 
 const qrRows = await q(`
   SELECT
