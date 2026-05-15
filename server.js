@@ -1003,22 +1003,28 @@ app.get("/admin/new-location", async (req, res) => {
 });
 app.post("/admin/new-location", async (req, res) => {
   try {
-await q(`
-  INSERT INTO spaces (
-    user_id,
-    name,
-    location,
-    annual_impressions,
-    placement_cost
-  )
-  VALUES ($1,$2,$3,$4,$5)
-`, [
-  req.session.user.id,
-  req.body.name,
-  req.body.location,
-  Number(req.body.annual_impressions || 0),
-  Number(req.body.placement_cost || 800)
-]);
+    await q(`
+      INSERT INTO spaces (
+        user_id,
+        name,
+        location,
+        annual_impressions,
+        placement_cost
+      )
+      VALUES ($1,$2,$3,$4,$5)
+    `, [
+      req.session.user.id,
+      req.body.name,
+      req.body.location,
+      Number(req.body.annual_impressions || 0),
+      Number(req.body.placement_cost || 800)
+    ]);
+
+    res.send("Location created <br><a href='/admin/new-qr'>Create QR</a>");
+  } catch (err) {
+    res.send("ERROR: " + err.message);
+  }
+});
 
 app.get("/admin/new-qr", async (req, res) => {
   const spaces = await q(
