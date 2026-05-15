@@ -832,7 +832,7 @@ const cost =
       const roi = cost ? ((revenue - cost) / cost) * 100 : 0;
       const intentRate = scans ? (intent / scans) * 100 : 0;
       if (!topCampaign || revenue > topCampaign.revenue) topCampaign = { name: c.name || "Campaign " + c.id, advertiser: c.advertiser || "", revenue, roi };
-      campaignTable += `<tr><td>${c.advertiser || ""} (user ${c.user_id})</td><td><a href="/campaign-admin/${c.id}">${c.name || ""}</a></td><td>${c.is_deal_of_day ? "🔥 Deal" : "Standard"}</td><td>${scans}</td><td>${row.maps_clicks || 0}</td><td>${row.offer_clicks || 0}</td><td>${row.waze_clicks || 0}</td><td>${pct(intentRate)}</td><td>${customers}</td><td>${money(avgValue)}</td><td>${money(revenue)}</td><td>${money(cost)}</td><td>${money(cac)}</td><td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td></tr>`;
+      campaignTable += `<tr><td>${c.advertiser || ""} (user ${c.user_id})</td><td><a href="/admin/edit-campaign/${c.id}">${c.name || ""}</a></td><td>${c.is_deal_of_day ? "🔥 Deal" : "Standard"}</td><td>${scans}</td><td>${row.maps_clicks || 0}</td><td>${row.offer_clicks || 0}</td><td>${row.waze_clicks || 0}</td><td>${pct(intentRate)}</td><td>${customers}</td><td>${money(avgValue)}</td><td>${money(revenue)}</td><td>${money(cost)}</td><td>${money(cac)}</td><td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td></tr>`;
     }
 
     let locationTable = "";
