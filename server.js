@@ -866,7 +866,17 @@ const cost =
     for (const row of activeSchedules.rows) activeScheduleTable += `<tr><td>${row.qr_name || row.qr_id}</td><td>${row.advertiser || ""}</td><td>${row.campaign_name || ""}</td><td>${dayLabel(row.day_of_week)}</td><td>${row.start_time}</td><td>${row.end_time}</td><td>${row.priority}</td><td>${row.is_active ? "Active" : "Inactive"}</td></tr>`;
 
     res.send(page("Vivid ROI Dashboard", `
-      <div class="topbar"><div class="brand">Vivid Spots</div><h1>ROI Dashboard</h1><p style="color:white; font-weight:bold;">
+      <div class="topbar"><div class="brand">Vivid Spots</div><h1>
+  ${isSuperAdmin ? "Super Admin Dashboard" : "Customer Dashboard"}
+</h1>
+
+<p style="color:white; font-weight:bold;">
+  Logged in as:
+  ${currentUser.email}
+  |
+  Role:
+  ${currentUser.role}
+</p><p style="color:white; font-weight:bold;">
   Logged in as: ${currentUser.email} | Role: ${currentUser.role} | User ID: ${currentUser.id}
 </p><p class="subtitle">QR ROI + Campaign ROI + Store Intent + Inventory Routing + Scheduled Campaigns</p></div>
       <div class="wrap">
