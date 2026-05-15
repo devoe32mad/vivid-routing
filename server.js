@@ -948,12 +948,6 @@ app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) =>
   }
 });
 app.get("/admin/new-campaign", async (req, res) => {
-  const users = await q(`
-  SELECT id, email
-  FROM users
-  WHERE role = 'customer'
-  ORDER BY email
-`);
   res.send(page("New Campaign", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Create Campaign</h1></div><div class="wrap"><form method="POST" action="/admin/new-campaign"><div class="formgrid"><div><label>Customer Account</label>
 <select name="user_id">
   ${users.rows.map(u => `
