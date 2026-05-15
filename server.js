@@ -181,6 +181,12 @@ if (Number(userCount.rows[0].count) === 0) {
 
   await q(`CREATE TABLE IF NOT EXISTS spaces (
     id SERIAL PRIMARY KEY,
+    CREATE TABLE IF NOT EXISTS spaces (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER,
+  name TEXT,
+  ...
+)
     customer_id INT,
     name TEXT,
     description TEXT,
