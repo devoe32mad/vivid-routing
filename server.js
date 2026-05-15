@@ -179,24 +179,15 @@ if (Number(userCount.rows[0].count) === 0) {
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  await q(`CREATE TABLE IF NOT EXISTS spaces (
-    id SERIAL PRIMARY KEY,
-    CREATE TABLE IF NOT EXISTS spaces (
+await q(`CREATE TABLE IF NOT EXISTS spaces (
   id SERIAL PRIMARY KEY,
   user_id INTEGER,
   name TEXT,
-  ...
-)
-    customer_id INT,
-    name TEXT,
-    description TEXT,
-    location TEXT,
-    host_name TEXT,
-    annual_impressions INT DEFAULT 146000,
-    placement_cost INT DEFAULT 800,
-    host_payout INT DEFAULT 300,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )`);
+  location TEXT,
+  annual_impressions NUMERIC DEFAULT 146000,
+  placement_cost NUMERIC DEFAULT 800,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)`);
 
   await q(`CREATE TABLE IF NOT EXISTS qr_codes (
     id SERIAL PRIMARY KEY,
