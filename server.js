@@ -625,6 +625,7 @@ app.post("/login", async (req, res) => {
 app.get("/dashboard", requireLogin, async (req, res) => {
   try {
    const currentUser = req.session.user;
+    console.log("CURRENT USER:", currentUser);
 const isSuperAdmin = currentUser.role === "super_admin"; 
     const start = req.query.start || "";
     const end = req.query.end || "";
