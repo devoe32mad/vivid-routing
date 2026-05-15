@@ -1003,21 +1003,19 @@ app.get("/admin/new-location", async (req, res) => {
 });
 app.post("/admin/new-location", async (req, res) => {
   try {
- await q(`
+await q(`
   INSERT INTO spaces (
     user_id,
     name,
     location,
-    description,
     annual_impressions,
     placement_cost
   )
-  VALUES ($1,$2,$3,$4,$5,$6)
+  VALUES ($1,$2,$3,$4,$5)
 `, [
   req.session.user.id,
   req.body.name,
   req.body.location,
-  req.body.description || "",
   Number(req.body.annual_impressions || 0),
   Number(req.body.placement_cost || 800)
 ]);
