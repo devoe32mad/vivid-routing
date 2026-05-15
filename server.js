@@ -1027,6 +1027,9 @@ app.post("/admin/new-location", async (req, res) => {
 });
 
 app.get("/admin/new-qr", async (req, res) => {
+  const isSuperAdmin =
+  req.session.user.role === "super_admin";
+  
   const spaces = await q(
   isSuperAdmin
     ? `
