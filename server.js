@@ -670,7 +670,9 @@ const campaignRows = await q(
   isSuperAdmin ? [] : [currentUser.id]
 );
 
-    const locationRows = await q(`
+const locationRows = await q(
+  isSuperAdmin
+    ? `
       SELECT c.id AS campaign_id, c.name AS campaign_name, c.advertiser,
         s.id AS space_id, s.name AS location_name, s.location, s.placement_cost,
         c.avg_customer_value, c.conversion_rate,
@@ -685,7 +687,27 @@ const campaignRows = await q(
       WHERE 1=1 ${dateSql}
       GROUP BY c.id, s.id
       ORDER BY intent_clicks DESC, scans DESC
-    `, dateParams);
+    `
+    : `
+      SELECT c.id AS campaign_id, c.name AS campaign_name, c.advertiser,
+        s.id AS space_id, s.name AS location_name, s.location, s.placement_cost,
+        c.avg_customer_value, c.conversion_rate,
+        COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+        COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
+        COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
+        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+      FROM events e
+      JOIN campaigns c ON c.id = e.campaign_id
+      JOIN qr_codes qr ON qr.id = e.qr_id
+      JOIN spaces s ON s.id = qr.space_id
+      WHERE c.user_id = $1 ${dateSql}
+      GROUP BY c.id, s.id
+      ORDER BY intent_clicks DESC, scans DESC
+    `,
+  isSuperAdmin
+    ? dateParams
+    : [currentUser.id, ...dateParams]
+);
 
     const storeRows = await q(`
       SELECT st.id AS store_id, st.name AS store_name, st.address,
