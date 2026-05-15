@@ -660,19 +660,39 @@ const trendResult = await q(`
   LIMIT 14
 `, [...userParams, ...dateParams]);
 
-const qrRows = await q(`
-  SELECT
-    qr.id AS qr_id,
-    qr.name AS qr_name,
-    qr.created_at,
-    s.name AS space_name,
-    s.location,
-    s.annual_impressions,
-    s.placement_cost
-  FROM qr_codes qr
-  LEFT JOIN spaces s ON s.id = qr.space_id
-  ORDER BY qr.id
-`);
+const qrRows = await q(
+  isSuperAdmin
+    ? `
+      SELECT DISTINCT
+        qr.id AS qr_id,
+        qr.name AS qr_name,
+        qr.created_at,
+        s.name AS space_name,
+        s.location,
+        s.annual_impressions,
+        s.placement_cost
+      FROM qr_codes qr
+      LEFT JOIN spaces s ON s.id = qr.space_id
+      ORDER BY qr.id
+    `
+    : `
+      SELECT DISTINCT
+        qr.id AS qr_id,
+        qr.name AS qr_name,
+        qr.created_at,
+        s.name AS space_name,
+        s.location,
+        s.annual_impressions,
+        s.placement_cost
+      FROM qr_codes qr
+      JOIN qr_campaigns qc ON qc.qr_id = qr.id
+      JOIN campaigns c ON c.id = qc.campaign_id
+      LEFT JOIN spaces s ON s.id = qr.space_id
+      WHERE c.user_id = $1
+      ORDER BY qr.id
+    `,
+  isSuperAdmin ? [] : [currentUser.id]
+);
 
 const campaignRows = await q(
   isSuperAdmin
