@@ -656,12 +656,12 @@ const qrRows = await q(`
   ORDER BY qr.id
 `);
 
-const campaignRows = await q(`
-SELECT *
-FROM campaigns
-WHERE is_archived = false
-ORDER BY id
-`);
+const campaignRows = await q(
+  isSuperAdmin
+    ? `SELECT * FROM campaigns WHERE is_archived = false ORDER BY id`
+    : `SELECT * FROM campaigns WHERE is_archived = false AND user_id = $1 ORDER BY id`,
+  isSuperAdmin ? [] : [currentUser.id]
+);
 
     const locationRows = await q(`
       SELECT c.id AS campaign_id, c.name AS campaign_name, c.advertiser,
