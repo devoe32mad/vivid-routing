@@ -997,7 +997,52 @@ app.get("/admin", async (req, res) => {
     </div>
   `));
 });
+app.get("/admin/edit-location/:spaceId", requireLogin, async (req, res) => {
+  const currentUser = req.session.user;
+  const isSuperAdmin = currentUser.role === "super_admin";
 
+  const result = await q(
+    isSuperAdmin
+      ? `SELECT * FROM spaces WHERE id = $1`
+      : `SELECT * FROM spaces WHERE id = $1 AND user_id = $2`,
+    isSuperAdmin
+      ? [req.params.spaceId]
+      : [req.params.spaceId, currentUser.id]
+  );
+
+  const s = result.rows[0];
+
+  if (!s) {
+    return res.send("Location not found or access denied");
+  }
+
+  res.send(page("Edit Location", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>Edit Location</h1>
+    </div>
+
+    <div class="wrap">
+      <form method="POST" action="/admin/edit-location/${s.id}">
+        <label>Location Name</label>
+        <input name="name" value="${s.name || ""}" />
+
+        <label>Market / Address</label>
+        <input name="location" value="${s.location || ""}" />
+
+        <label>Annual Impressions</label>
+        <input name="annual_impressions" value="${s.annual_impressions || 0}" />
+
+        <label>Placement Cost</label>
+        <input name="placement_cost" value="${s.placement_cost || 800}" />
+
+        <button class="btn" type="submit">
+          Save Location
+        </button>
+      </form>
+    </div>
+  `));
+});
 app.get("/admin/new-location", async (req, res) => {
   res.send(page("Add Location", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add Location / Space</h1></div><div class="wrap"><form method="POST" action="/admin/new-location"><label>Name</label><input name="name" required /><label>Market</label><input name="location" placeholder="Naples, FL" /><label>Description</label><input name="description" /><label>Annual Impressions</label><input name="annual_impressions" type="number" value="100000" /><label>Placement Cost</label><input name="placement_cost" type="number" value="800" /><button class="btn" type="submit">Create Location</button></form></div>`));
 });
