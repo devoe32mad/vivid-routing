@@ -1065,7 +1065,12 @@ app.post("/admin/new-qr", async (req, res) => {
 
 const qrId = newQr.rows[0].id;
 
-    res.send("QR created <br><a href='/admin/assign'>Assign Campaign</a>");
+  res.send(
+  "QR created<br><br>" +
+  "<a href='/r/" + qrId + "'>Open QR URL</a><br>" +
+  "<a href='/qr/" + qrId + ".png'>Download QR Code</a><br>" +
+  "<a href='/admin/assign'>Assign Campaign</a>"
+);
   } catch (err) {
     res.send("ERROR: " + err.message);
   }
