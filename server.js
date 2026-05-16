@@ -1088,6 +1088,65 @@ app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) =>
     res.send("ARCHIVE ERROR: " + err.message);
   }
 });
+app.post("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+
+    const result = await q(
+      isSuperAdmin
+        ? `
+          UPDATE campaigns
+          SET
+            advertiser = $1,
+            name = $2,
+            campaign_url = $3,
+            avg_customer_value = $4,
+            conversion_rate = $5
+          WHERE id = $6
+          RETURNING id
+        `
+        : `
+          UPDATE campaigns
+          SET
+            advertiser = $1,
+            name = $2,
+            campaign_url = $3,
+            avg_customer_value = $4,
+            conversion_rate = $5
+          WHERE id = $6
+          AND user_id = $7
+          RETURNING id
+        `,
+      isSuperAdmin
+        ? [
+            req.body.advertiser || "",
+            req.body.name || "",
+            req.body.campaign_url || "",
+            Number(req.body.avg_customer_value || 50),
+            Number(req.body.conversion_rate || 10),
+            req.params.campaignId
+          ]
+        : [
+            req.body.advertiser || "",
+            req.body.name || "",
+            req.body.campaign_url || "",
+            Number(req.body.avg_customer_value || 50),
+            Number(req.body.conversion_rate || 10),
+            req.params.campaignId,
+            currentUser.id
+          ]
+    );
+
+    if (!result.rows[0]) {
+      return res.send("Campaign not found or access denied");
+    }
+
+    res.send("Campaign updated <br><a href='/dashboard'>Back to Dashboard</a>");
+  } catch (err) {
+    res.send("EDIT CAMPAIGN ERROR: " + err.message);
+  }
+});
 app.get("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
   const currentUser = req.session.user;
   const isSuperAdmin = currentUser.role === "super_admin";
