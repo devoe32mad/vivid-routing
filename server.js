@@ -1049,18 +1049,21 @@ app.get("/admin/new-qr", async (req, res) => {
 });
 app.post("/admin/new-qr", async (req, res) => {
   try {
-    await q(`
-      INSERT INTO qr_codes (
-        space_id,
-        name,
-        description
-      )
-      VALUES ($1,$2,$3)
-    `, [
-      Number(req.body.space_id),
-      req.body.name || "",
-      req.body.description || ""
-    ]);
+ const newQr = await q(`
+  INSERT INTO qr_codes (
+    space_id,
+    name,
+    description
+  )
+  VALUES ($1,$2,$3)
+  RETURNING id
+`, [
+  Number(req.body.space_id),
+  req.body.name || "",
+  req.body.description || ""
+]);
+
+const qrId = newQr.rows[0].id;
 
     res.send("QR created <br><a href='/admin/assign'>Assign Campaign</a>");
   } catch (err) {
