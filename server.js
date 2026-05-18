@@ -1155,19 +1155,21 @@ for (const s of schedules.rows) {
       <div class="topbar">
         <div class="brand">Vivid Spots</div>
         <h1>My Setup</h1>
-        <div class="note" style="margin-bottom:20px;line-height:1.6;">
-  <strong>How To Use Vivid Spots:</strong><br><br>
+      <div class="note" style="margin:20px 0;line-height:1.7;padding:18px;">
+  <strong>How To Use Vivid Spots</strong><br><br>
 
   1. Create a Location<br>
-  2. Create a QR Code tied to that Location<br>
+  2. Create a QR Code<br>
   3. Create a Campaign<br>
   4. Assign Campaigns to QR Codes<br>
-  5. Schedule Campaign rotations if desired<br>
-  6. Monitor scans, intent, ROI, and performance from the Dashboard<br><br>
+  5. Schedule Rotations (optional)<br>
+  6. Monitor ROI and performance from Dashboard<br><br>
 
-  Recommended workflow:
-  Location → QR Code → Campaign → Assignment → Schedule → Analytics
+  Recommended workflow:<br>
+  Location → QR → Campaign → Assignment → Schedule → Analytics
 </div>
+  
+
       </div>
 
       <div class="wrap">
