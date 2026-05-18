@@ -1074,7 +1074,24 @@ const archivedCampaigns = await q(
         </tr>
       `;
     }
+let archivedCampaignTable = "";
 
+for (const c of archivedCampaigns.rows) {
+  archivedCampaignTable += `
+    <tr>
+      <td>${c.id}</td>
+      <td>${c.advertiser || ""}</td>
+      <td>${c.name || ""}</td>
+
+      <td>
+        <a href="/admin/restore-campaign/${c.id}">
+          Restore
+        </a>
+      </td>
+
+    </tr>
+  `;
+}
     let assignmentTable = "";
     for (const a of assignments.rows) {
       assignmentTable += `
