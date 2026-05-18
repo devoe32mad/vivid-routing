@@ -1015,6 +1015,7 @@ app.get("/my-setup", requireLogin, async (req, res) => {
           <td>${s.location || ""}</td>
           <td>${s.annual_impressions || 0}</td>
           <td>${money(s.placement_cost || 0)}</td>
+          <td><a href="/admin/edit-location/${s.id}">Edit</a></td>
         </tr>
       `;
     }
