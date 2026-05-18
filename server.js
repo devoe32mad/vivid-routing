@@ -1177,6 +1177,84 @@ for (const s of schedules.rows) {
   Recommended workflow:<br>
   Location → QR → Campaign → Assignment → Schedule → Analytics
 </div>
+<div class="card" style="margin-bottom:25px;padding:20px;">
+  <h2>🚀 Launch Checklist</h2>
+
+  <div class="note" style="margin-top:10px;">
+    Follow these steps to launch and manage your campaigns.
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:15px;margin-top:20px;">
+
+    <div class="card" style="width:240px;">
+      <h3>Step 1</h3>
+      <strong>Create Location</strong><br><br>
+
+      Add a physical placement location such as:
+      school, store, marina, event, or parking area.<br><br>
+
+      <a class="btn" href="/admin/new-location">
+        Create Location
+      </a>
+    </div>
+
+    <div class="card" style="width:240px;">
+      <h3>Step 2</h3>
+      <strong>Create QR Code</strong><br><br>
+
+      Create a QR code tied to a specific location.<br><br>
+
+      <a class="btn" href="/admin/new-qr">
+        Create QR
+      </a>
+    </div>
+
+    <div class="card" style="width:240px;">
+      <h3>Step 3</h3>
+      <strong>Create Campaign</strong><br><br>
+
+      Add offers, promotions, landing pages, or destinations.<br><br>
+
+      <a class="btn" href="/admin/new-campaign">
+        Create Campaign
+      </a>
+    </div>
+
+    <div class="card" style="width:240px;">
+      <h3>Step 4</h3>
+      <strong>Assign Campaign</strong><br><br>
+
+      Connect campaigns to QR codes.<br><br>
+
+      <a class="btn" href="/admin/assign">
+        Assign Campaign
+      </a>
+    </div>
+
+    <div class="card" style="width:240px;">
+      <h3>Step 5</h3>
+      <strong>Schedule Campaigns</strong><br><br>
+
+      Schedule promotions by day, time, or priority.<br><br>
+
+      <a class="btn" href="/admin/schedule">
+        Manage Schedules
+      </a>
+    </div>
+
+    <div class="card" style="width:240px;">
+      <h3>Step 6</h3>
+      <strong>View Analytics</strong><br><br>
+
+      Monitor scans, engagement, ROI, and performance.<br><br>
+
+      <a class="btn" href="/dashboard">
+        Open Dashboard
+      </a>
+    </div>
+
+  </div>
+</div>
         <div class="note">
           Review your locations, QR codes, campaigns, and assignments here.
         </div>
