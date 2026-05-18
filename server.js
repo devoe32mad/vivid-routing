@@ -752,6 +752,59 @@ const locationRows = await q(
     `, dateParams);
 
 const activeSchedules = await q(
+  const myLocations = await q(
+  isSuperAdmin
+    ? `
+      SELECT *
+      FROM spaces
+      ORDER BY id
+    `
+    : `
+      SELECT *
+      FROM spaces
+      WHERE user_id = $1
+      ORDER BY id
+    `,
+  isSuperAdmin ? [] : [currentUser.id]
+);
+
+const myQrs = await q(
+  isSuperAdmin
+    ? `
+      SELECT qr.*, s.name AS space_name
+      FROM qr_codes qr
+      LEFT JOIN spaces s ON s.id = qr.space_id
+      ORDER BY qr.id
+    `
+    : `
+      SELECT qr.*, s.name AS space_name
+      FROM qr_codes qr
+      JOIN spaces s ON s.id = qr.space_id
+      WHERE s.user_id = $1
+      ORDER BY qr.id
+    `,
+  isSuperAdmin ? [] : [currentUser.id]
+);
+
+const myAssignments = await q(
+  isSuperAdmin
+    ? `
+      SELECT qc.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser
+      FROM qr_campaigns qc
+      JOIN qr_codes qr ON qr.id = qc.qr_id
+      JOIN campaigns c ON c.id = qc.campaign_id
+      ORDER BY qc.id DESC
+    `
+    : `
+      SELECT qc.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser
+      FROM qr_campaigns qc
+      JOIN qr_codes qr ON qr.id = qc.qr_id
+      JOIN campaigns c ON c.id = qc.campaign_id
+      WHERE c.user_id = $1
+      ORDER BY qc.id DESC
+    `,
+  isSuperAdmin ? [] : [currentUser.id]
+);
   isSuperAdmin
     ? `
       SELECT cs.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser
