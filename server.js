@@ -1292,7 +1292,78 @@ app.post("/admin/new-location", async (req, res) => {
     res.send("ERROR: " + err.message);
   }
 });
+app.get("/admin/edit-qr/:qrId", requireLogin, async (req, res) => {
+  const currentUser = req.session.user;
+  const isSuperAdmin = currentUser.role === "super_admin";
 
+  const qrResult = await q(
+    isSuperAdmin
+      ? `
+        SELECT qr.*
+        FROM qr_codes qr
+        WHERE qr.id = $1
+      `
+      : `
+        SELECT qr.*
+        FROM qr_codes qr
+        JOIN spaces s ON s.id = qr.space_id
+        WHERE qr.id = $1
+        AND s.user_id = $2
+      `,
+    isSuperAdmin
+      ? [req.params.qrId]
+      : [req.params.qrId, currentUser.id]
+  );
+
+  const qr = qrResult.rows[0];
+
+  if (!qr) {
+    return res.send("QR not found or access denied");
+  }
+
+  const spaces = await q(
+    isSuperAdmin
+      ? `
+        SELECT *
+        FROM spaces
+        ORDER BY id
+      `
+      : `
+        SELECT *
+        FROM spaces
+        WHERE user_id = $1
+        ORDER BY id
+      `,
+    isSuperAdmin ? [] : [currentUser.id]
+  );
+
+  res.send(page("Edit QR", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>Edit QR Code</h1>
+    </div>
+
+    <div class="wrap">
+      <form method="POST" action="/admin/edit-qr/${qr.id}">
+        <label>QR Name</label>
+        <input name="name" value="${qr.name || ""}" />
+
+        <label>Location</label>
+        <select name="space_id">
+          ${spaces.rows.map(s => `
+            <option value="${s.id}" ${Number(s.id) === Number(qr.space_id) ? "selected" : ""}>
+              ${s.name || "Location"} - ${s.location || ""}
+            </option>
+          `).join("")}
+        </select>
+
+        <button class="btn" type="submit">
+          Save QR
+        </button>
+      </form>
+    </div>
+  `));
+});
 app.get("/admin/new-qr", async (req, res) => {
   const isSuperAdmin =
   req.session.user.role === "super_admin";
