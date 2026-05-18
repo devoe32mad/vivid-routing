@@ -752,23 +752,6 @@ const locationRows = await q(
     `, dateParams);
 
 const activeSchedules = await q(
-  const myLocations = await q(
-  isSuperAdmin
-    ? `
-      SELECT *
-      FROM spaces
-      ORDER BY id
-    `
-    : `
-      SELECT *
-      FROM spaces
-      WHERE user_id = $1
-      ORDER BY id
-    `,
-  isSuperAdmin ? [] : [currentUser.id]
-);
-
-const myQrs = await q(
   isSuperAdmin
     ? `
       SELECT qr.*, s.name AS space_name
