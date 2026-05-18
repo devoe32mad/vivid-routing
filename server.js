@@ -929,6 +929,200 @@ ${isSuperAdmin ? `
     res.status(500).send("Dashboard error: " + err.message);
   }
 });
+app.get("/my-setup", requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+
+    const locations = await q(
+      isSuperAdmin
+        ? `
+          SELECT *
+          FROM spaces
+          ORDER BY id DESC
+        `
+        : `
+          SELECT *
+          FROM spaces
+          WHERE user_id = $1
+          ORDER BY id DESC
+        `,
+      isSuperAdmin ? [] : [currentUser.id]
+    );
+
+    const qrs = await q(
+      isSuperAdmin
+        ? `
+          SELECT qr.*, s.name AS location_name
+          FROM qr_codes qr
+          LEFT JOIN spaces s ON s.id = qr.space_id
+          ORDER BY qr.id DESC
+        `
+        : `
+          SELECT qr.*, s.name AS location_name
+          FROM qr_codes qr
+          JOIN spaces s ON s.id = qr.space_id
+          WHERE s.user_id = $1
+          ORDER BY qr.id DESC
+        `,
+      isSuperAdmin ? [] : [currentUser.id]
+    );
+
+    const campaigns = await q(
+      isSuperAdmin
+        ? `
+          SELECT *
+          FROM campaigns
+          WHERE is_archived = false
+          ORDER BY id DESC
+        `
+        : `
+          SELECT *
+          FROM campaigns
+          WHERE is_archived = false
+          AND user_id = $1
+          ORDER BY id DESC
+        `,
+      isSuperAdmin ? [] : [currentUser.id]
+    );
+
+    const assignments = await q(
+      isSuperAdmin
+        ? `
+          SELECT qc.*, qr.name AS qr_name, c.name AS campaign_name
+          FROM qr_campaigns qc
+          JOIN qr_codes qr ON qr.id = qc.qr_id
+          JOIN campaigns c ON c.id = qc.campaign_id
+          ORDER BY qc.id DESC
+        `
+        : `
+          SELECT qc.*, qr.name AS qr_name, c.name AS campaign_name
+          FROM qr_campaigns qc
+          JOIN qr_codes qr ON qr.id = qc.qr_id
+          JOIN campaigns c ON c.id = qc.campaign_id
+          WHERE c.user_id = $1
+          ORDER BY qc.id DESC
+        `,
+      isSuperAdmin ? [] : [currentUser.id]
+    );
+
+    let locationTable = "";
+    for (const s of locations.rows) {
+      locationTable += `
+        <tr>
+          <td>${s.id}</td>
+          <td>${s.name || ""}</td>
+          <td>${s.location || ""}</td>
+          <td>${s.annual_impressions || 0}</td>
+          <td>${money(s.placement_cost || 0)}</td>
+        </tr>
+      `;
+    }
+
+    let qrTable = "";
+    for (const qr of qrs.rows) {
+      qrTable += `
+        <tr>
+          <td>${qr.id}</td>
+          <td>${qr.name || ""}</td>
+          <td>${qr.location_name || ""}</td>
+          <td><a href="/r/${qr.id}" target="_blank">Open</a></td>
+          <td><a href="/qr/${qr.id}.png" target="_blank">Download</a></td>
+        </tr>
+      `;
+    }
+
+    let campaignTable = "";
+    for (const c of campaigns.rows) {
+      campaignTable += `
+        <tr>
+          <td>${c.id}</td>
+          <td>${c.advertiser || ""}</td>
+          <td>${c.name || ""}</td>
+          <td>
+            <a href="/admin/edit-campaign/${c.id}">
+              Edit
+            </a>
+          </td>
+        </tr>
+      `;
+    }
+
+    let assignmentTable = "";
+    for (const a of assignments.rows) {
+      assignmentTable += `
+        <tr>
+          <td>${a.qr_name || ""}</td>
+          <td>${a.campaign_name || ""}</td>
+          <td>${a.is_active ? "Active" : "Inactive"}</td>
+        </tr>
+      `;
+    }
+
+    res.send(page("My Setup", `
+      <div class="topbar">
+        <div class="brand">Vivid Spots</div>
+        <h1>My Setup</h1>
+      </div>
+
+      <div class="wrap">
+
+        <div class="note">
+          Review your locations, QR codes, campaigns, and assignments here.
+        </div>
+
+        <h2>Locations</h2>
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Market</th>
+            <th>Impressions</th>
+            <th>Placement Cost</th>
+          </tr>
+          ${locationTable || `<tr><td colspan="5">No locations yet.</td></tr>`}
+        </table>
+
+        <h2>QR Codes</h2>
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Location</th>
+            <th>Open</th>
+            <th>Download</th>
+          </tr>
+          ${qrTable || `<tr><td colspan="5">No QR codes yet.</td></tr>`}
+        </table>
+
+        <h2>Campaigns</h2>
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Advertiser</th>
+            <th>Name</th>
+            <th>Edit</th>
+          </tr>
+          ${campaignTable || `<tr><td colspan="4">No campaigns yet.</td></tr>`}
+        </table>
+
+        <h2>Assignments</h2>
+        <table>
+          <tr>
+            <th>QR</th>
+            <th>Campaign</th>
+            <th>Status</th>
+          </tr>
+          ${assignmentTable || `<tr><td colspan="3">No assignments yet.</td></tr>`}
+        </table>
+
+      </div>
+    `));
+
+  } catch (err) {
+    res.send("MY SETUP ERROR: " + err.message);
+  }
+});
 app.get("/admin/users", requireSuperAdmin, async (req, res) => {
   const users = await q(`
     SELECT id, email, role, created_at
