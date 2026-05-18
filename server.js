@@ -1027,6 +1027,11 @@ app.get("/my-setup", requireLogin, async (req, res) => {
           <td>${qr.name || ""}</td>
           <td>${qr.location_name || ""}</td>
           <td><a href="/r/${qr.id}" target="_blank">Open</a></td>
+          <td>
+  <a href="/admin/edit-qr/${qr.id}">
+    Edit
+  </a>
+</td>
           <td><a href="/qr/${qr.id}.png" target="_blank">Download</a></td>
         </tr>
       `;
