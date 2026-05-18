@@ -1204,6 +1204,22 @@ for (const s of schedules.rows) {
     </tr>
   `}
 </table>
+<h2>Schedules</h2>
+
+<table>
+  <tr>
+    <th>QR</th>
+    <th>Advertiser</th>
+    <th>Campaign</th>
+    <th>Start</th>
+    <th>End</th>
+    <th>Priority</th>
+    <th>Status</th>
+    <th>Action</th>
+  </tr>
+
+  ${scheduleTable || `<tr><td colspan="8">No schedules yet.</td></tr>`}
+</table>
         <h2>Assignments</h2>
         <table>
           <tr>
