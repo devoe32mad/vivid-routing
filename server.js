@@ -1155,7 +1155,7 @@ for (const s of schedules.rows) {
       <div class="topbar">
         <div class="brand">Vivid Spots</div>
         <h1>My Setup</h1>
-      <div class="note" style="margin:20px 0;line-height:1.7;padding:18px;">
+     <div class="note" style="margin:20px 0;line-height:1.7;padding:18px;">
   <strong>How To Use Vivid Spots</strong><br><br>
 
   1. Create a Location<br>
