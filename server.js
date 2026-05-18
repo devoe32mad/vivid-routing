@@ -985,7 +985,23 @@ app.get("/my-setup", requireLogin, async (req, res) => {
         `,
       isSuperAdmin ? [] : [currentUser.id]
     );
-
+const archivedCampaigns = await q(
+  isSuperAdmin
+    ? `
+      SELECT *
+      FROM campaigns
+      WHERE is_archived = true
+      ORDER BY id DESC
+    `
+    : `
+      SELECT *
+      FROM campaigns
+      WHERE is_archived = true
+      AND user_id = $1
+      ORDER BY id DESC
+    `,
+  isSuperAdmin ? [] : [currentUser.id]
+);
     const assignments = await q(
       isSuperAdmin
         ? `
