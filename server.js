@@ -826,6 +826,14 @@ const cost =
   liveDays;
       const cac = customers ? cost / customers : 0;
       const roi = cost ? ((revenue - cost) / cost) * 100 : 0;
+      if (!bestQr || roi > bestQr.roi) {
+  bestQr = {
+    name: qr.qr_name || "QR " + qr.qr_id,
+    roi: roi,
+    revenue: revenue,
+    scans: scans
+  };
+}
       const cpm = qr.annual_impressions ? (cost / Number(qr.annual_impressions)) * 1000 : 0;
       const intentRate = scans ? (intent / scans) * 100 : 0;
       qrTable += `<tr><td><a href="/qr-admin/${qr.qr_id}">${qr.qr_name || "QR " + qr.qr_id}</a></td><td>${qr.space_name || ""}</td><td>${qr.location || ""}</td><td>${Number(qr.annual_impressions || 0).toLocaleString()}</td><td>${scans}</td><td>${row.maps_clicks || 0}</td><td>${row.offer_clicks || 0}</td><td>${row.waze_clicks || 0}</td><td>${pct(intentRate)}</td><td>${customers}</td><td>${money(revenue)}</td><td>${money(cost)}</td><td>${money(cac)}</td><td>$${cpm.toFixed(2)}</td><td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td></tr>`;
