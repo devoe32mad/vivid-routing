@@ -1656,6 +1656,36 @@ app.post("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
     res.send("EDIT CAMPAIGN ERROR: " + err.message);
   }
 });
+app.get("/admin/restore-campaign/:campaignId", requireLogin, async (req, res) => {
+  try {
+
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+
+    await q(
+      isSuperAdmin
+        ? `
+          UPDATE campaigns
+          SET is_archived = false
+          WHERE id = $1
+        `
+        : `
+          UPDATE campaigns
+          SET is_archived = false
+          WHERE id = $1
+          AND user_id = $2
+        `,
+      isSuperAdmin
+        ? [req.params.campaignId]
+        : [req.params.campaignId, currentUser.id]
+    );
+
+    res.redirect("/my-setup");
+
+  } catch (err) {
+    res.send("RESTORE ERROR: " + err.message);
+  }
+});
 app.get("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
   const currentUser = req.session.user;
   const isSuperAdmin = currentUser.role === "super_admin";
