@@ -1364,6 +1364,61 @@ app.get("/admin/edit-qr/:qrId", requireLogin, async (req, res) => {
     </div>
   `));
 });
+app.post("/admin/edit-qr/:qrId", requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+
+    const result = await q(
+      isSuperAdmin
+        ? `
+          UPDATE qr_codes
+          SET
+            name = $1,
+            space_id = $2
+          WHERE id = $3
+          RETURNING id
+        `
+        : `
+          UPDATE qr_codes
+          SET
+            name = $1,
+            space_id = $2
+          WHERE id = $3
+          AND EXISTS (
+            SELECT 1
+            FROM spaces s
+            WHERE s.id = $2
+            AND s.user_id = $4
+          )
+          RETURNING id
+        `,
+      isSuperAdmin
+        ? [
+            req.body.name || "",
+            Number(req.body.space_id),
+            req.params.qrId
+          ]
+        : [
+            req.body.name || "",
+            Number(req.body.space_id),
+            req.params.qrId,
+            currentUser.id
+          ]
+    );
+
+    if (!result.rows[0]) {
+      return res.send("QR not found or access denied");
+    }
+
+    res.send(
+      "QR updated <br><a href='/my-setup'>Back to My Setup</a>"
+    );
+
+  } catch (err) {
+    res.send("EDIT QR ERROR: " + err.message);
+  }
+});
 app.get("/admin/new-qr", async (req, res) => {
   const isSuperAdmin =
   req.session.user.role === "super_admin";
