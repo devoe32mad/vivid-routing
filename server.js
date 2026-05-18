@@ -1991,6 +1991,42 @@ app.post("/admin/bulk-schedule", requireLogin, async (req, res) => {
     res.send("BULK SCHEDULE ERROR: " + err.message);
   }
 });
+app.get("/admin/deactivate-schedule/:scheduleId", requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+
+    const result = await q(
+      isSuperAdmin
+        ? `
+          UPDATE campaign_schedules
+          SET is_active = false
+          WHERE id = $1
+          RETURNING id
+        `
+        : `
+          UPDATE campaign_schedules cs
+          SET is_active = false
+          FROM campaigns c
+          WHERE cs.id = $1
+          AND c.id = cs.campaign_id
+          AND c.user_id = $2
+          RETURNING cs.id
+        `,
+      isSuperAdmin
+        ? [req.params.scheduleId]
+        : [req.params.scheduleId, currentUser.id]
+    );
+
+    if (!result.rows[0]) {
+      return res.send("Schedule not found or access denied");
+    }
+
+    res.redirect("/admin/schedule");
+  } catch (err) {
+    res.send("DEACTIVATE SCHEDULE ERROR: " + err.message);
+  }
+});
 app.get("/admin/schedule", async (req, res) => {
   const qrs = await q(`SELECT * FROM qr_codes ORDER BY id`);
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
