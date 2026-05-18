@@ -1021,7 +1021,25 @@ const archivedCampaigns = await q(
         `,
       isSuperAdmin ? [] : [currentUser.id]
     );
-
+const schedules = await q(
+  isSuperAdmin
+    ? `
+      SELECT cs.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser
+      FROM campaign_schedules cs
+      JOIN qr_codes qr ON qr.id = cs.qr_id
+      JOIN campaigns c ON c.id = cs.campaign_id
+      ORDER BY cs.id DESC
+    `
+    : `
+      SELECT cs.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser
+      FROM campaign_schedules cs
+      JOIN qr_codes qr ON qr.id = cs.qr_id
+      JOIN campaigns c ON c.id = cs.campaign_id
+      WHERE c.user_id = $1
+      ORDER BY cs.id DESC
+    `,
+  isSuperAdmin ? [] : [currentUser.id]
+);
     let locationTable = "";
     for (const s of locations.rows) {
       locationTable += `
