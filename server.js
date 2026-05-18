@@ -1176,6 +1176,7 @@ for (const c of archivedCampaigns.rows) {
             <th>QR</th>
             <th>Campaign</th>
             <th>Status</th>
+            <th>Action</th>
           </tr>
           ${assignmentTable || `<tr><td colspan="3">No assignments yet.</td></tr>`}
         </table>
