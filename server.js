@@ -792,26 +792,7 @@ const myAssignments = await q(
     `,
   isSuperAdmin ? [] : [currentUser.id]
 );
-  isSuperAdmin
-    ? `
-      SELECT cs.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser
-      FROM campaign_schedules cs
-      JOIN qr_codes qr ON qr.id = cs.qr_id
-      JOIN campaigns c ON c.id = cs.campaign_id
-      WHERE cs.is_active = true
-      ORDER BY cs.qr_id, cs.priority DESC
-    `
-    : `
-      SELECT cs.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser
-      FROM campaign_schedules cs
-      JOIN qr_codes qr ON qr.id = cs.qr_id
-      JOIN campaigns c ON c.id = cs.campaign_id
-      WHERE cs.is_active = true
-      AND c.user_id = $1
-      ORDER BY cs.qr_id, cs.priority DESC
-    `,
-  isSuperAdmin ? [] : [currentUser.id]
-);
+
 
     const total = totalResult.rows[0];
     const totalScans = Number(total.scans || 0);
