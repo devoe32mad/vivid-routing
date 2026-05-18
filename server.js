@@ -754,17 +754,21 @@ const locationRows = await q(
 const activeSchedules = await q(
   isSuperAdmin
     ? `
-      SELECT qr.*, s.name AS space_name
-      FROM qr_codes qr
-      LEFT JOIN spaces s ON s.id = qr.space_id
-      ORDER BY qr.id
+      SELECT cs.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser
+      FROM campaign_schedules cs
+      JOIN qr_codes qr ON qr.id = cs.qr_id
+      JOIN campaigns c ON c.id = cs.campaign_id
+      WHERE cs.is_active = true
+      ORDER BY cs.qr_id, cs.priority DESC
     `
     : `
-      SELECT qr.*, s.name AS space_name
-      FROM qr_codes qr
-      JOIN spaces s ON s.id = qr.space_id
-      WHERE s.user_id = $1
-      ORDER BY qr.id
+      SELECT cs.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser
+      FROM campaign_schedules cs
+      JOIN qr_codes qr ON qr.id = cs.qr_id
+      JOIN campaigns c ON c.id = cs.campaign_id
+      WHERE cs.is_active = true
+      AND c.user_id = $1
+      ORDER BY cs.qr_id, cs.priority DESC
     `,
   isSuperAdmin ? [] : [currentUser.id]
 );
