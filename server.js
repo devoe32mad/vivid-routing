@@ -2072,7 +2072,7 @@ app.get("/admin/deactivate-schedule/:scheduleId", requireLogin, async (req, res)
       return res.send("Schedule not found or access denied");
     }
 
-    res.redirect("/admin/schedule");
+    res.redirect("/my-setup");
   } catch (err) {
     res.send("DEACTIVATE SCHEDULE ERROR: " + err.message);
   }
