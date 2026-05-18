@@ -1096,6 +1096,7 @@ app.get("/my-setup", requireLogin, async (req, res) => {
             <th>Location</th>
             <th>Open</th>
             <th>Download</th>
+            <th>Edit</th>
           </tr>
           ${qrTable || `<tr><td colspan="5">No QR codes yet.</td></tr>`}
         </table>
