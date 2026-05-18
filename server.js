@@ -1265,6 +1265,64 @@ app.get("/admin/edit-location/:spaceId", requireLogin, async (req, res) => {
     </div>
   `));
 });
+app.post("/admin/edit-location/:spaceId", requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+
+    const result = await q(
+      isSuperAdmin
+        ? `
+          UPDATE spaces
+          SET
+            name = $1,
+            location = $2,
+            annual_impressions = $3,
+            placement_cost = $4
+          WHERE id = $5
+          RETURNING id
+        `
+        : `
+          UPDATE spaces
+          SET
+            name = $1,
+            location = $2,
+            annual_impressions = $3,
+            placement_cost = $4
+          WHERE id = $5
+          AND user_id = $6
+          RETURNING id
+        `,
+      isSuperAdmin
+        ? [
+            req.body.name || "",
+            req.body.location || "",
+            Number(req.body.annual_impressions || 0),
+            Number(req.body.placement_cost || 800),
+            req.params.spaceId
+          ]
+        : [
+            req.body.name || "",
+            req.body.location || "",
+            Number(req.body.annual_impressions || 0),
+            Number(req.body.placement_cost || 800),
+            req.params.spaceId,
+            currentUser.id
+          ]
+    );
+
+    if (!result.rows[0]) {
+      return res.send("Location not found or access denied");
+    }
+
+    res.send(
+      "Location updated <br><a href='/my-setup'>Back to My Setup</a>"
+    );
+
+  } catch (err) {
+    res.send("EDIT LOCATION ERROR: " + err.message);
+  }
+});
 app.get("/admin/new-location", async (req, res) => {
   res.send(page("Add Location", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add Location / Space</h1></div><div class="wrap"><form method="POST" action="/admin/new-location"><label>Name</label><input name="name" required /><label>Market</label><input name="location" placeholder="Naples, FL" /><label>Description</label><input name="description" /><label>Annual Impressions</label><input name="annual_impressions" type="number" value="100000" /><label>Placement Cost</label><input name="placement_cost" type="number" value="800" /><button class="btn" type="submit">Create Location</button></form></div>`));
 });
