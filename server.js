@@ -804,7 +804,7 @@ const myAssignments = await q(
 
     let topCampaign = null;
     let bestLocation = null;
-
+let bestQr = null;
     let qrTable = "";
     for (const qr of qrRows.rows) {
       const m = await q(`
