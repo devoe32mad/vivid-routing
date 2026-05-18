@@ -1085,6 +1085,7 @@ app.get("/my-setup", requireLogin, async (req, res) => {
             <th>Market</th>
             <th>Impressions</th>
             <th>Placement Cost</th>
+            <th>Edit</th>
           </tr>
           ${locationTable || `<tr><td colspan="5">No locations yet.</td></tr>`}
         </table>
