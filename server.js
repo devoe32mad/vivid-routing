@@ -1110,6 +1110,22 @@ for (const c of archivedCampaigns.rows) {
     </tr>
   `;
 }
+    let scheduleTable = "";
+
+for (const s of schedules.rows) {
+  scheduleTable += `
+    <tr>
+      <td>${s.qr_name || ""}</td>
+      <td>${s.advertiser || ""}</td>
+      <td>${s.campaign_name || ""}</td>
+      <td>${s.start_time || ""}</td>
+      <td>${s.end_time || ""}</td>
+      <td>${s.priority || ""}</td>
+      <td>${s.is_active ? "Active" : "Inactive"}</td>
+      <td><a href="/admin/deactivate-schedule/${s.id}">Deactivate</a></td>
+    </tr>
+  `;
+}
     let assignmentTable = "";
     for (const a of assignments.rows) {
       assignmentTable += `
