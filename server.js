@@ -1848,6 +1848,57 @@ app.get("/admin/new-qr", async (req, res) => {
 );;
   res.send(page("Add QR", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add QR Code</h1></div><div class="wrap"><form method="POST" action="/admin/new-qr"><label>Select Location</label><select name="space_id">${spaces.rows.map(s => `<option value="${s.id}">${s.name} (${s.location})</option>`).join("")}</select><label>QR Name</label><input name="name" placeholder="Car Line QR" /><label>Description</label><input name="description" /><button class="btn" type="submit">Create QR</button></form></div>`));
 });
+app.post("/admin/import-qr", requireLogin, async (req, res) => {
+  try {
+
+    const currentUser = req.session.user;
+
+    const result = await q(
+      `
+      INSERT INTO qr_codes (
+        user_id,
+        space_id,
+        name,
+        redirect_url,
+        imported
+      )
+      VALUES ($1,$2,$3,$4,true)
+      RETURNING *
+      `,
+      [
+        currentUser.id,
+        Number(req.body.space_id),
+        req.body.name,
+        req.body.destination_url
+      ]
+    );
+
+    const qr = result.rows[0];
+
+    res.send(`
+      <h2>QR Imported Successfully</h2>
+
+      <p>
+        Future scans can now be routed through Vivid tracking.
+      </p>
+
+      <p>
+        <strong>Tracking URL:</strong><br>
+        ${process.env.BASE_URL || ""}
+        /r/${qr.id}
+      </p>
+
+      <br>
+
+      <a href="/my-setup">
+        Back to My Setup
+      </a>
+    `);
+
+  } catch (err) {
+    res.send("IMPORT QR ERROR: " + err.message);
+  }
+});
 app.post("/admin/new-qr", async (req, res) => {
   try {
  const newQr = await q(`
