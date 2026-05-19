@@ -1353,6 +1353,7 @@ ${hasCampaigns
           <tr>
             <th>ID</th>
             <th>Name</th>
+            <th>Type</th>
             <th>Location</th>
             <th>Open</th>
             <th>Download</th>
