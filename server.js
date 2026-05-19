@@ -1225,7 +1225,11 @@ ${hasCampaigns
   ? "✅ Campaigns Created"
   : "⚠ No Campaigns Yet"}
   <br>
+<br>
 
+${hasAssignments
+  ? "✅ Campaigns Assigned"
+  : "⚠ No Campaign Assignments"}
 ${hasSchedules
   ? "✅ Active Schedules Running"
   : "⚠ No Active Schedules"}
