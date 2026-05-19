@@ -1547,7 +1547,17 @@ const reportRows = await q(
             c.advertiser,
 
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+COUNT(*) FILTER (
+  WHERE e.type='offer'
+) AS offers,
 
+COUNT(*) FILTER (
+  WHERE e.type='maps'
+) AS maps,
+
+COUNT(*) FILTER (
+  WHERE e.type='waze'
+) AS waze,
             COUNT(*) FILTER (
               WHERE e.type IN ('offer','maps','waze')
             ) AS intent_actions
@@ -1570,7 +1580,11 @@ const reportRows = await q(
     for (const r of reportRows.rows) {
 
       const scans = Number(r.scans || 0);
-      const intent = Number(r.intent_actions || 0);
+      const offers = Number(r.offers || 0);
+const maps = Number(r.maps || 0);
+const waze = Number(r.waze || 0);
+
+const intent = offers + maps + waze;
       const conversions = Number(r.conversions || 0);
 const conversionValue = Number(r.conversion_value || 0);
 const estimatedCustomers =
