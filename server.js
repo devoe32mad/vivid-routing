@@ -1914,8 +1914,20 @@ const intent =
           </td>
 
           <td style="text-align:center;">
-            ${intent}
-          </td>
+  ${offers}
+</td>
+
+<td style="text-align:center;">
+  ${maps}
+</td>
+
+<td style="text-align:center;">
+  ${waze}
+</td>
+
+<td style="text-align:center;">
+  ${intent}
+</td>
 
           <td style="text-align:center;">
             ${intentRate}%
