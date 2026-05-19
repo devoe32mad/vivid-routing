@@ -1200,7 +1200,11 @@ for (const s of schedules.rows) {
   <div class="note" style="margin-top:10px;">
     Follow these steps to launch and manage your campaigns.
     <div style="margin-top:18px;line-height:1.8;">
-
+<div style="margin-top:15px;">
+  ${hasLocations
+    ? "✅ Locations Created"
+    : "⚠ No Locations Yet"}
+</div>
 
   </div>
 
