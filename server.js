@@ -1446,7 +1446,7 @@ const group = req.query.group || "campaign";
     if (timeframe !== "all") {
       dateSql = `AND e.created_at >= NOW() - INTERVAL '${Number(timeframe)} days'`;
     }
-
+let reportQuery = "";
     const reportRows = await q(
       isSuperAdmin
         ? `
