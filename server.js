@@ -1787,7 +1787,16 @@ app.get("/reports-qr", requireLogin, async (req, res) => {
 
     for (const r of reportRows.rows) {
       const scans = Number(r.scans || 0);
-      const intent = Number(r.intent_actions || 0);
+   const offers = Number(r.offers || 0);
+const maps = Number(r.maps || 0);
+const waze = Number(r.waze || 0);
+
+const intent =
+  offers + maps + waze;
+      const conversions = Number(r.conversions || 0);
+
+const conversionValue =
+  Number(r.conversion_value || 0);
       const intentRate = scans > 0 ? ((intent / scans) * 100).toFixed(1) : 0;
 
       reportTable += `
