@@ -1757,6 +1757,247 @@ app.get("/reports-qr", requireLogin, async (req, res) => {
     res.send("QR REPORT ERROR: " + err.message);
   }
 });
+app.get("/reports-location", requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+    const timeframe = req.query.timeframe || "30";
+
+    let dateSql = "";
+
+    if (timeframe !== "all") {
+      dateSql = `AND e.created_at >= NOW() - INTERVAL '${Number(timeframe)} days'`;
+    }
+
+    const reportRows = await q(
+      isSuperAdmin
+        ? `
+          SELECT
+            s.name AS location_name,
+            s.location,
+
+            COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+
+            COUNT(*) FILTER (
+              WHERE e.type IN ('offer','maps','waze')
+            ) AS intent_actions,
+
+            COALESCE(s.annual_impressions, 0) AS impressions,
+            COALESCE(s.placement_cost, 800) AS placement_cost
+
+          FROM events e
+
+          JOIN qr_codes qr
+            ON qr.id = e.qr_id
+
+          JOIN spaces s
+            ON s.id = qr.space_id
+
+          WHERE 1=1
+          ${dateSql}
+
+          GROUP BY
+            s.name,
+            s.location,
+            s.annual_impressions,
+            s.placement_cost
+
+          ORDER BY scans DESC
+        `
+        : `
+          SELECT
+            s.name AS location_name,
+            s.location,
+
+            COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+
+            COUNT(*) FILTER (
+              WHERE e.type IN ('offer','maps','waze')
+            ) AS intent_actions,
+
+            COALESCE(s.annual_impressions, 0) AS impressions,
+            COALESCE(s.placement_cost, 800) AS placement_cost
+
+          FROM events e
+
+          JOIN qr_codes qr
+            ON qr.id = e.qr_id
+
+          JOIN spaces s
+            ON s.id = qr.space_id
+
+          WHERE s.user_id = $1
+          ${dateSql}
+
+          GROUP BY
+            s.name,
+            s.location,
+            s.annual_impressions,
+            s.placement_cost
+
+          ORDER BY scans DESC
+        `,
+      isSuperAdmin ? [] : [currentUser.id]
+    );
+
+    let reportTable = "";
+
+    for (const r of reportRows.rows) {
+
+      const scans = Number(r.scans || 0);
+      const intent = Number(r.intent_actions || 0);
+
+      const intentRate =
+        scans > 0
+          ? ((intent / scans) * 100).toFixed(1)
+          : 0;
+
+      const customers =
+        Math.round(intent * 0.1);
+
+      const revenue =
+        customers * 50;
+
+      const cost =
+        Number(r.placement_cost || 800);
+
+      const roi =
+        cost > 0
+          ? (((revenue - cost) / cost) * 100).toFixed(1)
+          : 0;
+
+      const impressions =
+        Number(r.impressions || 0);
+
+      const cpm =
+        impressions > 0
+          ? ((cost / impressions) * 1000).toFixed(2)
+          : 0;
+
+      reportTable += `
+        <tr>
+          <td>${r.location_name || ""}</td>
+
+          <td>${r.location || ""}</td>
+
+          <td style="text-align:center;">
+            ${impressions.toLocaleString()}
+          </td>
+
+          <td style="text-align:center;">
+            ${scans}
+          </td>
+
+          <td style="text-align:center;">
+            ${intent}
+          </td>
+
+          <td style="text-align:center;">
+            ${intentRate}%
+          </td>
+
+          <td style="text-align:center;">
+            ${customers}
+          </td>
+
+          <td style="text-align:center;">
+            ${money(revenue)}
+          </td>
+
+          <td style="text-align:center;">
+            ${money(cost)}
+          </td>
+
+          <td style="text-align:center;">
+            ${cpm}
+          </td>
+
+          <td style="text-align:center;">
+            ${roi}%
+          </td>
+        </tr>
+      `;
+    }
+
+    res.send(page("Location Reports", `
+      <div class="topbar">
+        <div class="brand">Vivid Spots</div>
+        <h1>Location Reports</h1>
+      </div>
+
+      <div class="wrap">
+
+        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+
+          <a class="btn" href="/reports-location?timeframe=7">
+            7 Days
+          </a>
+
+          <a class="btn" href="/reports-location?timeframe=30">
+            30 Days
+          </a>
+
+          <a class="btn" href="/reports-location?timeframe=90">
+            90 Days
+          </a>
+
+          <a class="btn" href="/reports-location?timeframe=all">
+            All Time
+          </a>
+
+          <a class="btn secondary" href="/reports">
+            Campaign Reports
+          </a>
+
+          <a class="btn secondary" href="/reports-qr">
+            QR Reports
+          </a>
+
+          <a class="btn secondary" href="/dashboard">
+            Dashboard
+          </a>
+
+        </div>
+
+        <div class="card">
+
+          <h2>Location Performance</h2>
+
+          <table>
+
+            <tr>
+              <th>Location</th>
+              <th>Market</th>
+              <th>Impressions</th>
+              <th>Scans</th>
+              <th>Intent</th>
+              <th>Intent Rate</th>
+              <th>Customers</th>
+              <th>Revenue</th>
+              <th>Placement Cost</th>
+              <th>CPM</th>
+              <th>ROI</th>
+            </tr>
+
+            ${reportTable || `
+              <tr>
+                <td colspan="11">
+                  No location report data yet.
+                </td>
+              </tr>
+            `}
+
+          </table>
+
+        </div>
+
+      </div>
+    `));
+
+  } catch (err) {
+    res.send("LOCATION REPORT ERROR: " + err.message);
+  }
+});
 app.get("/admin/users", requireSuperAdmin, async (req, res) => {
   const users = await q(`
     SELECT id, email, role, created_at
