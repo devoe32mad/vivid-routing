@@ -1661,6 +1661,56 @@ const roi =
     res.send("REPORT ERROR: " + err.message);
   }
 });
+app.get("/track-conversion", async (req, res) => {
+  try {
+
+    const campaignId =
+      Number(req.query.campaign_id || 0);
+
+    const qrId =
+      Number(req.query.qr_id || 0);
+
+    const value =
+      Number(req.query.value || 0);
+
+    const type =
+      req.query.type || "conversion";
+
+    await q(
+      `
+      INSERT INTO events (
+        campaign_id,
+        qr_id,
+        type,
+        value,
+        created_at
+      )
+      VALUES ($1,$2,$3,$4,NOW())
+      `,
+      [
+        campaignId,
+        qrId,
+        type,
+        value
+      ]
+    );
+
+    res.send(`
+      <h2>Conversion Tracked</h2>
+
+      <p>
+        Type: ${type}
+      </p>
+
+      <p>
+        Value: $${value}
+      </p>
+    `);
+
+  } catch (err) {
+    res.send("TRACK CONVERSION ERROR: " + err.message);
+  }
+});
 app.get("/reports-qr", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
