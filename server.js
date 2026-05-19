@@ -1496,7 +1496,15 @@ SUM(e.value) FILTER (
         COUNT(*) FILTER (
           WHERE e.type IN ('offer','maps','waze')
         ) AS intent_actions
+) AS intent_actions,
 
+COUNT(*) FILTER (
+  WHERE e.type IN ('purchase','conversion','lead','signup')
+) AS conversions,
+
+SUM(e.value) FILTER (
+  WHERE e.type IN ('purchase','conversion','lead','signup')
+) AS conversion_value
       FROM events e
       LEFT JOIN campaigns c
         ON c.id = e.campaign_id
