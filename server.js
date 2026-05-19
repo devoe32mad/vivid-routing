@@ -1499,7 +1499,11 @@ app.get("/reports", requireLogin, async (req, res) => {
 
       const scans = Number(r.scans || 0);
       const intent = Number(r.intent_actions || 0);
+const estimatedCustomers =
+  Math.round(intent * 0.1);
 
+const estimatedRevenue =
+  estimatedCustomers * 50;
       const intentRate =
         scans > 0
           ? ((intent / scans) * 100).toFixed(1)
