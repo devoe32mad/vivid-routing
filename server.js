@@ -1657,6 +1657,106 @@ const roi =
     res.send("REPORT ERROR: " + err.message);
   }
 });
+app.get("/reports-qr", requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+    const timeframe = req.query.timeframe || "30";
+
+    let dateSql = "";
+
+    if (timeframe !== "all") {
+      dateSql = `AND e.created_at >= NOW() - INTERVAL '${Number(timeframe)} days'`;
+    }
+
+    const reportRows = await q(
+      isSuperAdmin
+        ? `
+          SELECT
+            qr.name AS qr_name,
+            COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+            COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
+          FROM events e
+          JOIN qr_codes qr ON qr.id = e.qr_id
+          WHERE 1=1
+          ${dateSql}
+          GROUP BY qr.name
+          ORDER BY scans DESC
+        `
+        : `
+          SELECT
+            qr.name AS qr_name,
+            COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+            COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
+          FROM events e
+          JOIN qr_codes qr ON qr.id = e.qr_id
+          JOIN spaces s ON s.id = qr.space_id
+          WHERE s.user_id = $1
+          ${dateSql}
+          GROUP BY qr.name
+          ORDER BY scans DESC
+        `,
+      isSuperAdmin ? [] : [currentUser.id]
+    );
+
+    let reportTable = "";
+
+    for (const r of reportRows.rows) {
+      const scans = Number(r.scans || 0);
+      const intent = Number(r.intent_actions || 0);
+      const intentRate = scans > 0 ? ((intent / scans) * 100).toFixed(1) : 0;
+
+      reportTable += `
+        <tr>
+          <td>${r.qr_name || ""}</td>
+          <td style="text-align:center;">${scans}</td>
+          <td style="text-align:center;">${intent}</td>
+          <td style="text-align:center;">${intentRate}%</td>
+        </tr>
+      `;
+    }
+
+    res.send(page("QR Reports", `
+      <div class="topbar">
+        <div class="brand">Vivid Spots</div>
+        <h1>QR Reports</h1>
+      </div>
+
+      <div class="wrap">
+        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+          <a class="btn" href="/reports-qr?timeframe=7">7 Days</a>
+          <a class="btn" href="/reports-qr?timeframe=30">30 Days</a>
+          <a class="btn" href="/reports-qr?timeframe=90">90 Days</a>
+          <a class="btn" href="/reports-qr?timeframe=all">All Time</a>
+          <a class="btn secondary" href="/reports">Campaign Reports</a>
+          <a class="btn secondary" href="/dashboard">Dashboard</a>
+        </div>
+
+        <div class="card">
+          <h2>QR Code Performance</h2>
+
+          <table>
+            <tr>
+              <th>QR Code</th>
+              <th style="text-align:center;">Scans</th>
+              <th style="text-align:center;">Intent Actions</th>
+              <th style="text-align:center;">Intent Rate</th>
+            </tr>
+
+            ${reportTable || `
+              <tr>
+                <td colspan="4">No QR report data yet.</td>
+              </tr>
+            `}
+          </table>
+        </div>
+      </div>
+    `));
+
+  } catch (err) {
+    res.send("QR REPORT ERROR: " + err.message);
+  }
+});
 app.get("/admin/users", requireSuperAdmin, async (req, res) => {
   const users = await q(`
     SELECT id, email, role, created_at
