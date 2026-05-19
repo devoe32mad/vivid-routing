@@ -1206,7 +1206,11 @@ for (const s of schedules.rows) {
     ? "✅ Locations Created"
     : "⚠ No Locations Yet"}
 </div>
+<br>
 
+${hasQrs
+  ? "✅ QR Codes Created"
+  : "⚠ No QR Codes Yet"}
   </div>
 
   <div style="display:flex;flex-wrap:wrap;gap:15px;margin-top:20px;">
