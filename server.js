@@ -1055,6 +1055,7 @@ const schedules = await q(
     `,
   isSuperAdmin ? [] : [currentUser.id]
 );
+    const hasLocations = locations.rows.length > 0;
     let locationTable = "";
     for (const s of locations.rows) {
       locationTable += `
