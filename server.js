@@ -1802,6 +1802,13 @@ app.get("/reports-qr", requireLogin, async (req, res) => {
 
 <td style="text-align:center;">${intent}</td>
           <td style="text-align:center;">${intentRate}%</td>
+          <td style="text-align:center;">
+  ${conversions}
+</td>
+
+<td style="text-align:center;">
+  ${money(conversionValue)}
+</td>
         </tr>
       `;
     }
