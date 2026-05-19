@@ -1567,6 +1567,8 @@ const roi =
               <th>Scans</th>
               <th>Intent Actions</th>
               <th>Intent Rate</th>
+              <th>Revenue</th>
+<th>ROI</th>
             </tr>
 
             ${reportTable || `
