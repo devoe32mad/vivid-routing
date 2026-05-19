@@ -1495,6 +1495,7 @@ let reportQuery = "";
       ORDER BY scans DESC
     `;
 }
+      let reportTitle = "Campaign Performance";
     else if (group === "qr") {
 
   reportTitle = "QR Performance";
@@ -1592,7 +1593,7 @@ const reportRows = await q(
         `,
       isSuperAdmin ? [] : [currentUser.id]
     );
-let reportTitle = "Campaign Performance";
+
     let reportTable = "";
 
     for (const r of reportRows.rows) {
