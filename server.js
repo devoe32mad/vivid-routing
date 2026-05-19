@@ -937,6 +937,7 @@ const cost =
 </div><div class="card" style="width:220px;"><h3>📍 Best Location</h3><div>${bestLocation?.name || "-"}</div><div>Revenue: ${money(bestLocation?.revenue || 0)}</div><div>ROI: ${pct(bestLocation?.roi || 0)}</div></div></div>
         <a class="btn" href="/r/1">Test QR</a>
         <a class="btn gold" href="/my-setup">My Setup</a>
+        <a class="btn gold" href="/reports">Reports</a>
 <a class="btn" href="/admin/new-campaign">New Campaign</a>
 <a class="btn" href="/admin/new-location">New Location</a>
 <a class="btn" href="/admin/new-qr">New QR Code</a>
