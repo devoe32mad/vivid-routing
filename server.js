@@ -1447,6 +1447,54 @@ const group = req.query.group || "campaign";
       dateSql = `AND e.created_at >= NOW() - INTERVAL '${Number(timeframe)} days'`;
     }
 let reportQuery = "";
+    if (group === "campaign") {
+
+  reportTitle = "Campaign Performance";
+
+  reportQuery = isSuperAdmin
+    ? `
+      SELECT
+        c.name AS label,
+        c.advertiser,
+
+        COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+
+        COUNT(*) FILTER (
+          WHERE e.type IN ('offer','maps','waze')
+        ) AS intent_actions
+
+      FROM events e
+      LEFT JOIN campaigns c
+        ON c.id = e.campaign_id
+
+      WHERE 1=1
+      ${dateSql}
+
+      GROUP BY c.name, c.advertiser
+      ORDER BY scans DESC
+    `
+    : `
+      SELECT
+        c.name AS label,
+        c.advertiser,
+
+        COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+
+        COUNT(*) FILTER (
+          WHERE e.type IN ('offer','maps','waze')
+        ) AS intent_actions
+
+      FROM events e
+      LEFT JOIN campaigns c
+        ON c.id = e.campaign_id
+
+      WHERE c.user_id = $1
+      ${dateSql}
+
+      GROUP BY c.name, c.advertiser
+      ORDER BY scans DESC
+    `;
+}
     const reportRows = await q(
       isSuperAdmin
         ? `
