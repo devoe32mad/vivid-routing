@@ -1782,9 +1782,17 @@ app.get("/reports-location", requireLogin, async (req, res) => {
 
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
 
-            COUNT(*) FILTER (
-              WHERE e.type IN ('offer','maps','waze')
-            ) AS intent_actions,
+           COUNT(*) FILTER (
+  WHERE e.type='offer'
+) AS offers,
+
+COUNT(*) FILTER (
+  WHERE e.type='maps'
+) AS maps,
+
+COUNT(*) FILTER (
+  WHERE e.type='waze'
+) AS waze,
 
             COALESCE(s.annual_impressions, 0) AS impressions,
             COALESCE(s.placement_cost, 800) AS placement_cost
