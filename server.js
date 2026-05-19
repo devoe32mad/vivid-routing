@@ -3121,7 +3121,9 @@ app.get("/qr-admin/:qrId", requireLogin, async (req, res) => {
 
         ${events.rows.map(e => `
           <tr>
-            <td>${new Date(e.created_at).toLocaleString()}</td>
+           new Date(e.created_at).toLocaleString("en-US", {
+  timeZone: "America/New_York"
+}) 
             <td>${e.type}</td>
             <td>${e.advertiser || ""}</td>
             <td>${e.campaign_name || ""}</td>
@@ -3177,7 +3179,9 @@ app.get("/campaign-admin/:campaignId", requireLogin, async (req, res) => {
 
         ${events.rows.map(e => `
           <tr>
-            <td>${new Date(e.created_at).toLocaleString()}</td>
+            new Date(e.created_at).toLocaleString("en-US", {
+  timeZone: "America/New_York"
+})
             <td>${e.type}</td>
             <td>${e.qr_name || ""}</td>
             <td>${e.location_name || ""}</td>
