@@ -1661,8 +1661,13 @@ const roi =
               <th>Advertiser</th>
               <th>Campaign</th>
             <th style="text-align:center;">Scans</th>
-<th style="text-align:center;">Intent Actions</th>
+<th style="text-align:center;">Offers</th>
+<th style="text-align:center;">Maps</th>
+<th style="text-align:center;">Waze</th>
+<th style="text-align:center;">Total Intent</th>
 <th style="text-align:center;">Intent Rate</th>
+<th>Conversions</th>
+<th>Conversion Value</th>
               <th>Revenue</th>
 <th>ROI</th>
             </tr>
