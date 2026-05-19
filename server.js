@@ -1431,6 +1431,152 @@ ${hasCampaigns
     res.send("MY SETUP ERROR: " + err.message);
   }
 });
+app.get("/reports", requireLogin, async (req, res) => {
+  try {
+
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+
+    const timeframe = req.query.timeframe || "30";
+
+    let dateSql = "";
+    let params = [];
+
+    if (timeframe !== "all") {
+      dateSql = `AND e.created_at >= NOW() - INTERVAL '${Number(timeframe)} days'`;
+    }
+
+    const reportRows = await q(
+      isSuperAdmin
+        ? `
+          SELECT
+            c.name AS campaign_name,
+            c.advertiser,
+
+            COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+
+            COUNT(*) FILTER (
+              WHERE e.type IN ('offer','maps','waze')
+            ) AS intent_actions
+
+          FROM events e
+          LEFT JOIN campaigns c
+            ON c.id = e.campaign_id
+
+          WHERE 1=1
+          ${dateSql}
+
+          GROUP BY c.name, c.advertiser
+          ORDER BY scans DESC
+        `
+        : `
+          SELECT
+            c.name AS campaign_name,
+            c.advertiser,
+
+            COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+
+            COUNT(*) FILTER (
+              WHERE e.type IN ('offer','maps','waze')
+            ) AS intent_actions
+
+          FROM events e
+          LEFT JOIN campaigns c
+            ON c.id = e.campaign_id
+
+          WHERE c.user_id = $1
+          ${dateSql}
+
+          GROUP BY c.name, c.advertiser
+          ORDER BY scans DESC
+        `,
+      isSuperAdmin ? [] : [currentUser.id]
+    );
+
+    let reportTable = "";
+
+    for (const r of reportRows.rows) {
+
+      const scans = Number(r.scans || 0);
+      const intent = Number(r.intent_actions || 0);
+
+      const intentRate =
+        scans > 0
+          ? ((intent / scans) * 100).toFixed(1)
+          : 0;
+
+      reportTable += `
+        <tr>
+          <td>${r.advertiser || ""}</td>
+          <td>${r.campaign_name || ""}</td>
+          <td>${scans}</td>
+          <td>${intent}</td>
+          <td>${intentRate}%</td>
+        </tr>
+      `;
+    }
+
+    res.send(page("Reports", `
+      <div class="topbar">
+        <div class="brand">Vivid Spots</div>
+        <h1>Reports</h1>
+      </div>
+
+      <div class="wrap">
+
+        <div style="display:flex;gap:10px;margin-bottom:20px;">
+
+          <a class="btn" href="/reports?timeframe=7">
+            7 Days
+          </a>
+
+          <a class="btn" href="/reports?timeframe=30">
+            30 Days
+          </a>
+
+          <a class="btn" href="/reports?timeframe=90">
+            90 Days
+          </a>
+
+          <a class="btn" href="/reports?timeframe=all">
+            All Time
+          </a>
+
+        </div>
+
+        <div class="card">
+
+          <h2>Campaign Performance</h2>
+
+          <table>
+
+            <tr>
+              <th>Advertiser</th>
+              <th>Campaign</th>
+              <th>Scans</th>
+              <th>Intent Actions</th>
+              <th>Intent Rate</th>
+            </tr>
+
+            ${reportTable || `
+              <tr>
+                <td colspan="5">
+                  No report data yet.
+                </td>
+              </tr>
+            `}
+
+          </table>
+
+        </div>
+
+      </div>
+    `));
+
+  } catch (err) {
+    res.send("REPORT ERROR: " + err.message);
+  }
+});
 app.get("/admin/users", requireSuperAdmin, async (req, res) => {
   const users = await q(`
     SELECT id, email, role, created_at
