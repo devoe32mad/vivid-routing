@@ -1876,6 +1876,8 @@ const conversionValue =
 <th style="text-align:center;">Waze</th>
 <th style="text-align:center;">Total Intent</th>
               <th style="text-align:center;">Intent Rate</th>
+              <th style="text-align:center;">Conversions</th>
+<th style="text-align:center;">Conversion Value</th>
             </tr>
 
             ${reportTable || `
