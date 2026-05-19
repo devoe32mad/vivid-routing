@@ -1547,7 +1547,7 @@ let reportQuery = "";
     `;
 }
     const reportRows = await q(
-      isSuperAdmin
+  reportQuery,
         ? `
           SELECT
             c.name AS campaign_name,
