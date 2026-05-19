@@ -1101,6 +1101,11 @@ const hasSchedules = activeScheduleCount > 0;
         <tr>
           <td>${qr.id}</td>
           <td>${qr.name || ""}</td>
+          <td>
+  ${qr.description && qr.description.startsWith("http")
+    ? "Imported"
+    : "Native"}
+</td>
           <td>${qr.location_name || ""}</td>
           <td><a href="/r/${qr.id}" target="_blank">Open</a></td>
           <td>
