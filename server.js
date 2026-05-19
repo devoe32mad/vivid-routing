@@ -1851,22 +1851,17 @@ app.get("/admin/new-qr", async (req, res) => {
 app.post("/admin/import-qr", requireLogin, async (req, res) => {
   try {
 
-    const currentUser = req.session.user;
-
     const result = await q(
       `
       INSERT INTO qr_codes (
-        user_id,
         space_id,
         name,
-        redirect_url,
-        imported
+        description
       )
-      VALUES ($1,$2,$3,$4,true)
+      VALUES ($1,$2,$3)
       RETURNING *
       `,
       [
-        currentUser.id,
         Number(req.body.space_id),
         req.body.name,
         req.body.destination_url
@@ -1879,7 +1874,7 @@ app.post("/admin/import-qr", requireLogin, async (req, res) => {
       <h2>QR Imported Successfully</h2>
 
       <p>
-        Future scans can now be routed through Vivid tracking.
+        Existing destination saved as description for now.
       </p>
 
       <p>
