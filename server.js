@@ -1496,9 +1496,7 @@ let reportQuery = "";
     `;
 }
       let reportTitle = "Campaign Performance";
-    else if (group === "qr") {
-
-  reportTitle = "QR Performance";
+    
 
   reportQuery = isSuperAdmin
     ? `
