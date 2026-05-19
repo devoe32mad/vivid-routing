@@ -1057,6 +1057,7 @@ const schedules = await q(
 );
     const hasLocations = locations.rows.length > 0;
     const hasQrs = qrs.rows.length > 0;
+    const hasCampaigns = campaigns.rows.length > 0;
     let locationTable = "";
     for (const s of locations.rows) {
       locationTable += `
