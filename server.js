@@ -875,15 +875,7 @@ const cost =
       const cost = Number(row.placement_cost || 800);
       const roi = cost ? ((revenue - cost) / cost) * 100 : 0;
       const intentRate = scans ? (intent / scans) * 100 : 0;
-      const hasLocations = locations.rows.length > 0;
-const hasQrs = qrs.rows.length > 0;
-const hasCampaigns = campaigns.rows.length > 0;
-const hasAssignments = assignments.rows.length > 0;
-
-const activeScheduleCount =
-  schedules.rows.filter(s => s.is_active).length;
-
-const hasSchedules = activeScheduleCount > 0;
+     
       if (!bestLocation || revenue > bestLocation.revenue) bestLocation = { name: row.location_name || row.location || "Location", revenue, roi };
       locationTable += `<tr><td>${row.advertiser || ""}</td><td>${row.campaign_name || ""}</td><td>${row.location_name || ""}</td><td>${row.location || ""}</td><td>${scans}</td><td>${row.maps_clicks || 0}</td><td>${row.offer_clicks || 0}</td><td>${pct(intentRate)}</td><td>${customers}</td><td>${money(revenue)}</td><td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td></tr>`;
     }
