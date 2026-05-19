@@ -1567,9 +1567,9 @@ const roi =
             <tr>
               <th>Advertiser</th>
               <th>Campaign</th>
-              <th>Scans</th>
-              <th>Intent Actions</th>
-              <th>Intent Rate</th>
+            <th style="text-align:center;">Scans</th>
+<th style="text-align:center;">Intent Actions</th>
+<th style="text-align:center;">Intent Rate</th>
               <th>Revenue</th>
 <th>ROI</th>
             </tr>
