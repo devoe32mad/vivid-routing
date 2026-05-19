@@ -1995,7 +1995,10 @@ const intent =
               <th>Market</th>
               <th>Impressions</th>
               <th>Scans</th>
-              <th>Intent</th>
+              <th>Offers</th>
+<th>Maps</th>
+<th>Waze</th>
+<th>Total Intent</th>
               <th>Intent Rate</th>
               <th>Customers</th>
               <th>Revenue</th>
