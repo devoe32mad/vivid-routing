@@ -1779,7 +1779,10 @@ app.get("/reports-qr", requireLogin, async (req, res) => {
           SELECT
             qr.name AS qr_name,
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-            COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
+            COUNT(*) FILTER (WHERE e.type='offer') AS offers,
+COUNT(*) FILTER (WHERE e.type='maps') AS maps,
+COUNT(*) FILTER (WHERE e.type='waze') AS waze,
+COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
           FROM events e
           JOIN qr_codes qr ON qr.id = e.qr_id
           WHERE 1=1
@@ -1791,7 +1794,10 @@ app.get("/reports-qr", requireLogin, async (req, res) => {
           SELECT
             qr.name AS qr_name,
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-            COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
+            COUNT(*) FILTER (WHERE e.type='offer') AS offers,
+COUNT(*) FILTER (WHERE e.type='maps') AS maps,
+COUNT(*) FILTER (WHERE e.type='waze') AS waze,
+COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
           FROM events e
           JOIN qr_codes qr ON qr.id = e.qr_id
           JOIN spaces s ON s.id = qr.space_id
