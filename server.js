@@ -1871,7 +1871,10 @@ const conversionValue =
             <tr>
               <th>QR Code</th>
               <th style="text-align:center;">Scans</th>
-              <th style="text-align:center;">Intent Actions</th>
+              <th style="text-align:center;">Offers</th>
+<th style="text-align:center;">Maps</th>
+<th style="text-align:center;">Waze</th>
+<th style="text-align:center;">Total Intent</th>
               <th style="text-align:center;">Intent Rate</th>
             </tr>
 
