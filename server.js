@@ -2021,7 +2021,7 @@ const intent =
 
             ${reportTable || `
               <tr>
-                <td colspan="11">
+                <td colspan="14">
                   No location report data yet.
                 </td>
               </tr>
