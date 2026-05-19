@@ -1493,7 +1493,7 @@ const group = req.query.group || "campaign";
         `,
       isSuperAdmin ? [] : [currentUser.id]
     );
-
+let reportTitle = "Campaign Performance";
     let reportTable = "";
 
     for (const r of reportRows.rows) {
