@@ -2065,7 +2065,13 @@ const intent =
           <td style="text-align:center;">
             ${intentRate}%
           </td>
+<td style="text-align:center;">
+  ${conversions}
+</td>
 
+<td style="text-align:center;">
+  ${money(conversionValue)}
+</td>
           <td style="text-align:center;">
             ${customers}
           </td>
