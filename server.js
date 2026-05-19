@@ -1359,6 +1359,7 @@ ${hasCampaigns
             <th>ID</th>
             <th>Name</th>
             <th>Type</th>
+            <th>Destination</th>
             <th>Location</th>
             <th>Open</th>
             <th>Download</th>
