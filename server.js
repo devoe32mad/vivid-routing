@@ -288,6 +288,7 @@ await q(`
   await q(`
   ALTER TABLE spaces
   ADD COLUMN IF NOT EXISTS user_id INT
+  `);
   await q(`
   ALTER TABLE events
   ADD COLUMN IF NOT EXISTS value NUMERIC DEFAULT 0
