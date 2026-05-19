@@ -1750,6 +1750,83 @@ app.post("/admin/edit-qr/:qrId", requireLogin, async (req, res) => {
     res.send("EDIT QR ERROR: " + err.message);
   }
 });
+app.get("/admin/import-qr", requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+
+    const spaces = await q(
+      isSuperAdmin
+        ? `
+          SELECT *
+          FROM spaces
+          ORDER BY name
+        `
+        : `
+          SELECT *
+          FROM spaces
+          WHERE user_id = $1
+          ORDER BY name
+        `,
+      isSuperAdmin ? [] : [currentUser.id]
+    );
+
+    let locationOptions = "";
+
+    for (const s of spaces.rows) {
+      locationOptions += `
+        <option value="${s.id}">
+          ${s.name}
+        </option>
+      `;
+    }
+
+    res.send(page("Import QR", `
+      <div class="topbar">
+        <div class="brand">Vivid Spots</div>
+        <h1>Import Existing QR</h1>
+      </div>
+
+      <div class="wrap">
+
+        <div class="card" style="max-width:700px;">
+
+          <div class="note" style="margin-bottom:20px;">
+            Import an existing QR code destination into Vivid tracking.
+          </div>
+
+          <form method="POST" action="/admin/import-qr">
+
+            <label>QR Name</label>
+            <input name="name" required />
+
+            <label>Location</label>
+            <select name="space_id">
+              ${locationOptions}
+            </select>
+
+            <label>Existing Destination URL</label>
+            <input
+              name="destination_url"
+              placeholder="https://example.com"
+              required
+            />
+
+            <button class="btn" type="submit">
+              Import QR
+            </button>
+
+          </form>
+
+        </div>
+
+      </div>
+    `));
+
+  } catch (err) {
+    res.send("IMPORT QR PAGE ERROR: " + err.message);
+  }
+});
 app.get("/admin/new-qr", async (req, res) => {
   const isSuperAdmin =
   req.session.user.role === "super_admin";
