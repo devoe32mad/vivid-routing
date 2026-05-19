@@ -1356,7 +1356,7 @@ ${hasCampaigns
             <th>Placement Cost</th>
             <th>Edit</th>
           </tr>
-          ${locationTable || `<tr><td colspan="5">No locations yet.</td></tr>`}
+          ${locationTable || `<tr><td colspan="7">No locations yet.</td></tr>`}
         </table>
 
         <h2>QR Codes</h2>
@@ -1371,7 +1371,7 @@ ${hasCampaigns
             <th>Download</th>
             <th>Edit</th>
           </tr>
-          ${qrTable || `<tr><td colspan="5">No QR codes yet.</td></tr>`}
+          ${qrTable || `<tr><td colspan="7">No QR codes yet.</td></tr>`}
         </table>
 
         <h2>Campaigns</h2>
