@@ -1504,6 +1504,13 @@ const estimatedCustomers =
 
 const estimatedRevenue =
   estimatedCustomers * 50;
+      const placementCost = 800;
+
+const roi =
+  placementCost > 0
+    ? (((estimatedRevenue - placementCost)
+        / placementCost) * 100).toFixed(1)
+    : 0;
       const intentRate =
         scans > 0
           ? ((intent / scans) * 100).toFixed(1)
