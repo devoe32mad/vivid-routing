@@ -1546,8 +1546,8 @@ let reportQuery = "";
       ORDER BY scans DESC
     `;
 }
-    const reportRows = await q(
-  reportQuery,
+const reportRows = await q(
+  isSuperAdmin
         ? `
           SELECT
             c.name AS campaign_name,
