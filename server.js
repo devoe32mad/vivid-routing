@@ -1495,56 +1495,8 @@ let reportQuery = "";
       ORDER BY scans DESC
     `;
 }
-      let reportTitle = "Campaign Performance";
     
 
-  reportQuery = isSuperAdmin
-    ? `
-      SELECT
-        qr.name AS label,
-        '' AS advertiser,
-
-        COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-
-        COUNT(*) FILTER (
-          WHERE e.type IN ('offer','maps','waze')
-        ) AS intent_actions
-
-      FROM events e
-      LEFT JOIN qr_codes qr
-        ON qr.id = e.qr_id
-
-      WHERE 1=1
-      ${dateSql}
-
-      GROUP BY qr.name
-      ORDER BY scans DESC
-    `
-    : `
-      SELECT
-        qr.name AS label,
-        '' AS advertiser,
-
-        COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-
-        COUNT(*) FILTER (
-          WHERE e.type IN ('offer','maps','waze')
-        ) AS intent_actions
-
-      FROM events e
-      LEFT JOIN qr_codes qr
-        ON qr.id = e.qr_id
-
-      LEFT JOIN spaces s
-        ON s.id = qr.space_id
-
-      WHERE s.user_id = $1
-      ${dateSql}
-
-      GROUP BY qr.name
-      ORDER BY scans DESC
-    `;
-}
 const reportRows = await q(
   isSuperAdmin
         ? `
