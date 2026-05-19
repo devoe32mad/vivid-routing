@@ -1523,6 +1523,8 @@ const roi =
           <td>${scans}</td>
           <td>${intent}</td>
           <td>${intentRate}%</td>
+          <td>${money(estimatedRevenue)}</td>
+<td>${roi}%</td>
         </tr>
       `;
     }
