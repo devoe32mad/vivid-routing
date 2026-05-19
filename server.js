@@ -1521,9 +1521,9 @@ const roi =
         <tr>
           <td>${r.advertiser || ""}</td>
           <td>${r.campaign_name || ""}</td>
-          <td>${scans}</td>
-          <td>${intent}</td>
-          <td>${intentRate}%</td>
+         <td style="text-align:center;">${scans}</td>
+<td style="text-align:center;">${intent}</td>
+<td style="text-align:center;">${intentRate}%</td>
           <td>${money(estimatedRevenue)}</td>
 <td>${roi}%</td>
         </tr>
