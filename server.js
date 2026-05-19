@@ -1595,6 +1595,12 @@ const roi =
           <td>${r.advertiser || ""}</td>
           <td>${r.campaign_name || ""}</td>
          <td style="text-align:center;">${scans}</td>
+<td style="text-align:center;">${offers}</td>
+
+<td style="text-align:center;">${maps}</td>
+
+<td style="text-align:center;">${waze}</td>
+
 <td style="text-align:center;">${intent}</td>
 <td style="text-align:center;">${intentRate}%</td>
 <td style="text-align:center;">${conversions}</td>
