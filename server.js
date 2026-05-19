@@ -1058,6 +1058,12 @@ const schedules = await q(
     const hasLocations = locations.rows.length > 0;
     const hasQrs = qrs.rows.length > 0;
     const hasCampaigns = campaigns.rows.length > 0;
+    const hasAssignments = assignments.rows.length > 0;
+
+const activeScheduleCount =
+  schedules.rows.filter(s => s.is_active).length;
+
+const hasSchedules = activeScheduleCount > 0;
     let locationTable = "";
     for (const s of locations.rows) {
       locationTable += `
