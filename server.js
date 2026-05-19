@@ -2009,7 +2009,10 @@ const intent =
         scans > 0
           ? ((intent / scans) * 100).toFixed(1)
           : 0;
+const conversions = Number(r.conversions || 0);
 
+const conversionValue =
+  Number(r.conversion_value || 0);
       const customers =
         Math.round(intent * 0.1);
 
