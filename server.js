@@ -1218,6 +1218,11 @@ ${hasQrs
 ${hasCampaigns
   ? "✅ Campaigns Created"
   : "⚠ No Campaigns Yet"}
+  <br>
+
+${hasSchedules
+  ? "✅ Active Schedules Running"
+  : "⚠ No Active Schedules"}
   <div style="display:flex;flex-wrap:wrap;gap:15px;margin-top:20px;">
 
     <div class="card" style="width:240px;">
