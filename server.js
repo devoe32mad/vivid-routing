@@ -456,6 +456,23 @@ app.get("/db-test", async (req, res) => {
 
 app.get("/r/:qrId", async (req, res) => {
   const qrId = Number(req.params.qrId);
+  const importedQr = await q(`
+  SELECT *
+  FROM qr_codes
+  WHERE id = $1
+  AND description IS NOT NULL
+  AND description LIKE 'http%'
+`, [qrId]);
+
+if (importedQr.rows[0]) {
+  await saveEvent({
+    qrId,
+    campaignId: null,
+    type: "scan"
+  });
+
+  return res.redirect(importedQr.rows[0].description);
+}
   const campaign = await activeCampaignForQr(qrId);
   if (!campaign) return res.status(404).send("No active campaign assigned to this QR.");
   await saveEvent({ qrId, campaignId: campaign.id, type: "scan" });
