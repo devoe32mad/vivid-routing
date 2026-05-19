@@ -1865,7 +1865,12 @@ COUNT(*) FILTER (
     for (const r of reportRows.rows) {
 
       const scans = Number(r.scans || 0);
-      const intent = Number(r.intent_actions || 0);
+      const offers = Number(r.offers || 0);
+const maps = Number(r.maps || 0);
+const waze = Number(r.waze || 0);
+
+const intent =
+  offers + maps + waze;
 
       const intentRate =
         scans > 0
