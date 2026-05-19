@@ -1206,6 +1206,37 @@ for (const s of schedules.rows) {
 
   <div class="note" style="margin-top:10px;">
     Follow these steps to launch and manage your campaigns.
+    <div style="margin-top:18px;line-height:1.8;">
+
+  ${hasLocations
+    ? "✅ Locations Created"
+    : "⚠ No Locations Yet"}
+
+  <br>
+
+  ${hasQrs
+    ? "✅ QR Codes Created"
+    : "⚠ No QR Codes Yet"}
+
+  <br>
+
+  ${hasCampaigns
+    ? "✅ Campaigns Created"
+    : "⚠ No Campaigns Yet"}
+
+  <br>
+
+  ${hasAssignments
+    ? "✅ Campaigns Assigned"
+    : "⚠ No Campaign Assignments"}
+
+  <br>
+
+  ${hasSchedules
+    ? "✅ Active Schedules Running"
+    : "⚠ No Active Schedules"}
+
+</div>
   </div>
 
   <div style="display:flex;flex-wrap:wrap;gap:15px;margin-top:20px;">
