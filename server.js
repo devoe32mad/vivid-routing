@@ -1794,7 +1794,13 @@ app.get("/reports-qr", requireLogin, async (req, res) => {
         <tr>
           <td>${r.qr_name || ""}</td>
           <td style="text-align:center;">${scans}</td>
-          <td style="text-align:center;">${intent}</td>
+          <td style="text-align:center;">${offers}</td>
+
+<td style="text-align:center;">${maps}</td>
+
+<td style="text-align:center;">${waze}</td>
+
+<td style="text-align:center;">${intent}</td>
           <td style="text-align:center;">${intentRate}%</td>
         </tr>
       `;
