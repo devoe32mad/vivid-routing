@@ -1571,6 +1571,8 @@ const reportRows = await q(
 
       const scans = Number(r.scans || 0);
       const intent = Number(r.intent_actions || 0);
+      const conversions = Number(r.conversions || 0);
+const conversionValue = Number(r.conversion_value || 0);
 const estimatedCustomers =
   Math.round(intent * 0.1);
 
