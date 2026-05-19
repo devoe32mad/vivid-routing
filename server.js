@@ -1227,12 +1227,17 @@ ${hasCampaigns
   <br>
 <br>
 
-${hasAssignments
-  ? "✅ Campaigns Assigned"
-  : "⚠ No Campaign Assignments"}
-${hasSchedules
-  ? "✅ Active Schedules Running"
-  : "⚠ No Active Schedules"}
+<div style="margin-top:10px;">
+  ${hasAssignments
+    ? "✅ Campaigns Assigned"
+    : "⚠ No Campaign Assignments"}
+</div>
+
+<div style="margin-top:10px;">
+  ${hasSchedules
+    ? "✅ Active Schedules Running"
+    : "⚠ No Active Schedules"}
+</div>
   <div style="display:flex;flex-wrap:wrap;gap:15px;margin-top:20px;">
 
     <div class="card" style="width:240px;">
