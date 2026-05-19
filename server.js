@@ -1439,7 +1439,7 @@ app.get("/reports", requireLogin, async (req, res) => {
     const isSuperAdmin = currentUser.role === "super_admin";
 
     const timeframe = req.query.timeframe || "30";
-
+const group = req.query.group || "campaign";
     let dateSql = "";
     let params = [];
 
