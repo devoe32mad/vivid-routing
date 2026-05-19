@@ -2085,6 +2085,8 @@ const intent =
 <th>Waze</th>
 <th>Total Intent</th>
               <th>Intent Rate</th>
+              <th>Conversions</th>
+<th>Conversion Value</th>
               <th>Customers</th>
               <th>Revenue</th>
               <th>Placement Cost</th>
