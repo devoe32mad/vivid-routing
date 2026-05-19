@@ -1155,6 +1155,33 @@ for (const s of schedules.rows) {
       <div class="topbar">
         <div class="brand">Vivid Spots</div>
         <h1>My Setup</h1>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin:20px 0;">
+
+  <a class="btn" href="/admin/new-location">
+    + New Location
+  </a>
+
+  <a class="btn" href="/admin/new-qr">
+    + New QR
+  </a>
+
+  <a class="btn" href="/admin/new-campaign">
+    + New Campaign
+  </a>
+
+  <a class="btn" href="/admin/assign">
+    + Assign Campaign
+  </a>
+
+  <a class="btn" href="/admin/schedule">
+    + Schedule Campaign
+  </a>
+
+  <a class="btn secondary" href="/dashboard">
+    Dashboard
+  </a>
+
+</div>
         </div>
   
 
