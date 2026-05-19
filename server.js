@@ -1557,7 +1557,21 @@ const roi =
           </a>
 
         </div>
+<div style="display:flex;gap:10px;margin-bottom:20px;">
 
+  <a class="btn" href="/reports?group=campaign">
+    By Campaign
+  </a>
+
+  <a class="btn" href="/reports?group=qr">
+    By QR Code
+  </a>
+
+  <a class="btn" href="/reports?group=location">
+    By Location
+  </a>
+
+</div>
         <div class="card">
 
           <h2>Campaign Performance</h2>
