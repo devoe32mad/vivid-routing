@@ -1575,7 +1575,7 @@ const roi =
 
             ${reportTable || `
               <tr>
-                <td colspan="5">
+                <td colspan="7">
                   No report data yet.
                 </td>
               </tr>
