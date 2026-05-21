@@ -1595,7 +1595,7 @@ const revenue = conversionValue;
 
 const roi =
   placementCost > 0
-    ? (((estimatedRevenue - placementCost)
+    ? (((revenue - placementCost)
         / placementCost) * 100).toFixed(1)
     : 0;
       const intentRate =
