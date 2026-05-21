@@ -3193,6 +3193,41 @@ app.post("/admin/assign", requireLogin, async (req, res) => {
 });
 app.post("/admin/schedule", requireLogin, async (req, res) => {
   try {
+    const overlap = await q(
+  `
+  SELECT *
+  FROM campaign_schedules
+  WHERE qr_id = $1
+  AND is_active = true
+  AND (
+    ($2::time BETWEEN start_time AND end_time)
+    OR
+    ($3::time BETWEEN start_time AND end_time)
+    OR
+    (start_time BETWEEN $2::time AND $3::time)
+  )
+  `,
+  [
+    Number(req.body.qr_id),
+    req.body.start_time,
+    req.body.end_time
+  ]
+);
+
+if (overlap.rows.length > 0) {
+  return res.send(`
+    <h2>Schedule Conflict</h2>
+
+    <p>
+      Another active campaign already exists
+      during this time window.
+    </p>
+
+    <a href="/admin/schedule">
+      Back
+    </a>
+  `);
+}
     await q(`
       INSERT INTO campaign_schedules (
         qr_id,
