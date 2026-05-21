@@ -2016,7 +2016,7 @@ const conversionValue =
         Math.round(intent * 0.1);
 
       const revenue =
-        customers * 50;
+  conversionValue;
 
       const cost =
         Number(r.placement_cost || 800);
