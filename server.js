@@ -3215,18 +3215,44 @@ AND (
 );
 
 if (overlap.rows.length > 0) {
-  return res.send(`
-    <h2>Schedule Conflict</h2>
+  const conflict = overlap.rows[0];
 
-    <p>
-      Another active campaign already exists
-      during this time window.
-    </p>
+  return res.send(page("Schedule Conflict", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>Schedule Conflict</h1>
+    </div>
 
-    <a href="/admin/schedule">
-      Back
-    </a>
-  `);
+    <div class="wrap">
+      <div class="card" style="max-width:700px;">
+        <h2>This QR already has a campaign scheduled during that time.</h2>
+
+        <p>
+          You tried to schedule:
+          <br>
+          <strong>${req.body.start_time} - ${req.body.end_time}</strong>
+        </p>
+
+        <p>
+          Existing active schedule:
+          <br>
+          <strong>${conflict.start_time} - ${conflict.end_time}</strong>
+        </p>
+
+        <div class="note" style="margin:20px 0;">
+          To fix this, choose a different time window or deactivate/edit the existing schedule first.
+        </div>
+
+        <a class="btn" href="/admin/schedule">
+          Back to Scheduler
+        </a>
+
+        <a class="btn secondary" href="/my-setup">
+          View My Setup
+        </a>
+      </div>
+    </div>
+  `));
 }
     await q(`
       INSERT INTO campaign_schedules (
