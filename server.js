@@ -1590,8 +1590,7 @@ const conversionValue = Number(r.conversion_value || 0);
 const estimatedCustomers =
   Math.round(intent * 0.1);
 
-const estimatedRevenue =
-  estimatedCustomers * 50;
+const revenue = conversionValue;
       const placementCost = 800;
 
 const roi =
