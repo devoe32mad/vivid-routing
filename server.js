@@ -1136,16 +1136,17 @@ const hasSchedules = activeScheduleCount > 0;
           <td>${c.id}</td>
           <td>${c.advertiser || ""}</td>
           <td>${c.name || ""}</td>
-          <td>
-          <td>
+     <td>
+  <a href="/admin/edit-campaign/${c.id}">
+    Edit
+  </a>
+</td>
+
+<td>
   <a href="/admin/archive-campaign/${c.id}">
     Archive
   </a>
 </td>
-            <a href="/admin/edit-campaign/${c.id}">
-              Edit
-            </a>
-          </td>
         </tr>
       `;
     }
