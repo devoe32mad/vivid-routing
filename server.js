@@ -3199,13 +3199,13 @@ app.post("/admin/schedule", requireLogin, async (req, res) => {
   FROM campaign_schedules
   WHERE qr_id = $1
   AND is_active = true
-  AND (
-    (CAST($2 AS time) BETWEEN start_time AND end_time)
-    OR
-    (CAST($3 AS time) BETWEEN start_time AND end_time)
-    OR
-    (start_time BETWEEN CAST($2 AS time) AND CAST($3 AS time))
-  )
+AND (
+  ($2::time BETWEEN start_time::time AND end_time::time)
+  OR
+  ($3::time BETWEEN start_time::time AND end_time::time)
+  OR
+  (start_time::time BETWEEN $2::time AND $3::time)
+)
   `,
   [
     Number(req.body.qr_id),
