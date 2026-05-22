@@ -3168,7 +3168,83 @@ app.post("/admin/edit-schedule/:id", requireLogin, async (req, res) => {
     end_time,
     priority
   } = req.body;
+const currentSchedule = await q(
+  `
+  SELECT qr_id
+  FROM campaign_schedules
+  WHERE id = $1
+  `,
+  [req.params.id]
+);
 
+const qrId = currentSchedule.rows[0]?.qr_id;
+
+const conflict = await q(
+  `
+  SELECT cs.*, c.name AS campaign_name
+  FROM campaign_schedules cs
+  LEFT JOIN campaigns c
+    ON c.id = cs.campaign_id
+  WHERE cs.qr_id = $1
+    AND cs.id != $2
+    AND cs.is_active = true
+    AND $3::time < cs.end_time::time
+    AND $4::time > cs.start_time::time
+  `,
+  [
+    qrId,
+    req.params.id,
+    start_time,
+    end_time
+  ]
+);
+
+if (conflict.rows.length > 0) {
+  const c = conflict.rows[0];
+
+  return res.send(page("Schedule Conflict", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>Schedule Conflict</h1>
+    </div>
+
+    <div class="wrap">
+      <div class="card" style="max-width:700px;">
+        <h2>This edit conflicts with another active schedule.</h2>
+
+        <p>
+          You tried:
+          <br>
+          <strong>${start_time} - ${end_time}</strong>
+        </p>
+
+        <p>
+          Existing campaign:
+          <br>
+          <strong>${c.campaign_name || "Unnamed Campaign"}</strong>
+        </p>
+
+        <p>
+          Existing time:
+          <br>
+          <strong>${c.start_time} - ${c.end_time}</strong>
+        </p>
+
+        <div class="note" style="margin:20px 0;">
+          Choose a different time window, or deactivate/edit the existing schedule first.
+        </div>
+
+        <a class="btn" href="/admin/edit-schedule/${req.params.id}">
+          Back to Edit
+        </a>
+
+        <a class="btn secondary" href="/admin/schedule">
+          View Schedule
+        </a>
+      </div>
+    </div>
+  `));
+}
   await q(
     `UPDATE campaign_schedules
      SET
