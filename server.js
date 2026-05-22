@@ -3152,16 +3152,14 @@ app.get("/admin/schedule", async (req, res) => {
 
   new Date().toTimeString().slice(0, 5);
 for (const s of schedules.rows) {
-const isRunningNow =
-  s.start_time <= currentTime &&
-  s.end_time >= currentTime;
+
   activeScheduleHtml += `
     <tr>
       <td>${s.qr_name || ""}</td>
       <td>${s.campaign_name || ""}</td>
       <td>${s.start_time || ""}</td>
       <td>${s.end_time || ""}</td>
-      <td>${isRunningNow ? "Running Now" : "Scheduled"}</td>
+      <td>${s.is_active ? "Active" : "Inactive"}</td>
     </tr>
   `;
 }
