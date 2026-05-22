@@ -1176,6 +1176,7 @@ for (const s of schedules.rows) {
       <td>${s.qr_name || ""}</td>
       <td>${s.advertiser || ""}</td>
       <td>${s.campaign_name || ""}</td>
+      <td>${s.days || "Every Day"}</td>
       <td>${s.start_time || ""}</td>
       <td>${s.end_time || ""}</td>
       <td>${s.priority || ""}</td>
