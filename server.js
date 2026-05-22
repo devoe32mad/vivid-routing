@@ -3149,7 +3149,7 @@ app.get("/admin/schedule", async (req, res) => {
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
   const schedules = await q(`SELECT cs.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser FROM campaign_schedules cs LEFT JOIN qr_codes qr ON qr.id = cs.qr_id LEFT JOIN campaigns c ON c.id = cs.campaign_id ORDER BY cs.qr_id, cs.day_of_week, cs.start_time`);
  let activeScheduleHtml = "";
-const currentTime =
+
   new Date().toTimeString().slice(0, 5);
 for (const s of schedules.rows) {
 const isRunningNow =
