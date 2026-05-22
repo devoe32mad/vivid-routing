@@ -3280,10 +3280,11 @@ app.get("/admin/deactivate-schedule/:scheduleId", requireLogin, async (req, res)
         : `
           UPDATE campaign_schedules cs
           SET is_active = false
-          FROM campaigns c
+          FROM qr_codes qr
+          JOIN spaces s ON s.id = qr.space_id
           WHERE cs.id = $1
-          AND c.id = cs.campaign_id
-          AND c.user_id = $2
+          AND qr.id = cs.qr_id
+          AND s.user_id = $2
           RETURNING cs.id
         `,
       isSuperAdmin
@@ -3295,7 +3296,8 @@ app.get("/admin/deactivate-schedule/:scheduleId", requireLogin, async (req, res)
       return res.send("Schedule not found or access denied");
     }
 
-    res.redirect("/my-setup");
+    res.redirect("/admin/schedule");
+
   } catch (err) {
     res.send("DEACTIVATE SCHEDULE ERROR: " + err.message);
   }
