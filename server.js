@@ -1370,8 +1370,8 @@ ${hasCampaigns
             <th>Destination</th>
             <th>Location</th>
             <th>Open</th>
-            <th>Download</th>
-            <th>Edit</th>
+<th>Edit</th>
+<th>Download</th>
           </tr>
           ${qrTable || `<tr><td colspan="7">No QR codes yet.</td></tr>`}
         </table>
