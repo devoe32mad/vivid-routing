@@ -3168,67 +3168,7 @@ app.post("/admin/edit-schedule/:id", requireLogin, async (req, res) => {
     end_time,
     priority
   } = req.body;
-const conflict = await q(
-  `
-  SELECT *
-  FROM campaign_schedules
-  WHERE qr_id = (
-    SELECT qr_id
-    FROM campaign_schedules
-    WHERE id = $4
-  )
-  AND id != $4
-  AND is_active = true
-  AND (
-    ($1::time BETWEEN start_time::time AND end_time::time)
-    OR
-    ($2::time BETWEEN start_time::time AND end_time::time)
-    OR
-    (start_time::time BETWEEN $1::time AND $2::time)
-  )
-  `,
-  [
-    start_time,
-    end_time,
-    campaign_id,
-    req.params.id
-  ]
-);
 
-if (conflict.rows.length > 0) {
-  return res.send(page("Schedule Conflict", `
-    <div class="topbar">
-      <div class="brand">Vivid Spots</div>
-      <h1>Schedule Conflict</h1>
-    </div>
-
-    <div class="wrap">
-      <div class="card">
-        <h2>This edit conflicts with another schedule.</h2>
-
-        <p>
-          You tried:
-          <br>
-          <strong>${start_time} - ${end_time}</strong>
-        </p>
-
-        <p>
-          Existing schedule:
-          <br>
-          <strong>${conflict.rows[0].start_time} - ${conflict.rows[0].end_time}</strong>
-        </p>
-
-        <a class="btn" href="/admin/edit-schedule/${req.params.id}">
-          Back to Edit
-        </a>
-
-        <a class="btn secondary" href="/admin/schedule">
-          View Schedule
-        </a>
-      </div>
-    </div>
-  `));
-}
   await q(
     `UPDATE campaign_schedules
      SET
