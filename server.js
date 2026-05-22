@@ -3161,6 +3161,33 @@ app.get("/admin/edit-schedule/:id", requireLogin, async (req, res) => {
     </div>
   `));
 });
+app.post("/admin/edit-schedule/:id", requireLogin, async (req, res) => {
+  const {
+    campaign_id,
+    start_time,
+    end_time,
+    priority
+  } = req.body;
+
+  await q(
+    `UPDATE campaign_schedules
+     SET
+       campaign_id = $1,
+       start_time = $2,
+       end_time = $3,
+       priority = $4
+     WHERE id = $5`,
+    [
+      campaign_id,
+      start_time,
+      end_time,
+      priority,
+      req.params.id
+    ]
+  );
+
+  res.redirect("/admin/schedule");
+});
 app.get("/admin/deactivate-schedule/:scheduleId", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
