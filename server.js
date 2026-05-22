@@ -3110,6 +3110,57 @@ app.post("/admin/bulk-schedule", requireLogin, async (req, res) => {
     res.send("BULK SCHEDULE ERROR: " + err.message);
   }
 });
+app.get("/admin/edit-schedule/:id", requireLogin, async (req, res) => {
+  const schedule = await q(
+    `SELECT * FROM campaign_schedules WHERE id = $1`,
+    [req.params.id]
+  );
+
+  const campaigns = await q(
+    `SELECT * FROM campaigns ORDER BY advertiser, name`
+  );
+
+  res.send(page("Edit Schedule", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>Edit Schedule</h1>
+    </div>
+
+    <div class="wrap">
+      <form method="POST">
+        <label>Campaign</label>
+
+        <select name="campaign_id">
+          ${campaigns.rows.map(c => `
+            <option value="${c.id}"
+              ${c.id == schedule.rows[0].campaign_id ? "selected" : ""}>
+              ${c.advertiser} - ${c.name}
+            </option>
+          `).join("")}
+        </select>
+
+        <label>Start Time</label>
+        <input type="time"
+          name="start_time"
+          value="${schedule.rows[0].start_time || ""}" />
+
+        <label>End Time</label>
+        <input type="time"
+          name="end_time"
+          value="${schedule.rows[0].end_time || ""}" />
+
+        <label>Priority</label>
+        <input type="number"
+          name="priority"
+          value="${schedule.rows[0].priority || 100}" />
+
+        <button type="submit">
+          Save Changes
+        </button>
+      </form>
+    </div>
+  `));
+});
 app.get("/admin/deactivate-schedule/:scheduleId", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
