@@ -1409,13 +1409,14 @@ ${hasCampaigns
 <table>
   <tr>
     <th>QR</th>
-    <th>Advertiser</th>
-    <th>Campaign</th>
-    <th>Start</th>
-    <th>End</th>
-    <th>Priority</th>
-    <th>Status</th>
-    <th>Action</th>
+<th>Advertiser</th>
+<th>Campaign</th>
+<th>Day</th>
+<th>Start</th>
+<th>End</th>
+<th>Priority</th>
+<th>Status</th>
+<th>Action</th>
   </tr>
 
   ${scheduleTable || `<tr><td colspan="8">No schedules yet.</td></tr>`}
