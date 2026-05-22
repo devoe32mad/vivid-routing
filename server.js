@@ -3187,7 +3187,11 @@ for (const s of schedules.rows) {
 </td> 
 </td>
  
-</td><td>
+<td>
+  <a href="/admin/edit-schedule/${s.id}">
+    Edit
+  </a>
+  &nbsp;|&nbsp;
   <a href="/admin/deactivate-schedule/${s.id}">
     Deactivate
   </a>
