@@ -3151,6 +3151,8 @@ app.get("/admin/schedule", async (req, res) => {
  let activeScheduleHtml = "";
 
   new Date().toTimeString().slice(0, 5);
+  const currentTime =
+  new Date().toTimeString().slice(0, 8);
 for (const s of schedules.rows) {
 
   activeScheduleHtml += `
@@ -3165,7 +3167,18 @@ for (const s of schedules.rows) {
 }
   res.send(page("Campaign Schedule", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Master QR Campaign Schedule</h1><p class="subtitle">Add multiple campaigns to one QR and rotate by day/time.</p></div><div class="wrap"><a class="btn" href="/admin">Admin</a><a class="btn secondary" href="/dashboard">Dashboard</a><form method="POST" action="/admin/schedule"><div class="formgrid"><div><label>Master QR</label><select name="qr_id">${qrs.rows.map(qr => `<option value="${qr.id}">${qr.id} - ${qr.name || "QR"}</option>`).join("")}</select></div><div><label>Campaign</label><select name="campaign_id">${campaigns.rows.map(c => `<option value="${c.id}">${c.advertiser || ""} - ${c.name || ""}</option>`).join("")}</select></div><div><label>Day</label><select name="day_of_week"><option value="0">Every Day / Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div><div><label>Start Time</label><input name="start_time" value="00:00" /></div><div><label>End Time</label><input name="end_time" value="23:59" /></div><div><label>Priority</label><input name="priority" type="number" value="100" /></div></div><button class="btn" type="submit">Add Campaign to Master QR</button></form><h2>Current Scheduled Campaigns</h2><table><tr><th>QR</th><th>Advertiser</th><th>Campaign</th><th>Day</th><th>Start</th><th>End</th><th>Status</th><th>Priority</th><th>CurrentStatus</th></tr>${schedules.rows.map(s => `<tr><td>${s.qr_name || s.qr_id}</td><td>${s.advertiser || ""}</td><td>${s.campaign_name || ""}</td><td>${dayLabel(s.day_of_week)}</td><td>${s.start_time}</td><td>${s.end_time}</td><td>${s.priority}</td><td>
   <td>
-      <td>${s.is_active ? "Active" : "Inactive"}</td>
+     <td>
+  ${
+    s.is_active
+      ? (
+          currentTime >= s.start_time &&
+          currentTime <= s.end_time
+        )
+          ? '<span style="color:#16a34a;font-weight:700;">ACTIVE NOW</span>'
+          : 'Scheduled'
+      : 'Inactive'
+  }
+</td> 
 </td>
  
 </td><td>
