@@ -3857,7 +3857,89 @@ app.post("/admin/stores", requireLogin, async (req, res) => {
     res.send("ADD STORE ERROR: " + err.message);
   }
 });
-    
+    app.get("/admin/edit-store/:id", requireLogin, async (req, res) => {
+
+  const store = await q(
+    `
+    SELECT *
+    FROM stores
+    WHERE id = $1
+    `,
+    [req.params.id]
+  );
+
+  const s = store.rows[0];
+
+  res.send(page("Edit Store", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>Edit Store</h1>
+    </div>
+
+    <div class="wrap">
+
+      <div class="card">
+
+        <form method="POST"
+              action="/admin/edit-store/${s.id}">
+
+          <label>Brand</label>
+          <input
+            name="brand"
+            value="${s.brand || ""}" />
+
+          <label>Store Name</label>
+          <input
+            name="name"
+            value="${s.name || ""}" />
+
+          <label>Address</label>
+          <input
+            name="address"
+            value="${s.address || ""}" />
+
+          <label>Inventory Status</label>
+
+          <select name="inventory_status">
+
+            <option value="high"
+              ${s.inventory_status === "high" ? "selected" : ""}>
+              High
+            </option>
+
+            <option value="normal"
+              ${s.inventory_status === "normal" ? "selected" : ""}>
+              Normal
+            </option>
+
+            <option value="low"
+              ${s.inventory_status === "low" ? "selected" : ""}>
+              Low
+            </option>
+
+          </select>
+
+          <label>Google Maps URL</label>
+          <input
+            name="maps_url"
+            value="${s.maps_url || ""}" />
+
+          <label>Waze URL</label>
+          <input
+            name="waze_url"
+            value="${s.waze_url || ""}" />
+
+          <button type="submit">
+            Save Store
+          </button>
+
+        </form>
+
+      </div>
+
+    </div>
+  `));
+});
 app.listen(port, () => {
   console.log("Server running on port " + port);
 });
