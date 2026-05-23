@@ -150,6 +150,7 @@ async function initDb() {
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `);
+  await q(`
   CREATE TABLE IF NOT EXISTS stores (
   id SERIAL PRIMARY KEY,
   user_id INTEGER,
