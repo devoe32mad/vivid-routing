@@ -4060,6 +4060,28 @@ app.get("/admin/assign-store", requireLogin, async (req, res) => {
   `));
 
 });
+app.post("/admin/assign-store", requireLogin, async (req, res) => {
+  const {
+    campaign_id,
+    store_id
+  } = req.body;
+
+  await q(
+    `
+    INSERT INTO campaign_stores (
+      campaign_id,
+      store_id
+    )
+    VALUES ($1,$2)
+    `,
+    [
+      campaign_id,
+      store_id
+    ]
+  );
+
+  res.redirect("/admin/assign-store");
+});
 app.listen(port, () => {
   console.log("Server running on port " + port);
 });
