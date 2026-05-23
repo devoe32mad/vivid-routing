@@ -151,6 +151,14 @@ async function initDb() {
   )
 `);
   await q(`
+  CREATE TABLE IF NOT EXISTS campaign_stores (
+    id SERIAL PRIMARY KEY,
+    campaign_id INTEGER,
+    store_id INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+  await q(`
   CREATE TABLE IF NOT EXISTS stores (
     id SERIAL PRIMARY KEY,
     user_id INTEGER,
