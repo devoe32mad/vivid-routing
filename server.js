@@ -3948,6 +3948,118 @@ app.post("/admin/stores", requireLogin, async (req, res) => {
     </div>
   `));
 });
+app.get("/admin/assign-store", requireLogin, async (req, res) => {
+
+  const campaigns = await q(`
+    SELECT *
+    FROM campaigns
+    ORDER BY advertiser, name
+  `);
+
+  const stores = await q(`
+    SELECT *
+    FROM stores
+    ORDER BY brand, name
+  `);
+
+  const assignments = await q(`
+    SELECT
+      cs.id,
+      c.advertiser,
+      c.name AS campaign_name,
+      s.name AS store_name,
+      s.inventory_status
+    FROM campaign_stores cs
+    LEFT JOIN campaigns c
+      ON c.id = cs.campaign_id
+    LEFT JOIN stores s
+      ON s.id = cs.store_id
+    ORDER BY cs.id DESC
+  `);
+
+  let rows = "";
+
+  for (const a of assignments.rows) {
+
+    rows += `
+      <tr>
+        <td>${a.advertiser || ""}</td>
+        <td>${a.campaign_name || ""}</td>
+        <td>${a.store_name || ""}</td>
+        <td>${a.inventory_status || ""}</td>
+      </tr>
+    `;
+  }
+
+  res.send(page("Assign Store", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>Campaign Store Routing</h1>
+    </div>
+
+    <div class="wrap">
+
+      <div class="card">
+
+        <h2>Assign Store to Campaign</h2>
+
+        <form method="POST">
+
+          <label>Campaign</label>
+
+          <select name="campaign_id">
+
+            ${campaigns.rows.map(c => `
+              <option value="${c.id}">
+                ${c.advertiser} - ${c.name}
+              </option>
+            `).join("")}
+
+          </select>
+
+          <label>Store</label>
+
+          <select name="store_id">
+
+            ${stores.rows.map(s => `
+              <option value="${s.id}">
+                ${s.brand || ""} - ${s.name}
+              </option>
+            `).join("")}
+
+          </select>
+
+          <button type="submit">
+            Assign Store
+          </button>
+
+        </form>
+
+      </div>
+
+      <div class="card">
+
+        <h2>Current Campaign Routing</h2>
+
+        <table style="width:100%;">
+
+          <tr>
+            <th>Advertiser</th>
+            <th>Campaign</th>
+            <th>Store</th>
+            <th>Inventory</th>
+          </tr>
+
+          ${rows}
+
+        </table>
+
+      </div>
+
+    </div>
+  `));
+
+});
 app.listen(port, () => {
   console.log("Server running on port " + port);
 });
