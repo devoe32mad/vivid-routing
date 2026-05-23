@@ -3800,6 +3800,7 @@ app.get("/admin/stores", requireLogin, async (req, res) => {
             <th>Store</th>
             <th>Address</th>
             <th>Inventory</th>
+            <th>Edit</th>
           </tr>
 
           ${storeRows}
