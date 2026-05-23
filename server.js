@@ -150,6 +150,17 @@ async function initDb() {
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `);
+  CREATE TABLE IF NOT EXISTS stores (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER,
+  brand VARCHAR(255),
+  name VARCHAR(255),
+  address TEXT,
+  inventory_status VARCHAR(50) DEFAULT 'normal',
+  maps_url TEXT,
+  waze_url TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
   const userCount = await q(`
   SELECT COUNT(*) FROM users
 `);
