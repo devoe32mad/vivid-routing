@@ -3732,6 +3732,11 @@ app.get("/admin/stores", requireLogin, async (req, res) => {
         <td>${s.name || ""}</td>
         <td>${s.address || ""}</td>
         <td>${s.inventory_status || ""}</td>
+        <td>
+  <a href="/admin/edit-store/${s.id}">
+    Edit
+  </a>
+</td>
       </tr>
     `;
   }
