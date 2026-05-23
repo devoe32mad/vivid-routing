@@ -3746,6 +3746,43 @@ app.get("/admin/stores", requireLogin, async (req, res) => {
     </div>
   `));
 });
+app.post("/admin/stores", requireLogin, async (req, res) => {
+
+  const {
+    brand,
+    name,
+    address,
+    inventory_status,
+    maps_url,
+    waze_url
+  } = req.body;
+
+  await q(
+    `
+    INSERT INTO stores (
+      user_id,
+      brand,
+      name,
+      address,
+      inventory_status,
+      maps_url,
+      waze_url
+    )
+    VALUES ($1,$2,$3,$4,$5,$6,$7)
+    `,
+    [
+      req.session.user.id,
+      brand,
+      name,
+      address,
+      inventory_status,
+      maps_url,
+      waze_url
+    ]
+  );
+
+  res.redirect("/admin/stores");
+});
 app.listen(port, () => {
   console.log("Server running on port " + port);
 });
