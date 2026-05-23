@@ -3647,7 +3647,105 @@ app.get("/analytics", async (req, res) => {
   const result = await q(`SELECT COUNT(*) FILTER (WHERE type='scan') AS scans, COUNT(*) FILTER (WHERE type='offer') AS offer_clicks, COUNT(*) FILTER (WHERE type='maps') AS maps_clicks, COUNT(*) FILTER (WHERE type='waze') AS waze_clicks, COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks FROM events`);
   res.json(result.rows[0]);
 });
+app.get("/admin/stores", requireLogin, async (req, res) => {
 
+  const stores = await q(
+    `
+    SELECT *
+    FROM stores
+    ORDER BY created_at DESC
+    `
+  );
+
+  let storeRows = "";
+
+  for (const s of stores.rows) {
+
+    storeRows += `
+      <tr>
+        <td>${s.brand || ""}</td>
+        <td>${s.name || ""}</td>
+        <td>${s.address || ""}</td>
+        <td>${s.inventory_status || ""}</td>
+      </tr>
+    `;
+  }
+
+  res.send(page("Stores", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>Store Inventory Routing</h1>
+    </div>
+
+    <div class="wrap">
+
+      <div class="card">
+
+        <h2>Add Store</h2>
+
+        <form method="POST">
+
+          <label>Brand</label>
+          <input name="brand" />
+
+          <label>Store Name</label>
+          <input name="name" />
+
+          <label>Address</label>
+          <input name="address" />
+
+          <label>Inventory Status</label>
+
+          <select name="inventory_status">
+            <option value="high">
+              High Inventory
+            </option>
+
+            <option value="normal">
+              Normal
+            </option>
+
+            <option value="low">
+              Low Inventory
+            </option>
+          </select>
+
+          <label>Google Maps URL</label>
+          <input name="maps_url" />
+
+          <label>Waze URL</label>
+          <input name="waze_url" />
+
+          <button type="submit">
+            Add Store
+          </button>
+
+        </form>
+
+      </div>
+
+      <div class="card">
+
+        <h2>Current Stores</h2>
+
+        <table style="width:100%;">
+
+          <tr>
+            <th>Brand</th>
+            <th>Store</th>
+            <th>Address</th>
+            <th>Inventory</th>
+          </tr>
+
+          ${storeRows}
+
+        </table>
+
+      </div>
+
+    </div>
+  `));
+});
 app.listen(port, () => {
   console.log("Server running on port " + port);
 });
