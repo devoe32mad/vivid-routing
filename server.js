@@ -568,6 +568,25 @@ if (importedQr.rows[0]) {
   const campaign = await activeCampaignForQr(qrId);
   if (!campaign) return res.status(404).send("No active campaign assigned to this QR.");
   await saveEvent({ qrId, campaignId: campaign.id, type: "scan" });
+  const routedStore = await q(`
+  SELECT s.*
+  FROM campaign_stores cs
+  JOIN stores s ON s.id = cs.store_id
+  WHERE cs.campaign_id = $1
+  ORDER BY
+    CASE
+      WHEN s.inventory_status = 'high' THEN 1
+      WHEN s.inventory_status = 'normal' THEN 2
+      WHEN s.inventory_status = 'low' THEN 3
+      ELSE 4
+    END,
+    s.id
+  LIMIT 1
+`, [campaign.id]);
+
+if (routedStore.rows[0] && routedStore.rows[0].maps_url) {
+  return res.redirect(routedStore.rows[0].maps_url);
+}
   res.send(page("Vivid QR Experience", `
     <div class="topbar"><div class="brand">Vivid Spots</div><h1>${campaign.advertiser || "Campaign"}</h1><p class="subtitle">${campaign.name || ""}</p></div>
     <div class="wrap"><div class="choice-card">
