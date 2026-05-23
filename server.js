@@ -310,32 +310,21 @@ await q(`CREATE TABLE IF NOT EXISTS spaces (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
 await q(`
-  ALTER TABLE stores ADD COLUMN IF NOT EXISTS user_id INTEGER
+  ALTER TABLE stores
+  ADD COLUMN IF NOT EXISTS user_id INTEGER
 `);
 
 await q(`
-  ALTER TABLE stores ADD COLUMN IF NOT EXISTS brand VARCHAR(255)
+  ALTER TABLE stores
+  ADD COLUMN IF NOT EXISTS brand VARCHAR(255)
 `);
 
 await q(`
-  ALTER TABLE stores ADD COLUMN IF NOT EXISTS name VARCHAR(255)
+  ALTER TABLE stores
+  ADD COLUMN IF NOT EXISTS inventory_status VARCHAR(50) DEFAULT 'normal'
 `);
 
-await q(`
-  ALTER TABLE stores ADD COLUMN IF NOT EXISTS address TEXT
-`);
 
-await q(`
-  ALTER TABLE stores ADD COLUMN IF NOT EXISTS inventory_status VARCHAR(50) DEFAULT 'normal'
-`);
-
-await q(`
-  ALTER TABLE stores ADD COLUMN IF NOT EXISTS maps_url TEXT
-`);
-
-await q(`
-  ALTER TABLE stores ADD COLUMN IF NOT EXISTS waze_url TEXT
-`);
   await q(`CREATE TABLE IF NOT EXISTS campaign_stores (
     id SERIAL PRIMARY KEY,
     campaign_id INT,
