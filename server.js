@@ -569,12 +569,14 @@ if (importedQr.rows[0]) {
   if (!campaign) return res.status(404).send("No active campaign assigned to this QR.");
   await saveEvent({ qrId, campaignId: campaign.id, type: "scan" });
  try {
-
   const routedStore = await q(`
     SELECT s.*
     FROM campaign_stores cs
-    JOIN stores s ON s.id = cs.store_id
+    JOIN stores s
+      ON s.id = cs.store_id
     WHERE cs.campaign_id = $1
+      AND s.maps_url IS NOT NULL
+      AND s.maps_url <> ''
     ORDER BY
       CASE
         WHEN s.inventory_status = 'high' THEN 1
@@ -582,13 +584,23 @@ if (importedQr.rows[0]) {
         WHEN s.inventory_status = 'low' THEN 3
         ELSE 4
       END,
-      s.id
+      s.id ASC
     LIMIT 1
-  `, [campaign.id]);
+  `, [campaign.campaign_id || campaign.id]);
 
-  if (routedStore.rows[0] && routedStore.rows[0].maps_url) {
+  if (routedStore.rows[0]) {
+    await saveEvent({
+      qrId,
+      campaignId: campaign.campaign_id || campaign.id,
+      type: "maps"
+    });
+
     return res.redirect(routedStore.rows[0].maps_url);
   }
+
+} catch (err) {
+  return res.send("STORE ROUTING ERROR: " + err.message);
+}
 
 } catch (err) {
 
