@@ -576,7 +576,7 @@ if (importedQr.rows[0]) {
       ON s.id = cs.store_id
     WHERE cs.campaign_id = $1
       AND s.maps_url IS NOT NULL
-      AND s.maps_url <> ''
+      
     ORDER BY
       CASE
         WHEN s.inventory_status = 'high' THEN 1
