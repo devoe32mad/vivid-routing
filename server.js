@@ -3591,7 +3591,7 @@ function getSelectedDays() {
 <div style="overflow-x:auto;padding-bottom:10px;">
 <table style="min-width:1400px;width:auto;"><tr><th>QR</th><th>Advertiser</th><th>Campaign</th><th>Day</th><th>Start</th><th>End</th><th>Priority</th>
 <th>Status</th>
-<th>Action</th><tr>${schedules.rows.map(s => `<tr><td>${s.qr_name || s.qr_id}</td><td>${s.advertiser || ""}</td><td>${s.campaign_name || ""}</td><td>${dayLabel(s.day_of_week)}</td><td>${s.start_time}</td><td>${s.end_time}</td><td>${s.priority}</td><td>
+<th>Action</th><tr>${schedules.rows.map(s => `<tr><td>${s.qr_name || s.qr_id}</td><td>${s.advertiser || ""}</td><td>${s.campaign_name || ""}</td><td>${dayLabels(s.days_of_week)}</td><td>${s.start_time}</td><td>${s.end_time}</td><td>${s.priority}</td><td>
   
      
   ${
