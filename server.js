@@ -4303,8 +4303,30 @@ app.get("/admin/reports", async (req, res) => {
     const status = req.query.status || "all";
 const report = await q(`
   SELECT
-    COUNT(*)::int AS total_events,
-    COUNT(*) FILTER (WHERE type = 'scan')::int AS total_scans,
+  COUNT(*)::int AS total_events,
+  COUNT(*) FILTER (WHERE type = 'scan')::int AS total_scans,
+
+  COALESCE(SUM(
+    CASE
+      WHEN e.type = 'scan'
+      THEN (c.conversion_rate / 100.0) * c.avg_customer_value
+      ELSE 0
+    END
+  ), 0)::numeric(10,2) AS estimated_revenue,
+
+  COALESCE(SUM(
+    CASE
+      WHEN e.type = 'scan'
+      THEN (c.conversion_rate / 100.0)
+      ELSE 0
+    END
+  ), 0)::numeric(10,2) AS estimated_customers
+
+FROM events e
+LEFT JOIN campaigns c
+  ON e.campaign_id = c.id
+
+WHERE e.created_at::date BETWEEN $1::date AND $2::date
     COUNT(*) FILTER (WHERE type = 'maps')::int AS maps_clicks,
     COUNT(*) FILTER (WHERE type = 'offer')::int AS offer_clicks
   FROM events
