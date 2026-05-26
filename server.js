@@ -3740,7 +3740,7 @@ if (overlap.rows.length > 0) {
       INSERT INTO campaign_schedules (
         qr_id,
         campaign_id,
-        day_of_week,
+        days_of_week,
         start_time,
         end_time,
         priority,
