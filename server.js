@@ -313,6 +313,7 @@ await q(`CREATE TABLE IF NOT EXISTS spaces (
   await q(`CREATE TABLE IF NOT EXISTS campaign_schedules (
     id SERIAL PRIMARY KEY,
     qr_id INT,
+    days_of_week TEXT,
     campaign_id INT,
     day_of_week INT DEFAULT 0,
     start_time TEXT DEFAULT '00:00',
@@ -321,7 +322,10 @@ await q(`CREATE TABLE IF NOT EXISTS spaces (
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
-
+await q(`
+  ALTER TABLE campaign_schedules
+  ADD COLUMN IF NOT EXISTS days_of_week TEXT
+`);
   await q(`CREATE TABLE IF NOT EXISTS stores (
     id SERIAL PRIMARY KEY,
     name TEXT,
