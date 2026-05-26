@@ -4322,8 +4322,8 @@ app.get("/admin/reports", async (req, res) => {
 
     const revenue = revenueReport.rows[0] || {};
 
-    const estimatedRevenue = Number(revenue.estimated_revenue || 0);
-    const estimatedCustomers = Number(revenue.estimated_customers || 0);
+const estimatedRevenue = Number(revenue?.estimated_revenue || 0);
+const estimatedCustomers = Number(revenue?.estimated_customers || 0);
     const totalScans = Number(totals.total_scans || 0);
 const totalCampaignCost = estimatedCustomers * 0; // placeholder for now
 
