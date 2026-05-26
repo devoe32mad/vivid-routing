@@ -1350,7 +1350,7 @@ for (const s of schedules.rows) {
       <td>${s.end_time || ""}</td>
       <td>${s.priority || ""}</td>
       <td>${s.is_active ? "Active" : "Inactive"}</td>
-      <td><a href="/admin/deactivate-schedule/${s.id}">Deactivate</a></td>
+      <td><a href="/admin/deactivate-schedule/${s.id}">Archive</a></td>
     </tr>
   `;
 }
