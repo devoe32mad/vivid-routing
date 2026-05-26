@@ -1796,92 +1796,88 @@ const roi =
       `;
     }
 
-    res.send(page("Reports", `
-      <div class="topbar">
-        <div class="brand">Vivid Spots</div>
-        <h1>Reports</h1>
-      </div>
+ res.send(page("Reports", `
+  <div class="topbar">
+    <div class="brand">Vivid Spots</div>
+    <h1>Performance Reports</h1>
+    <p class="subtitle">Measure revenue, engagement, customers, CAC, and campaign performance by date range.</p>
+  </div>
 
-      <div class="wrap">
+  <div class="wrap">
 
-        <div style="display:flex;gap:10px;margin-bottom:20px;">
+    <div style="display:flex;gap:12px;margin-bottom:20px;">
+      <a class="btn" href="/admin/dashboard">Dashboard</a>
+      <a class="btn" href="/admin/spaces">My Spaces</a>
+      <a class="btn" href="/admin/schedule">Campaign Schedule</a>
+    </div>
 
-          <a class="btn" href="/reports?timeframe=7">
-            7 Days
-          </a>
-
-          <a class="btn" href="/reports?timeframe=30">
-            30 Days
-          </a>
-
-          <a class="btn" href="/reports?timeframe=90">
-            90 Days
-          </a>
-
-          <a class="btn" href="/reports?timeframe=all">
-            All Time
-          </a>
-
-        </div>
-<div style="display:flex;gap:10px;margin-bottom:20px;">
-
-<a class="btn" href="/reports">
-  Campaign Reports
-</a>
-
-<a class="btn secondary" href="/reports-qr">
-  QR Reports
-</a>
-
-<a class="btn secondary" href="/reports-location">
-  Location Reports
-</a>
-
-<a class="btn secondary" href="/dashboard">
-  Dashboard
-</a>
-
-</div>
-        <div class="card">
-
-          <h2>Campaign Performance</h2>
-
-          <table>
-
-            <tr>
-              <th>Advertiser</th>
-              <th>Campaign</th>
-            <th style="text-align:center;">Scans</th>
-<th style="text-align:center;">Offers</th>
-<th style="text-align:center;">Maps</th>
-<th style="text-align:center;">Waze</th>
-<th style="text-align:center;">Total Intent</th>
-<th style="text-align:center;">Intent Rate</th>
-<th>Conversions</th>
-<th>Conversion Value</th>
-              <th>Revenue</th>
-<th>ROI</th>
-            </tr>
-
-            ${reportTable || `
-              <tr>
-                <td colspan="7">
-                  No report data yet.
-                </td>
-              </tr>
-            `}
-
-          </table>
-
+    <div class="card">
+      <form method="GET" action="/admin/reports" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;align-items:end;">
+        <div>
+          <label>Start Date</label>
+          <input type="date" name="start_date" value="${startDate}">
         </div>
 
-      </div>
-    `));
+        <div>
+          <label>End Date</label>
+          <input type="date" name="end_date" value="${endDate}">
+        </div>
 
-  } catch (err) {
-    res.send("REPORT ERROR: " + err.message);
-  }
-});
+        <div>
+          <label>Status</label>
+          <select name="status">
+            <option value="all" ${status === "all" ? "selected" : ""}>All</option>
+            <option value="active" ${status === "active" ? "selected" : ""}>Active</option>
+            <option value="archived" ${status === "archived" ? "selected" : ""}>Archived</option>
+          </select>
+        </div>
+
+        <button class="btn" type="submit">Run Report</button>
+      </form>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:20px;">
+      <div class="card">
+        <div class="label">Total Scans</div>
+        <div class="num">${totalScans}</div>
+      </div>
+
+      <div class="card">
+        <div class="label">Estimated Revenue</div>
+        <div class="num">$${estimatedRevenue.toFixed(2)}</div>
+      </div>
+
+      <div class="card">
+        <div class="label">Estimated Customers</div>
+        <div class="num">${estimatedCustomers.toFixed(2)}</div>
+      </div>
+
+      <div class="card">
+        <div class="label">CAC</div>
+        <div class="num">$${cac}</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:24px;">
+      <h2>Report Details</h2>
+      <table>
+        <tr>
+          <th>Date Range</th>
+          <th>Status</th>
+          <th>Maps Clicks</th>
+          <th>Offer Clicks</th>
+        </tr>
+        <tr>
+          <td>${startDate} to ${endDate}</td>
+          <td>${status}</td>
+          <td>${totals.maps_clicks || 0}</td>
+          <td>${totals.offer_clicks || 0}</td>
+        </tr>
+      </table>
+    </div>
+
+  </div>
+`));
 app.get("/track-conversion", async (req, res) => {
   try {
 
