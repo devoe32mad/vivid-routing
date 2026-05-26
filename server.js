@@ -3547,10 +3547,10 @@ for (const s of schedules.rows) {
       <td>${s.start_time || ""}</td>
       <td>${s.end_time || ""}</td>
       <td>${s.is_active ? "Active" : "Inactive"}</td>
-      <td>
-  <form method="POST" action="/admin/delete-schedule/${s.id}" onsubmit="return confirm('Delete this schedule?')">
-    <button type="submit" style="background:#dc2626;color:white;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;">
-      Delete
+  <td>
+  <form method="POST" action="/admin/archive-schedule/${s.id}" onsubmit="return confirm('Archive this schedule?')">
+    <button type="submit" style="background:#6b7280;color:white;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;">
+      Archive
     </button>
   </form>
 </td>
