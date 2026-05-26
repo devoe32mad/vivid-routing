@@ -4367,8 +4367,8 @@ const totals = report.rows[0] || {};
         </div>
 
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-          <h3>Engagement Rate</h3>
-          <p>Coming next</p>
+          <h3>Estimated Revenue</h3>
+<p>$${totals.estimated_revenue || 0}</p>
         </div>
 
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
