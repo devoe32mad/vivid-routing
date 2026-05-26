@@ -3459,8 +3459,30 @@ app.get("/admin/deactivate-schedule/:scheduleId", requireLogin, async (req, res)
 app.get("/admin/schedule", async (req, res) => {
  const currentUser = req.session.user;
 const isSuperAdmin = currentUser.role === "super_admin";
-  const qrs = await q(`SELECT * FROM qr_codes ORDER BY id`);
-  const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
+  const qrs = await q(
+  isSuperAdmin
+    ? `SELECT * FROM qr_codes ORDER BY id`
+    : `
+      SELECT qr.*
+      FROM qr_codes qr
+      LEFT JOIN spaces s ON s.id = qr.space_id
+      WHERE s.user_id = $1
+      ORDER BY qr.id
+    `,
+  isSuperAdmin ? [] : [currentUser.id]
+);
+
+const campaigns = await q(
+  isSuperAdmin
+    ? `SELECT * FROM campaigns ORDER BY id`
+    : `
+      SELECT *
+      FROM campaigns
+      WHERE user_id = $1
+      ORDER BY id
+    `,
+  isSuperAdmin ? [] : [currentUser.id]
+);
  const schedules = await q(
   isSuperAdmin
     ? `
