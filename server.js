@@ -3434,19 +3434,34 @@ app.get("/admin/schedule", async (req, res) => {
 const isSuperAdmin = currentUser.role === "super_admin";
   const qrs = await q(`SELECT * FROM qr_codes ORDER BY id`);
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
-  const schedules = await q(`
-  SELECT
-    cs.*,
-    qr.name AS qr_name,
-    c.name AS campaign_name,
-    c.advertiser
-  FROM campaign_schedules cs
-  LEFT JOIN qr_codes qr
-    ON qr.id = cs.qr_id
-  LEFT JOIN campaigns c
-    ON c.id = cs.campaign_id
-  ORDER BY cs.id DESC
-`);
+ const schedules = await q(
+  isSuperAdmin
+    ? `
+      SELECT
+        cs.*,
+        qr.name AS qr_name,
+        c.name AS campaign_name,
+        c.advertiser
+      FROM campaign_schedules cs
+      LEFT JOIN qr_codes qr ON qr.id = cs.qr_id
+      LEFT JOIN campaigns c ON c.id = cs.campaign_id
+      ORDER BY cs.id DESC
+    `
+    : `
+      SELECT
+        cs.*,
+        qr.name AS qr_name,
+        c.name AS campaign_name,
+        c.advertiser
+      FROM campaign_schedules cs
+      LEFT JOIN qr_codes qr ON qr.id = cs.qr_id
+      LEFT JOIN spaces s ON s.id = qr.space_id
+      LEFT JOIN campaigns c ON c.id = cs.campaign_id
+      WHERE s.user_id = $1
+      ORDER BY cs.id DESC
+    `,
+  isSuperAdmin ? [] : [currentUser.id]
+);
  let activeScheduleHtml = "";
 
   new Date().toTimeString().slice(0, 5);
