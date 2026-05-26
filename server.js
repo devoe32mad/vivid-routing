@@ -41,7 +41,25 @@ function dayLabel(n) {
   if (d === 6) return "Saturday";
   return String(n || "");
 }
+function dayLabels(days) {
+  if (!days) return "";
 
+  const map = {
+    "0": "Sun",
+    "1": "Mon",
+    "2": "Tue",
+    "3": "Wed",
+    "4": "Thu",
+    "5": "Fri",
+    "6": "Sat"
+  };
+
+  const arr = days.split(",");
+
+  if (arr.length === 7) return "Everyday";
+
+  return arr.map(d => map[d]).join(", ");
+}
 function page(title, body) {
   return `<!DOCTYPE html>
 <html>
