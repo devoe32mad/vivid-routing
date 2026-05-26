@@ -4280,6 +4280,20 @@ app.post("/admin/assign-store", requireLogin, async (req, res) => {
 
   res.redirect("/admin/assign-store");
 });
+app.post("/admin/archive-schedule/:id", requireAdmin, async (req, res) => {
+  try {
+    await q(
+      `UPDATE campaign_schedules
+       SET is_active = false
+       WHERE id=$1`,
+      [Number(req.params.id)]
+    );
+
+    res.redirect("/admin/schedule");
+  } catch (e) {
+    res.status(500).send("Archive failed: " + e.message);
+  }
+});
 app.listen(port, () => {
   console.log("Server running on port " + port);
 });
