@@ -4301,7 +4301,17 @@ app.get("/admin/reports", async (req, res) => {
     const startDate = req.query.start_date || today;
     const endDate = req.query.end_date || today;
     const status = req.query.status || "all";
+const report = await q(`
+  SELECT
+    COUNT(*)::int AS total_events,
+    COUNT(*) FILTER (WHERE type = 'scan')::int AS total_scans,
+    COUNT(*) FILTER (WHERE type = 'maps')::int AS maps_clicks,
+    COUNT(*) FILTER (WHERE type = 'offer')::int AS offer_clicks
+  FROM events
+  WHERE created_at::date BETWEEN $1::date AND $2::date
+`, [startDate, endDate]);
 
+const totals = report.rows[0] || {};
     res.send(page("Reports", `
       <h1>Reports</h1>
 
