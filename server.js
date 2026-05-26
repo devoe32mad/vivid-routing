@@ -4301,42 +4301,37 @@ app.get("/admin/reports", async (req, res) => {
     const startDate = req.query.start_date || today;
     const endDate = req.query.end_date || today;
     const status = req.query.status || "all";
-const report = await q(`
-  SELECT
-    COUNT(*)::int AS total_events,
-    COUNT(*) FILTER (WHERE e.type = 'scan')::int AS total_scans,
-    COUNT(*) FILTER (WHERE e.type = 'maps')::int AS maps_clicks,
-    COUNT(*) FILTER (WHERE e.type = 'offer')::int AS offer_clicks,
 
-    COALESCE(SUM(
-      CASE
-        WHEN e.type = 'scan'
-        THEN (c.conversion_rate / 100.0) * c.avg_customer_value
-        ELSE 0
-      END
-    ), 0)::numeric(10,2) AS estimated_revenue,
+    const report = await q(`
+      SELECT
+        COUNT(*)::int AS total_events,
+        COUNT(*) FILTER (WHERE type = 'scan')::int AS total_scans,
+        COUNT(*) FILTER (WHERE type = 'maps')::int AS maps_clicks,
+        COUNT(*) FILTER (WHERE type = 'offer')::int AS offer_clicks
+      FROM events
+      WHERE created_at::date BETWEEN $1::date AND $2::date
+    `, [startDate, endDate]);
 
-    COALESCE(SUM(
-      CASE
-        WHEN e.type = 'scan'
-        THEN (c.conversion_rate / 100.0)
-        ELSE 0
-      END
-    ), 0)::numeric(10,2) AS estimated_customers
+    const totals = report.rows[0] || {};
 
-  FROM events e
-  LEFT JOIN campaigns c ON e.campaign_id = c.id
-  WHERE e.created_at::date BETWEEN $1::date AND $2::date
-`, [startDate, endDate]);
+    const revenueReport = await q(`
+      SELECT
+        COALESCE(SUM((c.conversion_rate / 100.0) * c.avg_customer_value), 0)::numeric(10,2) AS estimated_revenue,
+        COALESCE(SUM(c.conversion_rate / 100.0), 0)::numeric(10,2) AS estimated_customers
+      FROM events e
+      LEFT JOIN campaigns c ON e.campaign_id = c.id
+      WHERE e.type = 'scan'
+        AND e.created_at::date BETWEEN $1::date AND $2::date
+    `, [startDate, endDate]);
 
-const totals = report.rows[0] || {};
-    COUNT(*) FILTER (WHERE type = 'maps')::int AS maps_clicks,
-    COUNT(*) FILTER (WHERE type = 'offer')::int AS offer_clicks
-  FROM events
-  WHERE created_at::date BETWEEN $1::date AND $2::date
-`, [startDate, endDate]);
+    const revenue = revenueReport.rows[0] || {};
 
-const totals = report.rows[0] || {};
+    const estimatedRevenue = Number(revenue.estimated_revenue || 0);
+    const estimatedCustomers = Number(revenue.estimated_customers || 0);
+    const totalScans = Number(totals.total_scans || 0);
+
+    const cac = estimatedCustomers > 0 ? (estimatedRevenue / estimatedCustomers).toFixed(2) : "0.00";
+
     res.send(page("Reports", `
       <h1>Reports</h1>
 
@@ -4366,28 +4361,30 @@ const totals = report.rows[0] || {};
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
           <h3>Total Scans</h3>
-<p>${totals.total_scans || 0}</p>
+          <p>${totalScans}</p>
         </div>
 
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
           <h3>Estimated Revenue</h3>
-<p>$${totals.estimated_revenue || 0}</p>
+          <p>$${estimatedRevenue.toFixed(2)}</p>
         </div>
 
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-         <h3>Estimated Customers</h3>
-<p>${totals.estimated_customers || 0}</p> 
+          <h3>Estimated Customers</h3>
+          <p>${estimatedCustomers.toFixed(2)}</p>
         </div>
 
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-          <h3>ROI</h3>
-          <p>Coming next</p>
+          <h3>CAC</h3>
+          <p>$${cac}</p>
         </div>
       </div>
 
       <h2>Report Details</h2>
       <p>Date range: ${startDate} to ${endDate}</p>
       <p>Status: ${status}</p>
+      <p>Maps Clicks: ${totals.maps_clicks || 0}</p>
+      <p>Offer Clicks: ${totals.offer_clicks || 0}</p>
     `));
   } catch (e) {
     res.status(500).send("REPORTS ERROR: " + e.message);
