@@ -1796,88 +1796,92 @@ const roi =
       `;
     }
 
- res.send(page("Reports", `
-  <div class="topbar">
-    <div class="brand">Vivid Spots</div>
-    <h1>Performance Reports</h1>
-    <p class="subtitle">Measure revenue, engagement, customers, CAC, and campaign performance by date range.</p>
-  </div>
+    res.send(page("Reports", `
+      <div class="topbar">
+        <div class="brand">Vivid Spots</div>
+        <h1>Reports</h1>
+      </div>
 
-  <div class="wrap">
+      <div class="wrap">
 
-    <div style="display:flex;gap:12px;margin-bottom:20px;">
-      <a class="btn" href="/admin/dashboard">Dashboard</a>
-      <a class="btn" href="/admin/spaces">My Spaces</a>
-      <a class="btn" href="/admin/schedule">Campaign Schedule</a>
-    </div>
+        <div style="display:flex;gap:10px;margin-bottom:20px;">
 
-    <div class="card">
-      <form method="GET" action="/admin/reports" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;align-items:end;">
-        <div>
-          <label>Start Date</label>
-          <input type="date" name="start_date" value="${startDate}">
+          <a class="btn" href="/reports?timeframe=7">
+            7 Days
+          </a>
+
+          <a class="btn" href="/reports?timeframe=30">
+            30 Days
+          </a>
+
+          <a class="btn" href="/reports?timeframe=90">
+            90 Days
+          </a>
+
+          <a class="btn" href="/reports?timeframe=all">
+            All Time
+          </a>
+
+        </div>
+<div style="display:flex;gap:10px;margin-bottom:20px;">
+
+<a class="btn" href="/reports">
+  Campaign Reports
+</a>
+
+<a class="btn secondary" href="/reports-qr">
+  QR Reports
+</a>
+
+<a class="btn secondary" href="/reports-location">
+  Location Reports
+</a>
+
+<a class="btn secondary" href="/dashboard">
+  Dashboard
+</a>
+
+</div>
+        <div class="card">
+
+          <h2>Campaign Performance</h2>
+
+          <table>
+
+            <tr>
+              <th>Advertiser</th>
+              <th>Campaign</th>
+            <th style="text-align:center;">Scans</th>
+<th style="text-align:center;">Offers</th>
+<th style="text-align:center;">Maps</th>
+<th style="text-align:center;">Waze</th>
+<th style="text-align:center;">Total Intent</th>
+<th style="text-align:center;">Intent Rate</th>
+<th>Conversions</th>
+<th>Conversion Value</th>
+              <th>Revenue</th>
+<th>ROI</th>
+            </tr>
+
+            ${reportTable || `
+              <tr>
+                <td colspan="7">
+                  No report data yet.
+                </td>
+              </tr>
+            `}
+
+          </table>
+
         </div>
 
-        <div>
-          <label>End Date</label>
-          <input type="date" name="end_date" value="${endDate}">
-        </div>
-
-        <div>
-          <label>Status</label>
-          <select name="status">
-            <option value="all" ${status === "all" ? "selected" : ""}>All</option>
-            <option value="active" ${status === "active" ? "selected" : ""}>Active</option>
-            <option value="archived" ${status === "archived" ? "selected" : ""}>Archived</option>
-          </select>
-        </div>
-
-        <button class="btn" type="submit">Run Report</button>
-      </form>
-    </div>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:20px;">
-      <div class="card">
-        <div class="label">Total Scans</div>
-        <div class="num">${totalScans}</div>
       </div>
+    `));
 
-      <div class="card">
-        <div class="label">Estimated Revenue</div>
-        Number(estimatedRevenue || 0).toFixed(2)
-      </div>
-
-      <div class="card">
-        <div class="label">Estimated Customers</div>
-        Number(estimatedCustomers || 0).toFixed(2)
-      </div>
-
-      <div class="card">
-        <div class="label">CAC</div>
-        <div class="num">$${cac}</div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:24px;">
-      <h2>Report Details</h2>
-      <table>
-        <tr>
-          <th>Date Range</th>
-          <th>Status</th>
-          <th>Maps Clicks</th>
-          <th>Offer Clicks</th>
-        </tr>
-        <tr>
-          <td>${startDate} to ${endDate}</td>
-          <td>${status}</td>
-          <td>${totals.maps_clicks || 0}</td>
-          <td>${totals.offer_clicks || 0}</td>
-        </tr>
-      </table>
-    </div>
-
-  </div>
-`));
+  } catch (err) {
+    res.send("REPORT ERROR: " + err.message);
+  }
+});
 app.get("/track-conversion", async (req, res) => {
   try {
 
@@ -4296,38 +4300,101 @@ app.get("/admin/reports", async (req, res) => {
 
     const startDate = req.query.start_date || today;
     const endDate = req.query.end_date || today;
+    const status = req.query.status || "all";
 
     const report = await q(`
       SELECT
-        COUNT(*) FILTER (WHERE type = 'scan')::int AS total_scans
+        COUNT(*)::int AS total_events,
+        COUNT(*) FILTER (WHERE type = 'scan')::int AS total_scans,
+        COUNT(*) FILTER (WHERE type = 'maps')::int AS maps_clicks,
+        COUNT(*) FILTER (WHERE type = 'offer')::int AS offer_clicks
       FROM events
       WHERE created_at::date BETWEEN $1::date AND $2::date
     `, [startDate, endDate]);
 
     const totals = report.rows[0] || {};
 
+    const revenueReport = await q(`
+      SELECT
+        COALESCE(SUM((c.conversion_rate / 100.0) * c.avg_customer_value), 0)::numeric(10,2) AS estimated_revenue,
+        COALESCE(SUM(c.conversion_rate / 100.0), 0)::numeric(10,2) AS estimated_customers
+      FROM events e
+      LEFT JOIN campaigns c ON e.campaign_id = c.id
+      WHERE e.type = 'scan'
+        AND e.created_at::date BETWEEN $1::date AND $2::date
+    `, [startDate, endDate]);
+
+    const revenue = revenueReport.rows[0] || {};
+
+    const estimatedRevenue = Number(revenue.estimated_revenue || 0);
+    const estimatedCustomers = Number(revenue.estimated_customers || 0);
+    const totalScans = Number(totals.total_scans || 0);
+const totalCampaignCost = estimatedCustomers * 0; // placeholder for now
+
+const costPerEngagement =
+  totalScans > 0
+    ? (totalCampaignCost / totalScans).toFixed(2)
+    : "0.00";
+    const cac = estimatedCustomers > 0 ? (estimatedRevenue / estimatedCustomers).toFixed(2) : "0.00";
+
     res.send(page("Reports", `
       <h1>Reports</h1>
 
-      <form method="GET" action="/admin/reports">
-        <label>Start Date</label>
-        <input type="date" name="start_date" value="${startDate}">
+      <form method="GET" action="/admin/reports" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:20px;">
+        <div>
+          <label>Start Date</label><br>
+          <input type="date" name="start_date" value="${startDate}">
+        </div>
 
-        <label>End Date</label>
-        <input type="date" name="end_date" value="${endDate}">
+        <div>
+          <label>End Date</label><br>
+          <input type="date" name="end_date" value="${endDate}">
+        </div>
+
+        <div>
+          <label>Status</label><br>
+          <select name="status">
+            <option value="all" ${status === "all" ? "selected" : ""}>All</option>
+            <option value="active" ${status === "active" ? "selected" : ""}>Active</option>
+            <option value="archived" ${status === "archived" ? "selected" : ""}>Archived</option>
+          </select>
+        </div>
 
         <button type="submit">Run Report</button>
       </form>
 
-      <h2>Total Scans</h2>
-      <p>${totals.total_scans || 0}</p>
-    `));
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
+        <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+          <h3>Total Scans</h3>
+          <p>${totalScans}</p>
+        </div>
 
+        <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+          <h3>Estimated Revenue</h3>
+          <p>$${estimatedRevenue.toFixed(2)}</p>
+        </div>
+
+        <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+          <h3>Estimated Customers</h3>
+          <p>${estimatedCustomers.toFixed(2)}</p>
+        </div>
+
+        <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+          <h3>Cost / Engagement</h3>
+<p>$${costPerEngagement}</p>
+        </div>
+      </div>
+
+      <h2>Report Details</h2>
+      <p>Date range: ${startDate} to ${endDate}</p>
+      <p>Status: ${status}</p>
+      <p>Maps Clicks: ${totals.maps_clicks || 0}</p>
+      <p>Offer Clicks: ${totals.offer_clicks || 0}</p>
+    `));
   } catch (e) {
     res.status(500).send("REPORTS ERROR: " + e.message);
   }
 });
-
 app.listen(port, () => {
   console.log("Server running on port " + port);
 });
