@@ -3475,7 +3475,7 @@ app.get("/admin/deactivate-schedule/:scheduleId", requireLogin, async (req, res)
     res.redirect("/admin/schedule");
 
   } catch (err) {
-    res.send("DEACTIVATE SCHEDULE ERROR: " + err.message);
+    res.send("ARCHIVE SCHEDULE ERROR: " + err.message);
   }
 });
 app.get("/admin/schedule", async (req, res) => {
