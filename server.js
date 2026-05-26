@@ -3744,7 +3744,7 @@ if (overlap.rows.length > 0) {
         </p>
 
         <div class="note" style="margin:20px 0;">
-          To fix this, choose a different time window or deactivate/edit the existing schedule first.
+          To fix this, choose a different time window or archive/edit the existing schedule first.
         </div>
 
         <a class="btn" href="/admin/schedule">
