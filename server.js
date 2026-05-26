@@ -878,41 +878,68 @@ const locationRows = await q(
     ? dateParams
     : [currentUser.id, ...dateParams]
 );
-
-    const storeRows = await q(`
-      SELECT st.id AS store_id, st.name AS store_name, st.address,
-        st.inventory_priority, st.inventory_units, st.days_on_hand, st.inventory_velocity, st.inventory_note,
-        c.name AS campaign_name, c.advertiser, c.avg_customer_value, c.conversion_rate,
+const currentUser = req.session.user;
+const isSuperAdmin = currentUser.role === "super_admin";
+    const storeRows = await q(
+  isSuperAdmin
+    ? `
+      SELECT
+        st.id AS store_id,
+        st.name AS store_name,
+        st.address,
+        st.inventory_priority,
+        st.inventory_units,
+        st.days_on_hand,
+        st.inventory_velocity,
+        st.inventory_note,
+        c.name AS campaign_name,
+        c.advertiser,
+        c.avg_customer_value,
+        c.conversion_rate,
         COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
         COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
       FROM stores st
-      LEFT JOIN events e ON e.store_id = st.id ${hasDate ? "AND e.created_at BETWEEN $1::date AND ($2::date + interval '1 day')" : ""}
-      LEFT JOIN campaigns c ON c.id = e.campaign_id
+      LEFT JOIN events e
+        ON e.store_id = st.id
+        ${hasDate ? "AND e.created_at BETWEEN $1::date AND ($2::date + interval '1 day')" : ""}
+      LEFT JOIN campaigns c
+        ON c.id = e.campaign_id
       GROUP BY st.id, c.id
       ORDER BY intent_clicks DESC, st.inventory_priority DESC
-    `, dateParams);
-
-const activeSchedules = await q(
-  isSuperAdmin
-    ? `
-      SELECT cs.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser
-      FROM campaign_schedules cs
-      JOIN qr_codes qr ON qr.id = cs.qr_id
-      JOIN campaigns c ON c.id = cs.campaign_id
-      WHERE cs.is_active = true
-      ORDER BY cs.qr_id, cs.priority DESC
     `
     : `
-      SELECT cs.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser
-      FROM campaign_schedules cs
-      JOIN qr_codes qr ON qr.id = cs.qr_id
-      JOIN campaigns c ON c.id = cs.campaign_id
-      WHERE cs.is_active = true
-      AND c.user_id = $1
-      ORDER BY cs.qr_id, cs.priority DESC
+      SELECT
+        st.id AS store_id,
+        st.name AS store_name,
+        st.address,
+        st.inventory_priority,
+        st.inventory_units,
+        st.days_on_hand,
+        st.inventory_velocity,
+        st.inventory_note,
+        c.name AS campaign_name,
+        c.advertiser,
+        c.avg_customer_value,
+        c.conversion_rate,
+        COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
+        COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
+        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+      FROM stores st
+      LEFT JOIN events e
+        ON e.store_id = st.id
+        ${hasDate ? "AND e.created_at BETWEEN $1::date AND ($2::date + interval '1 day')" : ""}
+      LEFT JOIN campaigns c
+        ON c.id = e.campaign_id
+      WHERE st.user_id = ${hasDate ? "$3" : "$1"}
+      GROUP BY st.id, c.id
+      ORDER BY intent_clicks DESC, st.inventory_priority DESC
     `,
-  isSuperAdmin ? [] : [currentUser.id]
+  isSuperAdmin
+    ? dateParams
+    : hasDate
+      ? [...dateParams, currentUser.id]
+      : [currentUser.id]
 );
 
 const myAssignments = await q(
