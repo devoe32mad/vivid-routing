@@ -3583,6 +3583,7 @@ for (const s of schedules.rows) {
     <input type="checkbox" name="days_of_week" value="6"> Saturday
   </label>
 </div>
+<input type="hidden" name="days_of_week" id="days_of_week_hidden">
 </div></div><div><label>Start Time</label><input name="start_time" value="00:00" /></div><div><label>End Time</label><input name="end_time" value="23:59" /></div><div><label>Priority</label><input name="priority" type="number" value="100" /></div></div><button class="btn" type="submit">Add Campaign to Master QR</button></form><script>
 const everydayToggle = document.getElementById("everydayToggle");
 const dayCheckboxes = document.querySelectorAll('input[name="days_of_week"]');
