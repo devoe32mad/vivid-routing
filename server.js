@@ -4294,6 +4294,70 @@ app.post("/admin/archive-schedule/:id", requireAdmin, async (req, res) => {
     res.status(500).send("Archive failed: " + e.message);
   }
 });
+app.get("/admin/reports", requireAdmin, async (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+
+    const startDate = req.query.start_date || today;
+    const endDate = req.query.end_date || today;
+    const status = req.query.status || "all";
+
+    res.send(page("Reports", `
+      <h1>Reports</h1>
+
+      <form method="GET" action="/admin/reports" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:20px;">
+        <div>
+          <label>Start Date</label><br>
+          <input type="date" name="start_date" value="${startDate}">
+        </div>
+
+        <div>
+          <label>End Date</label><br>
+          <input type="date" name="end_date" value="${endDate}">
+        </div>
+
+        <div>
+          <label>Status</label><br>
+          <select name="status">
+            <option value="all" ${status === "all" ? "selected" : ""}>All</option>
+            <option value="active" ${status === "active" ? "selected" : ""}>Active</option>
+            <option value="archived" ${status === "archived" ? "selected" : ""}>Archived</option>
+          </select>
+        </div>
+
+        <button type="submit">Run Report</button>
+      </form>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
+        <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+          <h3>Total Scans</h3>
+          <p>Coming next</p>
+        </div>
+
+        <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+          <h3>Engagement Rate</h3>
+          <p>Coming next</p>
+        </div>
+
+        <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+          <h3>CPM</h3>
+          <p>Coming next</p>
+        </div>
+
+        <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+          <h3>ROI</h3>
+          <p>Coming next</p>
+        </div>
+      </div>
+
+      <h2>Report Details</h2>
+      <p>Date range: ${startDate} to ${endDate}</p>
+      <p>Status: ${status}</p>
+    `));
+  } catch (e) {
+    res.status(500).send("REPORTS ERROR: " + e.message);
+  }
+});
 app.listen(port, () => {
   console.log("Server running on port " + port);
 });
