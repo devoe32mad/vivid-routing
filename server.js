@@ -4341,7 +4341,7 @@ const totals = report.rows[0] || {};
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
           <h3>Total Scans</h3>
-          <p>Coming next</p>
+<p>${totals.total_scans || 0}</p>
         </div>
 
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
