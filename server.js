@@ -3653,7 +3653,7 @@ if (scheduleForm) {
   </a>
 &nbsp;|&nbsp;
   <a href="/admin/deactivate-schedule/${s.id}">
-    Deactivate
+    ARCHIVE
   </a>
 </td></tr>`).join("")}</table></div>`));
 });
