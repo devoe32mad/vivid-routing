@@ -3545,7 +3545,29 @@ for (const s of schedules.rows) {
     <label><input type="checkbox" name="days_of_week" value="5"> Friday</label>
     <label><input type="checkbox" name="days_of_week" value="6"> Saturday</label>
   </div>
-</div></div><div><label>Start Time</label><input name="start_time" value="00:00" /></div><div><label>End Time</label><input name="end_time" value="23:59" /></div><div><label>Priority</label><input name="priority" type="number" value="100" /></div></div><button class="btn" type="submit">Add Campaign to Master QR</button></form><h2>Current Scheduled Campaigns</h2>
+</div></div><div><label>Start Time</label><input name="start_time" value="00:00" /></div><div><label>End Time</label><input name="end_time" value="23:59" /></div><div><label>Priority</label><input name="priority" type="number" value="100" /></div></div><button class="btn" type="submit">Add Campaign to Master QR</button></form><script>
+const everydayToggle = document.getElementById("everydayToggle");
+const dayCheckboxes = document.querySelectorAll('input[name="days_of_week"]');
+
+if (everydayToggle) {
+  everydayToggle.addEventListener("change", () => {
+    dayCheckboxes.forEach(cb => cb.checked = everydayToggle.checked);
+  });
+}
+
+dayCheckboxes.forEach(cb => {
+  cb.addEventListener("change", () => {
+    everydayToggle.checked = Array.from(dayCheckboxes).every(day => day.checked);
+  });
+});
+
+function getSelectedDays() {
+  return Array.from(dayCheckboxes)
+    .filter(cb => cb.checked)
+    .map(cb => cb.value)
+    .join(",");
+}
+</script><h2>Current Scheduled Campaigns</h2>
 <div style="overflow-x:auto;padding-bottom:10px;">
 <table style="min-width:1400px;width:auto;"><tr><th>QR</th><th>Advertiser</th><th>Campaign</th><th>Day</th><th>Start</th><th>End</th><th>Priority</th>
 <th>Status</th>
