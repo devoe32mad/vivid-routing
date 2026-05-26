@@ -3430,6 +3430,8 @@ app.get("/admin/deactivate-schedule/:scheduleId", requireLogin, async (req, res)
   }
 });
 app.get("/admin/schedule", async (req, res) => {
+ const currentUser = req.session.user;
+const isSuperAdmin = currentUser.role === "super_admin";
   const qrs = await q(`SELECT * FROM qr_codes ORDER BY id`);
   const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
   const schedules = await q(`
