@@ -3610,6 +3610,17 @@ function getSelectedDays() {
     .map(cb => cb.value)
     .join(",");
 }
+const scheduleForm = document.querySelector("form");
+
+if (scheduleForm) {
+  scheduleForm.addEventListener("submit", () => {
+    const hidden = document.getElementById("days_of_week_hidden");
+
+    if (hidden) {
+      hidden.value = getSelectedDays();
+    }
+  });
+}
 </script><h2>Current Scheduled Campaigns</h2>
 <div style="overflow-x:auto;padding-bottom:10px;">
 <table style="min-width:1400px;width:auto;"><tr><th>QR</th><th>Advertiser</th><th>Campaign</th><th>Day</th><th>Start</th><th>End</th><th>Priority</th>
