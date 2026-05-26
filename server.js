@@ -4380,8 +4380,8 @@ const costPerEngagement =
         </div>
 
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-          <h3>CAC</h3>
-          <p>$${cac}</p>
+          <h3>Cost / Engagement</h3>
+<p>$${costPerEngagement}</p>
         </div>
       </div>
 
