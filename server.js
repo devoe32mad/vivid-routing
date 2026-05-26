@@ -4294,7 +4294,7 @@ app.post("/admin/archive-schedule/:id", requireAdmin, async (req, res) => {
     res.status(500).send("Archive failed: " + e.message);
   }
 });
-app.get("/admin/reports", requireAdmin, async (req, res) => {
+app.get("/admin/reports", async (req, res) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
 
