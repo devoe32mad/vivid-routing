@@ -3531,20 +3531,40 @@ for (const s of schedules.rows) {
   res.send(page("Campaign Schedule", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Master QR Campaign Schedule</h1><p class="subtitle">Add multiple campaigns to one QR and rotate by day/time.</p></div><div class="wrap"><a class="btn" href="/admin">Admin</a><a class="btn secondary" href="/dashboard">Dashboard</a><form method="POST" action="/admin/schedule"><div class="formgrid"><div><label>Master QR</label><select name="qr_id">${qrs.rows.map(qr => `<option value="${qr.id}">${qr.id} - ${qr.name || "QR"}</option>`).join("")}</select></div><div><label>Campaign</label><select name="campaign_id">${campaigns.rows.map(c => `<option value="${c.id}">${c.advertiser || ""} - ${c.name || ""}</option>`).join("")}</select></div><div><div class="form-group">
   <label>Run Campaign On</label>
 
-  <label>
+<div style="display:flex; flex-wrap:wrap; gap:12px 18px; margin-top:8px; align-items:center;">
+  <label style="display:flex; align-items:center; gap:6px;">
     <input type="checkbox" id="everydayToggle">
     Everyday
   </label>
 
-  <div id="dayCheckboxes">
-    <label><input type="checkbox" name="days_of_week" value="0"> Sunday</label>
-    <label><input type="checkbox" name="days_of_week" value="1"> Monday</label>
-    <label><input type="checkbox" name="days_of_week" value="2"> Tuesday</label>
-    <label><input type="checkbox" name="days_of_week" value="3"> Wednesday</label>
-    <label><input type="checkbox" name="days_of_week" value="4"> Thursday</label>
-    <label><input type="checkbox" name="days_of_week" value="5"> Friday</label>
-    <label><input type="checkbox" name="days_of_week" value="6"> Saturday</label>
-  </div>
+  <label style="display:flex; align-items:center; gap:6px;">
+    <input type="checkbox" name="days_of_week" value="0"> Sunday
+  </label>
+
+  <label style="display:flex; align-items:center; gap:6px;">
+    <input type="checkbox" name="days_of_week" value="1"> Monday
+  </label>
+
+  <label style="display:flex; align-items:center; gap:6px;">
+    <input type="checkbox" name="days_of_week" value="2"> Tuesday
+  </label>
+
+  <label style="display:flex; align-items:center; gap:6px;">
+    <input type="checkbox" name="days_of_week" value="3"> Wednesday
+  </label>
+
+  <label style="display:flex; align-items:center; gap:6px;">
+    <input type="checkbox" name="days_of_week" value="4"> Thursday
+  </label>
+
+  <label style="display:flex; align-items:center; gap:6px;">
+    <input type="checkbox" name="days_of_week" value="5"> Friday
+  </label>
+
+  <label style="display:flex; align-items:center; gap:6px;">
+    <input type="checkbox" name="days_of_week" value="6"> Saturday
+  </label>
+</div>
 </div></div><div><label>Start Time</label><input name="start_time" value="00:00" /></div><div><label>End Time</label><input name="end_time" value="23:59" /></div><div><label>Priority</label><input name="priority" type="number" value="100" /></div></div><button class="btn" type="submit">Add Campaign to Master QR</button></form><script>
 const everydayToggle = document.getElementById("everydayToggle");
 const dayCheckboxes = document.querySelectorAll('input[name="days_of_week"]');
