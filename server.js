@@ -1849,7 +1849,7 @@ const roi =
 
       <div class="card">
         <div class="label">Estimated Customers</div>
-        <div class="num">${estimatedCustomers.toFixed(2)}</div>
+        Number(estimatedCustomers || 0).toFixed(2)
       </div>
 
       <div class="card">
@@ -4372,7 +4372,7 @@ const costPerEngagement =
 
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
           <h3>Estimated Customers</h3>
-          <p>${estimatedCustomers.toFixed(2)}</p>
+          Number(estimatedCustomers || 0).toFixed(2)
         </div>
 
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
