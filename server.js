@@ -4322,15 +4322,9 @@ app.get("/admin/reports", async (req, res) => {
 
     const revenue = revenueReport.rows[0] || {};
 
-const estimatedRevenue = Number(revenue?.estimated_revenue || 0);
-const estimatedCustomers = Number(revenue?.estimated_customers || 0);
     const totalScans = Number(totals.total_scans || 0);
-const totalCampaignCost = estimatedCustomers * 0; // placeholder for now
-
-const costPerEngagement =
-  totalScans > 0
-    ? (totalCampaignCost / totalScans).toFixed(2)
-    : "0.00";
+    const estimatedRevenue = Number(revenue.estimated_revenue || 0);
+    const estimatedCustomers = Number(revenue.estimated_customers || 0);
     const cac = estimatedCustomers > 0 ? (estimatedRevenue / estimatedCustomers).toFixed(2) : "0.00";
 
     res.send(page("Reports", `
@@ -4367,17 +4361,17 @@ const costPerEngagement =
 
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
           <h3>Estimated Revenue</h3>
-          Number(estimatedRevenue || 0).toFixed(2)
+          <p>$${estimatedRevenue.toFixed(2)}</p>
         </div>
 
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
           <h3>Estimated Customers</h3>
-          Number(estimatedCustomers || 0).toFixed(2)
+          <p>${estimatedCustomers.toFixed(2)}</p>
         </div>
 
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-          <h3>Cost / Engagement</h3>
-<p>$${costPerEngagement}</p>
+          <h3>CAC</h3>
+          <p>$${cac}</p>
         </div>
       </div>
 
