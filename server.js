@@ -1061,7 +1061,7 @@ const cost =
       const status = priority >= 80 ? "High Priority Push" : priority >= 50 ? "Normal Priority" : "Low Priority";
       storeTable += `<tr><td>${row.store_name || ""}</td><td>${row.address || ""}</td><td>${row.advertiser || ""}</td><td>${row.campaign_name || ""}</td><td>${priority}</td><td>${row.inventory_units || 0}</td><td>${row.days_on_hand || 0}</td><td>${row.inventory_velocity || 0}</td><td>${row.inventory_note || ""}</td><td>${row.maps_clicks || 0}</td><td>${row.waze_clicks || 0}</td><td>${intent}</td><td>${customers}</td><td>${money(revenue)}</td><td>${status}</td></tr>`;
     }
-
+const activeSchedules = schedules;
     let activeScheduleTable = "";
     for (const row of activeSchedules.rows) activeScheduleTable += `<tr><td>${row.qr_name || row.qr_id}</td><td>${row.advertiser || ""}</td><td>${row.campaign_name || ""}</td><td>${dayLabel(row.day_of_week)}</td><td>${row.start_time}</td><td>${row.end_time}</td><td>${row.priority}</td><td>${row.is_active ? "Active" : "Inactive"}</td></tr>`;
 
