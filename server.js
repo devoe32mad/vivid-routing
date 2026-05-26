@@ -41,7 +41,30 @@ function dayLabel(n) {
   if (d === 6) return "Saturday";
   return String(n || "");
 }
+const everydayToggle = document.getElementById("everydayToggle");
+const dayCheckboxes = document.querySelectorAll('input[name="days_of_week"]');
 
+if (everydayToggle) {
+  everydayToggle.addEventListener("change", () => {
+    dayCheckboxes.forEach(cb => {
+      cb.checked = everydayToggle.checked;
+    });
+  });
+}
+
+dayCheckboxes.forEach(cb => {
+  cb.addEventListener("change", () => {
+    const allChecked = Array.from(dayCheckboxes).every(day => day.checked);
+    everydayToggle.checked = allChecked;
+  });
+});
+
+function getSelectedDays() {
+  return Array.from(dayCheckboxes)
+    .filter(cb => cb.checked)
+    .map(cb => cb.value)
+    .join(",");
+}
 function page(title, body) {
   return `<!DOCTYPE html>
 <html>
