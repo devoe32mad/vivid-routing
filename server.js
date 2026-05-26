@@ -4329,7 +4329,12 @@ app.get("/admin/reports", async (req, res) => {
     const estimatedRevenue = Number(revenue.estimated_revenue || 0);
     const estimatedCustomers = Number(revenue.estimated_customers || 0);
     const totalScans = Number(totals.total_scans || 0);
+const totalCampaignCost = estimatedCustomers * 0; // placeholder for now
 
+const costPerEngagement =
+  totalScans > 0
+    ? (totalCampaignCost / totalScans).toFixed(2)
+    : "0.00";
     const cac = estimatedCustomers > 0 ? (estimatedRevenue / estimatedCustomers).toFixed(2) : "0.00";
 
     res.send(page("Reports", `
