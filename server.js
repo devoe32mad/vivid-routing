@@ -762,6 +762,8 @@ app.post("/login", async (req, res) => {
 
 });
 app.get("/dashboard", requireLogin, async (req, res) => {
+ const currentUser = req.session.user;
+const isSuperAdmin = currentUser.role === "super_admin";
   try {
    const currentUser = req.session.user;
     console.log("CURRENT USER:", currentUser);
@@ -878,8 +880,7 @@ const locationRows = await q(
     ? dateParams
     : [currentUser.id, ...dateParams]
 );
-const currentUser = req.session.user;
-const isSuperAdmin = currentUser.role === "super_admin";
+
     const storeRows = await q(
   isSuperAdmin
     ? `
