@@ -3560,31 +3560,31 @@ for (const s of schedules.rows) {
   </label>
 
   <label style="display:flex; align-items:center; gap:6px;">
-    <input type="checkbox" name="days_of_week" value="0"> Sunday
+    <input type="checkbox" name="days_of_week_check" value="0"> Sunday
   </label>
 
   <label style="display:flex; align-items:center; gap:6px;">
-    <input type="checkbox" name="days_of_week" value="1"> Monday
+    <input type="checkbox" name="days_of_week_check" value="1"> Monday
   </label>
 
   <label style="display:flex; align-items:center; gap:6px;">
-    <input type="checkbox" name="days_of_week" value="2"> Tuesday
+    <input type="checkbox" name="days_of_week_check" value="2"> Tuesday
   </label>
 
   <label style="display:flex; align-items:center; gap:6px;">
-    <input type="checkbox" name="days_of_week" value="3"> Wednesday
+    <input type="checkbox" name="days_of_week_check" value="3"> Wednesday
   </label>
 
   <label style="display:flex; align-items:center; gap:6px;">
-    <input type="checkbox" name="days_of_week" value="4"> Thursday
+    <input type="checkbox" name="days_of_week_check" value="4"> Thursday
   </label>
 
   <label style="display:flex; align-items:center; gap:6px;">
-    <input type="checkbox" name="days_of_week" value="5"> Friday
+    <input type="checkbox" name="days_of_week-check" value="5"> Friday
   </label>
 
   <label style="display:flex; align-items:center; gap:6px;">
-    <input type="checkbox" name="days_of_week" value="6"> Saturday
+    <input type="checkbox" name="days_of_week_check" value="6"> Saturday
   </label>
 </div>
 <input type="hidden" name="days_of_week" id="days_of_week_hidden">
