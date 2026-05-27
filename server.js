@@ -4409,7 +4409,7 @@ app.get("/admin/reports", async (req, res) => {
     `, [startDate, endDate]);
 
     const totalScans = Number(scanReport.rows[0]?.total_scans || 0);
-
+const estimatedRevenue = (totalScans * 5).toFixed(2);
     res.send(page("Reports", `
       <h1>Reports</h1>
 
