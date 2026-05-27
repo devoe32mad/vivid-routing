@@ -4339,7 +4339,10 @@ const costPerEngagement =
     ? (totalCampaignCost / totalScans).toFixed(2)
     : "0.00";
     const cac = estimatedCustomers > 0 ? (estimatedRevenue / estimatedCustomers).toFixed(2) : "0.00";
-
+const roi =
+  totalCampaignCost > 0
+    ? (((estimatedRevenue - totalCampaignCost) / totalCampaignCost) * 100).toFixed(2)
+    : "0.00";
     res.send(page("Reports", `
       <h1>Reports</h1>
 
