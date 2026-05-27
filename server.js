@@ -4384,6 +4384,10 @@ const costPerEngagement =
   <h3>Maps Clicks</h3>
   <p>${mapsClicks}</p>
 </div>
+<div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+  <h3>Maps Clicks</h3>
+  <p>${mapsClicks}</p>
+</div>
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
           <h3>Estimated Customers</h3>
           <p>${estimatedCustomers.toFixed(2)}</p>
