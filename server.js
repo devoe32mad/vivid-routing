@@ -4431,6 +4431,19 @@ const totalScans = Number(scanReport.rows[0]?.total_scans || 0);
       <div style="margin-top:30px;padding:20px;border:1px solid #ddd;border-radius:10px;">
         <h2>Reports Stable</h2>
         <p>Date range: ${startDate} to ${endDate}</p>
+      const today = new Date().toISOString().slice(0, 10);
+
+const startDate = req.query.start_date || today;
+const endDate = req.query.end_date || today;
+
+const scanReport = await q(`
+  SELECT COUNT(*)::int AS total_scans
+  FROM events
+  WHERE type = 'scan'
+    AND created_at::date BETWEEN $1::date AND $2::date
+`, [startDate, endDate]);
+
+const totalScans = Number(scanReport.rows[0]?.total_scans || 0);
       </div>
     `));
 
