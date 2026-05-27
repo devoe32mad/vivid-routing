@@ -4329,6 +4329,7 @@ app.get("/admin/reports", async (req, res) => {
     const estimatedRevenue = Number(revenue.estimated_revenue || 0);
     const estimatedCustomers = Number(revenue.estimated_customers || 0);
     const totalScans = Number(totals.total_scans || 0);
+    const mapsClicks = Number(totals.maps_clicks || 0);
 const totalCampaignCost = estimatedCustomers * 0; // placeholder for now
 
 const costPerEngagement =
