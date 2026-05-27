@@ -4349,7 +4349,7 @@ const proratedCost = Number(
 
 const costPerEngagement =
   totalScans > 0
-    ? (totalCampaignCost / totalScans).toFixed(2)
+    ? (proratedCost / totalScans).toFixed(2)
     : "0.00";
     const cac = estimatedCustomers > 0 ? (estimatedRevenue / estimatedCustomers).toFixed(2) : "0.00";
 const roi =
