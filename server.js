@@ -4580,7 +4580,21 @@ ${detailRows.rows.map(row => `
       : "--"
   }
 </td>
-    <td style="padding:10px;border:1px solid #ddd;">--</td>
+    <td style="padding:10px;border:1px solid #ddd;">
+  ${
+    Number(row.estimated_revenue) > 0
+      ? (
+          (
+            (
+              Number(row.estimated_revenue) -
+              ((Number(row.placement_cost) / 365) * selectedDays)
+            ) /
+            ((Number(row.placement_cost) / 365) * selectedDays)
+          ) * 100
+        ).toFixed(2) + "%"
+      : "--"
+  }
+</td>
    <td style="padding:10px;border:1px solid #ddd;">
   ${
     Number(row.annual_impressions) > 0
