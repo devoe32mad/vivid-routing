@@ -4568,7 +4568,18 @@ ${detailRows.rows.map(row => `
     <td style="padding:10px;border:1px solid #ddd;">${row.offer_clicks}</td>
     <td style="padding:10px;border:1px solid #ddd;">${Number(row.estimated_customers).toFixed(2)}</td>
     <td style="padding:10px;border:1px solid #ddd;">$${Number(row.estimated_revenue).toFixed(2)}</td>
-    <td style="padding:10px;border:1px solid #ddd;">--</td>
+    <td style="padding:10px;border:1px solid #ddd;">
+  ${
+    Number(row.estimated_customers) > 0
+      ? "$" + (
+          (
+            (Number(row.placement_cost) / 365) * selectedDays
+          ) /
+          Number(row.estimated_customers)
+        ).toFixed(2)
+      : "--"
+  }
+</td>
     <td style="padding:10px;border:1px solid #ddd;">--</td>
    <td style="padding:10px;border:1px solid #ddd;">
   ${
