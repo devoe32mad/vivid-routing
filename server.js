@@ -4373,8 +4373,8 @@ const costPerEngagement =
   </div>
 
   <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-    <h3>Estimated Revenue</h3>
-    <p>$${estimatedRevenue}</p>
+    <h3>Maps Clicks</h3>
+    <p>${mapsClicks}</p>
   </div>
 
   <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
@@ -4383,13 +4383,8 @@ const costPerEngagement =
   </div>
 
   <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-    <h3>CAC</h3>
-    <p>$${cac}</p>
-  </div>
-
-  <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-    <h3>Maps Clicks</h3>
-    <p>${mapsClicks}</p>
+    <h3>Estimated Revenue</h3>
+    <p>$${estimatedRevenue}</p>
   </div>
 
   <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
@@ -4397,7 +4392,13 @@ const costPerEngagement =
     <p>$${costPerEngagement}</p>
   </div>
 
+  <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+    <h3>CAC</h3>
+    <p>$${cac}</p>
+  </div>
+
 </div>
+
 
       <h2>Report Details</h2>
       <p>Date range: ${startDate} to ${endDate}</p>
