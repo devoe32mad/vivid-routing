@@ -4334,7 +4334,7 @@ app.get("/admin/reports", async (req, res) => {
     const mapsClicks = Number(totals.maps_clicks || 0);
   
     const offerClicks = Number(totals.offer_clicks || 0);
-const totalCampaignCost = estimatedCustomers * 0; // placeholder for now
+const totalCampaignCost = Number(revenue.total_campaign_cost || 0);
 
 const costPerEngagement =
   totalScans > 0
