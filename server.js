@@ -4569,14 +4569,7 @@ ${detailRows.rows.map(row => `
     <td style="padding:10px;border:1px solid #ddd;">$${Number(row.estimated_revenue).toFixed(2)}</td>
     <td style="padding:10px;border:1px solid #ddd;">--</td>
     <td style="padding:10px;border:1px solid #ddd;">--</td>
-   <td style="padding:10px;border:1px solid #ddd;">
-  $${(
-    (
-      proratedCost /
-      Math.max(1, (Number(row.scans) * 20))
-    ) * 1000
-  ).toFixed(2)}
-</td>
+   <td style="padding:10px;border:1px solid #ddd;">$${cpm}</td>
   </tr>
 `).join("")}
       </tbody>
