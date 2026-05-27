@@ -4347,10 +4347,19 @@ const selectedDays =
     ) + 1
   );
 
-const proratedCost = Number(
-  ((800 / 365) * selectedDays).toFixed(2)
-);
+const costBasis = await q(`
+  SELECT
+    COALESCE(SUM(placement_cost), 0)::numeric(10,2) AS annual_cost,
+    COALESCE(SUM(annual_impressions), 0)::numeric(10,2) AS annual_impressions
+  FROM spaces
+  WHERE ($1 = '' OR id::text = $1)
+`, [locationId]);
 
+const annualCost = Number(costBasis.rows[0]?.annual_cost || 800);
+const annualImpressions = Number(costBasis.rows[0]?.annual_impressions || 146000);
+
+const proratedCost = Number(((annualCost / 365) * selectedDays).toFixed(2));
+const proratedImpressions = Number(((annualImpressions / 365) * selectedDays).toFixed(0));
 const costPerEngagement =
   totalScans > 0
     ? (proratedCost / totalScans).toFixed(2)
