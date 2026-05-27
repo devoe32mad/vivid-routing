@@ -4387,6 +4387,12 @@ const roi =
 
 </select>
 </div>
+<div>
+  <label>QR Code</label><br>
+  <select name="qr_id">
+    <option value="">All QR Codes</option>
+  </select>
+</div>
         <div>
           <label>Status</label><br>
           <select name="status">
