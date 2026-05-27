@@ -4351,7 +4351,7 @@ const costPerEngagement =
   totalScans > 0
     ? (proratedCost / totalScans).toFixed(2)
     : "0.00";
-    const cac = estimatedCustomers > 0 ? (estimatedRevenue / estimatedCustomers).toFixed(2) : "0.00";
+    const cac = estimatedCustomers > 0 ? (proratedCost / estimatedCustomers).toFixed(2) : "0.00";
 const roi =
   proratedCost > 0
     ? (((estimatedRevenue - proratedCost) / proratedCost) * 100).toFixed(2)
