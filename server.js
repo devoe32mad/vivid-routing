@@ -4335,7 +4335,17 @@ app.get("/admin/reports", async (req, res) => {
     const mapsClicks = Number(totals.maps_clicks || 0);
   
     const offerClicks = Number(totals.offer_clicks || 0);
-const totalCampaignCost = Number(revenue.total_campaign_cost || 0);
+const selectedDays =
+  Math.max(
+    1,
+    Math.ceil(
+      (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)
+    ) + 1
+  );
+
+const proratedCost = Number(
+  ((800 / 365) * selectedDays).toFixed(2)
+);
 
 const costPerEngagement =
   totalScans > 0
