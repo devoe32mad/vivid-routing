@@ -4395,6 +4395,42 @@ const costPerEngagement =
     res.status(500).send("REPORTS ERROR: " + e.message);
   }
 });
+app.get("/admin/reports", async (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+
+    const startDate = req.query.start_date || today;
+    const endDate = req.query.end_date || today;
+
+    res.send(page("Reports", `
+      <h1>Reports</h1>
+
+      <form method="GET" action="/admin/reports">
+        <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+          <div>
+            <label>Start Date</label><br>
+            <input type="date" name="start_date" value="${startDate}">
+          </div>
+
+          <div>
+            <label>End Date</label><br>
+            <input type="date" name="end_date" value="${endDate}">
+          </div>
+
+          <button type="submit">Run Report</button>
+        </div>
+      </form>
+
+      <div style="margin-top:30px;padding:20px;border:1px solid #ddd;border-radius:10px;">
+        <h2>Reports Stable</h2>
+        <p>Date range: ${startDate} to ${endDate}</p>
+      </div>
+    `));
+
+  } catch (e) {
+    res.status(500).send("REPORTS ERROR: " + e.message);
+  }
+});
 app.listen(port, () => {
   console.log("Server running on port " + port);
 });
