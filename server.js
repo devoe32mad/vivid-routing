@@ -4393,7 +4393,11 @@ const roi =
 <div>
   <label>QR Code</label><br>
   <select name="qr_id">
-  <option value="">All QR Codes</option>${qrs.rows.map(qr => `<option value="${qr.id}">${qr.name}</option>`).join("")}
+  <option value="" ${qrId === "" ? "selected" : ""}>All QR Codes</option>
+  ${qrs.rows
+    .filter(qr => qr.name)
+    .map(qr => `<option value="${qr.id}" ${String(qr.id) === String(qrId) ? "selected" : ""}>${qr.name}</option>`)
+    .join("")}
 </select>
 </div>
         <div>
