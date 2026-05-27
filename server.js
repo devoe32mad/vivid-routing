@@ -4330,10 +4330,7 @@ app.get("/admin/reports", async (req, res) => {
     const estimatedCustomers = Number(revenue.estimated_customers || 0);
     const totalScans = Number(totals.total_scans || 0);
     const mapsClicks = Number(totals.maps_clicks || 0);
-    <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-  <h3>Offer Clicks</h3>
-  <p>${offerClicks}</p>
-</div>
+  
     const offerClicks = Number(totals.offer_clicks || 0);
 const totalCampaignCost = estimatedCustomers * 0; // placeholder for now
 
