@@ -4449,7 +4449,12 @@ const estimatedRevenue = (totalScans * 5).toFixed(2);
             <label>End Date</label><br>
             <input type="date" name="end_date" value="${endDate}">
           </div>
-
+<div>
+  <label>Location</label><br>
+  <select name="location_id">
+    <option value="">All Locations</option>
+  </select>
+</div>
           <button type="submit">Run Report</button>
         </div>
       </form>
