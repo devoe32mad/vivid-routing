@@ -4375,6 +4375,45 @@ const roi =
   FROM campaigns
   ORDER BY name ASC
 `);
+    const detailRows = await q(`
+  SELECT
+    COALESCE(c.name, '') AS campaign_name,
+    COALESCE(qc.name, '') AS qr_name,
+    COALESCE(s.name, '') AS location_name,
+
+    COUNT(*) FILTER (WHERE e.type = 'scan')::int AS scans,
+    COUNT(*) FILTER (WHERE e.type = 'maps')::int AS maps_clicks,
+    COUNT(*) FILTER (WHERE e.type = 'offer')::int AS offer_clicks,
+
+    COALESCE(SUM(
+      CASE
+        WHEN e.type = 'scan'
+        THEN (c.conversion_rate / 100.0)
+        ELSE 0
+      END
+    ), 0)::numeric(10,2) AS estimated_customers,
+
+    COALESCE(SUM(
+      CASE
+        WHEN e.type = 'scan'
+        THEN (c.conversion_rate / 100.0) * c.avg_customer_value
+        ELSE 0
+      END
+    ), 0)::numeric(10,2) AS estimated_revenue
+
+  FROM events e
+  LEFT JOIN campaigns c ON e.campaign_id = c.id
+  LEFT JOIN qr_codes qc ON e.qr_id = qc.id
+  LEFT JOIN spaces s ON e.store_id = s.id
+
+  WHERE e.created_at::date BETWEEN $1::date AND $2::date
+    AND ($3 = '' OR e.store_id::text = $3)
+    AND ($4 = '' OR e.qr_id::text = $4)
+    AND ($5 = '' OR e.campaign_id::text = $5)
+
+  GROUP BY c.name, qc.name, s.name
+  ORDER BY scans DESC
+`, [startDate, endDate, locationId, qrId, campaignId]);
     res.send(page("Reports", `
       <h1>Reports</h1>
 
