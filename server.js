@@ -4531,19 +4531,21 @@ const roi =
       </thead>
 
       <tbody>
-        <tr>
-          <td style="padding:10px;border:1px solid #ddd;">Demo Campaign</td>
-          <td style="padding:10px;border:1px solid #ddd;">QR-001</td>
-          <td style="padding:10px;border:1px solid #ddd;">Gulf Coast High</td>
-          <td style="padding:10px;border:1px solid #ddd;">125</td>
-          <td style="padding:10px;border:1px solid #ddd;">22</td>
-          <td style="padding:10px;border:1px solid #ddd;">18</td>
-          <td style="padding:10px;border:1px solid #ddd;">12</td>
-          <td style="padding:10px;border:1px solid #ddd;">$540</td>
-          <td style="padding:10px;border:1px solid #ddd;">$8.25</td>
-          <td style="padding:10px;border:1px solid #ddd;">215%</td>
-          <td style="padding:10px;border:1px solid #ddd;">$4.10</td>
-        </tr>
+${detailRows.rows.map(row => `
+  <tr>
+    <td style="padding:10px;border:1px solid #ddd;">${row.campaign_name}</td>
+    <td style="padding:10px;border:1px solid #ddd;">${row.qr_name}</td>
+    <td style="padding:10px;border:1px solid #ddd;">${row.location_name}</td>
+    <td style="padding:10px;border:1px solid #ddd;">${row.scans}</td>
+    <td style="padding:10px;border:1px solid #ddd;">${row.maps_clicks}</td>
+    <td style="padding:10px;border:1px solid #ddd;">${row.offer_clicks}</td>
+    <td style="padding:10px;border:1px solid #ddd;">${Number(row.estimated_customers).toFixed(2)}</td>
+    <td style="padding:10px;border:1px solid #ddd;">$${Number(row.estimated_revenue).toFixed(2)}</td>
+    <td style="padding:10px;border:1px solid #ddd;">--</td>
+    <td style="padding:10px;border:1px solid #ddd;">--</td>
+    <td style="padding:10px;border:1px solid #ddd;">--</td>
+  </tr>
+`).join("")}
       </tbody>
     </table>
   </div>
