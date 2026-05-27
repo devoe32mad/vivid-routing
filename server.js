@@ -4367,6 +4367,8 @@ const costPerEngagement =
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
           <h3>Total Scans</h3>
           <p>${totalScans}</p>
+          <h3>Estimated Revenue</h3>
+<p>$${estimatedRevenue}</p>
         </div>
 
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
