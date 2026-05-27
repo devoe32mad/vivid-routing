@@ -278,7 +278,17 @@ await q(`CREATE TABLE IF NOT EXISTS spaces (
   placement_cost NUMERIC DEFAULT 800,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )`);
+await q(`
+  UPDATE spaces
+  SET annual_impressions = 146000
+  WHERE annual_impressions IS NULL OR annual_impressions = 0
+`);
 
+await q(`
+  UPDATE spaces
+  SET placement_cost = 800
+  WHERE placement_cost IS NULL OR placement_cost = 0
+`);
   await q(`CREATE TABLE IF NOT EXISTS qr_codes (
     id SERIAL PRIMARY KEY,
     space_id INT,
