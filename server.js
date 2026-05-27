@@ -4343,6 +4343,11 @@ const roi =
   totalCampaignCost > 0
     ? (((estimatedRevenue - totalCampaignCost) / totalCampaignCost) * 100).toFixed(2)
     : "0.00";
+    const locations = await q(`
+  SELECT id, name
+  FROM spaces
+  ORDER BY name ASC
+`);
     res.send(page("Reports", `
       <h1>Reports</h1>
 
