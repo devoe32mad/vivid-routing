@@ -4364,8 +4364,15 @@ const roi =
 <div>
   <label>Location</label><br>
   <select name="location_id">
-    <option value="">All Locations</option>
-  </select>
+  <option value="">All Locations</option>
+
+  ${locations.rows.map(location => `
+    <option value="${location.id}">
+      ${location.name}
+    </option>
+  `).join("")}
+
+</select>
 </div>
         <div>
           <label>Status</label><br>
