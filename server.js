@@ -4353,8 +4353,8 @@ const costPerEngagement =
     : "0.00";
     const cac = estimatedCustomers > 0 ? (estimatedRevenue / estimatedCustomers).toFixed(2) : "0.00";
 const roi =
-  totalCampaignCost > 0
-    ? (((estimatedRevenue - totalCampaignCost) / totalCampaignCost) * 100).toFixed(2)
+  proratedCost > 0
+    ? (((estimatedRevenue - proratedCost) / proratedCost) * 100).toFixed(2)
     : "0.00";
     const locations = await q(`
   SELECT id, name
