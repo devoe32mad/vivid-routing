@@ -4407,6 +4407,16 @@ const roi =
     .join("")}
 </select>
 </div>
+<div>
+  <label>Campaign</label><br>
+  <select name="campaign_id">
+    <option value="" ${campaignId === "" ? "selected" : ""}>All Campaigns</option>
+    ${campaigns.rows
+      .filter(campaign => campaign.name)
+      .map(campaign => `<option value="${campaign.id}" ${String(campaign.id) === String(campaignId) ? "selected" : ""}>${campaign.name}</option>`)
+      .join("")}
+  </select>
+</div>
         <div>
           <label>Status</label><br>
           <select name="status">
