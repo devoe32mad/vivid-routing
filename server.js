@@ -4470,7 +4470,45 @@ const roi =
 
 </div>
 
+<div style="margin-top:32px;">
+  <h2>Detailed Results</h2>
 
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="background:#f5f5f5;">
+          <th style="padding:10px;border:1px solid #ddd;">Campaign</th>
+          <th style="padding:10px;border:1px solid #ddd;">QR Code</th>
+          <th style="padding:10px;border:1px solid #ddd;">Location</th>
+          <th style="padding:10px;border:1px solid #ddd;">Scans</th>
+          <th style="padding:10px;border:1px solid #ddd;">Maps</th>
+          <th style="padding:10px;border:1px solid #ddd;">Offers</th>
+          <th style="padding:10px;border:1px solid #ddd;">Customers</th>
+          <th style="padding:10px;border:1px solid #ddd;">Revenue</th>
+          <th style="padding:10px;border:1px solid #ddd;">CAC</th>
+          <th style="padding:10px;border:1px solid #ddd;">ROI</th>
+          <th style="padding:10px;border:1px solid #ddd;">CPM</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr>
+          <td style="padding:10px;border:1px solid #ddd;">Demo Campaign</td>
+          <td style="padding:10px;border:1px solid #ddd;">QR-001</td>
+          <td style="padding:10px;border:1px solid #ddd;">Gulf Coast High</td>
+          <td style="padding:10px;border:1px solid #ddd;">125</td>
+          <td style="padding:10px;border:1px solid #ddd;">22</td>
+          <td style="padding:10px;border:1px solid #ddd;">18</td>
+          <td style="padding:10px;border:1px solid #ddd;">12</td>
+          <td style="padding:10px;border:1px solid #ddd;">$540</td>
+          <td style="padding:10px;border:1px solid #ddd;">$8.25</td>
+          <td style="padding:10px;border:1px solid #ddd;">215%</td>
+          <td style="padding:10px;border:1px solid #ddd;">$4.10</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
       <h2>Report Details</h2>
       <p>Date range: ${startDate} to ${endDate}</p>
       <p>Status: ${status}</p>
