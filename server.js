@@ -4403,7 +4403,8 @@ const roi =
     COALESCE(c.name, '') AS campaign_name,
     COALESCE(qc.name, '') AS qr_name,
     COALESCE(s.name, '') AS location_name,
-
+COALESCE(s.placement_cost, 800)::numeric(10,2) AS placement_cost,
+COALESCE(s.annual_impressions, 146000)::numeric(10,2) AS annual_impressions,
     COUNT(*) FILTER (WHERE e.type = 'scan')::int AS scans,
     COUNT(*) FILTER (WHERE e.type = 'maps')::int AS maps_clicks,
     COUNT(*) FILTER (WHERE e.type = 'offer')::int AS offer_clicks,
