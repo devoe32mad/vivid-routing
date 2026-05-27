@@ -4365,34 +4365,39 @@ const costPerEngagement =
         <button type="submit">Run Report</button>
       </form>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
-        <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-          <h3>Total Scans</h3>
-          <p>${totalScans}</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:24px;margin-bottom:24px;">
 
-        <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-          <h3>Estimated Revenue</h3>
-          <p>$${estimatedRevenue}</p>
-        </div>
-<div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-  <h3>CAC</h3>
-  <p>$${cac}</p>
+  <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+    <h3>Total Scans</h3>
+    <p>${totalScans}</p>
+  </div>
+
+  <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+    <h3>Estimated Revenue</h3>
+    <p>$${estimatedRevenue}</p>
+  </div>
+
+  <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+    <h3>Estimated Customers</h3>
+    <p>${estimatedCustomers.toFixed(2)}</p>
+  </div>
+
+  <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+    <h3>CAC</h3>
+    <p>$${cac}</p>
+  </div>
+
+  <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+    <h3>Maps Clicks</h3>
+    <p>${mapsClicks}</p>
+  </div>
+
+  <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+    <h3>Cost / Engagement</h3>
+    <p>$${costPerEngagement}</p>
+  </div>
+
 </div>
-<div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-  <h3>Maps Clicks</h3>
-  <p>${mapsClicks}</p>
-</div>
-
-        <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-          <h3>Estimated Customers</h3>
-          <p>${estimatedCustomers.toFixed(2)}</p>
-        </div>
-
-        <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-          <h3>Cost / Engagement</h3>
-<p>$${costPerEngagement}</p>
-        </div>
-      </div>
 
       <h2>Report Details</h2>
       <p>Date range: ${startDate} to ${endDate}</p>
