@@ -4313,7 +4313,8 @@ app.get("/admin/reports", async (req, res) => {
       FROM events
       WHERE created_at::date BETWEEN $1::date AND $2::date
   AND ($3 = '' OR store_id::text = $3)
-    `, [startDate, endDate, locationId]);
+AND ($4 = '' OR qr_id::text = $4)
+    `, [startDate, endDate, locationId, qrId]);
 
     const totals = report.rows[0] || {};
 
