@@ -4397,18 +4397,19 @@ const costPerEngagement =
 });
 app.get("/admin/reports", async (req, res) => {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+        const today = new Date().toISOString().slice(0, 10);
 
     const startDate = req.query.start_date || today;
     const endDate = req.query.end_date || today;
-const scanReport = await q(`
-  SELECT COUNT(*)::int AS total_scans
-  FROM events
-  WHERE type = 'scan'
-    AND created_at::date BETWEEN $1::date AND $2::date
-`, [startDate, endDate]);
 
-const totalScans = Number(scanReport.rows[0]?.total_scans || 0);
+    const scanReport = await q(`
+      SELECT COUNT(*)::int AS total_scans
+      FROM events
+      WHERE type = 'scan'
+        AND created_at::date BETWEEN $1::date AND $2::date
+    `, [startDate, endDate]);
+
+    const totalScans = Number(scanReport.rows[0]?.total_scans || 0);
     res.send(page("Reports", `
       <h1>Reports</h1>
 
