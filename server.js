@@ -4369,6 +4369,11 @@ const roi =
   FROM qr_codes
   ORDER BY name ASC
 `);
+    const campaigns = await q(`
+  SELECT id, name
+  FROM campaigns
+  ORDER BY name ASC
+`);
     res.send(page("Reports", `
       <h1>Reports</h1>
 
