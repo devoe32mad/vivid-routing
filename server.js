@@ -4337,7 +4337,7 @@ const costPerEngagement =
     ? (totalCampaignCost / totalScans).toFixed(2)
     : "0.00";
     const cac = estimatedCustomers > 0 ? (estimatedRevenue / estimatedCustomers).toFixed(2) : "0.00";
-
+const mapsClicks = Number(totals.maps_clicks || 0);
     res.send(page("Reports", `
       <h1>Reports</h1>
 
