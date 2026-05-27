@@ -4317,9 +4317,10 @@ app.get("/admin/reports", async (req, res) => {
     const totals = report.rows[0] || {};
 
     const revenueReport = await q(`
-      SELECT
-        COALESCE(SUM((c.conversion_rate / 100.0) * c.avg_customer_value), 0)::numeric(10,2) AS estimated_revenue,
-        COALESCE(SUM(c.conversion_rate / 100.0), 0)::numeric(10,2) AS estimated_customers
+    SELECT
+  COALESCE(SUM((c.conversion_rate / 100.0) * c.avg_customer_value), 0)::numeric(10,2) AS estimated_revenue,
+  COALESCE(SUM(c.conversion_rate / 100.0), 0)::numeric(10,2) AS estimated_customers,
+  COALESCE(SUM(c.campaign_cost), 0)::numeric(10,2) AS total_campaign_cost  
       FROM events e
       LEFT JOIN campaigns c ON e.campaign_id = c.id
       WHERE e.type = 'scan'
