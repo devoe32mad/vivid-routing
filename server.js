@@ -4435,7 +4435,7 @@ COALESCE(s.annual_impressions, 146000)::numeric(10,2) AS annual_impressions,
     AND ($4 = '' OR e.qr_id::text = $4)
     AND ($5 = '' OR e.campaign_id::text = $5)
 
-  GROUP BY c.name, qc.name, s.name
+  GROUP BY c.name, qc.name, s.name, s.placement_cost, s.annual_impressions
   ORDER BY scans DESC
 `, [startDate, endDate, locationId, qrId, campaignId]);
     res.send(page("Reports", `
