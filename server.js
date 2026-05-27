@@ -4570,7 +4570,22 @@ ${detailRows.rows.map(row => `
     <td style="padding:10px;border:1px solid #ddd;">$${Number(row.estimated_revenue).toFixed(2)}</td>
     <td style="padding:10px;border:1px solid #ddd;">--</td>
     <td style="padding:10px;border:1px solid #ddd;">--</td>
-   <td style="padding:10px;border:1px solid #ddd;">$${cpm}</td>
+   <td style="padding:10px;border:1px solid #ddd;">
+  ${
+    Number(row.annual_impressions) > 0
+      ? "$" + (
+          (
+            (
+              (Number(row.placement_cost) / 365) * selectedDays
+            ) /
+            (
+              (Number(row.annual_impressions) / 365) * selectedDays
+            )
+          ) * 1000
+        ).toFixed(2)
+      : "--"
+  }
+</td>
   </tr>
 `).join("")}
       </tbody>
