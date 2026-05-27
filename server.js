@@ -4375,7 +4375,10 @@ const costPerEngagement =
           <h3>Estimated Revenue</h3>
           <p>$${estimatedRevenue}</p>
         </div>
-
+<div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
+  <h3>CAC</h3>
+  <p>$${cac}</p>
+</div>
         <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
           <h3>Estimated Customers</h3>
           <p>${estimatedCustomers.toFixed(2)}</p>
