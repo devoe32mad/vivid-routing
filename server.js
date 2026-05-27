@@ -4360,6 +4360,12 @@ const roi =
   proratedCost > 0
     ? (((estimatedRevenue - proratedCost) / proratedCost) * 100).toFixed(2)
     : "0.00";
+    const estimatedImpressions = totalScans * 20;
+
+const cpm =
+  estimatedImpressions > 0
+    ? ((proratedCost / estimatedImpressions) * 1000).toFixed(2)
+    : "0.00";
     const locations = await q(`
   SELECT id, name
   FROM spaces
