@@ -4024,6 +4024,7 @@ app.get("/export/report.csv", async (req, res) => {
         c.name AS campaign,
         c.advertiser AS advertiser,
         qr.name AS qr_name,
+        st.name AS store_name,
         COUNT(*) AS total_events,
         COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
         COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
@@ -4034,11 +4035,11 @@ app.get("/export/report.csv", async (req, res) => {
 LEFT JOIN campaigns c ON c.id = e.campaign_id
 LEFT JOIN qr_codes qr ON qr.id = e.qr_id
       ${whereSql}
-      GROUP BY c.name, c.advertiser, qr.name
+      GROUP BY c.name, c.advertiser, qr.name, st.name
       ORDER BY total_events DESC
     `, params);
 
-    const header = "campaign,advertiser,qr_name,total_events,scans,offer_clicks,map_clicks,estimated_impressions,engagement_rate,cpm,first_event,last_event\n";
+    const header = "campaign,advertiser,qr_name,store_name,total_events,scans,offer_clicks,map_clicks,estimated_impressions,engagement_rate,cpm,first_event,last_event\n";
 
     const rows = result.rows.map(r => {
       const scans = Number(r.scans || 0);
@@ -4051,6 +4052,7 @@ const cpm = impressions > 0 ? ((800 / impressions) * 1000).toFixed(2) : "0.00";
         r.campaign,
         r.advertiser,
         r.qr_name,
+        r.store_name,
         r.total_events,
         r.scans,
         r.offer_clicks,
