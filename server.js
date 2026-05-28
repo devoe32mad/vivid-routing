@@ -2530,7 +2530,15 @@ app.post("/admin/users", requireSuperAdmin, async (req, res) => {
 });
 app.get("/admin", async (req, res) => {
   const qrs = await q(`SELECT qr.*, s.name AS space_name FROM qr_codes qr LEFT JOIN spaces s ON s.id = qr.space_id ORDER BY qr.id`);
-  const campaigns = await q(`SELECT * FROM campaigns ORDER BY id`);
+  const campaigns = await q(`
+  SELECT
+    c.*,
+    COUNT(e.id) AS total_events
+  FROM campaigns c
+  LEFT JOIN events e ON e.campaign_id = c.id
+  GROUP BY c.id
+  ORDER BY c.id
+`);
   const stores = await q(`SELECT * FROM stores ORDER BY inventory_priority DESC`);
   res.send(page("Vivid Admin", `
     <div class="topbar"><div class="brand">Vivid Spots</div><h1>Admin Control Center</h1><p class="subtitle">Manage locations, QR codes, campaigns, stores, inventory, and schedules.</p></div>
