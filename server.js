@@ -3157,8 +3157,25 @@ GROUP BY c.name
       : '🔴 Critical'
   }
 </p>
-<div class="card" style="margin-top:20px;">
-  <h3>⚡ AI Recommendations</h3>
+
+ 
+        </div>
+
+        <div class="card">
+          <h3>🏫 Best Performing Store/School</h3>
+          <p><strong>${topStore.rows[0]?.name || "N/A"}</strong></p>
+          <p>Total Events: ${topStore.rows[0]?.total_events || 0}</p>
+        </div>
+
+        <div class="card">
+          <h3>⚠ Campaign Needing Attention</h3>
+          <p><strong>${lowCampaign.rows[0]?.name || "N/A"}</strong></p>
+          <p>Lowest event activity detected.</p>
+        </div>
+
+      </div>
+    <div class="card" style="margin-top:20px;">  
+ <h3>⚡ AI Recommendations</h3>
 
   ${
     Number(lowCampaign.rows[0]?.total_events || 0) < 10
@@ -3181,22 +3198,6 @@ GROUP BY c.name
   }
 
 </div>
-        </div>
-
-        <div class="card">
-          <h3>🏫 Best Performing Store/School</h3>
-          <p><strong>${topStore.rows[0]?.name || "N/A"}</strong></p>
-          <p>Total Events: ${topStore.rows[0]?.total_events || 0}</p>
-        </div>
-
-        <div class="card">
-          <h3>⚠ Campaign Needing Attention</h3>
-          <p><strong>${lowCampaign.rows[0]?.name || "N/A"}</strong></p>
-          <p>Lowest event activity detected.</p>
-        </div>
-
-      </div>
-
     `));
 
   } catch (err) {
