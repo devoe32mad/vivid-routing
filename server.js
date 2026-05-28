@@ -80,7 +80,7 @@ function page(title, body) {
 .card{
   background:white;
   border-radius:18px;
-  padding:22px;
+  padding:18px;
   box-shadow:0 8px 22px rgba(0,0,0,.08);
   height:100%;
   display:flex;
