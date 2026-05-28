@@ -4541,7 +4541,7 @@ COALESCE(s.annual_impressions, 146000)::numeric(10,2) AS annual_impressions,
         </div>
 
         <button type="submit">Run Report</button>
-        <button type="submit" name="export" value="csv">
+        <button type="submit" formaction="/export/events.csv" formmethod="get">
   Export CSV
 </button>
       </form>
