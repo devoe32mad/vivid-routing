@@ -3224,6 +3224,11 @@ GROUP BY c.name
           <h3>🏫 Best Performing Store/School</h3>
           <p><strong>${topStore.rows[0]?.name || "N/A"}</strong></p>
           <p>Total Events: ${topStore.rows[0]?.total_events || 0}</p>
+          <p>
+  <span style="background:#dbeafe;color:#1d4ed8;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:bold;">
+    ⭐ Top Location
+  </span>
+</p>
         </div>
 
         <div class="card">
