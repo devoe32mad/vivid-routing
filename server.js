@@ -2943,43 +2943,47 @@ app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
       ORDER BY id DESC
     `);
 
-    res.send(`
-      <html>
-      <head>
-        <title>Archived Campaigns</title>
-      </head>
-      <body style="font-family:Arial;padding:20px;">
+    res.send(page("Archived Campaigns", `
 
-        <h1>Archived Campaigns</h1>
+<div class="topbar">
+  <div class="brand">Vivid Spots</div>
+  <h1>Archived Campaigns</h1>
+</div>
 
-        <a href="/admin">← Back to Admin</a>
+<div class="card">
 
-        <table border="1" cellpadding="8" cellspacing="0" style="margin-top:20px;border-collapse:collapse;width:100%;">
-          <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Advertiser</th>
-            <th>Action</th>
-          </tr>
+  <div style="margin-bottom:20px;">
+    <a class="btn secondary" href="/admin">← Back to Admin</a>
+  </div>
 
-          ${campaigns.rows.map(c => `
-            <tr>
-              <td>${c.id}</td>
-              <td>${c.name || ""}</td>
-              <td>${c.advertiser || ""}</td>
-              <td>
-                <a href="/admin/restore-campaign/${c.id}">
-                  Restore
-                </a>
-              </td>
-            </tr>
-          `).join("")}
+  <table class="table">
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Advertiser</th>
+      <th>Action</th>
+    </tr>
 
-        </table>
+    ${campaigns.rows.map(c => `
+      <tr>
+        <td>${c.id}</td>
+        <td>${c.name || ""}</td>
+        <td>${c.advertiser || ""}</td>
+        <td>
+          <a class="btn secondary"
+             href="/admin/restore-campaign/${c.id}">
+             Restore
+          </a>
+        </td>
+      </tr>
+    `).join("")}
 
-      </body>
-      </html>
-    `);
+  </table>
+
+</div>
+
+`));
+
 
   } catch (err) {
     console.error("ARCHIVED CAMPAIGNS ERROR:", err);
