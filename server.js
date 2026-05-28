@@ -4052,12 +4052,16 @@ const activeDays = Math.max(1, Math.ceil((lastDate - firstDate) / (1000 * 60 * 6
 const dailyImpressions = 400;
 const impressions = activeDays * dailyImpressions;
 
-const estimatedSpend = 800;
+const annualPlacementCost = 800;
+const estimatedSpend = ((annualPlacementCost / 365) * activeDays).toFixed(2);
 const estimatedConversions = Math.round(scans * 0.01);
 const estimatedRevenue = estimatedConversions * 500;
 
 const engagementRate = impressions > 0 ? ((scans / impressions) * 100).toFixed(2) + "%" : "0.00%";
-const cpm = impressions > 0 ? ((estimatedSpend / impressions) * 1000).toFixed(2) : "0.00";
+const cpm =
+  impressions > 0
+    ? ((estimatedSpend / impressions) * 1000).toFixed(2)
+    : "0.00";
 const costPerScan = scans > 0 ? (estimatedSpend / scans).toFixed(2) : "0.00";
 const cac = estimatedConversions > 0 ? (estimatedSpend / estimatedConversions).toFixed(2) : "0.00";
 const roi = estimatedSpend > 0 ? (((estimatedRevenue - estimatedSpend) / estimatedSpend) * 100).toFixed(2) + "%" : "0.00%";
