@@ -3079,9 +3079,10 @@ const whereSql = where.length
         st.name,
         COUNT(*) AS total_events
       FROM events e
-      LEFT JOIN stores st ON st.id = e.store_id
-      ${whereSql}
-      GROUP BY st.name
+LEFT JOIN stores st ON st.id = e.store_id
+${whereSql}
+${whereSql ? "AND" : "WHERE"} st.name IS NOT NULL
+GROUP BY st.name
       ORDER BY total_events DESC
       LIMIT 1
     `, params);
@@ -3091,9 +3092,10 @@ const whereSql = where.length
         c.name,
         COUNT(*) AS total_events
       FROM events e
-      LEFT JOIN campaigns c ON c.id = e.campaign_id
-      ${whereSql}
-      GROUP BY c.name
+LEFT JOIN campaigns c ON c.id = e.campaign_id
+${whereSql}
+${whereSql ? "AND" : "WHERE"} c.name IS NOT NULL
+GROUP BY c.name
       ORDER BY total_events ASC
       LIMIT 1
     `, params);
