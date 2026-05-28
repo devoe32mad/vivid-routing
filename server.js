@@ -3048,8 +3048,8 @@ app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
     ${campaigns.rows.map(c => `
       <tr>
         <td>${c.id}</td>
-        <td>${c.name || ""}</td>
-        <td>${c.advertiser || ""}</td>
+<td>${c.advertiser || ""}</td>
+<td>${c.name || ""}</td>
 
 <td>
   ${
