@@ -70,7 +70,7 @@ function page(title, body) {
     body{margin:0;font-family:Arial,sans-serif;background:#f4f7f1;color:#073b22}
     .topbar{background:linear-gradient(135deg,#123d25,#2f7d46);color:white;padding:30px 40px}
     .brand{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#d7eadb;font-weight:bold}
-    h1{margin:8px 0 6px;font-size:34px}
+    h1{margin:4px 0 6px;font-size:34px}
     h2{margin-top:34px}
     .subtitle{color:#d7eadb;margin:0}
     .wrap{padding:30px 40px;max-width:1250px;margin:0 auto}
