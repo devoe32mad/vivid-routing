@@ -3104,6 +3104,30 @@ app.get("/admin/ai-insights", requireLogin, async (req, res) => {
       : '🔴 Critical'
   }
 </p>
+<div class="card">
+  <h3>⚡ AI Recommendations</h3>
+
+  ${
+    Number(lowCampaign.rows[0]?.total_events || 0) < 10
+      ? `
+        <p>
+          Campaign <strong>${lowCampaign.rows[0]?.name || "Unknown"}</strong>
+          is underperforming.
+        </p>
+
+        <p>
+          Recommendation: rotate creative, update CTA,
+          or move placement location.
+        </p>
+      `
+      : `
+        <p>
+          Campaign performance appears stable.
+        </p>
+      `
+  }
+
+</div>
         </div>
 
         <div class="card">
