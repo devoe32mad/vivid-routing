@@ -2933,6 +2933,59 @@ app.get("/admin/restore-campaign/:campaignId", requireLogin, async (req, res) =>
     res.status(500).send("Restore failed");
   }
 });
+app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
+  try {
+
+    const campaigns = await q(`
+      SELECT *
+      FROM campaigns
+      WHERE is_archived = true
+      ORDER BY id DESC
+    `);
+
+    res.send(`
+      <html>
+      <head>
+        <title>Archived Campaigns</title>
+      </head>
+      <body style="font-family:Arial;padding:20px;">
+
+        <h1>Archived Campaigns</h1>
+
+        <a href="/admin">← Back to Admin</a>
+
+        <table border="1" cellpadding="8" cellspacing="0" style="margin-top:20px;border-collapse:collapse;width:100%;">
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Advertiser</th>
+            <th>Action</th>
+          </tr>
+
+          ${campaigns.rows.map(c => `
+            <tr>
+              <td>${c.id}</td>
+              <td>${c.name || ""}</td>
+              <td>${c.advertiser || ""}</td>
+              <td>
+                <a href="/admin/restore-campaign/${c.id}">
+                  Restore
+                </a>
+              </td>
+            </tr>
+          `).join("")}
+
+        </table>
+
+      </body>
+      </html>
+    `);
+
+  } catch (err) {
+    console.error("ARCHIVED CAMPAIGNS ERROR:", err);
+    res.status(500).send(err.message);
+  }
+});
 app.post("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
