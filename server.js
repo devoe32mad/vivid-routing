@@ -3916,6 +3916,36 @@ app.get("/qr/:qrId.png", (req, res) => {
 });
 
 app.get("/export/events.csv", async (req, res) => {
+
+  const { startDate, endDate, campaignId, qrId } = req.query;
+
+  let where = [];
+  let params = [];
+
+  if (startDate) {
+    params.push(startDate);
+    where.push(`created_at >= $${params.length}`);
+  }
+
+  if (endDate) {
+    params.push(endDate);
+    where.push(`created_at <= $${params.length}`);
+  }
+
+  if (campaignId) {
+    params.push(campaignId);
+    where.push(`campaign_id = $${params.length}`);
+  }
+
+  if (qrId) {
+    params.push(qrId);
+    where.push(`qr_id = $${params.length}`);
+  }
+
+  const whereSql = where.length
+    ? `WHERE ${where.join(" AND ")}`
+    : "";
+ 
   const result = await q(`SELECT e.id,e.created_at,e.type,e.qr_id,qr.name AS qr_name,e.campaign_id,c.name AS campaign,c.advertiser,e.store_id,st.name AS store FROM events e LEFT JOIN qr_codes qr ON qr.id=e.qr_id LEFT JOIN campaigns c ON c.id=e.campaign_id LEFT JOIN stores st ON st.id=e.store_id ORDER BY e.created_at DESC`);
   const header = "id,created_at,type,qr_id,qr_name,campaign_id,campaign,advertiser,store_id,store\n";
   const rows = result.rows.map(r => [r.id,r.created_at,r.type,r.qr_id,r.qr_name,r.campaign_id,r.campaign,r.advertiser,r.store_id,r.store].map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(",")).join("\n");
