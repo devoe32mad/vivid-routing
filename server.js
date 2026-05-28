@@ -3163,27 +3163,27 @@ GROUP BY c.name
   margin:20px 0;
 ">
 
-  <div class="card">
+  <div class="card" style="min-height:120px;">
     <div class="label">Total Events</div>
     <div class="num">${totalEvents}</div>
   </div>
 
-  <div class="card">
+  <div class="card" style="min-height:120px;">
     <div class="label">Active Campaigns</div>
     <div class="num">${activeCampaigns}</div>
   </div>
 
-  <div class="card">
+  <div class="card" style="min-height:120px;">
     <div class="label">Scans</div>
     <div class="num">${scans}</div>
   </div>
 
-  <div class="card">
+  <div class="card" style="min-height:120px;">
     <div class="label">Offer Clicks</div>
     <div class="num">${offerClicks}</div>
   </div>
 
-  <div class="card">
+  <div class="card" style="min-height:120px;">
     <div class="label">Engagement Rate</div>
     <div class="num">${engagementRate}</div>
   </div>
