@@ -3072,7 +3072,7 @@ const whereSql = where.length
       GROUP BY c.name, c.advertiser
       ORDER BY total_events DESC
       LIMIT 1
-    `);
+    `, params);
 
     const topStore = await q(`
       SELECT
@@ -3084,7 +3084,7 @@ const whereSql = where.length
       GROUP BY st.name
       ORDER BY total_events DESC
       LIMIT 1
-    `);
+    `, params);
 
     const lowCampaign = await q(`
       SELECT
@@ -3096,7 +3096,7 @@ const whereSql = where.length
       GROUP BY c.name
       ORDER BY total_events ASC
       LIMIT 1
-    `);
+    `, params);
 
     res.send(page("AI Insights", `
 
