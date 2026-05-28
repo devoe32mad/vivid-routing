@@ -3930,7 +3930,7 @@ app.get("/export/events.csv", async (req, res) => {
 
   if (endDate) {
     params.push(endDate);
-    where.push(`created_at <= $${params.length}`);
+    where.push(`e.created_at <= $${params.length}`);
   }
 
   if (campaignId) {
