@@ -3045,6 +3045,22 @@ app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
 app.get("/admin/ai-insights", requireLogin, async (req, res) => {
   try {
 const { startDate, endDate } = req.query;
+    let where = [];
+let params = [];
+
+if (startDate) {
+  params.push(startDate);
+  where.push(`e.created_at >= $${params.length}`);
+}
+
+if (endDate) {
+  params.push(endDate);
+  where.push(`e.created_at <= $${params.length}`);
+}
+
+const whereSql = where.length
+  ? `WHERE ${where.join(" AND ")}`
+  : "";
     const topCampaign = await q(`
       SELECT
         c.name,
