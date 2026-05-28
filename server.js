@@ -3080,6 +3080,7 @@ const whereSql = where.length
         COUNT(*) AS total_events
       FROM events e
       LEFT JOIN stores st ON st.id = e.store_id
+      ${whereSql}
       GROUP BY st.name
       ORDER BY total_events DESC
       LIMIT 1
