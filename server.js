@@ -4040,14 +4040,22 @@ LEFT JOIN qr_codes qr ON qr.id = e.qr_id
       ORDER BY total_events DESC
     `, params);
 
-    const header = "campaign,advertiser,qr_name,store_name,total_events,scans,offer_clicks,map_clicks,estimated_impressions,engagement_rate,cpm,first_event,last_event\n";
+    const header = "campaign,advertiser,qr_name,store_name,total_events,scans,offer_clicks,map_clicks,estimated_impressions,engagement_rate,estimated_spend,cpm,cost_per_scan,estimated_conversions,cac,estimated_revenue,roi,first_event,last_event\n";
 
     const rows = result.rows.map(r => {
       const scans = Number(r.scans || 0);
       const total = Number(r.total_events || 0);
 const impressions = total * 400;
+
+const estimatedSpend = 800;
+const estimatedConversions = Math.round(scans * 0.01);
+const estimatedRevenue = estimatedConversions * 500;
+
 const engagementRate = impressions > 0 ? ((scans / impressions) * 100).toFixed(2) + "%" : "0.00%";
-const cpm = impressions > 0 ? ((800 / impressions) * 1000).toFixed(2) : "0.00";
+const cpm = impressions > 0 ? ((estimatedSpend / impressions) * 1000).toFixed(2) : "0.00";
+const costPerScan = scans > 0 ? (estimatedSpend / scans).toFixed(2) : "0.00";
+const cac = estimatedConversions > 0 ? (estimatedSpend / estimatedConversions).toFixed(2) : "0.00";
+const roi = estimatedSpend > 0 ? (((estimatedRevenue - estimatedSpend) / estimatedSpend) * 100).toFixed(2) + "%" : "0.00%";
 
       return [
         r.campaign,
