@@ -3940,7 +3940,7 @@ app.get("/export/events.csv", async (req, res) => {
 
   if (qrId) {
     params.push(qrId);
-    where.push(`qr_id = $${params.length}`);
+    where.push(`e.qr_id = $${params.length}`);
   }
 
   const whereSql = where.length
