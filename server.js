@@ -4061,8 +4061,8 @@ const cpm = impressions > 0 ? ((800 / impressions) * 1000).toFixed(2) : "0.00";
         impressions,
 engagementRate,
 cpm,
-        r.first_event,
-        r.last_event
+        new Date(r.first_event).toLocaleDateString(),
+new Date(r.last_event).toLocaleDateString()
       ].map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",");
     }).join("\n");
 
