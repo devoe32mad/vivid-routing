@@ -3044,7 +3044,7 @@ app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
 });
 app.get("/admin/ai-insights", requireLogin, async (req, res) => {
   try {
-
+const { startDate, endDate } = req.query;
     const topCampaign = await q(`
       SELECT
         c.name,
