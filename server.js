@@ -3093,6 +3093,17 @@ app.get("/admin/ai-insights", requireLogin, async (req, res) => {
           <p><strong>${topCampaign.rows[0]?.name || "N/A"}</strong></p>
           <p>${topCampaign.rows[0]?.advertiser || ""}</p>
           <p>Total Events: ${topCampaign.rows[0]?.total_events || 0}</p>
+          <p>
+  ${
+    Number(topCampaign.rows[0]?.total_events || 0) > 100
+      ? '🟢 Excellent Health'
+      : Number(topCampaign.rows[0]?.total_events || 0) > 50
+      ? '🔵 Healthy'
+      : Number(topCampaign.rows[0]?.total_events || 0) > 10
+      ? '🟡 Warning'
+      : '🔴 Critical'
+  }
+</p>
         </div>
 
         <div class="card">
