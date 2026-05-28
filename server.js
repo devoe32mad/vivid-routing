@@ -4045,7 +4045,12 @@ LEFT JOIN qr_codes qr ON qr.id = e.qr_id
     const rows = result.rows.map(r => {
       const scans = Number(r.scans || 0);
       const total = Number(r.total_events || 0);
-const impressions = total * 400;
+const firstDate = r.first_event ? new Date(r.first_event) : new Date();
+const lastDate = r.last_event ? new Date(r.last_event) : firstDate;
+const activeDays = Math.max(1, Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)) + 1);
+
+const dailyImpressions = 400;
+const impressions = activeDays * dailyImpressions;
 
 const estimatedSpend = 800;
 const estimatedConversions = Math.round(scans * 0.01);
