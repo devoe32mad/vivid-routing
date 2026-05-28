@@ -4610,7 +4610,7 @@ const roi =
     const campaigns = await q(`
   SELECT *
   FROM campaigns
-  WHERE archived = false OR archived IS NULL
+  WHERE is_archived = false OR is_archived IS NULL
   ORDER BY name
 `);
     const detailRows = await q(`
