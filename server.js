@@ -3235,6 +3235,11 @@ GROUP BY c.name
           <h3>⚠ Campaign Needing Attention</h3>
           <p><strong>${lowCampaign.rows[0]?.name || "N/A"}</strong></p>
           <p>Lowest event activity detected.</p>
+          <p>
+  <span style="background:#fee2e2;color:#991b1b;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:bold;">
+    🔴 Needs Attention
+  </span>
+</p>
         </div>
 
       </div>
