@@ -94,7 +94,35 @@ function page(title, body) {
     @media(max-width:800px){.topbar,.wrap{padding:22px}.cards,.formgrid{grid-template-columns:1fr}h1{font-size:28px}}
   </style>
 </head>
-<body>${body}</body>
+<body>
+
+<div style="background:#123d25;padding:14px 24px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
+
+  <a href="/admin" style="color:white;text-decoration:none;font-weight:bold;">
+    Dashboard
+  </a>
+
+  <a href="/admin/reports" style="color:white;text-decoration:none;">
+    Reports
+  </a>
+
+  <a href="/admin/ai-insights" style="color:white;text-decoration:none;">
+    AI Insights
+  </a>
+
+  <a href="/admin/archived-campaigns" style="color:white;text-decoration:none;">
+    Archived Campaigns
+  </a>
+
+  <a href="/admin/schedule" style="color:white;text-decoration:none;">
+    Scheduling
+  </a>
+
+</div>
+
+${body}
+
+</body>
 </html>`;
 }
 app.get("/seed-admin", async (req, res) => {
