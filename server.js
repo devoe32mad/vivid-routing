@@ -3157,7 +3157,7 @@ GROUP BY c.name
       : '🔴 Critical'
   }
 </p>
-<div class="card">
+<div class="card" style="margin-top:20px;">
   <h3>⚡ AI Recommendations</h3>
 
   ${
