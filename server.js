@@ -3156,13 +3156,8 @@ GROUP BY c.name
 
 </form>
       
-">
-<div style="
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-  gap:16px;
-  margin:20px 0;
 
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin:20px 0;">
 
   <div class="card" style="min-height:90px;">
     <div class="label">Total Events</div>
@@ -3188,6 +3183,9 @@ GROUP BY c.name
     <div class="label">Engagement Rate</div>
     <div class="num">${engagementRate}</div>
   </div>
+
+</div>
+  
   </div>
 <div style="
   display:grid;
