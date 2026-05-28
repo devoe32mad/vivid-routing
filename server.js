@@ -3935,7 +3935,7 @@ app.get("/export/events.csv", async (req, res) => {
 
   if (campaignId) {
     params.push(campaignId);
-    where.push(`campaign_id = $${params.length}`);
+    where.push(`e.campaign_id = $${params.length}`);
   }
 
   if (qrId) {
