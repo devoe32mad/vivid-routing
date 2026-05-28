@@ -3187,6 +3187,7 @@ GROUP BY c.name
     <div class="label">Engagement Rate</div>
     <div class="num">${engagementRate}</div>
   </div>
+  </div>
 <div style="
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
