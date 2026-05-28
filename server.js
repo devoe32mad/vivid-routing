@@ -3092,6 +3092,7 @@ const whereSql = where.length
         COUNT(*) AS total_events
       FROM events e
       LEFT JOIN campaigns c ON c.id = e.campaign_id
+      ${whereSql}
       GROUP BY c.name
       ORDER BY total_events ASC
       LIMIT 1
