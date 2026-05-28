@@ -3917,7 +3917,10 @@ app.get("/qr/:qrId.png", (req, res) => {
 
 app.get("/export/events.csv", async (req, res) => {
 console.log("CSV EXPORT QUERY:", req.query);
-  const { startDate, endDate, campaignId, qrId } = req.query;
+  const startDate = req.query.startDate || req.query.start || req.query.from;
+const endDate = req.query.endDate || req.query.end || req.query.to;
+const campaignId = req.query.campaignId || req.query.campaign_id || req.query.campaign;
+const qrId = req.query.qrId || req.query.qr_id || req.query.qr;
 
   let where = [];
   let params = [];
