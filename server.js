@@ -82,10 +82,8 @@ function page(title, body) {
   border-radius:18px;
   padding:18px;
   box-shadow:0 8px 22px rgba(0,0,0,.08);
-  height:100%;
-  display:flex;
-  flex-direction:column;
-  justify-content:flex-start;
+  
+  
   
   margin:8px 0;
 
