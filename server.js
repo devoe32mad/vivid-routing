@@ -3195,6 +3195,12 @@ GROUP BY c.name
   margin-top:20px;
 ">
 </div>
+<div style="
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+  gap:20px;
+  margin-top:20px;
+">
         <div class="card">
           <h3>🏆 Top Performing Campaign</h3>
           <p><strong>${topCampaign.rows[0]?.name || "N/A"}</strong></p>
