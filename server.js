@@ -4023,6 +4023,7 @@ app.get("/export/report.csv", async (req, res) => {
       SELECT
         c.name AS campaign,
         c.advertiser AS advertiser,
+        qr.name AS qr_name,
         COUNT(*) AS total_events,
         COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
         COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
@@ -4030,18 +4031,21 @@ app.get("/export/report.csv", async (req, res) => {
         MIN(e.created_at) AS first_event,
         MAX(e.created_at) AS last_event
       FROM events e
-      LEFT JOIN campaigns c ON c.id = e.campaign_id
+LEFT JOIN campaigns c ON c.id = e.campaign_id
+LEFT JOIN qr qr ON qr.id = e.qr_id
       ${whereSql}
-      GROUP BY c.name, c.advertiser
+      GROUP BY c.name, c.advertiser, qr.name
       ORDER BY total_events DESC
     `, params);
 
-    const header = "campaign,advertiser,total_events,scans,offer_clicks,map_clicks,engagement_rate,first_event,last_event\n";
+    const header = "campaign,advertiser,qr_name,total_events,scans,offer_clicks,map_clicks,estimated_impressions,engagement_rate,cpm,first_event,last_event\n";
 
     const rows = result.rows.map(r => {
       const scans = Number(r.scans || 0);
       const total = Number(r.total_events || 0);
-      const engagementRate = total > 0 ? ((scans / total) * 100).toFixed(2) + "%" : "0.00%";
+const impressions = total * 400;
+const engagementRate = impressions > 0 ? ((scans / impressions) * 100).toFixed(2) + "%" : "0.00%";
+const cpm = impressions > 0 ? ((800 / impressions) * 1000).toFixed(2) : "0.00";
 
       return [
         r.campaign,
