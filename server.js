@@ -2990,6 +2990,80 @@ app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
     res.status(500).send(err.message);
   }
 });
+app.get("/admin/ai-insights", requireLogin, async (req, res) => {
+  try {
+
+    const topCampaign = await q(`
+      SELECT
+        c.name,
+        c.advertiser,
+        COUNT(*) AS total_events
+      FROM events e
+      LEFT JOIN campaigns c ON c.id = e.campaign_id
+      GROUP BY c.name, c.advertiser
+      ORDER BY total_events DESC
+      LIMIT 1
+    `);
+
+    const topStore = await q(`
+      SELECT
+        st.name,
+        COUNT(*) AS total_events
+      FROM events e
+      LEFT JOIN stores st ON st.id = e.store_id
+      GROUP BY st.name
+      ORDER BY total_events DESC
+      LIMIT 1
+    `);
+
+    const lowCampaign = await q(`
+      SELECT
+        c.name,
+        COUNT(*) AS total_events
+      FROM events e
+      LEFT JOIN campaigns c ON c.id = e.campaign_id
+      GROUP BY c.name
+      ORDER BY total_events ASC
+      LIMIT 1
+    `);
+
+    res.send(page("AI Insights", `
+
+      <div class="topbar">
+        <div class="brand">Vivid Spots</div>
+        <h1>AI Insights</h1>
+      </div>
+
+      <div class="grid">
+
+        <div class="card">
+          <h3>🏆 Top Performing Campaign</h3>
+          <p><strong>${topCampaign.rows[0]?.name || "N/A"}</strong></p>
+          <p>${topCampaign.rows[0]?.advertiser || ""}</p>
+          <p>Total Events: ${topCampaign.rows[0]?.total_events || 0}</p>
+        </div>
+
+        <div class="card">
+          <h3>🏫 Best Performing Store/School</h3>
+          <p><strong>${topStore.rows[0]?.name || "N/A"}</strong></p>
+          <p>Total Events: ${topStore.rows[0]?.total_events || 0}</p>
+        </div>
+
+        <div class="card">
+          <h3>⚠ Campaign Needing Attention</h3>
+          <p><strong>${lowCampaign.rows[0]?.name || "N/A"}</strong></p>
+          <p>Lowest event activity detected.</p>
+        </div>
+
+      </div>
+
+    `));
+
+  } catch (err) {
+    console.error("AI INSIGHTS ERROR:", err);
+    res.status(500).send(err.message);
+  }
+});
 app.post("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
