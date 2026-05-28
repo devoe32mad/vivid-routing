@@ -3987,7 +3987,84 @@ const qrId = req.query.qrId || req.query.qr_id || req.query.qr;
   res.status(500).send(err.message);
 } 
 });
+app.get("/export/report.csv", async (req, res) => {
+  const startDate = req.query.startDate || req.query.start || req.query.from;
+  const endDate = req.query.endDate || req.query.end || req.query.to;
+  const campaignId = req.query.campaignId || req.query.campaign_id || req.query.campaign;
+  const qrId = req.query.qrId || req.query.qr_id || req.query.qr;
 
+  let where = [];
+  let params = [];
+
+  if (startDate) {
+    params.push(startDate);
+    where.push(`e.created_at >= $${params.length}`);
+  }
+
+  if (endDate) {
+    params.push(endDate);
+    where.push(`e.created_at <= $${params.length}`);
+  }
+
+  if (campaignId) {
+    params.push(campaignId);
+    where.push(`e.campaign_id = $${params.length}`);
+  }
+
+  if (qrId) {
+    params.push(qrId);
+    where.push(`e.qr_id = $${params.length}`);
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+  try {
+    const result = await q(`
+      SELECT
+        c.name AS campaign,
+        c.advertiser AS advertiser,
+        COUNT(*) AS total_events,
+        COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
+        COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
+        COUNT(*) FILTER (WHERE e.type = 'map') AS map_clicks,
+        MIN(e.created_at) AS first_event,
+        MAX(e.created_at) AS last_event
+      FROM events e
+      LEFT JOIN campaigns c ON c.id = e.campaign_id
+      ${whereSql}
+      GROUP BY c.name, c.advertiser
+      ORDER BY total_events DESC
+    `, params);
+
+    const header = "campaign,advertiser,total_events,scans,offer_clicks,map_clicks,engagement_rate,first_event,last_event\n";
+
+    const rows = result.rows.map(r => {
+      const scans = Number(r.scans || 0);
+      const total = Number(r.total_events || 0);
+      const engagementRate = total > 0 ? ((scans / total) * 100).toFixed(2) + "%" : "0.00%";
+
+      return [
+        r.campaign,
+        r.advertiser,
+        r.total_events,
+        r.scans,
+        r.offer_clicks,
+        r.map_clicks,
+        engagementRate,
+        r.first_event,
+        r.last_event
+      ].map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",");
+    }).join("\n");
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=vivid-executive-report.csv");
+    res.send(header + rows);
+
+  } catch (err) {
+    console.error("REPORT CSV ERROR:", err);
+    res.status(500).send(err.message);
+  }
+});
 app.get("/analytics", async (req, res) => {
   const result = await q(`SELECT COUNT(*) FILTER (WHERE type='scan') AS scans, COUNT(*) FILTER (WHERE type='offer') AS offer_clicks, COUNT(*) FILTER (WHERE type='maps') AS maps_clicks, COUNT(*) FILTER (WHERE type='waze') AS waze_clicks, COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks FROM events`);
   res.json(result.rows[0]);
