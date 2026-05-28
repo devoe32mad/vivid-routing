@@ -3961,7 +3961,7 @@ console.log("CSV EXPORT QUERY:", req.query);
       e.store_id,
       st.name AS store
     FROM events e
-    LEFT JOIN qrs qr ON qr.id = e.qr_id
+    LEFT JOIN qr_codes qr ON qr.id = e.qr_id
     LEFT JOIN campaigns c ON c.id = e.campaign_id
     LEFT JOIN stores st ON st.id = e.store_id
     ${whereSql}
