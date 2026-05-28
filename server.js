@@ -3104,7 +3104,25 @@ const whereSql = where.length
         <div class="brand">Vivid Spots</div>
         <h1>AI Insights</h1>
       </div>
+<form method="GET" style="margin-bottom:24px;display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
 
+  <div>
+    <label>Start Date</label><br>
+    <input type="date" name="startDate" value="${startDate || ""}">
+  </div>
+
+  <div>
+    <label>End Date</label><br>
+    <input type="date" name="endDate" value="${endDate || ""}">
+  </div>
+
+  <div>
+    <button class="btn" type="submit">
+      Apply Filter
+    </button>
+  </div>
+
+</form>
       <div class="grid">
 
         <div class="card">
