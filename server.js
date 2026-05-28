@@ -2987,18 +2987,28 @@ app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
 
   <table class="table">
     <tr>
-      <th>ID</th>
-      <th>Name</th>
-      <th>Advertiser</th>
-      <th>Action</th>
-    </tr>
+  <th>ID</th>
+  <th>Name</th>
+  <th>Advertiser</th>
+  <th>Status</th>
+  <th>Action</th>
+</tr>
 
     ${campaigns.rows.map(c => `
       <tr>
         <td>${c.id}</td>
         <td>${c.name || ""}</td>
         <td>${c.advertiser || ""}</td>
-        <td>
+
+<td>
+  ${
+    c.is_archived
+      ? '<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Archived</span>'
+      : '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Active</span>'
+  }
+</td>
+
+<td>
           <a class="btn secondary"
              href="/admin/restore-campaign/${c.id}">
              Restore
