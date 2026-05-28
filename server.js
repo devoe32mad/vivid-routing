@@ -3193,7 +3193,7 @@ GROUP BY c.name
   grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
   gap:20px;
   margin-top:20px;
-
+">
 </div>
         <div class="card">
           <h3>🏆 Top Performing Campaign</h3>
