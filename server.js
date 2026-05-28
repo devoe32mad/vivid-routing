@@ -3924,7 +3924,8 @@ app.get("/export/events.csv", async (req, res) => {
 
   if (startDate) {
     params.push(startDate);
-    where.push(`created_at >= $${params.length}`);
+    where.push(`e.created_at >= $${params.length}`);
+
   }
 
   if (endDate) {
