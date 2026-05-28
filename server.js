@@ -3947,32 +3947,42 @@ console.log("CSV EXPORT QUERY:", req.query);
     ? `WHERE ${where.join(" AND ")}`
     : "";
  
+ try {
   const result = await q(`
-SELECT
-  e.id,
-  e.created_at,
-  e.type,
-  e.qr_id,
-  qr.name AS qr_name,
-  e.campaign_id,
-  c.name AS campaign,
-  c.advertiser,
-  e.store_id,
-  st.name AS store
-FROM events e
-LEFT JOIN qrs qr ON qr.id = e.qr_id
-LEFT JOIN campaigns c ON c.id = e.campaign_id
-LEFT JOIN stores st ON st.id = e.store_id
+    SELECT
+      e.id,
+      e.created_at,
+      e.type,
+      e.qr_id,
+      qr.name AS qr_name,
+      e.campaign_id,
+      c.name AS campaign,
+      c.advertiser,
+      e.store_id,
+      st.name AS store
+    FROM events e
+    LEFT JOIN qrs qr ON qr.id = e.qr_id
+    LEFT JOIN campaigns c ON c.id = e.campaign_id
+    LEFT JOIN stores st ON st.id = e.store_id
+    ${whereSql}
+    ORDER BY e.created_at DESC
+  `, params);
 
-${whereSql}
-
-ORDER BY e.created_at DESC
-`, params);
   const header = "id,created_at,type,qr_id,qr_name,campaign_id,campaign,advertiser,store_id,store\n";
-  const rows = result.rows.map(r => [r.id,r.created_at,r.type,r.qr_id,r.qr_name,r.campaign_id,r.campaign,r.advertiser,r.store_id,r.store].map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(",")).join("\n");
+  const rows = result.rows.map(r =>
+    [r.id,r.created_at,r.type,r.qr_id,r.qr_name,r.campaign_id,r.campaign,r.advertiser,r.store_id,r.store]
+      .map(v => `"${String(v ?? "").replace(/"/g, '""')}"`)
+      .join(",")
+  ).join("\n");
+
   res.setHeader("Content-Type", "text/csv");
   res.setHeader("Content-Disposition", "attachment; filename=vivid-events.csv");
   res.send(header + rows);
+
+} catch (err) {
+  console.error("CSV EXPORT ERROR:", err);
+  res.status(500).send(err.message);
+} 
 });
 
 app.get("/analytics", async (req, res) => {
