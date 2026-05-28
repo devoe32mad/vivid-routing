@@ -77,7 +77,16 @@ function page(title, body) {
     .btn{display:inline-block;background:#2f7d46;color:white;padding:12px 16px;border-radius:12px;text-decoration:none;font-weight:bold;margin:5px 8px 5px 0;border:0;cursor:pointer}
     .btn.secondary{background:#123d25}.btn.gold{background:#9a6a00}
     .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:22px 0 30px}
-    .card{background:white;border-radius:18px;padding:22px;box-shadow:0 8px 22px rgba(0,0,0,.08)}
+.card{
+  background:white;
+  border-radius:18px;
+  padding:22px;
+  box-shadow:0 8px 22px rgba(0,0,0,.08);
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+}
     .label{color:#65776b;font-size:13px;margin-bottom:8px}.num{font-size:30px;font-weight:bold}
     table{width:100%;background:white;border-collapse:collapse;border-radius:18px;overflow:hidden;box-shadow:0 8px 22px rgba(0,0,0,.08);margin-bottom:30px}
     th,td{padding:13px;border-bottom:1px solid #e7eee7;text-align:left;vertical-align:top;font-size:14px}
