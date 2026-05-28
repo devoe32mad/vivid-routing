@@ -3162,7 +3162,7 @@ GROUP BY c.name
   grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
   gap:16px;
   margin:20px 0;
-">
+
 
   <div class="card" style="min-height:90px;">
     <div class="label">Total Events</div>
