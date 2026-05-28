@@ -4033,6 +4033,7 @@ app.get("/export/report.csv", async (req, res) => {
         MAX(e.created_at) AS last_event
       FROM events e
 LEFT JOIN campaigns c ON c.id = e.campaign_id
+LEFT JOIN stores st ON st.id = e.store_id
 LEFT JOIN qr_codes qr ON qr.id = e.qr_id
       ${whereSql}
       GROUP BY c.name, c.advertiser, qr.name, st.name
