@@ -4050,11 +4050,14 @@ const cpm = impressions > 0 ? ((800 / impressions) * 1000).toFixed(2) : "0.00";
       return [
         r.campaign,
         r.advertiser,
+        r.qr_name,
         r.total_events,
         r.scans,
         r.offer_clicks,
         r.map_clicks,
-        engagementRate,
+        impressions,
+engagementRate,
+cpm,
         r.first_event,
         r.last_event
       ].map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",");
