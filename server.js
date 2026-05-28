@@ -3080,6 +3080,16 @@ const whereSql = where.length
   FROM events e
   ${whereSql}
 `, params);
+    const totalEvents = Number(summary.rows[0]?.total_events || 0);
+const activeCampaigns = Number(summary.rows[0]?.active_campaigns || 0);
+const scans = Number(summary.rows[0]?.scans || 0);
+const offerClicks = Number(summary.rows[0]?.offer_clicks || 0);
+const mapClicks = Number(summary.rows[0]?.map_clicks || 0);
+
+const engagementRate =
+  totalEvents > 0
+    ? ((scans / totalEvents) * 100).toFixed(2) + "%"
+    : "0.00%";
     const topCampaign = await q(`
       SELECT
         c.name,
