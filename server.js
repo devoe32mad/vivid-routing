@@ -3070,6 +3070,16 @@ if (endDate) {
 const whereSql = where.length
   ? `WHERE ${where.join(" AND ")}`
   : "";
+    const summary = await q(`
+  SELECT
+    COUNT(*) AS total_events,
+    COUNT(DISTINCT e.campaign_id) AS active_campaigns,
+    COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
+    COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
+    COUNT(*) FILTER (WHERE e.type = 'map') AS map_clicks
+  FROM events e
+  ${whereSql}
+`, params);
     const topCampaign = await q(`
       SELECT
         c.name,
