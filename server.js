@@ -247,6 +247,20 @@ await q(`
   ADD COLUMN IF NOT EXISTS waze_url TEXT
 `);
   await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false
+`);
+
+await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP
+`);
+
+await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS archive_reason TEXT
+`);
+  await q(`
     INSERT INTO users (
       name,
       email,
