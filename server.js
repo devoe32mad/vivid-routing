@@ -2954,6 +2954,7 @@ app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
 
   <div style="margin-bottom:20px;">
     <a class="btn secondary" href="/admin">← Back to Admin</a>
+    <a class="btn secondary" href="/admin/ai-insights">AI Insights</a>
   </div>
 
   <table class="table">
