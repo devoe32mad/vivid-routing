@@ -4478,6 +4478,27 @@ app.post("/admin/assign-store", requireLogin, async (req, res) => {
 
   res.redirect("/admin/assign-store");
 });
+app.post("/admin/campaigns/:id/archive", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reason = req.body.reason || "Archived by admin";
+
+    await q(`
+      UPDATE campaigns
+      SET
+        archived = true,
+        archived_at = NOW(),
+        archive_reason = $1
+      WHERE id = $2
+    `, [reason, id]);
+
+    res.redirect("/admin");
+
+  } catch (err) {
+    console.error("ARCHIVE CAMPAIGN ERROR:", err);
+    res.status(500).send(err.message);
+  }
+});
 app.post("/admin/archive-schedule/:id", requireAdmin, async (req, res) => {
   try {
     await q(
