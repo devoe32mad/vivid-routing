@@ -3192,14 +3192,14 @@ GROUP BY c.name
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
   gap:20px;
-  margin-top:20px;
+  margin-top:12px;
 ">
 </div>
 <div style="
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
   gap:20px;
-  margin-top:20px;
+  margin-top:12px;
 ">
         <div class="card">
           <h3>🏆 Top Performing Campaign</h3>
@@ -3234,7 +3234,7 @@ GROUP BY c.name
         </div>
 
       </div>
-    <div class="card" style="margin-top:20px;">  
+    <div class="card" style="margin-top:12px;">  
  <h3>⚡ AI Recommendations</h3>
 
   ${
