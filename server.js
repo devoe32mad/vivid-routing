@@ -86,6 +86,9 @@ function page(title, body) {
   display:flex;
   flex-direction:column;
   justify-content:flex-start;
+  
+  margin:8px 0;
+
 }
     .label{color:#65776b;font-size:13px;margin-bottom:8px}.num{font-size:30px;font-weight:bold}
     table{width:100%;background:white;border-collapse:collapse;border-radius:18px;overflow:hidden;box-shadow:0 8px 22px rgba(0,0,0,.08);margin-bottom:30px}
