@@ -4068,7 +4068,13 @@ const roi = estimatedSpend > 0 ? (((estimatedRevenue - estimatedSpend) / estimat
         r.map_clicks,
         impressions,
 engagementRate,
+estimatedSpend,
 cpm,
+costPerScan,
+estimatedConversions,
+cac,
+estimatedRevenue,
+roi,
         new Date(r.first_event).toLocaleDateString(),
 new Date(r.last_event).toLocaleDateString()
       ].map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",");
