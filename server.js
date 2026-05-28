@@ -2918,6 +2918,21 @@ app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) =>
     res.send("ARCHIVE ERROR: " + err.message);
   }
 });
+app.get("/admin/restore-campaign/:campaignId", requireLogin, async (req, res) => {
+  try {
+    await q(`
+      UPDATE campaigns
+      SET is_archived = false
+      WHERE id = $1
+    `, [req.params.campaignId]);
+
+    res.redirect("/admin");
+
+  } catch (err) {
+    console.error("RESTORE ERROR:", err);
+    res.status(500).send("Restore failed");
+  }
+});
 app.post("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
