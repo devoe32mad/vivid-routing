@@ -3160,7 +3160,39 @@ GROUP BY c.name
   gap:20px;
   margin-top:20px;
 ">
+<div style="
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:16px;
+  margin:20px 0;
+">
 
+  <div class="card">
+    <div class="label">Total Events</div>
+    <div class="num">${totalEvents}</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Active Campaigns</div>
+    <div class="num">${activeCampaigns}</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Scans</div>
+    <div class="num">${scans}</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Offer Clicks</div>
+    <div class="num">${offerClicks}</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Engagement Rate</div>
+    <div class="num">${engagementRate}</div>
+  </div>
+
+</div>
         <div class="card">
           <h3>🏆 Top Performing Campaign</h3>
           <p><strong>${topCampaign.rows[0]?.name || "N/A"}</strong></p>
