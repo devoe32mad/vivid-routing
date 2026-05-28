@@ -4582,9 +4582,10 @@ const roi =
   ORDER BY name ASC
 `);
     const campaigns = await q(`
-  SELECT id, name
+  SELECT *
   FROM campaigns
-  ORDER BY name ASC
+  WHERE archived = false OR archived IS NULL
+  ORDER BY name
 `);
     const detailRows = await q(`
   SELECT
