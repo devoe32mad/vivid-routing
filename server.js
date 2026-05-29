@@ -1190,6 +1190,7 @@ ${isSuperAdmin ? `
   <a class="btn secondary" href="/admin">Admin</a>
   <a class="btn secondary" href="/admin/schedule">Schedule Campaigns</a>
   <a class="btn secondary" href="/admin/assign">Assign Campaign</a>
+  <a class="btn secondary" href="#" onclick="toggleHelp();return false;">❓ Help</a>
   <a class="btn gold" href="/export/events.csv">Export CSV</a>
 ` : ""}
         <div class="note"><strong>Money View:</strong> Campaign ROI now uses allocated spot cost: annual placement cost / 365 × active days.</div>
