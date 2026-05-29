@@ -2925,85 +2925,61 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
     }
 
     res.send(page("Import QR", `
-      <div class="topbar">
-        <div class="brand">Vivid Spots</div>
-        <h1>
-  Create Tracking QR from Existing URL
-  <a class="btn secondary"
-     href="#"
-     onclick="const p=document.getElementById('importHelpPanel'); if(p){p.style.display=p.style.display==='none'?'block':'none';} return false;"
-     style="margin-left:15px;font-size:14px;">
-     Help
-  </a>
-</h1>
-<div id="importHelpPanel" style="display:none;background:#fff;padding:20px;margin:20px 0;border-radius:10px;">
-  <h3 style="color:#073b22;">How Import Existing QR Works</h3>
-
-<p style="color:#073b22;">
-Already have a QR code in use? Enter the destination URL and Vivid will create a trackable version for analytics and reporting.
-</p>
-
-<ol style="color:#073b22;">
-  <li>Enter a QR Name.</li>
-  <li>Select the Location.</li>
-  <li>Enter the Existing Destination URL.</li>
-  <li>Click Import Existing QR.</li>
-  <li>Use the new Vivid-tracked QR going forward.</li>
-</ol>
-
-<p style="color:#073b22;">
-<strong>Important:</strong> Existing printed QR codes cannot be tracked unless they point to a Vivid tracking URL.
-</p>
-
-  <div class="note">
-    <h3>How Import Existing QR Works</h3>
-
-    <p>
-      Already have a QR code in use? Import the destination URL into Vivid and create a trackable version for analytics and reporting.
-    </p>
-
-    <ol>
-  <li><strong>Enter a QR Name</strong><br>Create a name that will help identify the QR code in reports and dashboards.</li>
-  <li><strong>Select a Location</strong><br>Choose the location where the QR code will be used.</li>
-  <li><strong>Enter the Existing Destination URL</strong><br>Enter the website, landing page, registration page, offer page, or destination currently used by the QR code.</li>
-  <li><strong>Click Import Existing QR</strong><br>Vivid creates a new trackable QR code and routing link tied to the destination URL.</li>
-  <li><strong>Use the Vivid QR Going Forward</strong><br>Download and use the Vivid-generated QR code going forward to track scans, clicks, conversions, and revenue.</li>
-</ol>
-
-  </div>
+     <div class="topbar">
+  <div class="brand">Vivid Spots</div>
+  <h1>
+    Create Tracking QR from Existing URL
+    <a class="btn secondary"
+       href="#"
+       onclick="const p=document.getElementById('importHelpPanel'); if(p){p.style.display=p.style.display==='none'?'block':'none';} return false;"
+       style="margin-left:15px;font-size:14px;">
+       Help
+    </a>
+  </h1>
 </div>
 
 <div class="wrap">
+
+  <div id="importHelpPanel" style="display:none;background:#fff;padding:20px;margin-bottom:20px;border-radius:10px;">
+    <h3>How Import Existing QR Works</h3>
+
+    <p>Already have a QR code in use? Enter the destination URL and Vivid will create a trackable version for analytics and reporting.</p>
+
+    <ol>
+      <li>Enter a QR Name.</li>
+      <li>Select the Location.</li>
+      <li>Enter the Existing Destination URL.</li>
+      <li>Click Import Existing QR.</li>
+      <li>Download and use the new Vivid-tracked QR going forward.</li>
+    </ol>
+
+    <p><strong>Important:</strong> Existing printed QR codes cannot be tracked unless they point to a Vivid tracking URL.</p>
+  </div>
+
   <div class="card" style="max-width:700px;">
+    <form method="POST" action="/admin/import-qr">
 
-          
+      <label>QR Name</label>
+      <input name="name" required />
 
-          <form method="POST" action="/admin/import-qr">
+      <label>Location</label>
+      <select name="space_id">
+        ${locationOptions}
+      </select>
 
-            <label>QR Name</label>
-            <input name="name" required />
+      <label>Existing Destination URL</label>
+      <input
+        name="destination_url"
+        placeholder="https://example.com"
+        required
+      />
 
-            <label>Location</label>
-            <select name="space_id">
-              ${locationOptions}
-            </select>
+      <button class="btn" type="submit">Create Tracking QR</button>
 
-            <label>Existing Destination URL</label>
-            <input
-              name="destination_url"
-              placeholder="https://example.com"
-              required
-            />
+    </form>
+  </div>
 
-            <button class="btn" type="submit">
-              Create Tracking QR
-            </button>
-
-          </form>
-
-        </div>
-
-      </div>
+</div>
     `));
 
   } catch (err) {
