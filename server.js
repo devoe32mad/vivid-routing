@@ -90,8 +90,14 @@ function page(title, body) {
 }
     .label{color:#65776b;font-size:13px;margin-bottom:8px}.num{font-size:30px;font-weight:bold}
     table{width:100%;background:white;border-collapse:collapse;border-radius:18px;overflow:hidden;box-shadow:0 8px 22px rgba(0,0,0,.08);margin-bottom:30px}
-    th,td{padding:13px;border-bottom:1px solid #e7eee7;text-align:left;vertical-align:top;font-size:14px}
     th{background:#eaf3e8}
+   th,td{
+  padding:13px;
+  border-bottom:1px solid #e7eee7;
+  text-align:center;
+  vertical-align:middle;
+  font-size:14px
+}
     .note{background:white;border-left:6px solid #2f7d46;padding:18px;border-radius:16px;box-shadow:0 8px 18px rgba(0,0,0,.06);margin:20px 0}
     .choice-card{max-width:620px;margin:36px auto;background:white;border-radius:24px;padding:32px;box-shadow:0 10px 28px rgba(0,0,0,.14)}
     .choice-btn{display:block;background:#2f7d46;color:white;padding:17px;margin:12px 0;text-align:center;text-decoration:none;border-radius:14px;font-weight:bold;font-size:16px}
