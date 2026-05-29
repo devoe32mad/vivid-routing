@@ -1168,8 +1168,6 @@ let activeScheduleTable = "";
   |
   Role:
   ${currentUser.role}
-</p><p style="color:white; font-weight:bold;">
-  Logged in as: ${currentUser.email} | Role: ${currentUser.role} | User ID: ${currentUser.id}
 </p><p class="subtitle">QR ROI + Campaign ROI + Store Intent + Inventory Routing + Scheduled Campaigns</p></div>
       <div class="wrap">
         <form method="GET" action="/dashboard" style="margin-bottom:20px;"><label>Start Date</label><input type="date" name="start" value="${start}" /><label>End Date</label><input type="date" name="end" value="${end}" /><button class="btn" type="submit">Apply Date Filter</button></form>
