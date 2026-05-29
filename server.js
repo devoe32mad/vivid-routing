@@ -2568,7 +2568,7 @@ COUNT(*) FILTER (WHERE e.type = 'scan') AS scans
   res.send(page("Vivid Admin", `
     <div class="topbar"><div class="brand">Vivid Spots</div><h1>Admin Control Center</h1><p class="subtitle">Manage locations, QR codes, campaigns, stores, inventory, and schedules.</p></div>
   
-    <div class="wrap"><a class="btn" href="/dashboard">Dashboard</a><a class="btn secondary" href="/admin/new-location">New Location</a><a class="btn secondary" href="/admin/new-qr">New QR</a><a class="btn secondary" href="/admin/import-qr">Import Existing QR</a><a class="btn secondary" href="/admin/new-campaign">New Campaign</a><a class="btn secondary" href="/admin/new-store">New Store</a><a class="btn secondary" href="/admin/schedule">Schedule Campaigns</a><a class="btn secondary" href="/admin/assign">Assign Campaign</a>
+    <div class="wrap"><a class="btn" href="/dashboard">Dashboard</a><a class="btn secondary" href="/admin/new-location">New Location</a><a class="btn secondary" href="/admin/new-qr">New QR</a><a class="btn secondary" href="/admin/import-qr">Import Existing QR</a><a class="btn secondary" href="/admin/import-qr">Import Existing QR</a><a class="btn secondary" href="/admin/new-campaign">New Campaign</a><a class="btn secondary" href="/admin/new-store">New Store</a><a class="btn secondary" href="/admin/schedule">Schedule Campaigns</a><a class="btn secondary" href="/admin/assign">Assign Campaign</a>
       <a class="btn secondary"
    href="#"
    onclick="const p=document.getElementById('helpPanel'); if(p){p.style.display=p.style.display==='none'?'block':'none';} return false;">
