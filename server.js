@@ -2980,9 +2980,7 @@ Already have a QR code in use? Enter the destination URL and Vivid will create a
 
         <div class="card" style="max-width:700px;">
 
-          <div class="note" style="margin-bottom:20px;">
-            Convert an existing website URL into a trackable Vivid QR code without changing the destination page.
-          </div>
+          
 
           <form method="POST" action="/admin/import-qr">
 
