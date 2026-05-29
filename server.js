@@ -2579,7 +2579,9 @@ COUNT(*) FILTER (WHERE e.type = 'scan') AS scans
    href="#"
    onclick="const p=document.getElementById('helpPanel'); if(p){p.style.display=p.style.display==='none'?'block':'none';} return false;">
    Help
-</a><h2>QR Codes</h2><table><tr><th>ID</th><th>QR</th><th>Space</th><th>Routing URL</th><th>QR Image</th></tr>${qrs.rows.map(qr => `<tr><td>${qr.id}</td><td>${qr.name || ""}</td><td>${qr.space_name || ""}</td><td><a href="/r/${qr.id}" target="_blank">${BASE_URL}/r/${qr.id}</a></td><td><a href="/qr/${qr.id}.png" target="_blank">Download QR</a></td></tr>`).join("")}</table>
+</a><div id="helpPanel" style="display:none;background:#fff;padding:20px;margin:20px 0;border-radius:10px;">
+  TEST HELP PANEL
+</div><h2>QR Codes</h2><table><tr><th>ID</th><th>QR</th><th>Space</th><th>Routing URL</th><th>QR Image</th></tr>${qrs.rows.map(qr => `<tr><td>${qr.id}</td><td>${qr.name || ""}</td><td>${qr.space_name || ""}</td><td><a href="/r/${qr.id}" target="_blank">${BASE_URL}/r/${qr.id}</a></td><td><a href="/qr/${qr.id}.png" target="_blank">Download QR</a></td></tr>`).join("")}</table>
       <h2>Campaigns</h2><table><tr><th>ID</th><th>Advertiser</th><th>Campaign</th><th>URL</th><th>Avg Value</th><th>Conversion</th><th>QR Scans</th>
 <th>Offer Clicks</th>
 <th>CTR</th>
