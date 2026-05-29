@@ -2937,7 +2937,23 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
   </a>
 </h1>
 <div id="importHelpPanel" style="display:none;background:#fff;padding:20px;margin:20px 0;border-radius:10px;">
-  TEST IMPORT HELP
+  <div id="importHelpPanel" style="display:none;background:#fff;padding:20px;margin:20px 0;border-radius:10px;">
+
+  <div class="note">
+    <h3>How Import Existing QR Works</h3>
+
+    <p>
+      Already have a QR code in use? Import the destination URL into Vivid and create a trackable version for analytics and reporting.
+    </p>
+
+    <ol>
+      <li><strong>Enter a QR Name</strong> ...</li>
+      ...
+    </ol>
+
+  </div>
+
+</div>
 </div>
       </div>
 
