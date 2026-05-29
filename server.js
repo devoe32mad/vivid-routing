@@ -2926,7 +2926,24 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
     res.send(page("Import QR", `
       <div class="topbar">
         <div class="brand">Vivid Spots</div>
-        <h1>Create Tracking QR from Existing URL</h1>
+        <h1>
+  Create Tracking QR from Existing URL
+  <a class="btn secondary"
+     href="#"
+     onclick="const p=document.getElementById('importHelpPanel'); if(p){p.style.display=p.style.display==='none'?'block':'none';} return false;"
+     style="margin-left:15px;font-size:14px;">
+     Help
+  </a>
+</h1>
+<h1>
+  Create Tracking QR from Existing URL
+  <a class="btn secondary"
+     href="#"
+     onclick="const p=document.getElementById('importHelpPanel'); if(p){p.style.display=p.style.display==='none'?'block':'none';} return false;"
+     style="margin-left:15px;font-size:14px;">
+     Help
+  </a>
+</h1>
       </div>
 
       <div class="wrap">
