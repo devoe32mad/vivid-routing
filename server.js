@@ -2549,11 +2549,13 @@ COUNT(*) FILTER (WHERE e.type = 'scan') AS scans
 <th>Offer Clicks</th>
 <th>CTR</th>
 <th>Conversions</th>
+<th>Est. Revenue</th>
 <th>Status</th>
 <th>Archive</th></tr>${campaigns.rows.map(c => `<tr><td>${c.id}</td><td>${c.advertiser || ""}</td><td>${c.name || ""}</td><td>${c.campaign_url || ""}</td><td>${money(c.avg_customer_value)}</td><td>${c.conversion_rate || 10}%</td><td>${c.total_events || 0}</td>
 <td>${c.scans || 0}</td>
 <td>${((c.scans || 0) / Math.max(c.total_events || 1, 1) * 100).toFixed(1)}%</td>
 <td>${Math.round((c.scans || 0) * ((c.conversion_rate || 10) / 100))}</td> 
+<td>$${Math.round(Math.round((c.scans || 0) * ((c.conversion_rate || 10) / 100)) * Number(c.avg_value || 0))}</td>
 </td>
 
 <td>
