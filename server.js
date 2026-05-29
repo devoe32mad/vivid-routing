@@ -2937,7 +2937,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
   </a>
 </h1>
 <div id="importHelpPanel" style="display:none;background:#fff;padding:20px;margin:20px 0;border-radius:10px;">
-  <div id="importHelpPanel" style="display:none;background:#fff;padding:20px;margin:20px 0;border-radius:10px;">
+  
 
   <div class="note">
     <h3>How Import Existing QR Works</h3>
