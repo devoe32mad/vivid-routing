@@ -2926,7 +2926,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
     res.send(page("Import QR", `
       <div class="topbar">
         <div class="brand">Vivid Spots</div>
-        <h1>Import Existing QR</h1>
+        <h1>Create Tracking QR from Existing URL</h1>
       </div>
 
       <div class="wrap">
@@ -2934,7 +2934,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
         <div class="card" style="max-width:700px;">
 
           <div class="note" style="margin-bottom:20px;">
-            Import an existing QR code destination into Vivid tracking.
+            Convert an existing website URL into a trackable Vivid QR code without changing the destination page.
           </div>
 
           <form method="POST" action="/admin/import-qr">
