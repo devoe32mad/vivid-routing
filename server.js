@@ -2533,7 +2533,8 @@ app.get("/admin", async (req, res) => {
   const campaigns = await q(`
   SELECT
     c.*,
-    COUNT(e.id) AS total_events
+COUNT(e.id) AS total_events,
+COUNT(*) FILTER (WHERE e.type = 'scan') AS scans
   FROM campaigns c
   LEFT JOIN events e ON e.campaign_id = c.id
   GROUP BY c.id
