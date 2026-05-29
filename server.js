@@ -4328,9 +4328,11 @@ app.get("/qr-admin/:qrId", requireLogin, async (req, res) => {
 
         ${events.rows.map(e => `
           <tr>
-           new Date(e.created_at).toLocaleString("en-US", {
-  timeZone: "America/New_York"
-}) 
+          <td>
+  ${new Date(e.created_at).toLocaleString("en-US", {
+    timeZone: "America/New_York"
+  })}
+</td> 
             <td>${e.type}</td>
             <td>${e.advertiser || ""}</td>
             <td>${e.campaign_name || ""}</td>
