@@ -1193,7 +1193,25 @@ ${isSuperAdmin ? `
   <a class="btn secondary" href="#" onclick="toggleHelp();return false;">❓ Help</a>
   <a class="btn gold" href="/export/events.csv">Export CSV</a>
 ` : ""}
-        <div class="note"><strong>Money View:</strong> Campaign ROI now uses allocated spot cost: annual placement cost / 365 × active days.</div>
+       <div id="helpPanel" style="display:none;margin-bottom:20px;">
+  <div class="note">
+    <h3>Quick Start Guide</h3>
+
+    <ol>
+      <li>Create Locations</li>
+      <li>Create QR Codes</li>
+      <li>Create Campaigns</li>
+      <li>Assign Campaigns to QR Codes</li>
+      <li>Schedule Campaigns (optional)</li>
+      <li>Run Reports and AI Insights</li>
+    </ol>
+
+    <p>
+      <strong>Estimated Revenue Formula:</strong><br>
+      Offer Clicks × Conversion Rate × Average Customer Value
+    </p>
+  </div>
+</div> <div class="note"><strong>Money View:</strong> Campaign ROI now uses allocated spot cost: annual placement cost / 365 × active days.</div>
         <div class="cards"><div class="card"><div class="label">Total Scans</div><div class="num">${total.scans || 0}</div></div><div class="card"><div class="label">Google Maps Clicks</div><div class="num">${total.maps_clicks || 0}</div></div><div class="card"><div class="label">Offer Clicks</div><div class="num">${total.offer_clicks || 0}</div></div><div class="card"><div class="label">Intent Rate</div><div class="num">${pct(totalIntentRate)}</div></div></div>
         <h2>Daily Trend Activity</h2><table><tr><th>Date</th><th>Scans</th><th>Intent Clicks</th></tr>${trendTable || `<tr><td colspan="3">No activity for selected range.</td></tr>`}</table>
         <h2>Active Campaign Schedules</h2><table><tr><th>QR</th><th>Advertiser</th><th>Campaign</th><th>Day</th><th>Start</th><th>End</th><th>Priority</th><th>Status</th><th>Action</th></tr>${activeScheduleTable || `<tr><td colspan="8">No active schedules.</td></tr>`}</table>
