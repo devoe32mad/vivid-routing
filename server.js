@@ -2955,7 +2955,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
             />
 
             <button class="btn" type="submit">
-              Import QR
+              Create Tracking QR
             </button>
 
           </form>
