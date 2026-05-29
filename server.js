@@ -2601,6 +2601,19 @@ COUNT(*) FILTER (WHERE e.type = 'scan') AS scans
 `).join("")}</table>
       <h2>Stores / Inventory</h2><table><tr><th>Store</th><th>Address</th><th>Priority</th><th>Units</th><th>Days</th><th>Velocity</th><th>Note</th><th>Edit</th></tr>${stores.rows.map(s => `<tr><td>${s.name || ""}</td><td>${s.address || ""}</td><td>${s.inventory_priority || 0}</td><td>${s.inventory_units || 0}</td><td>${s.days_on_hand || 0}</td><td>${s.inventory_velocity || 0}</td><td>${s.inventory_note || ""}</td><td><a href="/admin/edit-store/${s.id}">Edit</a></td></tr>`).join("")}</table>
     </div>
+    <script>
+function toggleHelp() {
+  const panel = document.getElementById('helpPanel');
+
+  if (!panel) return;
+
+  if (panel.style.display === 'none') {
+    panel.style.display = 'block';
+  } else {
+    panel.style.display = 'none';
+  }
+}
+</script>
   `));
 });
 app.get("/admin/edit-location/:spaceId", requireLogin, async (req, res) => {
