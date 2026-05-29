@@ -2937,7 +2937,23 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
   </a>
 </h1>
 <div id="importHelpPanel" style="display:none;background:#fff;padding:20px;margin:20px 0;border-radius:10px;">
-  
+  <h3 style="color:#073b22;">How Import Existing QR Works</h3>
+
+<p style="color:#073b22;">
+Already have a QR code in use? Enter the destination URL and Vivid will create a trackable version for analytics and reporting.
+</p>
+
+<ol style="color:#073b22;">
+  <li>Enter a QR Name.</li>
+  <li>Select the Location.</li>
+  <li>Enter the Existing Destination URL.</li>
+  <li>Click Import Existing QR.</li>
+  <li>Use the new Vivid-tracked QR going forward.</li>
+</ol>
+
+<p style="color:#073b22;">
+<strong>Important:</strong> Existing printed QR codes cannot be tracked unless they point to a Vivid tracking URL.
+</p>
 
   <div class="note">
     <h3>How Import Existing QR Works</h3>
