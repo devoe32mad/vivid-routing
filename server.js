@@ -2568,7 +2568,10 @@ ${
    onclick="return confirm('Archive this campaign?')"
    style="color:red;">
    Archive
-</a></td></tr>`).join("")}</table>
+</a>
+</td>
+</tr>
+`).join("")}</table>
       <h2>Stores / Inventory</h2><table><tr><th>Store</th><th>Address</th><th>Priority</th><th>Units</th><th>Days</th><th>Velocity</th><th>Note</th><th>Edit</th></tr>${stores.rows.map(s => `<tr><td>${s.name || ""}</td><td>${s.address || ""}</td><td>${s.inventory_priority || 0}</td><td>${s.inventory_units || 0}</td><td>${s.days_on_hand || 0}</td><td>${s.inventory_velocity || 0}</td><td>${s.inventory_note || ""}</td><td><a href="/admin/edit-store/${s.id}">Edit</a></td></tr>`).join("")}</table>
     </div>
   `));
