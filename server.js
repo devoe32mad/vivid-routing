@@ -2973,8 +2973,8 @@ Already have a QR code in use? Enter the destination URL and Vivid will create a
   </div>
 
 </div>
-
-      
+</div>
+</div>
 
       <div class="wrap">
 
