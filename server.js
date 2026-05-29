@@ -2935,15 +2935,9 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
      Help
   </a>
 </h1>
-<h1>
-  Create Tracking QR from Existing URL
-  <a class="btn secondary"
-     href="#"
-     onclick="const p=document.getElementById('importHelpPanel'); if(p){p.style.display=p.style.display==='none'?'block':'none';} return false;"
-     style="margin-left:15px;font-size:14px;">
-     Help
-  </a>
-</h1>
+<div id="importHelpPanel" style="display:none;background:#fff;padding:20px;margin:20px 0;border-radius:10px;">
+  TEST IMPORT HELP
+</div>
       </div>
 
       <div class="wrap">
