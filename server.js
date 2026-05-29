@@ -2963,9 +2963,12 @@ Already have a QR code in use? Enter the destination URL and Vivid will create a
     </p>
 
     <ol>
-      <li><strong>Enter a QR Name</strong> ...</li>
-      ...
-    </ol>
+  <li><strong>Enter a QR Name</strong><br>Create a name that will help identify the QR code in reports and dashboards.</li>
+  <li><strong>Select a Location</strong><br>Choose the location where the QR code will be used.</li>
+  <li><strong>Enter the Existing Destination URL</strong><br>Enter the website, landing page, registration page, offer page, or destination currently used by the QR code.</li>
+  <li><strong>Click Import Existing QR</strong><br>Vivid creates a new trackable QR code and routing link tied to the destination URL.</li>
+  <li><strong>Use the Vivid QR Going Forward</strong><br>Download and use the Vivid-generated QR code going forward to track scans, clicks, conversions, and revenue.</li>
+</ol>
 
   </div>
 
