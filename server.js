@@ -2554,7 +2554,7 @@ COUNT(*) FILTER (WHERE e.type = 'scan') AS scans
       <h2>Campaigns</h2><table><tr><th>ID</th><th>Advertiser</th><th>Campaign</th><th>URL</th><th>Avg Value</th><th>Conversion</th><th>QR Scans</th>
 <th>Offer Clicks</th>
 <th>CTR</th>
-<th>Conversions</th>
+<th>Est. Conversions</th>
 <th>Est. Revenue</th>
 <th>Status</th>
 <th>Archive</th></tr>${campaigns.rows.map(c => `<tr><td>${c.id}</td><td>${c.advertiser || ""}</td><td>${c.name || ""}</td><td>${c.campaign_url || ""}</td><td>${money(c.avg_customer_value)}</td><td>${c.conversion_rate || 10}%</td><td>${c.total_events || 0}</td>
