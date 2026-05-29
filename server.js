@@ -1193,7 +1193,11 @@ ${isSuperAdmin ? `
   
   <a class="btn gold" href="/export/events.csv">Export CSV</a>
 ` : ""}
-   <a class="btn secondary" href="#" onclick="toggleHelp();return false;">❓ Help</a>
+   <a class="btn secondary"
+   href="#"
+   onclick="const p=document.getElementById('helpPanel'); if(p){p.style.display=p.style.display==='none'?'block':'none';} return false;">
+   Help
+</a>
        <div id="helpPanel" style="display:none;margin-bottom:20px;">
   <div class="note">
     <h3>Quick Start Guide</h3>
