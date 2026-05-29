@@ -3460,7 +3460,9 @@ app.get("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
 
         <label>Avg Customer Value</label>
         <input name="avg_customer_value" value="${c.avg_customer_value || 50}" />
-
+<div style="font-size:12px;color:#666;margin-top:4px;margin-bottom:10px;">
+  Average customer value used to estimate campaign revenue.
+</div>
         <label>Conversion Rate (%)</label>
         <input name="conversion_rate" value="${c.conversion_rate || 10}" />
 
