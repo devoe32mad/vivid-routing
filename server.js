@@ -2548,7 +2548,15 @@ COUNT(*) FILTER (WHERE e.type = 'scan') AS scans
       <h2>Campaigns</h2><table><tr><th>ID</th><th>Advertiser</th><th>Campaign</th><th>URL</th><th>Avg Value</th><th>Conversion</th><th>Events</th><th>Scans</th><th>Health</th><th>Status</th><th>Archive</th></tr>${campaigns.rows.map(c => `<tr><td>${c.id}</td><td>${c.advertiser || ""}</td><td>${c.name || ""}</td><td>${c.campaign_url || ""}</td><td>${money(c.avg_customer_value)}</td><td>${c.conversion_rate || 10}%</td><td>${c.total_events || 0}</td><td><td>${c.scans || 0}</td>
   
 </td>
-
+<td>
+${
+  Number(c.total_events || 0) > 50
+    ? '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Healthy</span>'
+    : Number(c.total_events || 0) > 10
+    ? '<span style="background:#fef3c7;color:#854d0e;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Watch</span>'
+    : '<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Critical</span>'
+}
+</td>
 <td>
   <span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">
     Active
