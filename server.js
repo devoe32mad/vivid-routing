@@ -2561,7 +2561,10 @@ ${
   <span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">
     Active
   </span>
-</td><td><a href="/admin/archive-campaign/${c.id}"
+</td>
+
+<td>
+  <a href="/admin/archive-campaign/${c.id}"
    onclick="return confirm('Archive this campaign?')"
    style="color:red;">
    Archive
