@@ -2971,14 +2971,10 @@ Already have a QR code in use? Enter the destination URL and Vivid will create a
 </ol>
 
   </div>
-
-</div>
-</div>
 </div>
 
-      <div class="wrap">
-
-        <div class="card" style="max-width:700px;">
+<div class="wrap">
+  <div class="card" style="max-width:700px;">
 
           
 
