@@ -1184,6 +1184,7 @@ let activeScheduleTable = "";
 <a class="btn" href="/admin/new-campaign">New Campaign</a>
 <a class="btn" href="/admin/new-location">New Location</a>
 <a class="btn" href="/admin/new-qr">New QR Code</a>
+<a class="btn secondary" href="/admin/import-qr">Import Existing QR</a>
 ${isSuperAdmin ? `
   <a class="btn secondary" href="/admin">Admin</a>
   <a class="btn secondary" href="/admin/schedule">Schedule Campaigns</a>
