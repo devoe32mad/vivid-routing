@@ -3182,7 +3182,7 @@ app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) =>
   try {
     await q(`
       UPDATE campaigns
-      SET is_archived = true,
+      SET is_archived = true
     
       WHERE id = $1
     `, [req.params.campaignId]);
