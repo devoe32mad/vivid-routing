@@ -3596,7 +3596,8 @@ app.get("/admin/new-campaign", async (req, res) => {
   ORDER BY email
 `);
 
-  res.send(page("New Campaign", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Create Campaign</h1></div><div class="wrap"><form method="POST" action="/admin/new-campaign"><div class="formgrid">
+  res.send(page("New Campaign", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Create Campaign</h1></div><div class="wrap"><form method="POST" action="/admin/new-campaign">
+<div class="formgrid">
   
 ${req.session.user.role === "super_admin" ? `
   <div>
