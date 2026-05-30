@@ -2612,18 +2612,64 @@ COUNT(*) FILTER (WHERE e.type = 'scan') AS scans
    Help
 </a><div id="helpPanel" style="display:none;background:#fff;padding:20px;margin:20px 0;border-radius:10px;">
   <div class="note">
-  <h3>Quick Start Guide</h3>
-  <ol>
-    <li>Create Locations</li>
-    <li>Create QR Codes</li>
-    <li>Create Campaigns</li>
-    <li>Assign Campaigns to QR Codes</li>
-    <li>Schedule Campaigns if multiple campaigns rotate on the same QR</li>
-    <li>Run Reports and AI Insights</li>
-  </ol>
+<h3>Getting Started with Vivid Spots</h3>
 
-  <p><strong>Estimated Revenue Formula:</strong><br>
-  Offer Clicks × Conversion Rate × Average Customer Value</p>
+<ol>
+  <li>Create Locations</li>
+  <li>Create QR Codes</li>
+  <li>Create Campaigns</li>
+  <li>Assign Campaigns to QR Codes</li>
+  <li>Schedule Campaigns if multiple campaigns rotate on the same QR</li>
+  <li>Run Reports and AI Insights</li>
+</ol>
+
+<br>
+
+<h3>What Each Section Means</h3>
+
+<p>
+<strong>Locations</strong><br>
+Physical places where QR codes are deployed such as schools, stores, events, parking areas, or mailers.
+</p>
+
+<p>
+<strong>QR Codes</strong><br>
+Trackable QR codes that can route visitors to campaigns and collect scan analytics without reprinting.
+</p>
+
+<p>
+<strong>Campaigns</strong><br>
+Advertiser offers, promotions, recruiting campaigns, school initiatives, or other destinations.
+</p>
+
+<p>
+<strong>Assign Campaigns</strong><br>
+Connect a campaign to a QR code so scans route to the correct destination.
+</p>
+
+<p>
+<strong>Scheduling</strong><br>
+Run different campaigns on the same QR by day, time, or priority.
+</p>
+
+<p>
+<strong>Reports & AI Insights</strong><br>
+Measure scans, engagement, conversions, ROI, and customer acquisition.
+</p>
+
+<br>
+
+<h3>Estimated Customer Value Formula</h3>
+
+<p>
+<strong>Scans × Conversion Rate × Average Customer Value</strong>
+</p>
+
+<p>
+Example:<br>
+1,000 Scans × 10% Conversion × $35 Customer Value<br>
+= <strong>$3,500 Estimated Revenue</strong>
+</p>
 </div>
 </div><h2>QR Codes</h2><table><tr><th>ID</th><th>QR</th><th>Space</th><th>Routing URL</th><th>QR Image</th></tr>${qrs.rows.map(qr => `<tr><td>${qr.id}</td><td>${qr.name || ""}</td><td>${qr.space_name || ""}</td><td><a href="/r/${qr.id}" target="_blank">${BASE_URL}/r/${qr.id}</a></td><td><a href="/qr/${qr.id}.png" target="_blank">Download QR</a></td></tr>`).join("")}</table>
       <h2>Campaigns</h2><table><tr><th>ID</th><th>Advertiser</th><th>Campaign</th><th>URL</th><th>Avg Value</th><th>Conversion</th><th>QR Scans</th>
