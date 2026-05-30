@@ -4246,11 +4246,16 @@ app.post("/admin/assign", requireLogin, async (req, res) => {
       Number(req.body.campaign_id)
     ]);
 
-  res.send(
-  "Campaign assigned <br><a href='/admin/schedule'>Manage Schedules</a> | <a href='/r/" +
-    req.body.qr_id +
-    "'>Test QR</a> | <a href='/dashboard'>Dashboard</a>"
-);
+  res.send(successPage(
+  "Campaign Assigned Successfully",
+  "Your campaign has been connected to this QR code.",
+  "Schedule when this campaign should run.",
+  [
+    { label: "Manage Schedules", href: "/admin/schedule" },
+    { label: "Dashboard", href: "/dashboard" },
+    { label: "Back to My Setup", href: "/my-setup" }
+  ]
+));
   } catch (err) {
     res.send("ASSIGN ERROR: " + err.message);
   }
