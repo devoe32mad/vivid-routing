@@ -3029,26 +3029,28 @@ app.post("/admin/import-qr", requireLogin, async (req, res) => {
 
     const qr = result.rows[0];
 
-    res.send(`
-      <h2>QR Imported Successfully</h2>
+res.send(`
+  <div style="max-width:720px;margin:40px auto;padding:28px;border-radius:18px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.08);font-family:Arial,sans-serif;color:#003c2f;">
+    <h2 style="margin-top:0;">✅ QR Imported Successfully</h2>
 
-      <p>
-        Existing destination saved as description for now.
-      </p>
+    <p>Your existing QR has been added to Vivid tracking.</p>
 
-      <p>
-        <strong>Tracking URL:</strong><br>
-        ${process.env.BASE_URL || ""}
-        /r/${qr.id}
-      </p>
+    <p>
+      <strong>Tracking URL:</strong><br>
+      ${process.env.BASE_URL || ""}/r/${qr.id}
+    </p>
 
-      <br>
+    <p>
+      <strong>Next Recommended Step:</strong><br>
+      Create a campaign for this QR code.
+    </p>
 
-      <a href="/my-setup">
-        Back to My Setup
-      </a>
-    `);
-
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;">
+      <a href="/admin/new-campaign" style="background:#2f855a;color:white;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold;">Create Campaign</a>
+      <a href="/my-setup" style="background:#eef5f0;color:#003c2f;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold;">Back to My Setup</a>
+    </div>
+  </div>
+`);
   } catch (err) {
     res.send("IMPORT QR ERROR: " + err.message);
   }
