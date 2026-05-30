@@ -3122,7 +3122,7 @@ res.send(successPage(
   [
     { label: "Create Campaign", href: "/admin/new-campaign" },
     { label: "Download QR Code", href: "/qr/" + qrId + ".png", target: "_blank" },
-    { label: "Open QR URL", href: "/r/" + qrId, target: "_blank" },
+{ label: "Preview QR Destination", href: "/r/" + qrId, target: "_blank" },
     { label: "Back to My Setup", href: "/my-setup" }
   ]
 ));
