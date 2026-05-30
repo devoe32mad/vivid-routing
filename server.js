@@ -2795,7 +2795,15 @@ app.post("/admin/new-location", async (req, res) => {
       Number(req.body.placement_cost || 800)
     ]);
 
-    res.send("Location created <br><a href='/admin/new-qr'>Create QR</a>");
+    res.send(successPage(
+  "Location Created Successfully",
+  "Your location has been saved.",
+  "Create a QR code for this location.",
+  [
+    { label: "Create QR Code", href: "/admin/new-qr" },
+    { label: "Back to My Setup", href: "/my-setup" }
+  ]
+));
   } catch (err) {
     res.send("ERROR: " + err.message);
   }
