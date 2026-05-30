@@ -3645,7 +3645,16 @@ const userId =
       userId
     ]);
 
-    res.send("✅ Campaign created <br><a href='/admin/assign'>Go Assign</a>");
+    res.send(successPage(
+  "Campaign Created Successfully",
+  "Your campaign has been saved.",
+  "Assign this campaign to a QR code.",
+  [
+    { label: "Assign Campaign", href: "/admin/assign" },
+    { label: "Back to My Setup", href: "/my-setup" },
+    { label: "Dashboard", href: "/dashboard" }
+  ]
+));
 
   } catch (err) {
     res.send("ERROR: " + err.message);
