@@ -3614,7 +3614,10 @@ ${req.session.user.role === "super_admin" ? `
 
 app.post("/admin/new-campaign", async (req, res) => {
   try {
-
+const userId =
+  req.session.user.role === "super_admin"
+    ? Number(req.body.user_id)
+    : req.session.user.id;
     await q(`
       INSERT INTO campaigns (
         name,
