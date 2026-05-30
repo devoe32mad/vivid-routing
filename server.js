@@ -133,7 +133,9 @@ function page(title, body) {
   <a href="/admin/schedule" style="color:white;text-decoration:none;">
     Scheduling
   </a>
-
+<a href="/help" style="color:white;text-decoration:none;">
+  Help
+</a>
 </div>
 
 ${body}
