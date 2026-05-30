@@ -141,6 +141,40 @@ ${body}
 </body>
 </html>`;
 }
+function successPage(title, message, nextStep, buttons = []) {
+  const buttonHtml = buttons.map((b, i) => `
+    <a href="${b.href}"
+       ${b.target ? `target="${b.target}"` : ""}
+       class="btn ${i === 0 ? "" : "secondary"}">
+      ${b.label}
+    </a>
+  `).join("");
+
+  return page(title, `
+    <div class="card" style="max-width:760px;margin:40px auto;padding:32px;">
+      <h1 style="margin-top:0;">✅ ${title}</h1>
+
+      <p style="font-size:17px;line-height:1.5;">
+        ${message}
+      </p>
+
+      <div class="note" style="margin:24px 0;padding:18px;border-left:5px solid #2f7d46;">
+        <strong>Next Recommended Step:</strong><br>
+        ${nextStep}
+      </div>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:20px;">
+        ${buttonHtml}
+      </div>
+
+      <hr style="border:none;border-top:1px solid #ddd;margin:30px 0 18px 0;">
+
+      <p style="font-size:14px;color:#315b4c;margin:0;">
+        Workflow: Location → QR Code → Campaign → Assign Campaign → Schedule → Analytics
+      </p>
+    </div>
+  `);
+}
 app.get("/seed-admin", async (req, res) => {
   try {
     await q(`
