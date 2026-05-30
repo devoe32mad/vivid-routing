@@ -3187,7 +3187,7 @@ app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) =>
       WHERE id = $1
     `, [req.params.campaignId]);
 
-    res.send("Campaign archived <br><a href='/admin'>Back to Admin</a>");
+    res.redirect("/admin");
   } catch (err) {
     res.send("ARCHIVE ERROR: " + err.message);
   }
