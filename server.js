@@ -3636,7 +3636,7 @@ const userId =
       Number(req.body.avg_customer_value || 50),
       Number(req.body.conversion_rate || 10),
       req.body.is_deal_of_day === "on",
-      Number(req.body.user_id)
+      userId
     ]);
 
     res.send("✅ Campaign created <br><a href='/admin/assign'>Go Assign</a>");
