@@ -3180,12 +3180,16 @@ res.send(successPage(
 });
 app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) => {
   try {
-    await q(`
+    const result = await q(`
       UPDATE campaigns
       SET is_archived = true
-    
       WHERE id = $1
+      RETURNING *
     `, [req.params.campaignId]);
+
+    if (result.rows.length === 0) {
+      return res.send("ARCHIVE ERROR: Campaign not found");
+    }
 
     res.redirect("/admin");
   } catch (err) {
