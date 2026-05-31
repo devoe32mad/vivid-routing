@@ -2597,9 +2597,10 @@ app.get("/admin", async (req, res) => {
 COUNT(e.id) AS total_events,
 COUNT(*) FILTER (WHERE e.type = 'scan') AS scans
   FROM campaigns c
-  LEFT JOIN events e ON e.campaign_id = c.id
-  GROUP BY c.id
-  ORDER BY c.id
+LEFT JOIN events e ON e.campaign_id = c.id
+WHERE COALESCE(c.is_archived,false) = false
+GROUP BY c.id
+ORDER BY c.id
 `);
   const stores = await q(`SELECT * FROM stores ORDER BY inventory_priority DESC`);
   res.send(page("Vivid Admin", `
