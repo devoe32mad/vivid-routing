@@ -966,8 +966,8 @@ const qrRows = await q(
 
 const campaignRows = await q(
   isSuperAdmin
-    ? `SELECT * FROM campaigns WHERE is_archived = false ORDER BY id`
-    : `SELECT * FROM campaigns WHERE is_archived = false AND user_id = $1 ORDER BY id`,
+ ? `SELECT * FROM campaigns WHERE COALESCE(is_archived,false) = false ORDER BY id`
+: `SELECT * FROM campaigns WHERE COALESCE(is_archived,false) = false AND user_id = $1 ORDER BY id`,
   isSuperAdmin ? [] : [currentUser.id]
 );
 
