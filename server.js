@@ -4397,6 +4397,9 @@ if (overlap.rows.length > 0) {
     </div>
   `));
 }
+  const selectedDays = Array.isArray(req.body.days_of_week_check)
+  ? req.body.days_of_week_check.join(",")
+  : (req.body.days_of_week_check || req.body.days_of_week || "");
     await q(`
       INSERT INTO campaign_schedules (
         qr_id,
