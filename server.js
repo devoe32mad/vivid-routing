@@ -3235,7 +3235,7 @@ app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
       ORDER BY id DESC
     `);
 
-    res.send(page("Archive Center",
+    res.send(page("Archive Center", `
 
 <div class="topbar">
   <div class="brand">Vivid Spots</div>
