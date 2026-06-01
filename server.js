@@ -1426,7 +1426,15 @@ const hasSchedules = activeScheduleCount > 0;
   </a>
 </td>
           <td><a href="/qr/${qr.id}.png" target="_blank">Download</a></td>
-        </tr>
+<td>
+  <a href="/admin/archive-qr/${qr.id}"
+     onclick="return confirm('Archive this QR code?')"
+     style="color:red;">
+     Archive
+  </a>
+</td>
+</tr>
+        
       `;
     }
 
