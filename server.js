@@ -1449,15 +1449,7 @@ const hasSchedules = activeScheduleCount > 0;
 
 <td>${c.conversion || ""}</td>
 
-<td>
-  ${
-    Number(c.total_events || 0) > 100
-      ? '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Healthy</span>'
-      : Number(c.total_events || 0) > 20
-      ? '<span style="background:#fef9c3;color:#854d0e;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Watch</span>'
-      : '<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Critical</span>'
-  }
-</td>
+
 
 <td>
   ${
