@@ -3224,10 +3224,8 @@ app.get("/admin/restore-campaign/:campaignId", requireLogin, async (req, res) =>
     res.status(500).send("Restore failed");
   }
 });
-app.get("/admin/archived-campaigns", requireLogin, (req, res) => {
-  res.redirect("/admin/archive-center");
-});
-app.get("/admin/archive-center", requireLogin, async (req, res) => {
+
+app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
   try {
 
     const campaigns = await q(`
