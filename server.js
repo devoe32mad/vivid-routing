@@ -3702,6 +3702,19 @@ app.get("/admin/restore-schedule/:scheduleId", requireLogin, async (req, res) =>
     res.send("RESTORE SCHEDULE ERROR: " + err.message);
   }
 });
+app.get("/admin/restore-qr/:qrId", requireLogin, async (req, res) => {
+  try {
+    await q(`
+      UPDATE qr_codes
+      SET is_archived = false
+      WHERE id = $1
+    `, [req.params.qrId]);
+
+    res.redirect("/admin/archived-campaigns");
+  } catch (err) {
+    res.send("RESTORE QR ERROR: " + err.message);
+  }
+});
 app.get("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
   const currentUser = req.session.user;
   const isSuperAdmin = currentUser.role === "super_admin";
