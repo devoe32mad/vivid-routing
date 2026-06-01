@@ -1446,13 +1446,7 @@ const hasSchedules = activeScheduleCount > 0;
       : '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Active</span>'
   }
 </td>
-<td>
-  ${
-    c.is_archived
-      ? '<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Archived</span>'
-      : '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Active</span>'
-  }
-</td>
+
 <td>${c.conversion || ""}</td>
 
 <td>
