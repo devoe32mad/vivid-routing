@@ -133,6 +133,9 @@ function page(title, body) {
   <a href="/admin/schedule" style="color:white;text-decoration:none;">
     Scheduling
   </a>
+  <a href="/admin/archived-campaigns" style="color:white;text-decoration:none;">
+  Archived Campaigns
+</a>
 <a href="/help" style="color:white;text-decoration:none;">
   Help
 </a>
