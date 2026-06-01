@@ -3287,7 +3287,37 @@ const campaigns = await q(`
     `).join("")}
 
   </table>
+<h2>Archived Schedules</h2>
 
+<table class="table">
+<tr>
+  <th>QR Code</th>
+  <th>Campaign</th>
+  <th>Start</th>
+  <th>End</th>
+  <th>Status</th>
+  <th>Action</th>
+</tr>
+
+${archivedSchedules.rows.map(s => `
+<tr>
+  <td>${s.qr_name || ""}</td>
+  <td>${s.campaign_name || ""}</td>
+  <td>${s.start_time || ""}</td>
+  <td>${s.end_time || ""}</td>
+  <td>
+    <span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">
+      Archived
+    </span>
+  </td>
+  <td>
+    <a class="btn" href="/admin/restore-schedule/${s.id}">
+      Restore
+    </a>
+  </td>
+</tr>
+`).join("")}
+</table>
 </div>
 
 `));
