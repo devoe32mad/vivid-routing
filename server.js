@@ -3197,6 +3197,26 @@ app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) =>
     res.send("ARCHIVE ERROR: " + err.message);
   }
 });
+app.get("/admin/archive-qr/:qrId", requireLogin, async (req, res) => {
+  try {
+
+    const result = await q(`
+      UPDATE qr_codes
+      SET is_archived = true
+      WHERE id = $1
+      RETURNING *
+    `, [req.params.qrId]);
+
+    if (result.rows.length === 0) {
+      return res.send("ARCHIVE ERROR: QR Code not found");
+    }
+
+    res.redirect("/my-setup");
+
+  } catch (err) {
+    res.send("ARCHIVE QR ERROR: " + err.message);
+  }
+});
 app.get("/admin/archive-assignment/:assignmentId", requireLogin, async (req, res) => {
   try {
     await q(`
