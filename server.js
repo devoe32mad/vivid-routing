@@ -1708,6 +1708,7 @@ ${hasCampaigns
             <th>Advertiser</th>
             <th>Name</th>
             <th>Edit</th>
+            <th>Status</th>
             <th>Archive</th>
           </tr>
           ${campaignTable || `<tr><td colspan="4">No campaigns yet.</td></tr>`}
