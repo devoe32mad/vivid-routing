@@ -4414,7 +4414,7 @@ if (overlap.rows.length > 0) {
     `, [
       Number(req.body.qr_id),
       Number(req.body.campaign_id),
-      req.body.days_of_week || "",
+      selectedDays,
       req.body.start_time || "00:00",
       req.body.end_time || "23:59",
       Number(req.body.priority || 50)
