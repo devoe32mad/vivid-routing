@@ -126,9 +126,7 @@ function page(title, body) {
     AI Insights
   </a>
 
-  <a href="/admin/archived-campaigns" style="color:white;text-decoration:none;">
-    Archived Campaigns
-  </a>
+ 
 
   <a href="/admin/schedule" style="color:white;text-decoration:none;">
     Scheduling
