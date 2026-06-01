@@ -1440,6 +1440,13 @@ const hasSchedules = activeScheduleCount > 0;
   </a>
 </td>
 <td>
+  <a href="/admin/archive-campaign/${c.id}"
+     onclick="return confirm('Archive this campaign?')"
+     style="color:red;">
+     Archive
+  </a>
+</td>
+<td>
   ${
     c.is_archived
       ? '<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Archived</span>'
@@ -1447,7 +1454,7 @@ const hasSchedules = activeScheduleCount > 0;
   }
 </td>
 
-<td>${c.conversion || ""}</td>
+
 
 
 
