@@ -1439,13 +1439,7 @@ const hasSchedules = activeScheduleCount > 0;
     Edit
   </a>
 </td>
-<td>
-  <a href="/admin/archive-campaign/${c.id}"
-     onclick="return confirm('Archive this campaign?')"
-     style="color:red;">
-     Archive
-  </a>
-</td>
+
 <td>
   ${
     c.is_archived
@@ -1456,7 +1450,13 @@ const hasSchedules = activeScheduleCount > 0;
 
 
 
-
+<td>
+  <a href="/admin/archive-campaign/${c.id}"
+     onclick="return confirm('Archive this campaign?')"
+     style="color:red;">
+     Archive
+  </a>
+</td>
 
 
 
