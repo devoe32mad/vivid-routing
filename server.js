@@ -3195,7 +3195,7 @@ app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) =>
       return res.send("ARCHIVE ERROR: Campaign not found");
     }
 
-    res.redirect("/admin");
+    res.redirect("/admin/archived-campaigns");
   } catch (err) {
     res.send("ARCHIVE ERROR: " + err.message);
   }
