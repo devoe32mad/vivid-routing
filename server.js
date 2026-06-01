@@ -332,10 +332,7 @@ await q(`
   ALTER TABLE campaigns
   ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false
 `);
-await q(`
-  ALTER TABLE qr_codes
-  ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false
-`);
+
   await q(`
   ALTER TABLE campaigns
   ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP
