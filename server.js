@@ -1293,16 +1293,18 @@ app.get("/my-setup", requireLogin, async (req, res) => {
       isSuperAdmin
         ? `
           SELECT qr.*, s.name AS location_name
-          FROM qr_codes qr
-          LEFT JOIN spaces s ON s.id = qr.space_id
-          ORDER BY qr.id DESC
+        FROM qr_codes qr
+LEFT JOIN spaces s ON s.id = qr.space_id
+WHERE COALESCE(qr.is_archived,false) = false
+ORDER BY qr.id DESC
         `
         : `
           SELECT qr.*, s.name AS location_name
           FROM qr_codes qr
-          JOIN spaces s ON s.id = qr.space_id
-          WHERE s.user_id = $1
-          ORDER BY qr.id DESC
+JOIN spaces s ON s.id = qr.space_id
+WHERE s.user_id = $1
+AND COALESCE(qr.is_archived,false) = false
+ORDER BY qr.id DESC
         `,
       isSuperAdmin ? [] : [currentUser.id]
     );
