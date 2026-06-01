@@ -400,7 +400,10 @@ await q(`
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
-
+await q(`
+  ALTER TABLE qr_codes
+  ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false
+`);
   await q(`CREATE TABLE IF NOT EXISTS campaigns (
     id SERIAL PRIMARY KEY,
     name TEXT,
