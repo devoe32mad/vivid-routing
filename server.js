@@ -4293,11 +4293,22 @@ if (scheduleForm) {
 });
 
 
-app.get("/admin/assign", async (req, res) => {
+app.get("/admin/assign", requireLogin, async (req, res) => {
   const qrs = await q(
+ const qrs = await q(
   req.session.user.role === "super_admin"
-    ? `SELECT * FROM qr_codes ORDER BY id DESC`
-    : `SELECT * FROM qr_codes WHERE user_id = $1 ORDER BY id DESC`,
+    ? `
+      SELECT qr.*
+      FROM qr_codes qr
+      ORDER BY qr.id DESC
+    `
+    : `
+      SELECT qr.*
+      FROM qr_codes qr
+      LEFT JOIN spaces s ON s.id = qr.space_id
+      WHERE s.user_id = $1
+      ORDER BY qr.id DESC
+    `,
   req.session.user.role === "super_admin" ? [] : [req.session.user.id]
 );
   const campaigns = await q(
