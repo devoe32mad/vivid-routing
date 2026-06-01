@@ -3194,6 +3194,22 @@ app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) =>
     res.send("ARCHIVE ERROR: " + err.message);
   }
 });
+app.get("/admin/archive-assignment/:assignmentId", requireLogin, async (req, res) => {
+  try {
+    await q(`
+      UPDATE qr_campaigns
+      SET is_active = false,
+          ended_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `, [req.params.assignmentId]);
+
+    res.redirect("/my-setup");
+
+  } catch (err) {
+    console.error("ARCHIVE ASSIGNMENT ERROR:", err);
+    res.status(500).send("Archive assignment failed");
+  }
+});
 app.get("/admin/restore-campaign/:campaignId", requireLogin, async (req, res) => {
   try {
     await q(`
