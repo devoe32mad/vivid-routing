@@ -3234,11 +3234,16 @@ app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
       WHERE COALESCE(is_archived,false) = true
       ORDER BY id DESC
     `);
-const campaigns = await q(`
-  SELECT *
-  FROM campaigns
-  WHERE COALESCE(is_archived,false) = true
-  ORDER BY id DESC
+const archivedSchedules = await q(`
+  SELECT
+    cs.*,
+    qr.name AS qr_name,
+    c.name AS campaign_name
+  FROM campaign_schedules cs
+  LEFT JOIN qr_codes qr ON qr.id = cs.qr_id
+  LEFT JOIN campaigns c ON c.id = cs.campaign_id
+  WHERE cs.is_active = false
+  ORDER BY cs.id DESC
 `);
     res.send(page("Archive Center", `
 
