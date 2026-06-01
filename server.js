@@ -132,7 +132,8 @@ function page(title, body) {
     Scheduling
   </a>
   <a href="/admin/archived-campaigns" style="color:white;text-decoration:none;">
-  Archived Campaigns
+  Archive Center
+
 </a>
 <a href="/help" style="color:white;text-decoration:none;">
   Help
