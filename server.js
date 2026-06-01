@@ -32,7 +32,7 @@ function pct(n) {
 
 function dayLabel(n) {
   const d = Number(n || 0);
-  if (d === 0) return "Every Day / Sunday";
+  if (d === 0) return "Sunday";
   if (d === 1) return "Monday";
   if (d === 2) return "Tuesday";
   if (d === 3) return "Wednesday";
