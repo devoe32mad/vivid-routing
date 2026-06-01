@@ -1505,13 +1505,19 @@ for (const s of schedules.rows) {
 }
     let assignmentTable = "";
     for (const a of assignments.rows) {
-      assignmentTable += `
-        <tr>
-          <td>${a.qr_name || ""}</td>
-          <td>${a.campaign_name || ""}</td>
-          <td>${a.is_active ? "Active" : "Inactive"}</td>
-        </tr>
-      `;
+   assignmentTable += `
+  <tr>
+    <td>${a.qr_name || ""}</td>
+    <td>${a.campaign_name || ""}</td>
+    <td>${a.is_active ? "Active" : "Inactive"}</td>
+    <td>
+      <a href="/admin/archive-assignment/${a.id}"
+         onclick="return confirm('Archive this assignment?')">
+         Archive
+      </a>
+    </td>
+  </tr>
+`;
     }
 
     res.send(page("My Setup", `
