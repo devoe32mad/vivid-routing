@@ -3224,7 +3224,7 @@ app.get("/admin/restore-campaign/:campaignId", requireLogin, async (req, res) =>
     res.status(500).send("Restore failed");
   }
 });
-app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
+app.get("/admin/archive-center", requireLogin, async (req, res) => {
   try {
 
     const campaigns = await q(`
@@ -3234,11 +3234,11 @@ app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
       ORDER BY id DESC
     `);
 
-    res.send(page("Archived Campaigns", `
+    res.send(page("Archive Center",
 
 <div class="topbar">
   <div class="brand">Vivid Spots</div>
-  <h1>Archived Campaigns</h1>
+  <h1>Archive Center</h1>
 </div>
 
 <div class="card">
@@ -3247,7 +3247,7 @@ app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
     <a class="btn secondary" href="/admin">← Back to Admin</a>
     <a class="btn secondary" href="/admin/ai-insights">AI Insights</a>
   </div>
-
+<h2>Archived Campaigns</h2>
   <table class="table">
     <tr>
   <th>ID</th>
