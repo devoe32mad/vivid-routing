@@ -4294,7 +4294,6 @@ if (scheduleForm) {
 
 
 app.get("/admin/assign", requireLogin, async (req, res) => {
-  const qrs = await q(
  const qrs = await q(
   req.session.user.role === "super_admin"
     ? `
