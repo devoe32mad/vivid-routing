@@ -3353,6 +3353,36 @@ ${archivedSchedules.rows.map(s => `
 </tr>
 `).join("")}
 </table>
+<h2>Archived QR Codes</h2>
+
+<table class="table">
+<tr>
+  <th>ID</th>
+  <th>Name</th>
+  <th>Location</th>
+  <th>Status</th>
+  <th>Action</th>
+</tr>
+
+${archivedQrs.rows.map(qr => `
+<tr>
+  <td>${qr.id}</td>
+  <td>${qr.name || ""}</td>
+  <td>${qr.location_name || ""}</td>
+  <td>
+    <span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">
+      Archived
+    </span>
+  </td>
+  <td>
+    <a class="btn secondary" href="/admin/restore-qr/${qr.id}">
+      Restore
+    </a>
+  </td>
+</tr>
+`).join("")}
+
+</table>
 </div>
 
 `));
