@@ -3603,26 +3603,11 @@ app.post("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
 app.get("/admin/restore-campaign/:campaignId", requireLogin, async (req, res) => {
   try {
 
-    const currentUser = req.session.user;
-    const isSuperAdmin = currentUser.role === "super_admin";
-
-    await q(
-      isSuperAdmin
-        ? `
-          UPDATE campaigns
-          SET is_archived = false
-          WHERE id = $1
-        `
-        : `
-          UPDATE campaigns
-          SET is_archived = false
-          WHERE id = $1
-          AND user_id = $2
-        `,
-      isSuperAdmin
-        ? [req.params.campaignId]
-        : [req.params.campaignId, currentUser.id]
-    );
+  await q(`
+  UPDATE campaigns
+  SET is_archived = false
+  WHERE id = $1
+`, [req.params.campaignId]);
 
     res.redirect("/my-setup");
 
