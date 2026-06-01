@@ -887,7 +887,7 @@ app.post("/login", async (req, res) => {
       role: user.rows[0].role
     };
 
-    res.redirect("/dashboard");
+    res.redirect("/my-setup");
 
   } catch (err) {
 
