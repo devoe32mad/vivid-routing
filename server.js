@@ -4417,11 +4417,17 @@ if (overlap.rows.length > 0) {
       Number(req.body.priority || 50)
     ]);
 
-    res.send(
-      "Campaign scheduled <br><a href='/admin/schedule'>Back to Schedule</a> | <a href='/r/" +
-      req.body.qr_id +
-      "'>Test QR</a>"
-    );
+   res.send(successPage(
+  "Campaign Scheduled Successfully",
+  "Your campaign schedule has been saved.",
+  "You can test the QR code or run reports.",
+  [
+    { label: "Run Reports", href: "/reports-qr" },
+    { label: "Test QR", href: "/r/" + req.body.qr_id, target: "_blank" },
+    { label: "Back to My Setup", href: "/my-setup" },
+    { label: "Back to Schedule", href: "/admin/schedule" }
+  ]
+));
   } catch (err) {
     res.send("ERROR: " + err.message);
   }
