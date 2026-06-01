@@ -4250,7 +4250,7 @@ function getSelectedDays() {
     .map(cb => cb.value)
     .join(",");
 }
-const scheduleForm = document.querySelector("form");
+const scheduleForm = document.getElementById("scheduleForm");
 
 if (scheduleForm) {
   scheduleForm.addEventListener("submit", () => {
