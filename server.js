@@ -1688,15 +1688,15 @@ ${hasCampaigns
         </table>
 
         <h2>Campaigns</h2>
-        <table>
-          <tr>
-            <th>ID</th>
-            <th>Advertiser</th>
-            <th>Name</th>
-            <th>Edit</th>
-            <th>Status</th>
-            <th>Archive</th>
-          </tr>
+        <table style="width:100%;table-layout:fixed;border-collapse:collapse;">
+<tr>
+  <th style="width:7%;">ID</th>
+  <th style="width:18%;">Advertiser</th>
+  <th style="width:35%;">Name</th>
+  <th style="width:12%;">Edit</th>
+  <th style="width:14%;">Status</th>
+  <th style="width:14%;">Archive</th>
+</tr>
           ${campaignTable || `<tr><td colspan="4">No campaigns yet.</td></tr>`}
         </table>
 <h2>Archived Campaigns</h2>
