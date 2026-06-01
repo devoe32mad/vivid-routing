@@ -3234,7 +3234,12 @@ app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
       WHERE COALESCE(is_archived,false) = true
       ORDER BY id DESC
     `);
-
+const campaigns = await q(`
+  SELECT *
+  FROM campaigns
+  WHERE COALESCE(is_archived,false) = true
+  ORDER BY id DESC
+`);
     res.send(page("Archive Center", `
 
 <div class="topbar">
