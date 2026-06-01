@@ -3630,6 +3630,19 @@ app.get("/admin/restore-campaign/:campaignId", requireLogin, async (req, res) =>
     res.send("RESTORE ERROR: " + err.message);
   }
 });
+app.get("/admin/restore-schedule/:scheduleId", requireLogin, async (req, res) => {
+  try {
+    await q(`
+      UPDATE campaign_schedules
+      SET is_active = true
+      WHERE id = $1
+    `, [req.params.scheduleId]);
+
+    res.redirect("/admin/archived-campaigns");
+  } catch (err) {
+    res.send("RESTORE SCHEDULE ERROR: " + err.message);
+  }
+});
 app.get("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
   const currentUser = req.session.user;
   const isSuperAdmin = currentUser.role === "super_admin";
