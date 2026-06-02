@@ -1707,9 +1707,7 @@ for (const s of schedules.rows) {
     + Schedule Campaign
   </a>
 
-  <a class="btn secondary" href="/dashboard">
-    Dashboard
-  </a>
+ 
 
 </div>
         </div>
