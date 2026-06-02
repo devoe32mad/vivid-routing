@@ -1620,7 +1620,34 @@ for (const s of schedules.rows) {
     res.send(page("My Setup", `
       <div class="topbar">
         <div class="brand">Vivid Spots</div>
-        <h1>My Setup</h1>
+        <h1>
+  My Setup
+
+  <a class="btn secondary"
+     href="#"
+     onclick="const p=document.getElementById('setupHelpPanel'); if(p){p.style.display=p.style.display==='none'?'block':'none';} return false;"
+     style="margin-left:15px;font-size:14px;">
+     Help
+  </a>
+</h1>
+<div id="setupHelpPanel"
+     style="display:none;background:#f7faf7;border:1px solid #d7e7d7;padding:16px;border-radius:10px;margin-bottom:20px;">
+
+<h3>Getting Started</h3>
+
+<ol>
+<li>Create a Location.</li>
+<li>Create a QR Code.</li>
+<li>Create a Campaign.</li>
+<li>Assign the Campaign through Scheduling.</li>
+<li>View performance in Reports.</li>
+</ol>
+
+<p>
+<b>Tip:</b> Archived items are moved to Archive Center and can be restored at any time.
+</p>
+
+</div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin:20px 0;">
 
   <a class="btn" href="/admin/new-location">
