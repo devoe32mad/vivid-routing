@@ -151,6 +151,7 @@ function page(title, body) {
 <a href="/help" style="color:white;text-decoration:none;">
   Help
 </a>
+<a href="/admin/reports">Export Center</a>
 </div>
 
 ${body}
