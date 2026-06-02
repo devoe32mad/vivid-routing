@@ -2115,21 +2115,7 @@ const roi =
 
         <div style="display:flex;gap:10px;margin-bottom:20px;">
 
-          <a class="btn" href="/reports?timeframe=7">
-            7 Days
-          </a>
-
-          <a class="btn" href="/reports?timeframe=30">
-            30 Days
-          </a>
-
-          <a class="btn" href="/reports?timeframe=90">
-            90 Days
-          </a>
-
-          <a class="btn" href="/reports?timeframe=all">
-            All Time
-          </a>
+        
 <form method="GET" action="/reports" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0;">
   <div>
     <label>Start Date</label><br>
