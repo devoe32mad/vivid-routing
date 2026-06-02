@@ -827,7 +827,7 @@ app.get("/login", (req, res) => {
       <div class="brand">Vivid Spots</div>
       <h1>Login</h1>
       <p class="subtitle">
-        Access your Vivid dashboard
+        Access your Vivid platform
       </p>
     </div>
 
