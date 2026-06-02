@@ -2387,7 +2387,8 @@ app.get("/reports-location", requireLogin, async (req, res) => {
     const currentUser = req.session.user;
     const isSuperAdmin = currentUser.role === "super_admin";
     const timeframe = req.query.timeframe || "30";
-
+const startDate = req.query.start_date || "";
+const endDate = req.query.end_date || "";
     let dateSql = "";
 
     if (timeframe !== "all") {
