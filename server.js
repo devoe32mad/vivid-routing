@@ -1558,16 +1558,7 @@ const hasSchedules = activeScheduleCount > 0;
           <td>${c.id}</td>
           <td>${c.advertiser || ""}</td>
           <td>${c.name || ""}</td>
-          <td>
-  ${
-    c.created_at
-      ? Math.floor(
-          (Date.now() - new Date(c.created_at).getTime()) /
-          (1000 * 60 * 60 * 24)
-        )
-      : 0
-  }
-</td>
+<td>${daysActive(c.created_at, c.archived_at)}</td>
      <td>
   <a href="/admin/edit-campaign/${c.id}">
     Edit
