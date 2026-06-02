@@ -146,12 +146,12 @@ function page(title, body) {
   </a>
   <a href="/admin/archived-campaigns" style="color:white;text-decoration:none;">
   Archive Center
-
+<a href="/admin/reports">Export Center</a>
 </a>
 <a href="/help" style="color:white;text-decoration:none;">
   Help
 </a>
-<a href="/admin/reports">Export Center</a>
+
 </div>
 
 ${body}
