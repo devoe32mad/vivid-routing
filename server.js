@@ -897,7 +897,10 @@ app.post("/login", async (req, res) => {
 
 });
 app.get("/dashboard", requireLogin, async (req, res) => {
- const currentUser = req.session.user;
+ if (req.session.user && req.session.user.role !== "super_admin") {
+  return res.redirect("/my-setup");
+}
+  const currentUser = req.session.user;
 const isSuperAdmin = currentUser.role === "super_admin";
   try {
    const currentUser = req.session.user;
