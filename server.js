@@ -429,7 +429,15 @@ await q(`
     is_deal_of_day BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
-
+await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+`);
+  await q(`
+  UPDATE campaigns
+  SET created_at = CURRENT_TIMESTAMP
+  WHERE created_at IS NULL
+`);
   await q(`CREATE TABLE IF NOT EXISTS qr_campaigns (
     id SERIAL PRIMARY KEY,
     qr_id INT,
