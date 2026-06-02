@@ -2389,9 +2389,11 @@ const startDate = req.query.start_date || "";
 const endDate = req.query.end_date || "";
     let dateSql = "";
 
-    if (timeframe !== "all") {
-      dateSql = `AND e.created_at >= NOW() - INTERVAL '${Number(timeframe)} days'`;
-    }
+    if (startDate && endDate) {
+  dateSql = `AND e.created_at::date BETWEEN '${startDate}' AND '${endDate}'`;
+} else {
+  dateSql = `AND e.created_at >= NOW() - INTERVAL '30 days'`;
+}
 
     const reportRows = await q(
       isSuperAdmin
