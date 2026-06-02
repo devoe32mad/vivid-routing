@@ -1812,24 +1812,8 @@ ${hasCampaigns
 </tr>
           ${campaignTable || `<tr><td colspan="4">No campaigns yet.</td></tr>`}
         </table>
-<h2>Archived Campaigns</h2>
 
-<table>
-  <tr>
-    <th>ID</th>
-    <th>Advertiser</th>
-    <th>Name</th>
-    <th>Restore</th>
-  </tr>
-
-  ${archivedCampaignTable || `
-    <tr>
-      <td colspan="4">
-        No archived campaigns.
-      </td>
-    </tr>
-  `}
-</table>
+    
 <h2>Schedules</h2>
 
 <table>
