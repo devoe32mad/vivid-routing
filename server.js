@@ -146,7 +146,8 @@ function page(title, body) {
   </a>
   <a href="/admin/archived-campaigns" style="color:white;text-decoration:none;">
   Archive Center
-<a href="/admin/reports">Export Center</a>
+<a href="/admin/reports" style="color:white;text-decoration:none;">
+  Export Center
 </a>
 <a href="/help" style="color:white;text-decoration:none;">
   Help
