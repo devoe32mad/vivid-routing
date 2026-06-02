@@ -1921,13 +1921,17 @@ app.get("/reports", requireLogin, async (req, res) => {
     const isSuperAdmin = currentUser.role === "super_admin";
 
     const timeframe = req.query.timeframe || "30";
+    const startDate = req.query.start_date || "";
+const endDate = req.query.end_date || "";
 const group = req.query.group || "campaign";
     let dateSql = "";
     let params = [];
 
-    if (timeframe !== "all") {
-      dateSql = `AND e.created_at >= NOW() - INTERVAL '${Number(timeframe)} days'`;
-    }
+    if (startDate && endDate) {
+  dateSql = `AND e.created_at::date BETWEEN '${startDate}' AND '${endDate}'`;
+} else if (timeframe !== "all") {
+  dateSql = `AND e.created_at >= NOW() - INTERVAL '${Number(timeframe)} days'`;
+}
 let reportQuery = "";
     if (group === "campaign") {
 
