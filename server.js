@@ -49,10 +49,10 @@ function daysActive(createdAt, endedAt = null) {
 
   if (!start || isNaN(start)) return 0;
 
-  return Math.max(
-    0,
-    Math.floor((end - start) / (1000 * 60 * 60 * 24))
-  );
+ return Math.max(
+  1,
+  Math.ceil((end - start) / (1000 * 60 * 60 * 24))
+);
 }
 function dayLabels(days) {
   if (!days) return "";
