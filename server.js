@@ -2632,9 +2632,10 @@ const conversionValue =
         <div class="card">
 
           <h2>Location Performance</h2>
-
+<div style="overflow-x:auto;width:100%;">
+  <table style="width:100%;min-width:1200px;">
           <table>
-
+</div>
             <tr>
               <th>Location</th>
               <th>Market</th>
