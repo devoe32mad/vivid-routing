@@ -1566,7 +1566,7 @@ const hasSchedules = activeScheduleCount > 0;
           <td>${c.id}</td>
           <td>${c.advertiser || ""}</td>
           <td>${c.name || ""}</td>
-<td>${daysActive(c.created_at, c.archived_at)}</td>
+<td>${c.created_at || "NO DATE"}</td>
      <td>
   <a href="/admin/edit-campaign/${c.id}">
     Edit
