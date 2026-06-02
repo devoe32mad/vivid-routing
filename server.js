@@ -2115,7 +2115,20 @@ const roi =
 
         <div style="display:flex;gap:10px;margin-bottom:20px;">
 
-        
+    <div style="display:flex;gap:10px;margin-bottom:20px;">
+
+<a class="btn" href="/reports">
+  Campaign Reports
+</a>
+
+<a class="btn secondary" href="/reports-qr">
+  QR Reports
+</a>
+
+<a class="btn secondary" href="/reports-location">
+  Location Reports
+</a>
+</div>    
 <form method="GET" action="/reports" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0;">
   <div>
     <label>Start Date</label><br>
@@ -2130,23 +2143,7 @@ const roi =
   <button class="btn" type="submit">Apply Filter</button>
 </form>
         </div>
-<div style="display:flex;gap:10px;margin-bottom:20px;">
 
-<a class="btn" href="/reports">
-  Campaign Reports
-</a>
-
-<a class="btn secondary" href="/reports-qr">
-  QR Reports
-</a>
-
-<a class="btn secondary" href="/reports-location">
-  Location Reports
-</a>
-
-
-
-</div>
         <div class="card">
 
           <h2>Campaign Performance</h2>
