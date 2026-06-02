@@ -1886,6 +1886,7 @@ ${hasCampaigns
     <th>QR</th>
 <th>Advertiser</th>
 <th>Campaign</th>
+<th>Days Active</th>
 <th>Day</th>
 <th>Start</th>
 <th>End</th>
