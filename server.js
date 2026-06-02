@@ -1718,7 +1718,7 @@ ${hasCampaigns
 <th>Download</th>
 <th>Archive</th>
           </tr>
-          ${qrTable || `<tr><td colspan="7">No QR codes yet.</td></tr>`}
+          ${qrTable || `<tr><td colspan="8">No QR codes yet.</td></tr>`}
         </table>
 
         <h2>Campaigns</h2>
