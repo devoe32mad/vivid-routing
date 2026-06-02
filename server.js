@@ -2356,7 +2356,19 @@ const conversionValue =
           <a class="btn secondary" href="/reports">Campaign Reports</a>
           <a class="btn secondary" href="/dashboard">Dashboard</a>
         </div>
+<form method="GET" action="/reports-qr" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0;">
+  <div>
+    <label>Start Date</label><br>
+    <input type="date" name="start_date" value="${startDate || ""}">
+  </div>
 
+  <div>
+    <label>End Date</label><br>
+    <input type="date" name="end_date" value="${endDate || ""}">
+  </div>
+
+  <button class="btn" type="submit">Apply Filter</button>
+</form>
         <div class="card">
           <h2>QR Code Performance</h2>
 
