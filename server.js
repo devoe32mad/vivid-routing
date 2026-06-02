@@ -41,6 +41,19 @@ function dayLabel(n) {
   if (d === 6) return "Saturday";
   return String(n || "");
 }
+function daysActive(createdAt, endedAt = null) {
+  if (!createdAt) return 0;
+
+  const start = new Date(createdAt).getTime();
+  const end = endedAt ? new Date(endedAt).getTime() : Date.now();
+
+  if (!start || isNaN(start)) return 0;
+
+  return Math.max(
+    0,
+    Math.floor((end - start) / (1000 * 60 * 60 * 24))
+  );
+}
 function dayLabels(days) {
   if (!days) return "";
 
