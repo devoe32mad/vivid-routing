@@ -2335,10 +2335,7 @@ const conversionValue =
 
       <div class="wrap">
         <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-          <a class="btn" href="/reports-qr?timeframe=7">7 Days</a>
-          <a class="btn" href="/reports-qr?timeframe=30">30 Days</a>
-          <a class="btn" href="/reports-qr?timeframe=90">90 Days</a>
-          <a class="btn" href="/reports-qr?timeframe=all">All Time</a>
+        
           <a class="btn secondary" href="/reports">Campaign Reports</a>
           <a class="btn secondary" href="/reports-location">Location Reports</a>
         </div>
