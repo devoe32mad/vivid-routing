@@ -379,6 +379,10 @@ await q(`CREATE TABLE IF NOT EXISTS spaces (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )`);
 await q(`
+  ALTER TABLE spaces
+  ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false
+`);
+  await q(`
   UPDATE spaces
   SET annual_impressions = 146000
   WHERE annual_impressions IS NULL OR annual_impressions = 0
