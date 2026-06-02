@@ -2354,7 +2354,7 @@ const conversionValue =
           <a class="btn" href="/reports-qr?timeframe=90">90 Days</a>
           <a class="btn" href="/reports-qr?timeframe=all">All Time</a>
           <a class="btn secondary" href="/reports">Campaign Reports</a>
-          <a class="btn secondary" href="/dashboard">Dashboard</a>
+          <a class="btn secondary" href="/reports-location">Location Reports</a>
         </div>
 <form method="GET" action="/reports-qr" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0;">
   <div>
