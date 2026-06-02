@@ -820,6 +820,65 @@ app.get("/logout", (req, res) => {
   });
 
 });
+app.get("/help", requireLogin, async (req, res) => {
+
+  res.send(page("Help", `
+    <div class="card">
+
+      <h1>Vivid Help Center</h1>
+
+      <h2>My Setup</h2>
+      <p>
+        Create and manage Locations, QR Codes, Campaigns, and Schedules.
+      </p>
+
+      <h2>Locations</h2>
+      <ul>
+        <li>Create advertising locations.</li>
+        <li>Set annual impressions and placement cost.</li>
+        <li>Archive locations when no longer active.</li>
+      </ul>
+
+      <h2>QR Codes</h2>
+      <ul>
+        <li>Create tracking QR Codes.</li>
+        <li>Import existing destination URLs.</li>
+        <li>Assign campaigns through Scheduling.</li>
+      </ul>
+
+      <h2>Campaigns</h2>
+      <ul>
+        <li>Create advertiser campaigns.</li>
+        <li>Track performance and ROI.</li>
+        <li>Archive campaigns when complete.</li>
+      </ul>
+
+      <h2>Scheduling</h2>
+      <ul>
+        <li>Assign campaigns to QR Codes.</li>
+        <li>Control active days and times.</li>
+        <li>Rotate multiple campaigns.</li>
+      </ul>
+
+      <h2>Reports</h2>
+      <ul>
+        <li>View scans, impressions, engagement, and ROI.</li>
+        <li>Compare campaigns and locations.</li>
+        <li>Export reporting data.</li>
+      </ul>
+
+      <h2>Archive Center</h2>
+      <ul>
+        <li>Restore archived Locations.</li>
+        <li>Restore archived QR Codes.</li>
+        <li>Restore archived Campaigns.</li>
+        <li>Restore archived Schedules.</li>
+      </ul>
+
+    </div>
+  `));
+
+});
 app.get("/login", (req, res) => {
 
   res.send(page("Login", `
