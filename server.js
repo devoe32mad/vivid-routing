@@ -1836,6 +1836,7 @@ ${hasCampaigns
             <th>ID</th>
             <th>Name</th>
             <th>Market</th>
+            <th>Days Active</th>
             <th>Impressions</th>
             <th>Placement Cost</th>
             <th>Edit</th>
