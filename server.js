@@ -5649,7 +5649,7 @@ COALESCE(s.annual_impressions, 146000)::numeric(10,2) AS annual_impressions,
   ORDER BY scans DESC
 `, [startDate, endDate, locationId, qrId, campaignId]);
     res.send(page("Reports", `
-      <h1>Campaign Reports</h1>
+      <h1>Export Center</h1>
 
       <form method="GET" action="/admin/reports" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:20px;">
         <div>
