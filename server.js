@@ -2594,7 +2594,7 @@ const conversionValue =
 
       <div class="wrap">
 
-        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+        
 
          
 
