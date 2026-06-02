@@ -1709,7 +1709,7 @@ ${hasCampaigns
             <th>Edit</th>
             <th>Archive</th>
           </tr>
-          ${locationTable || `<tr><td colspan="7">No locations yet.</td></tr>`}
+          ${locationTable || `<tr><td colspan="8">No locations yet.</td></tr>`}
         </table>
 
         <h2>QR Codes</h2>
