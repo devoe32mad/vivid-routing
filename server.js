@@ -118,7 +118,7 @@ function page(title, body) {
   My Setup
 </a>
 
-  <a href="/admin/reports" style="color:white;text-decoration:none;">
+  <a href="/reports" style="color:white;text-decoration:none;">
     Reports
   </a>
 
