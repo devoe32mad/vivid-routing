@@ -3224,6 +3224,19 @@ app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) =>
     res.send("ARCHIVE ERROR: " + err.message);
   }
 });
+app.get("/admin/archive-location/:locationId", requireLogin, async (req, res) => {
+  try {
+    await q(`
+      UPDATE spaces
+      SET is_archived = true
+      WHERE id = $1
+    `, [req.params.locationId]);
+
+    res.redirect("/my-setup");
+  } catch (err) {
+    res.send("ARCHIVE LOCATION ERROR: " + err.message);
+  }
+});
 app.get("/admin/archive-qr/:qrId", requireLogin, async (req, res) => {
   try {
 
