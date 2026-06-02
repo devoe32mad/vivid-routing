@@ -1280,21 +1280,23 @@ app.get("/my-setup", requireLogin, async (req, res) => {
     const currentUser = req.session.user;
     const isSuperAdmin = currentUser.role === "super_admin";
 
-    const locations = await q(
-      isSuperAdmin
-        ? `
-          SELECT *
-          FROM spaces
-          ORDER BY id DESC
-        `
-        : `
-          SELECT *
-          FROM spaces
-          WHERE user_id = $1
-          ORDER BY id DESC
-        `,
-      isSuperAdmin ? [] : [currentUser.id]
-    );
+const locations = await q(
+  isSuperAdmin
+    ? `
+      SELECT *
+      FROM spaces
+      WHERE COALESCE(is_archived,false) = false
+      ORDER BY id DESC
+    `
+    : `
+      SELECT *
+      FROM spaces
+      WHERE user_id = $1
+      AND COALESCE(is_archived,false) = false
+      ORDER BY id DESC
+    `,
+  isSuperAdmin ? [] : [currentUser.id]
+);
 
     const qrs = await q(
       isSuperAdmin
