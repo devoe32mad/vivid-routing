@@ -1507,11 +1507,12 @@ const hasSchedules = activeScheduleCount > 0;
     for (const s of locations.rows) {
       locationTable += `
         <tr>
-          <td>${s.id}</td>
-          <td>${s.name || ""}</td>
-          <td>${s.location || ""}</td>
-          <td>${s.annual_impressions || 0}</td>
-          <td>${money(s.placement_cost || 0)}</td>
+         <td>${s.id}</td>
+<td>${s.name || ""}</td>
+<td>${s.location || ""}</td>
+<td>${daysActive(s.created_at)}</td>
+<td>${s.annual_impressions || 0}</td>
+<td>${money(s.placement_cost || 0)}</td>
           <td><a href="/admin/edit-location/${s.id}">Edit</a></td>
 
 <td>
