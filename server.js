@@ -2604,6 +2604,9 @@ app.post("/admin/users", requireSuperAdmin, async (req, res) => {
   }
 });
 app.get("/admin", async (req, res) => {
+ if (req.session.user && req.session.user.role !== "super_admin") {
+  return res.redirect("/my-setup");
+}
   const qrs = await q(`SELECT qr.*, s.name AS space_name FROM qr_codes qr LEFT JOIN spaces s ON s.id = qr.space_id ORDER BY qr.id`);
   const campaigns = await q(`
   SELECT
