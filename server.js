@@ -1707,6 +1707,7 @@ ${hasCampaigns
             <th>Impressions</th>
             <th>Placement Cost</th>
             <th>Edit</th>
+            <th>Archive</th>
           </tr>
           ${locationTable || `<tr><td colspan="7">No locations yet.</td></tr>`}
         </table>
