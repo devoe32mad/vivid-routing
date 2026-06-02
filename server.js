@@ -832,42 +832,66 @@ app.get("/help", requireLogin, async (req, res) => {
         Create and manage Locations, QR Codes, Campaigns, and Schedules.
       </p>
 
-      <h2>Locations</h2>
+      <h2>
+  <a href="/admin/new-location" style="text-decoration:none;color:inherit;">
+    Locations →
+  </a>
+</h2>
       <ul>
         <li>Create advertising locations.</li>
         <li>Set annual impressions and placement cost.</li>
         <li>Archive locations when no longer active.</li>
       </ul>
 
-      <h2>QR Codes</h2>
+      <h2>
+  <a href="/admin/new-qr" style="text-decoration:none;color:inherit;">
+    QR Codes →
+  </a>
+</h2>
       <ul>
         <li>Create tracking QR Codes.</li>
         <li>Import existing destination URLs.</li>
         <li>Assign campaigns through Scheduling.</li>
       </ul>
 
-      <h2>Campaigns</h2>
+      <h2>
+  <a href="/admin/new-campaign" style="text-decoration:none;color:inherit;">
+    Campaigns →
+  </a>
+</h2>
       <ul>
         <li>Create advertiser campaigns.</li>
         <li>Track performance and ROI.</li>
         <li>Archive campaigns when complete.</li>
       </ul>
 
-      <h2>Scheduling</h2>
+      <h2>
+  <a href="/admin/schedule" style="text-decoration:none;color:inherit;">
+    Scheduling →
+  </a>
+</h2>
       <ul>
         <li>Assign campaigns to QR Codes.</li>
         <li>Control active days and times.</li>
         <li>Rotate multiple campaigns.</li>
       </ul>
 
-      <h2>Reports</h2>
+      <h2>
+  <a href="/admin/reports" style="text-decoration:none;color:inherit;">
+    Reports →
+  </a>
+</h2>
       <ul>
         <li>View scans, impressions, engagement, and ROI.</li>
         <li>Compare campaigns and locations.</li>
         <li>Export reporting data.</li>
       </ul>
 
-      <h2>Archive Center</h2>
+      <h2>
+  <a href="/admin/archived-campaigns" style="text-decoration:none;color:inherit;">
+    Archive Center →
+  </a>
+</h2>
       <ul>
         <li>Restore archived Locations.</li>
         <li>Restore archived QR Codes.</li>
