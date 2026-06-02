@@ -1854,6 +1854,7 @@ ${hasCampaigns
             <th>Type</th>
             <th>Destination</th>
             <th>Location</th>
+            <th>Days Active</th>
             <th>Open</th>
 <th>Edit</th>
 <th>Download</th>
