@@ -2608,9 +2608,7 @@ const conversionValue =
             QR Reports
           </a>
 
-          <a class="btn secondary" href="/dashboard">
-            Dashboard
-          </a>
+         
 
         </div>
 
