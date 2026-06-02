@@ -2337,6 +2337,7 @@ const conversionValue =
         <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
         
           <a class="btn secondary" href="/reports">Campaign Reports</a>
+          <a class="btn" href="/reports-qr">QR Reports</a>
           <a class="btn secondary" href="/reports-location">Location Reports</a>
         </div>
 <form method="GET" action="/reports-qr" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0;">
