@@ -2144,9 +2144,7 @@ const roi =
   Location Reports
 </a>
 
-<a class="btn secondary" href="/dashboard">
-  Dashboard
-</a>
+
 
 </div>
         <div class="card">
