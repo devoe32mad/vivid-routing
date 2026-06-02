@@ -3307,6 +3307,12 @@ const archivedSchedules = await q(`
   WHERE COALESCE(qr.is_archived,false) = true
   ORDER BY qr.id DESC
 `);
+   const archivedLocations = await q(`
+  SELECT *
+  FROM spaces
+  WHERE COALESCE(is_archived,false) = true
+  ORDER BY id DESC
+`); 
     res.send(page("Archive Center", `
 
 <div class="topbar">
