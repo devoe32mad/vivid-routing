@@ -3786,6 +3786,19 @@ app.get("/admin/restore-qr/:qrId", requireLogin, async (req, res) => {
     res.send("RESTORE QR ERROR: " + err.message);
   }
 });
+app.get("/admin/restore-location/:locationId", requireLogin, async (req, res) => {
+  try {
+    await q(`
+      UPDATE spaces
+      SET is_archived = false
+      WHERE id = $1
+    `, [req.params.locationId]);
+
+    res.redirect("/admin/archived-campaigns");
+  } catch (err) {
+    res.send("RESTORE LOCATION ERROR: " + err.message);
+  }
+});
 app.get("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
   const currentUser = req.session.user;
   const isSuperAdmin = currentUser.role === "super_admin";
