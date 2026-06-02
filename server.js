@@ -1644,8 +1644,14 @@ for (const s of schedules.rows) {
     res.send(page("My Setup", `
       <div class="topbar">
         <div class="brand">Vivid Spots</div>
-        <h1>
+ <h1>
   My Setup
+  <a class="btn secondary"
+     href="/help"
+     style="margin-left:15px;font-size:14px;">
+     Help
+  </a>
+</h1>
 
  
 
