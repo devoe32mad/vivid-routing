@@ -2600,13 +2600,21 @@ const conversionValue =
 
          
 
-          <a class="btn secondary" href="/reports">
-            Campaign Reports
-          </a>
+      <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
 
-          <a class="btn secondary" href="/reports-qr">
-            QR Reports
-          </a>
+  <a class="btn secondary" href="/reports">
+    Campaign Reports
+  </a>
+
+  <a class="btn secondary" href="/reports-qr">
+    QR Reports
+  </a>
+
+  <a class="btn" href="/reports-location">
+    Location Reports
+  </a>
+
+</div>    
 
          
 
