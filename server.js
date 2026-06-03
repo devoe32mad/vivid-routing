@@ -5824,19 +5824,31 @@ const relationships = ${JSON.stringify(relationships.rows)};
   }
 });
 
-  qr.addEventListener("change", () => {
-    if (qr.value !== "") {
-      campaign.value = "";
-      location.value = "";
-    }
-  });
+qr.addEventListener("change", () => {
+  if (qr.value === "") return;
 
-  location.addEventListener("change", () => {
-    if (location.value !== "") {
-      campaign.value = "";
-      qr.value = "";
-    }
-  });
+  const rel = relationships.find(
+    r => String(r.qr_id) === String(qr.value)
+  );
+
+  if (rel) {
+    if (rel.campaign_id) campaign.value = rel.campaign_id;
+    if (rel.location_id) location.value = rel.location_id;
+  }
+});
+
+location.addEventListener("change", () => {
+  if (location.value === "") return;
+
+  const rel = relationships.find(
+    r => String(r.location_id) === String(location.value)
+  );
+
+  if (rel) {
+    if (rel.campaign_id) campaign.value = rel.campaign_id;
+    if (rel.qr_id) qr.value = rel.qr_id;
+  }
+});
 
 });
 </script>
