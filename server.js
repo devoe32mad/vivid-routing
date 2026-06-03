@@ -5627,10 +5627,7 @@ const qrs = await q(
   `,
   userId ? [userId] : []
 );
-  ORDER BY qc.name ASC
-  `,
-  userId ? [userId] : []
-);
+ 
   
 
 const campaigns = await q(
