@@ -5564,10 +5564,29 @@ AND ($5 = '' OR campaign_id::text = $5)
   COALESCE(SUM(c.conversion_rate / 100.0), 0)::numeric(10,2) AS estimated_customers,
   COALESCE(SUM(c.campaign_cost), 0)::numeric(10,2) AS total_campaign_cost  
       FROM events e
-      LEFT JOIN campaigns c ON e.campaign_id = c.id
-      WHERE e.type = 'scan'
-        AND e.created_at::date BETWEEN $1::date AND $2::date
-    `, [startDate, endDate]);
+LEFT JOIN campaigns c ON e.campaign_id = c.id
+LEFT JOIN qr_codes qc ON e.qr_id = qc.id
+LEFT JOIN spaces s ON e.store_id = s.id
+WHERE e.type = 'scan'
+  AND e.created_at::date BETWEEN $1::date AND $2::date
+  AND (
+    $3 = 'all'
+    OR (
+      $3 = 'active'
+      AND COALESCE(c.is_archived,false) = false
+      AND COALESCE(qc.is_archived,false) = false
+      AND COALESCE(s.is_archived,false) = false
+    )
+    OR (
+      $3 = 'archived'
+      AND (
+        COALESCE(c.is_archived,false) = true
+        OR COALESCE(qc.is_archived,false) = true
+        OR COALESCE(s.is_archived,false) = true
+      )
+    )
+  )
+    `, [startDate, endDate, status]);
 
     const revenue = revenueReport.rows[0] || {};
 
