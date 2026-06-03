@@ -5671,6 +5671,19 @@ const campaigns = await q(
   `,
   userId ? [userId] : []
 );
+    const relationships = await q(
+  `
+  SELECT DISTINCT
+    cs.campaign_id,
+    cs.qr_id,
+    s.id AS location_id
+  FROM campaign_schedules cs
+  JOIN qr_codes qc ON qc.id = cs.qr_id
+  JOIN spaces s ON s.id = qc.space_id
+  ${userId ? "WHERE s.user_id = $1" : ""}
+  `,
+  userId ? [userId] : []
+);
     const detailRows = await q(`
   SELECT
     COALESCE(c.name, '') AS campaign_name,
