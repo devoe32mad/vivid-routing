@@ -1408,14 +1408,14 @@ const locations = await q(
     const qrs = await q(
       isSuperAdmin
         ? `
-          SELECT qr.*, SELECT qr.*, s.name AS location_name, s.location AS location
+          SELECT qr.*, s.name AS location_name, s.location AS location
         FROM qr_codes qr
 LEFT JOIN spaces s ON s.id = qr.space_id
 WHERE COALESCE(qr.is_archived,false) = false
 ORDER BY qr.id DESC
         `
         : `
-          SELECT qr.*, SELECT qr.*, s.name AS location_name, s.location AS location
+          SELECT qr.*, s.name AS location_name, s.location AS location
           FROM qr_codes qr
 JOIN spaces s ON s.id = qr.space_id
 WHERE s.user_id = $1
