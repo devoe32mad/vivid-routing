@@ -5552,12 +5552,9 @@ app.get("/admin/reports", async (req, res) => {
   AND ($3 = '' OR store_id::text = $3)
 AND ($4 = '' OR qr_id::text = $4)
 AND ($5 = '' OR campaign_id::text = $5)
-AND (
-  $6 = 'all'
-  OR ($6 = 'active' AND COALESCE(is_archived,false) = false)
-  OR ($6 = 'archived' AND COALESCE(is_archived,false) = true)
-)
-    `,[startDate, endDate, locationId, qrId, campaignId, status]);
+
+
+    `,[startDate, endDate, locationId, qrId, campaignId]);
 
     const totals = report.rows[0] || {};
 
