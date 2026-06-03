@@ -3439,15 +3439,19 @@ const archivedSchedules = await q(`
   WHERE cs.is_active = false
   ORDER BY cs.id DESC
 `);
-    const archivedQrs = await q(`
+const archivedQrs = await q(
+  `
   SELECT
     qr.*,
     s.name AS location_name
   FROM qr_codes qr
   LEFT JOIN spaces s ON s.id = qr.space_id
   WHERE COALESCE(qr.is_archived,false) = true
+  AND s.user_id = $1
   ORDER BY qr.id DESC
-`);
+  `,
+  [req.session.user.id]
+);
    const archivedLocations = await q(`
   SELECT *
   FROM spaces
