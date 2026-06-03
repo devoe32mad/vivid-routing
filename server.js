@@ -1925,12 +1925,15 @@ ${hasCampaigns
   <th style="width:7%;">ID</th>
   <th style="width:18%;">Advertiser</th>
   <th style="width:30%;">Name</th>
+  <th>Market</th>
+<th>Location</th>
+<th>QR Code</th>
   <th style="width:12%;">Days Active</th>
   <th style="width:11%;">Edit</th>
   <th style="width:11%;">Status</th>
   <th style="width:11%;">Archive</th>
 </tr>
-          ${campaignTable || `<tr><td colspan="4">No campaigns yet.</td></tr>`}
+${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
         </table>
 
     
