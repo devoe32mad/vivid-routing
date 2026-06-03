@@ -1558,6 +1558,18 @@ const hasSchedules = activeScheduleCount > 0;
     : "-"}
 </td>
           <td>${qr.location_name || ""}</td>
+          <td>${
+  relationships.rows
+    .filter(r => String(r.qr_id) === String(qr.id))
+    .map(r => {
+      const campaign = campaigns.rows.find(
+        c => String(c.id) === String(r.campaign_id)
+      );
+      return campaign ? campaign.name : "";
+    })
+    .filter(Boolean)
+    .join(", ")
+}</td>
           <td>${daysActive(qr.created_at)}</td>
           <td><a href="/r/${qr.id}" target="_blank">Open</a></td>
           <td>
