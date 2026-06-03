@@ -1436,8 +1436,9 @@ LEFT JOIN campaign_schedules cs
     ON cs.qr_id = qr.id
 LEFT JOIN campaigns c
     ON c.id = cs.campaign_id
-WHERE COALESCE(s.is_archived,false) = false
-`);
+WHERE s.user_id = $1
+AND COALESCE(s.is_archived,false) = false
+`, [currentUser.id]);
     const campaigns = await q(
       isSuperAdmin
         ? `
