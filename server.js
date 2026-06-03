@@ -5604,6 +5604,10 @@ const roi =
   proratedImpressions > 0
     ? ((proratedCost / proratedImpressions) * 1000).toFixed(2)
     : "0.00";
+   const userId =
+  req.session.user.role === "super_admin"
+    ? null
+    : req.session.user.id;
     const locations = await q(`
   SELECT id, name
   FROM spaces
@@ -5618,10 +5622,7 @@ const roi =
   `,
   userId ? [userId] : []
 );
-  const userId =
-  req.session.user.role === "super_admin"
-    ? null
-    : req.session.user.id;
+  
 
 const campaigns = await q(
   `
