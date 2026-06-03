@@ -5789,7 +5789,38 @@ AND (
   Export Report CSV
 </button>
       </form>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
 
+  const campaign = document.getElementById("campaign_id");
+  const qr = document.getElementById("qr_id");
+  const location = document.getElementById("location_id");
+
+  if (!campaign || !qr || !location) return;
+
+  campaign.addEventListener("change", () => {
+    if (campaign.value !== "") {
+      qr.value = "";
+      location.value = "";
+    }
+  });
+
+  qr.addEventListener("change", () => {
+    if (qr.value !== "") {
+      campaign.value = "";
+      location.value = "";
+    }
+  });
+
+  location.addEventListener("change", () => {
+    if (location.value !== "") {
+      campaign.value = "";
+      qr.value = "";
+    }
+  });
+
+});
+</script>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:24px;margin-bottom:24px;">
 
   <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
