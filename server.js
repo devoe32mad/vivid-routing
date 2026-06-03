@@ -5688,10 +5688,26 @@ COALESCE(s.annual_impressions, 146000)::numeric(10,2) AS annual_impressions,
     AND ($3 = '' OR e.store_id::text = $3)
     AND ($4 = '' OR e.qr_id::text = $4)
     AND ($5 = '' OR e.campaign_id::text = $5)
-
+AND (
+  $6 = 'all'
+  OR (
+    $6 = 'active'
+    AND COALESCE(c.is_archived,false) = false
+    AND COALESCE(qc.is_archived,false) = false
+    AND COALESCE(s.is_archived,false) = false
+  )
+  OR (
+    $6 = 'archived'
+    AND (
+      COALESCE(c.is_archived,false) = true
+      OR COALESCE(qc.is_archived,false) = true
+      OR COALESCE(s.is_archived,false) = true
+    )
+  )
+)
   GROUP BY c.name, qc.name, s.name, s.placement_cost, s.annual_impressions
   ORDER BY scans DESC
-`, [startDate, endDate, locationId, qrId, campaignId]);
+`, [startDate, endDate, locationId, qrId, campaignId, status]);
     res.send(page("Reports", `
       <h1>Export Center</h1>
 
