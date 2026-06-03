@@ -5614,12 +5614,21 @@ const roi =
   FROM qr_codes
   ORDER BY name ASC
 `);
-    const campaigns = await q(`
+  const userId =
+  req.session.user.role === "super_admin"
+    ? null
+    : req.session.user.id;
+
+const campaigns = await q(
+  `
   SELECT *
   FROM campaigns
-  WHERE is_archived = false OR is_archived IS NULL
+  WHERE (is_archived = false OR is_archived IS NULL)
+  ${userId ? "AND user_id = $1" : ""}
   ORDER BY name
-`);
+  `,
+  userId ? [userId] : []
+);
     const detailRows = await q(`
   SELECT
     COALESCE(c.name, '') AS campaign_name,
