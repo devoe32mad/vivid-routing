@@ -3427,7 +3427,7 @@ WHERE COALESCE(is_archived,false) = true
 AND user_id = $1
 ORDER BY id DESC
 `, [req.session.user.id]);
-);
+
 const archivedSchedules = await q(`
   SELECT
     cs.*,
