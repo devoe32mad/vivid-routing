@@ -1527,6 +1527,26 @@ const hasSchedules = activeScheduleCount > 0;
          <td>${s.id}</td>
 <td>${s.name || ""}</td>
 <td>${s.location || ""}</td>
+<td>${
+  qrs.rows
+    .filter(qr => String(qr.space_id) === String(s.id))
+    .map(qr => qr.name)
+    .filter(Boolean)
+    .join(", ")
+}</td>
+
+<td>${
+  relationships.rows
+    .filter(r => String(r.location_id) === String(s.id))
+    .map(r => {
+      const campaign = campaigns.rows.find(
+        c => String(c.id) === String(r.campaign_id)
+      );
+      return campaign ? campaign.name : "";
+    })
+    .filter(Boolean)
+    .join(", ")
+}</td>
 <td>${daysActive(s.created_at)}</td>
 <td>${s.annual_impressions || 0}</td>
 <td>${money(s.placement_cost || 0)}</td>
