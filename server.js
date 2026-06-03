@@ -1432,10 +1432,10 @@ SELECT DISTINCT
 FROM spaces s
 LEFT JOIN qr_codes qr
     ON qr.space_id = s.id
-LEFT JOIN campaign_schedules cs
-    ON cs.qr_id = qr.id
+LEFT JOIN qr_campaigns qc
+    ON qc.qr_id = qr.id
 LEFT JOIN campaigns c
-    ON c.id = cs.campaign_id
+    ON c.id = qc.campaign_id
 WHERE s.user_id = $1
 AND COALESCE(s.is_archived,false) = false
 `, [currentUser.id]);
