@@ -5842,11 +5842,11 @@ location.addEventListener("change", () => {
 
   Array.from(qr.options).forEach(opt => {
     if (opt.value === "") {
-      opt.hidden = false;
+      opt.disabled = false;
       return;
     }
 
-    opt.hidden = locationId !== "" && !relationships.some(
+    opt.disabled = locationId !== "" && !relationships.some(
       r => String(r.location_id) === String(locationId) &&
            String(r.qr_id) === String(opt.value)
     );
@@ -5854,11 +5854,11 @@ location.addEventListener("change", () => {
 
   Array.from(campaign.options).forEach(opt => {
     if (opt.value === "") {
-      opt.hidden = false;
+      opt.disabled = false;
       return;
     }
 
-    opt.hidden = locationId !== "" && !relationships.some(
+    opt.disabled = locationId !== "" && !relationships.some(
       r => String(r.location_id) === String(locationId) &&
            String(r.campaign_id) === String(opt.value)
     );
