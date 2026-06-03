@@ -4136,12 +4136,21 @@ app.get("/admin/bulk-schedule", requireLogin, async (req, res) => {
     ORDER BY id
   `);
 console.log(req.session.user);
-  const campaigns = await q(`
-SELECT *
-FROM campaigns
-WHERE is_archived = false
-ORDER BY id
-  `);
+ const userId =
+  req.session.user.role === "super_admin"
+    ? null
+    : req.session.user.id;
+
+const campaigns = await q(
+  `
+  SELECT *
+  FROM campaigns
+  WHERE is_archived = false
+  ${userId ? "AND user_id = $1" : ""}
+  ORDER BY id
+  `,
+  userId ? [userId] : []
+);
 
   res.send(page("Bulk Schedule", `
     <div class="topbar">
