@@ -5808,7 +5808,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const campaign = document.getElementById("campaign_id");
   const qr = document.getElementById("qr_id");
   const location = document.getElementById("location_id");
-
+const relationships = ${JSON.stringify(relationships.rows)};
   if (!campaign || !qr || !location) return;
 
   campaign.addEventListener("change", () => {
