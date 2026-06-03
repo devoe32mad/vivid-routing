@@ -5636,7 +5636,7 @@ const campaigns = await q(
   `
   SELECT *
   FROM campaigns
-  WHERE (is_archived = false OR is_archived IS NULL)
+  WHERE 1=1
   ${userId ? "AND user_id = $1" : ""}
   ORDER BY name
   `,
