@@ -1650,11 +1650,7 @@ qrs.rows.find(q =>
 
 
 
-<td>
-  <a href="/admin/archive-campaign/${c.id}">
-    Archive
-  </a>
-</td>
+
         </tr>
       `;
     }
