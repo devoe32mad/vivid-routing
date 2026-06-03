@@ -5634,11 +5634,14 @@ const qrs = await q(
 
 const campaigns = await q(
   `
-  SELECT *
-  FROM campaigns
+  SELECT DISTINCT c.*
+  FROM campaigns c
+  LEFT JOIN campaign_schedules cs ON cs.campaign_id = c.id
+  LEFT JOIN qr_codes qr ON qr.id = cs.qr_id
+  LEFT JOIN spaces s ON s.id = qr.space_id
   WHERE 1=1
-  ${userId ? "AND user_id = $1" : ""}
-  ORDER BY name
+  ${userId ? "AND (c.user_id = $1 OR s.user_id = $1)" : ""}
+  ORDER BY c.name
   `,
   userId ? [userId] : []
 );
