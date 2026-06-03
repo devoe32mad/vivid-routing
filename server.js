@@ -5609,11 +5609,15 @@ const roi =
   FROM spaces
   ORDER BY name ASC
 `);
-    const qrs = await q(`
+    const qrs = await q(
+  `
   SELECT id, name
   FROM qr_codes
+  ${userId ? "WHERE user_id = $1" : ""}
   ORDER BY name ASC
-`);
+  `,
+  userId ? [userId] : []
+);
   const userId =
   req.session.user.role === "super_admin"
     ? null
