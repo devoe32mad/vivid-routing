@@ -5623,10 +5623,7 @@ const qrs = await q(
   FROM qr_codes qc
   JOIN spaces s ON s.id = qc.space_id
   ${userId ? "WHERE s.user_id = $1" : ""}
-  ORDER BY qc.name ASC
-  `,
-  userId ? [userId] : []
-);
+  
  
   
 
