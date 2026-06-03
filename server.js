@@ -1882,7 +1882,7 @@ ${hasCampaigns
             <th>ID</th>
             <th>Name</th>
             <th>Type</th>
-            <th>Destination</th>
+            <th>Market</th>
             <th>Location</th>
             <th>Campaigns</th>
             <th>Days Active</th>
