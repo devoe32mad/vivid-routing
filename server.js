@@ -4135,7 +4135,7 @@ app.get("/admin/bulk-schedule", requireLogin, async (req, res) => {
     FROM qr_codes
     ORDER BY id
   `);
-
+console.log(req.session.user);
   const campaigns = await q(`
 SELECT *
 FROM campaigns
