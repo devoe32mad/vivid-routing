@@ -991,11 +991,12 @@ app.post("/login", async (req, res) => {
     }
 
     req.session.user = {
-      id: user.rows[0].id,
-      name: user.rows[0].name,
-      email: user.rows[0].email,
-      role: user.rows[0].role
-    };
+  id: user.rows[0].id,
+  name: user.rows[0].name,
+  email: user.rows[0].email,
+  role: user.rows[0].role,
+  customer_id: user.rows[0].customer_id
+};
 
     res.redirect("/my-setup");
 
