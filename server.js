@@ -3420,23 +3420,13 @@ app.get("/admin/archive-assignment/:assignmentId", requireLogin, async (req, res
 
 app.get("/admin/archived-campaigns", requireLogin, async (req, res) => {
   try {
-
-const campaigns = await q(
-  isSuperAdmin
-    ? `
-      SELECT *
-      FROM campaigns
-      WHERE COALESCE(is_archived,false) = true
-      ORDER BY id DESC
-      `
-    : `
-      SELECT *
-      FROM campaigns
-      WHERE user_id = $1
-      AND COALESCE(is_archived,false) = true
-      ORDER BY id DESC
-      `,
-  isSuperAdmin ? [] : [currentUser.id]
+const campaigns = await q(`
+SELECT *
+FROM campaigns
+WHERE COALESCE(is_archived,false) = true
+AND user_id = $1
+ORDER BY id DESC
+`, [req.session.user.id]);
 );
 const archivedSchedules = await q(`
   SELECT
