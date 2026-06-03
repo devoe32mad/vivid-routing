@@ -5812,11 +5812,17 @@ const relationships = ${JSON.stringify(relationships.rows)};
   if (!campaign || !qr || !location) return;
 
   campaign.addEventListener("change", () => {
-    if (campaign.value !== "") {
-      qr.value = "";
-      location.value = "";
-    }
-  });
+  if (campaign.value === "") return;
+
+  const rel = relationships.find(
+    r => String(r.campaign_id) === String(campaign.value)
+  );
+
+  if (rel) {
+    if (rel.qr_id) qr.value = rel.qr_id;
+    if (rel.location_id) location.value = rel.location_id;
+  }
+});
 
   qr.addEventListener("change", () => {
     if (qr.value !== "") {
