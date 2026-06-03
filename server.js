@@ -5613,12 +5613,13 @@ const roi =
   FROM spaces
   ORDER BY name ASC
 `);
-    const qrs = await q(
+  const qrs = await q(
   `
-  SELECT id, name
-  FROM qr_codes
-  ${userId ? "WHERE user_id = $1" : ""}
-  ORDER BY name ASC
+  SELECT qc.id, qc.name
+  FROM qr_codes qc
+  JOIN spaces s ON s.id = qc.space_id
+  ${userId ? "WHERE s.user_id = $1" : ""}
+  ORDER BY qc.name ASC
   `,
   userId ? [userId] : []
 );
