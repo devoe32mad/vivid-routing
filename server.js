@@ -1594,6 +1594,35 @@ const hasSchedules = activeScheduleCount > 0;
           <td>${c.id}</td>
           <td>${c.advertiser || ""}</td>
           <td>${c.name || ""}</td>
+          <td>${
+locations.rows.find(l =>
+  relationships.rows.some(
+    r =>
+      String(r.campaign_id) === String(c.id) &&
+      String(r.location_id) === String(l.id)
+  )
+)?.location || ""
+}</td>
+
+<td>${
+locations.rows.find(l =>
+  relationships.rows.some(
+    r =>
+      String(r.campaign_id) === String(c.id) &&
+      String(r.location_id) === String(l.id)
+  )
+)?.name || ""
+}</td>
+
+<td>${
+qrs.rows.find(q =>
+  relationships.rows.some(
+    r =>
+      String(r.campaign_id) === String(c.id) &&
+      String(r.qr_id) === String(q.id)
+  )
+)?.name || ""
+}</td>
 <td>${daysActive(c.created_at, c.archived_at)}</td>
      <td>
   <a href="/admin/edit-campaign/${c.id}">
