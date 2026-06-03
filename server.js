@@ -1552,11 +1552,7 @@ const hasSchedules = activeScheduleCount > 0;
     ? "Imported"
     : "Native"}
 </td>
-<td>
-  ${qr.description && qr.description.startsWith("http")
-    ? `<a href="${qr.description}" target="_blank">Destination</a>`
-    : "-"}
-</td>
+
           <td>${qr.location_name || ""}</td>
           <td>${
   relationships.rows
