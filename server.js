@@ -5608,17 +5608,25 @@ const roi =
   req.session.user.role === "super_admin"
     ? null
     : req.session.user.id;
-    const locations = await q(`
+ const locations = await q(
+  `
   SELECT id, name
   FROM spaces
-  ORDER BY name ASC
-`);
-  const qrs = await q(
+  ${userId ? "WHERE user_id = $1" : ""}
+const qrs = await q(
   `
-  SELECT qc.id, qc.name
+  SELECT qc.id,
+         CASE
+           WHEN qc.is_archived = true THEN qc.name || ' (Archived)'
+           ELSE qc.name
+         END AS name
   FROM qr_codes qc
   JOIN spaces s ON s.id = qc.space_id
   ${userId ? "WHERE s.user_id = $1" : ""}
+  ORDER BY qc.name ASC
+  `,
+  userId ? [userId] : []
+);
   ORDER BY qc.name ASC
   `,
   userId ? [userId] : []
