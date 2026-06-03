@@ -1888,6 +1888,8 @@ ${hasCampaigns
             <th>ID</th>
             <th>Name</th>
             <th>Market</th>
+            <th>QR Codes</th>
+            <th>Campaigns</th>
             <th>Days Active</th>
             <th>Impressions</th>
             <th>Placement Cost</th>
