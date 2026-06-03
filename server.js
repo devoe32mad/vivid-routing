@@ -5742,7 +5742,7 @@ AND (
         </div>
 <div>
   <label>Location</label><br>
-  <select name="location_id">
+  <select name="location_id" id="location_id">
   <option value="" ${locationId === "" ? "selected" : ""}>All Locations</option>
   ${locations.rows
     .filter(location => location.name)
@@ -5752,7 +5752,7 @@ AND (
 </div>
 <div>
   <label>QR Code</label><br>
-  <select name="qr_id">
+  <select name="qr_id" id="qr_id">
   <option value="" ${qrId === "" ? "selected" : ""}>All QR Codes</option>
   ${qrs.rows
     .filter(qr => qr.name)
@@ -5762,7 +5762,7 @@ AND (
 </div>
 <div>
   <label>Campaign</label><br>
-  <select name="campaign_id">
+  <select name="campaign_id" id="campaign_id">
     <option value="" ${campaignId === "" ? "selected" : ""}>All Campaigns</option>
     ${campaigns.rows
       .filter(campaign => campaign.name)
