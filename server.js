@@ -5838,16 +5838,34 @@ qr.addEventListener("change", () => {
 });
 
 location.addEventListener("change", () => {
-  if (location.value === "") return;
+  const locationId = location.value;
 
-  const rel = relationships.find(
-    r => String(r.location_id) === String(location.value)
-  );
+  Array.from(qr.options).forEach(opt => {
+    if (opt.value === "") {
+      opt.hidden = false;
+      return;
+    }
 
-  if (rel) {
-    if (rel.campaign_id) campaign.value = rel.campaign_id;
-    if (rel.qr_id) qr.value = rel.qr_id;
-  }
+    opt.hidden = locationId !== "" && !relationships.some(
+      r => String(r.location_id) === String(locationId) &&
+           String(r.qr_id) === String(opt.value)
+    );
+  });
+
+  Array.from(campaign.options).forEach(opt => {
+    if (opt.value === "") {
+      opt.hidden = false;
+      return;
+    }
+
+    opt.hidden = locationId !== "" && !relationships.some(
+      r => String(r.location_id) === String(locationId) &&
+           String(r.campaign_id) === String(opt.value)
+    );
+  });
+
+  qr.value = "";
+  campaign.value = "";
 });
 
 });
