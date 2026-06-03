@@ -5804,70 +5804,65 @@ AND (
       </form>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-
   const campaign = document.getElementById("campaign_id");
   const qr = document.getElementById("qr_id");
   const location = document.getElementById("location_id");
-const relationships = ${JSON.stringify(relationships.rows)};
+  const relationships = ${JSON.stringify(relationships.rows)};
+
   if (!campaign || !qr || !location) return;
 
-  campaign.addEventListener("change", () => {
-  if (campaign.value === "") return;
+  const allCampaignOptions = Array.from(campaign.options).map(o => o.cloneNode(true));
+  const allQrOptions = Array.from(qr.options).map(o => o.cloneNode(true));
+  const allLocationOptions = Array.from(location.options).map(o => o.cloneNode(true));
 
-  const rel = relationships.find(
-    r => String(r.campaign_id) === String(campaign.value)
-  );
+  function rebuild(select, originalOptions, allowedValues) {
+    const current = select.value;
+    select.innerHTML = "";
 
-  if (rel) {
-    if (rel.qr_id) qr.value = rel.qr_id;
-    if (rel.location_id) location.value = rel.location_id;
+    originalOptions.forEach(opt => {
+      if (opt.value === "" || allowedValues.has(String(opt.value))) {
+        select.appendChild(opt.cloneNode(true));
+      }
+    });
+
+    if ([...select.options].some(o => o.value === current)) {
+      select.value = current;
+    } else {
+      select.value = "";
+    }
   }
-});
 
-qr.addEventListener("change", () => {
-  if (qr.value === "") return;
+  function applyFilters(changed) {
+    const campaignId = campaign.value;
+    const qrId = qr.value;
+    const locationId = location.value;
 
-  const rel = relationships.find(
-    r => String(r.qr_id) === String(qr.value)
-  );
+    let matching = relationships;
 
-  if (rel) {
-    if (rel.campaign_id) campaign.value = rel.campaign_id;
-    if (rel.location_id) location.value = rel.location_id;
-  }
-});
-
-location.addEventListener("change", () => {
-  const locationId = location.value;
-
-  Array.from(qr.options).forEach(opt => {
-    if (opt.value === "") {
-      opt.disabled = false;
-      return;
+    if (campaignId) {
+      matching = matching.filter(r => String(r.campaign_id) === String(campaignId));
     }
 
-    opt.disabled = locationId !== "" && !relationships.some(
-      r => String(r.location_id) === String(locationId) &&
-           String(r.qr_id) === String(opt.value)
-    );
-  });
-
-  Array.from(campaign.options).forEach(opt => {
-    if (opt.value === "") {
-      opt.disabled = false;
-      return;
+    if (qrId) {
+      matching = matching.filter(r => String(r.qr_id) === String(qrId));
     }
 
-    opt.disabled = locationId !== "" && !relationships.some(
-      r => String(r.location_id) === String(locationId) &&
-           String(r.campaign_id) === String(opt.value)
-    );
-  });
+    if (locationId) {
+      matching = matching.filter(r => String(r.location_id) === String(locationId));
+    }
 
-  qr.value = "";
-  campaign.value = "";
-});
+    const allowedCampaigns = new Set(matching.map(r => String(r.campaign_id)));
+    const allowedQrs = new Set(matching.map(r => String(r.qr_id)));
+    const allowedLocations = new Set(matching.map(r => String(r.location_id)));
 
+    if (changed !== "campaign") rebuild(campaign, allCampaignOptions, allowedCampaigns);
+    if (changed !== "qr") rebuild(qr, allQrOptions, allowedQrs);
+    if (changed !== "location") rebuild(location, allLocationOptions, allowedLocations);
+  }
+
+  campaign.addEventListener("change", () => applyFilters("campaign"));
+  qr.addEventListener("change", () => applyFilters("qr"));
+  location.addEventListener("change", () => applyFilters("location"));
 });
 </script>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:24px;margin-bottom:24px;">
