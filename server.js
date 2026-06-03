@@ -1920,18 +1920,18 @@ ${hasCampaigns
         </table>
 
         <h2>Campaigns</h2>
-        <table style="width:100%;table-layout:fixed;border-collapse:collapse;">
+        <table>
 <tr>
-  <th style="width:7%;">ID</th>
-  <th style="width:18%;">Advertiser</th>
-  <th style="width:30%;">Name</th>
-  <th>Market</th>
+  <th>ID</th>
+<th>Advertiser</th>
+<th>Name</th>
+<th>Market</th>
 <th>Location</th>
 <th>QR Code</th>
-  <th style="width:12%;">Days Active</th>
-  <th style="width:11%;">Edit</th>
-  <th style="width:11%;">Status</th>
-  <th style="width:11%;">Archive</th>
+<th>Days Active</th>
+<th>Edit</th>
+<th>Status</th>
+<th>Archive</th>
 </tr>
 ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
         </table>
