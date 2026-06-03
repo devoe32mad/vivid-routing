@@ -1552,7 +1552,7 @@ const hasSchedules = activeScheduleCount > 0;
     ? "Imported"
     : "Native"}
 </td>
-
+<td>${qr.location || ""}</td>
           <td>${qr.location_name || ""}</td>
           <td>${
   relationships.rows
