@@ -1655,7 +1655,16 @@ qrs.rows.find(q =>
   )
 )?.name || ""
 }</td>
-<td>${daysActive(c.created_at, c.archived_at)}</td>
+<td>${
+  daysActive(
+    relationships.rows
+      .filter(r => String(r.campaign_id) === String(c.id))
+      .map(r => r.created_at)
+      .filter(Boolean)
+      .sort()[0] || c.created_at,
+    c.archived_at
+  )
+}</td>
      <td>
   <a href="/admin/edit-campaign/${c.id}">
     Edit
