@@ -1439,7 +1439,8 @@ const relationships = await q(`
 SELECT DISTINCT
     s.id AS location_id,
     qr.id AS qr_id,
-    c.id AS campaign_id
+    c.id AS campaign_id,
+    qc.created_at AS created_at
 FROM spaces s
 LEFT JOIN qr_codes qr
     ON qr.space_id = s.id
