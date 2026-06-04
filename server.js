@@ -1765,7 +1765,9 @@ for (const s of schedules.rows) {
   <a class="btn" href="/admin/new-qr">
     + New QR
   </a>
-
+<a class="btn secondary" href="/admin/import-qr">
+  + Import Existing QR
+</a>
   <a class="btn" href="/admin/new-campaign">
     + New Campaign
   </a>
