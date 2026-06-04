@@ -1910,7 +1910,7 @@ ${hasCampaigns
             <th>Market</th>
             <th>QR Codes</th>
             <th>Campaigns</th>
-            <th>Days Active</th>
+            <th>Days in Market</th>
             <th>Impressions</th>
             <th>Placement Cost</th>
             <th>Edit</th>
@@ -1928,7 +1928,7 @@ ${hasCampaigns
             <th>Market</th>
             <th>Location</th>
             <th>Campaigns</th>
-            <th>Days Active</th>
+            <th>Days in Market</th>
             <th>Open</th>
 <th>Edit</th>
 <th>Download</th>
@@ -1946,7 +1946,7 @@ ${hasCampaigns
 <th>Market</th>
 <th>Location</th>
 <th>QR Code</th>
-<th>Days Active</th>
+<th>Days in Market</th>
 <th>Edit</th>
 <th>Status</th>
 <th>Archive</th>
@@ -1962,7 +1962,7 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
     <th>QR</th>
 <th>Advertiser</th>
 <th>Campaign</th>
-<th>Days Active</th>
+<th>Days in Market</th>
 <th>Day</th>
 <th>Start</th>
 <th>End</th>
