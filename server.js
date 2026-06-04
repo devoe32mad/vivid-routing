@@ -4810,6 +4810,16 @@ const selectedDays = Array.isArray(req.body.days_of_week_check)
   FROM campaign_schedules
   WHERE qr_id = $1
   AND is_active = true
+  AND (
+  days_of_week IS NULL
+  OR days_of_week = ''
+  OR $4 = ''
+  OR EXISTS (
+    SELECT 1
+    FROM unnest(string_to_array(days_of_week, ',')) existing_day
+    WHERE existing_day = ANY(string_to_array($4, ','))
+  )
+)
 AND (
   ($2::time BETWEEN start_time::time AND end_time::time)
   OR
@@ -4818,11 +4828,12 @@ AND (
   (start_time::time BETWEEN $2::time AND $3::time)
 )
   `,
-  [
-    Number(req.body.qr_id),
-    req.body.start_time,
-    req.body.end_time
-  ]
+ [
+  Number(req.body.qr_id),
+  req.body.start_time,
+  req.body.end_time,
+  selectedDays
+]
 );
 
 if (overlap.rows.length > 0) {
