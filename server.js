@@ -44,15 +44,28 @@ function dayLabel(n) {
 function daysActive(createdAt, endedAt = null) {
   if (!createdAt) return 0;
 
-  const start = new Date(createdAt).getTime();
-  const end = endedAt ? new Date(endedAt).getTime() : Date.now();
+  const start = new Date(createdAt);
+  const end = endedAt ? new Date(endedAt) : new Date();
 
-  if (!start || isNaN(start)) return 0;
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
 
- return Math.max(
-  1,
-  Math.ceil((end - start) / (1000 * 60 * 60 * 24))
-);
+  const startDay = new Date(
+    start.getFullYear(),
+    start.getMonth(),
+    start.getDate()
+  );
+
+  const endDay = new Date(
+    end.getFullYear(),
+    end.getMonth(),
+    end.getDate()
+  );
+
+  const diffDays = Math.floor(
+    (endDay - startDay) / (1000 * 60 * 60 * 24)
+  );
+
+  return Math.max(1, diffDays + 1);
 }
 function dayLabels(days) {
   if (!days) return "";
