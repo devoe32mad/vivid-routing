@@ -1446,6 +1446,7 @@ LEFT JOIN qr_codes qr
     ON qr.space_id = s.id
 LEFT JOIN qr_campaigns qc
     ON qc.qr_id = qr.id
+   AND COALESCE(qc.is_active, true) = true 
 LEFT JOIN campaigns c
     ON c.id = qc.campaign_id
 WHERE s.user_id = $1
