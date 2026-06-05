@@ -1757,7 +1757,12 @@ for (const s of schedules.rows) {
 <td>${a.qr_name || ""}</td>
 <td>${a.campaign_name || ""}</td>
 <td>${daysActive(a.started_at || a.assigned_at)}</td>
-<td>${a.is_active ? "Active" : "Inactive"}</td>
+<td>
+${a.is_active
+? '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Active</span>'
+: '<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Inactive</span>'
+}
+</td>
     <td>
       <a href="/admin/archive-assignment/${a.id}"
          onclick="return confirm('Archive this assignment?')">
