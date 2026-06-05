@@ -1755,6 +1755,7 @@ for (const s of schedules.rows) {
    <td>${a.market || ""}</td>
 <td>${a.location_name || ""}</td>
 <td>${a.qr_name || ""}</td>
+<td>${a.advertiser || ""}</td>
 <td>${a.campaign_name || ""}</td>
 <td>${daysActive(a.started_at || a.assigned_at)}</td>
 <td>
