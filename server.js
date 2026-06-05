@@ -1969,7 +1969,10 @@ ${hasCampaigns
             <th>Market</th>
             <th>QR Codes</th>
             <th>Campaigns</th>
-            Days in Market ⓘ
+           <th>
+  Days in Market
+  <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
+</th>
             <th>Impressions</th>
             <th>Placement Cost</th>
             <th>Edit</th>
@@ -1987,7 +1990,10 @@ ${hasCampaigns
             <th>Market</th>
             <th>Location</th>
             <th>Campaigns</th>
-            Days in Market ⓘ
+            <th>
+  Days in Market
+  <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
+</th>
             <th>Open</th>
 <th>Edit</th>
 <th>Download</th>
@@ -2005,7 +2011,10 @@ ${hasCampaigns
 <th>Market</th>
 <th>Location</th>
 <th>QR Code</th>
-Days in Market ⓘ
+<th>
+  Days in Market
+  <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
+</th>
 <th>Edit</th>
 <th>Status</th>
 <th>Archive</th>
@@ -2021,7 +2030,10 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
     <th>QR</th>
 <th>Advertiser</th>
 <th>Campaign</th>
-Days in Market ⓘ
+<th>
+  Days in Market
+  <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
+</th>
 <th>Day</th>
 <th>Start</th>
 <th>End</th>
@@ -2039,7 +2051,10 @@ Days in Market ⓘ
 <th>Location</th>
 <th>QR Code</th>
 <th>Campaign</th>
-Days in Market ⓘ
+<th>
+  Days in Market
+  <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
+</th>
 <th>Status</th>
 <th>Action</th>
           </tr>
