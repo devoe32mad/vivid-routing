@@ -1489,19 +1489,21 @@ const archivedCampaigns = await q(
     const assignments = await q(
       isSuperAdmin
         ? `
-          SELECT qc.*, qr.name AS qr_name, c.name AS campaign_name
-          FROM qr_campaigns qc
-          JOIN qr_codes qr ON qr.id = qc.qr_id
-          JOIN campaigns c ON c.id = qc.campaign_id
-          ORDER BY qc.id DESC
+        SELECT qc.*, qr.name AS qr_name, c.name AS campaign_name
+FROM qr_campaigns qc
+JOIN qr_codes qr ON qr.id = qc.qr_id
+JOIN campaigns c ON c.id = qc.campaign_id
+WHERE qc.is_active = true
+ORDER BY qc.id DESC 
         `
         : `
-          SELECT qc.*, qr.name AS qr_name, c.name AS campaign_name
-          FROM qr_campaigns qc
-          JOIN qr_codes qr ON qr.id = qc.qr_id
-          JOIN campaigns c ON c.id = qc.campaign_id
-          WHERE c.user_id = $1
-          ORDER BY qc.id DESC
+SELECT qc.*, qr.name AS qr_name, c.name AS campaign_name
+FROM qr_campaigns qc
+JOIN qr_codes qr ON qr.id = qc.qr_id
+JOIN campaigns c ON c.id = qc.campaign_id
+WHERE c.user_id = $1
+AND qc.is_active = true
+ORDER BY qc.id DESC
         `,
       isSuperAdmin ? [] : [currentUser.id]
     );
