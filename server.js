@@ -2016,7 +2016,7 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
 
   ${scheduleTable || `<tr><td colspan="8">No schedules yet.</td></tr>`}
 </table>
-        <h2>Assignments</h2>
+        <h2>Active Campaign Assignments</h2>
         <table>
           <tr>
             <th>Market</th>
