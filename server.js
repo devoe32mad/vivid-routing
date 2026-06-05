@@ -1493,6 +1493,7 @@ const archivedCampaigns = await q(
   qc.*,
   qr.name AS qr_name,
   c.name AS campaign_name,
+  c.advertiser,
   s.location AS market,
   s.name AS location_name,
   COALESCE(qc.started_at, qc.assigned_at) AS started_at
@@ -1508,6 +1509,7 @@ SELECT
   qc.*,
   qr.name AS qr_name,
   c.name AS campaign_name,
+  c.advertiser,
   s.location AS market,
   s.name AS location_name,
   COALESCE(qc.started_at, qc.assigned_at) AS started_at
