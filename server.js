@@ -1489,9 +1489,16 @@ const archivedCampaigns = await q(
     const assignments = await q(
       isSuperAdmin
         ? `
-        SELECT qc.*, qr.name AS qr_name, c.name AS campaign_name
+  SELECT
+  qc.*,
+  qr.name AS qr_name,
+  c.name AS campaign_name,
+  s.location AS market,
+  s.name AS location_name,
+  COALESCE(qc.started_at, qc.assigned_at) AS started_at
 FROM qr_campaigns qc
 JOIN qr_codes qr ON qr.id = qc.qr_id
+JOIN spaces s ON s.id = qr.space_id
 JOIN campaigns c ON c.id = qc.campaign_id
 WHERE qc.is_active = true
 ORDER BY qc.id DESC 
