@@ -1738,9 +1738,12 @@ for (const s of schedules.rows) {
     for (const a of assignments.rows) {
    assignmentTable += `
   <tr>
-    <td>${a.qr_name || ""}</td>
-    <td>${a.campaign_name || ""}</td>
-    <td>${a.is_active ? "Active" : "Inactive"}</td>
+   <td>${a.market || ""}</td>
+<td>${a.location_name || ""}</td>
+<td>${a.qr_name || ""}</td>
+<td>${a.campaign_name || ""}</td>
+<td>${daysActive(a.started_at || a.assigned_at)}</td>
+<td>${a.is_active ? "Active" : "Inactive"}</td>
     <td>
       <a href="/admin/archive-assignment/${a.id}"
          onclick="return confirm('Archive this assignment?')">
