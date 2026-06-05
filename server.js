@@ -1826,7 +1826,17 @@ for (const s of schedules.rows) {
 </div>
         </div>
   
-
+<div style="
+background:#f7faf7;
+border:1px solid #dbe7db;
+padding:10px;
+border-radius:8px;
+margin-bottom:12px;
+font-size:13px;
+color:#4b5563;
+">
+<b>Days in Market:</b> Number of days a location, QR code, campaign, schedule, or assignment has been active since activation.
+</div>
 
   
 
