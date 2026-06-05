@@ -2056,7 +2056,7 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
   <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
 </th>
 <th>Status</th>
-<th>Action</th>
+
 <th>Archive</th>
           </tr>
           ${assignmentTable || `<tr><td colspan="3">No assignments yet.</td></tr>`}
