@@ -2057,6 +2057,7 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
 </th>
 <th>Status</th>
 <th>Action</th>
+<th>Archive</th>
           </tr>
           ${assignmentTable || `<tr><td colspan="3">No assignments yet.</td></tr>`}
         </table>
