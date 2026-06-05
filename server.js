@@ -2012,10 +2012,13 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
         <h2>Assignments</h2>
         <table>
           <tr>
-            <th>QR</th>
-            <th>Campaign</th>
-            <th>Status</th>
-            <th>Action</th>
+            <th>Market</th>
+<th>Location</th>
+<th>QR Code</th>
+<th>Campaign</th>
+<th>Days in Market</th>
+<th>Status</th>
+<th>Action</th>
           </tr>
           ${assignmentTable || `<tr><td colspan="3">No assignments yet.</td></tr>`}
         </table>
