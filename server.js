@@ -2050,6 +2050,7 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
             <th>Market</th>
 <th>Location</th>
 <th>QR Code</th>
+<th>Advertiser</th>
 <th>Campaign</th>
 <th>
   Days in Market
