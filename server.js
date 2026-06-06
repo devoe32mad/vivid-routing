@@ -1988,6 +1988,7 @@ ${hasCampaigns
           <tr>
             <th>ID</th>
             <th>Name</th>
+            <th>Advertiser</th>
             <th>Type</th>
             <th>Market</th>
             <th>Location</th>
