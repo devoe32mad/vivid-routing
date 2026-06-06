@@ -1597,11 +1597,12 @@ const hasSchedules = activeScheduleCount > 0;
       qrTable += `
         <tr>
           <td>${qr.id}</td>
-          <td>${qr.name || ""}</td>
-          <td>
-  ${qr.description && qr.description.startsWith("http")
-    ? "Imported"
-    : "Native"}
+<td>${qr.name || ""}</td>
+<td>${qr.advertiser || ""}</td>
+<td>
+${qr.description && qr.description.startsWith("http")
+  ? "Imported"
+  : "Native"}
 </td>
 <td>${qr.location || ""}</td>
           <td>${qr.location_name || ""}</td>
