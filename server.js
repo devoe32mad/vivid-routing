@@ -5845,16 +5845,14 @@ const qrs = await q(
 
 const campaigns = await q(
   `
-  SELECT DISTINCT c.*
+  SELECT DISTINCT c.id, c.name
   FROM campaigns c
-  LEFT JOIN campaign_schedules cs ON cs.campaign_id = c.id
-  LEFT JOIN qr_codes qr ON qr.id = cs.qr_id
-  LEFT JOIN spaces s ON s.id = qr.space_id
-  WHERE 1=1
-  ${userId ? "AND (c.user_id = $1 OR s.user_id = $1)" : ""}
-  ORDER BY c.name
+  JOIN qr_campaigns qc ON qc.campaign_id = c.id
+  JOIN qr_codes q ON q.id = qc.qr_id
+  WHERE ($1::text = '' OR q.space_id::text = $1::text)
+  ORDER BY c.name ASC
   `,
-  userId ? [userId] : []
+  [locationId]
 );
     const relationships = await q(
   `
