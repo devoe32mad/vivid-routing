@@ -3248,7 +3248,16 @@ app.get("/admin/edit-qr/:qrId", requireLogin, async (req, res) => {
       `,
     isSuperAdmin ? [] : [currentUser.id]
   );
-
+const campaigns = await q(
+  `
+  SELECT id, name
+  FROM campaigns
+  WHERE user_id = $1
+  AND COALESCE(is_archived,false) = false
+  ORDER BY name
+  `,
+  [currentUser.id]
+);
   res.send(page("Edit QR", `
     <div class="topbar">
       <div class="brand">Vivid Spots</div>
@@ -3268,7 +3277,17 @@ app.get("/admin/edit-qr/:qrId", requireLogin, async (req, res) => {
             </option>
           `).join("")}
         </select>
+<label>Assign Existing Campaign</label>
 
+<select name="campaign_id">
+  <option value="">-- Select Campaign --</option>
+
+  ${campaigns.rows.map(c => `
+    <option value="${c.id}">
+      ${c.name}
+    </option>
+  `).join("")}
+</select>
         <button class="btn" type="submit">
           Save QR
         </button>
