@@ -5728,6 +5728,8 @@ AND (
   $3::text = ''
   OR store_id::text = $3::text
   OR qr_id IN (
+  SELECT id FROM qr_codes WHERE store_id::text = $3::text
+)
     SELECT id FROM qr_codes WHERE location_id::text = $3::text
   )
 )
