@@ -5223,11 +5223,7 @@ const userId = currentUser.role === "super_admin" ? null : currentUser.id;
     where.push(`e.qr_id = $${params.length}`);
   }
 params.push(userId);
-where.push(`(
-  $${params.length}::int IS NULL
-  OR qr.user_id = $${params.length}::int
-  OR st.user_id = $${params.length}::int
-)`);
+where.push(`($${params.length}::int IS NULL OR st.user_id = $${params.length}::int)`);
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   try {
