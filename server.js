@@ -1790,7 +1790,13 @@ ${a.is_active
 </h1>
 
  
+<div style="font-weight:bold;margin-bottom:15px;">
+  👤 ${currentUser.email}
+  &nbsp;|&nbsp;
+  Role: ${currentUser.role}
+</div>
 
+<h3>Getting Started</h3>
 <h3>Getting Started</h3>
 
 <ol>
