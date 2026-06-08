@@ -5260,7 +5260,12 @@ LEFT JOIN stores st ON st.id = e.store_id
 LEFT JOIN qr_codes qr ON qr.id = e.qr_id
 LEFT JOIN spaces s ON s.id = qr.space_id
       ${whereSql}
-      GROUP BY c.name, c.advertiser, qr.name, st.name
+      GROUP BY
+  c.name,
+  c.advertiser,
+  qr.name,
+  st.name,
+  s.name
       ORDER BY total_events DESC
     `, params);
 
