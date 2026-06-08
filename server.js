@@ -5208,11 +5208,11 @@ const qrId = req.query.qrId || req.query.qr_id || req.query.qr;
 } 
 });
 app.get("/export/report.csv", async (req, res) => {
-  const startDate = req.query.startDate || req.query.start || req.query.from;
-  const endDate = req.query.endDate || req.query.end || req.query.to;
-  const campaignId = req.query.campaignId || req.query.campaign_id || req.query.campaign;
-  const locationId = req.query.location_id || "";
-  const qrId = req.query.qrId || req.query.qr_id || req.query.qr;
+const startDate = req.query.start_date || req.query.startDate || req.query.start || req.query.from;
+const endDate = req.query.end_date || req.query.endDate || req.query.end || req.query.to;
+const locationId = req.query.location_id || "";
+const campaignId = req.query.campaign_id || req.query.campaignId || req.query.campaign;
+const qrId = req.query.qr_id || req.query.qrId || req.query.qr;
 const currentUser = req.session.user;
 const userId = currentUser.role === "super_admin" ? null : currentUser.id;
   let where = [];
