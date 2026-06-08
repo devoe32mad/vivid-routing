@@ -5779,7 +5779,7 @@ const selectedDays =
   );
 
 const costBasis = await q(`
-  SELECT
+  
     COALESCE(SUM(placement_cost), 0)::numeric(10,2) AS annual_cost,
     COALESCE(SUM(annual_impressions), 0)::numeric(10,2) AS annual_impressions
   FROM spaces
