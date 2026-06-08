@@ -5733,9 +5733,10 @@ AND ($5 = '' OR campaign_id::text = $5)
 
     const totals = report.rows[0] || {};
 
-    const revenueReport = await q(`
-    SELECT0::numeric(10,2) AS estimated_revenue,
-  0::numeric(10,2) AS estimated_customers,
+   const revenueReport = await q(`
+  SELECT
+    0::numeric(10,2) AS estimated_revenue,
+    0::numeric(10,2) AS estimated_customers,
   COALESCE(SUM(c.campaign_cost), 0)::numeric(10,2) AS total_campaign_cost  
       FROM events e
 LEFT JOIN campaigns c ON e.campaign_id = c.id
