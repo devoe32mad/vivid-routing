@@ -4215,7 +4215,19 @@ const assignedQrIds = new Set(assignedQrs.rows.map(r => String(r.qr_id)));
 </div>
         <label>Conversion Rate (%)</label>
         <input name="conversion_rate" value="${c.conversion_rate || 10}" />
+<label>Assign to QR Codes</label>
 
+${qrs.rows.map(qr => `
+  <label style="display:block;margin:8px 0;">
+    <input 
+      type="checkbox" 
+      name="qr_ids" 
+      value="${qr.id}"
+      ${assignedQrIds.has(String(qr.id)) ? "checked" : ""}
+    />
+    ${qr.name}
+  </label>
+`).join("")}
         <button class="btn" type="submit">Save Campaign</button>
       </form>
     </div>
