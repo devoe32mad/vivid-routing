@@ -5714,7 +5714,7 @@ app.get("/admin/reports", async (req, res) => {
     const locationId = req.query.location_id || "";
     const qrId = req.query.qr_id || "";
     const campaignId = req.query.campaign_id || "";
-    const status = req.query.status || "all";
+    const status = (req.query.status || "all").toLowerCase();
 
     const report = await q(`
       SELECT
