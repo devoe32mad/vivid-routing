@@ -1048,9 +1048,9 @@ const userParams = isSuperAdmin ? [] : [currentUser.id];
   SELECT
     COUNT(*) FILTER (WHERE e.type='scan') AS scans,
     COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
-  COUNT(*) FILTER (WHERE e.type='map') AS maps_clicks,
+  COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
     COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
-   COUNT(*) FILTER (WHERE e.type IN ('offer','map','waze')) AS intent_clicks
+   COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
   FROM events e
   JOIN campaigns c ON c.id = e.campaign_id
   WHERE 1=1
@@ -1060,7 +1060,7 @@ const userParams = isSuperAdmin ? [] : [currentUser.id];
 const trendResult = await q(`
   SELECT DATE(e.created_at) AS day,
     COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-    COUNT(*) FILTER (WHERE e.type IN ('offer','map','waze')) AS intent_clicks
+    COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
   FROM events e
   JOIN campaigns c ON c.id = e.campaign_id
   WHERE 1=1 ${userFilterSql} ${dateSql}
@@ -3805,7 +3805,7 @@ const whereSql = where.length
     COUNT(DISTINCT e.campaign_id) AS active_campaigns,
     COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
     COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
-    COUNT(*) FILTER (WHERE e.type = 'map') AS map_clicks
+    COUNT(*) FILTER (WHERE e.type = 'maps') AS map_clicks
   FROM events e
   ${whereSql}
 `, params);
@@ -5244,7 +5244,7 @@ where.push(`($${params.length}::int IS NULL OR st.user_id = $${params.length}::i
         COUNT(*) AS total_events,
         COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
         COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
-        COUNT(*) FILTER (WHERE e.type = 'map') AS map_clicks,
+        COUNT(*) FILTER (WHERE e.type = 'maps') AS map_clicks,
         MIN(e.created_at) AS first_event,
         MAX(e.created_at) AS last_event
       FROM events e
@@ -5736,7 +5736,7 @@ const statusTarget = campaignId
       SELECT
         COUNT(*)::int AS total_events,
         COUNT(*) FILTER (WHERE type = 'scan')::int AS total_scans,
-        COUNT(*) FILTER (WHERE type = 'map')::int AS maps_clicks,
+        COUNT(*) FILTER (WHERE type = 'maps')::int AS maps_clicks,
         COUNT(*) FILTER (WHERE type = 'offer')::int AS offer_clicks
       FROM events
       WHERE created_at::date BETWEEN $1::date AND $2::date
