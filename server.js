@@ -5198,7 +5198,8 @@ app.get("/export/report.csv", async (req, res) => {
   const endDate = req.query.endDate || req.query.end || req.query.to;
   const campaignId = req.query.campaignId || req.query.campaign_id || req.query.campaign;
   const qrId = req.query.qrId || req.query.qr_id || req.query.qr;
-
+const currentUser = req.session.user;
+const userId = currentUser.role === "super_admin" ? null : currentUser.id;
   let where = [];
   let params = [];
 
