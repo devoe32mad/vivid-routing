@@ -1444,21 +1444,27 @@ ORDER BY qr.id DESC
       isSuperAdmin ? [] : [currentUser.id]
     );
 const relationships = await q(`
-SELECT DISTINCT
+  SELECT DISTINCT
     s.id AS location_id,
     qr.id AS qr_id,
     c.id AS campaign_id,
-COALESCE(qc.started_at, qc.assigned_at, c.created_at) AS created_at
-FROM spaces s
-LEFT JOIN qr_codes qr
+    COALESCE(cs.start_date, qc.started_at, qc.assigned_at, c.created_at) AS created_at
+  FROM spaces s
+  LEFT JOIN qr_codes qr
     ON qr.space_id = s.id
-LEFT JOIN qr_campaigns qc
+
+  LEFT JOIN qr_campaigns qc
     ON qc.qr_id = qr.id
-   AND COALESCE(qc.is_active, true) = true 
-LEFT JOIN campaigns c
-    ON c.id = qc.campaign_id
-WHERE s.user_id = $1
-AND COALESCE(s.is_archived,false) = false
+    AND COALESCE(qc.is_active, true) = true
+
+  LEFT JOIN campaign_schedules cs
+    ON cs.qr_id = qr.id
+
+  LEFT JOIN campaigns c
+    ON c.id = COALESCE(qc.campaign_id, cs.campaign_id)
+
+  WHERE s.user_id = $1
+    AND COALESCE(s.is_archived,false) = false
 `, [currentUser.id]);
     const campaigns = await q(
       isSuperAdmin
