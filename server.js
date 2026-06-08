@@ -5219,14 +5219,14 @@ const userId = currentUser.role === "super_admin" ? null : currentUser.id;
   let params = [];
 
   if (startDate) {
-    params.push(startDate);
-    where.push(`e.created_at >= $${params.length}`);
-  }
+  params.push(startDate);
+  where.push(`e.created_at >= $${params.length}::date`);
+}
 
-  if (endDate) {
-    params.push(endDate);
-    where.push(`e.created_at < ($${params.length}::date + interval '1 day')`);
-  }
+if (endDate) {
+  params.push(endDate);
+  where.push(`e.created_at < ($${params.length}::date + interval '1 day')`);
+}
 
   if (campaignId) {
     params.push(campaignId);
