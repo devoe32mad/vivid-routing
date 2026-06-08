@@ -5920,10 +5920,10 @@ COALESCE(s.annual_impressions, 146000)::numeric(10,2) AS annual_impressions,
   FROM events e
   LEFT JOIN campaigns c ON e.campaign_id = c.id
   LEFT JOIN qr_codes qc ON e.qr_id = qc.id
-  LEFT JOIN spaces s ON e.store_id = s.id
+  LEFT JOIN spaces s ON s.id = qc.space_id
 
   WHERE e.created_at::date BETWEEN $1::date AND $2::date
-    AND ($3 = '' OR e.store_id::text = $3)
+    AND ($3 = '' OR qc.space_id::text = $3)
     AND ($4 = '' OR e.qr_id::text = $4)
     AND ($5 = '' OR e.campaign_id::text = $5)
 AND (
