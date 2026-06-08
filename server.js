@@ -5227,7 +5227,16 @@ const userId = currentUser.role === "super_admin" ? null : currentUser.id;
     params.push(endDate);
     where.push(`e.created_at <= $${params.length}`);
   }
-
+if (locationId) {
+  params.push(locationId);
+  where.push(`(
+    e.store_id::text = $${params.length}
+    OR e.qr_id IN (
+      SELECT id FROM qr_codes
+      WHERE space_id::text = $${params.length}
+    )
+  )`);
+}
   if (campaignId) {
     params.push(campaignId);
     where.push(`e.campaign_id = $${params.length}`);
