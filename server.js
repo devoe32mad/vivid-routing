@@ -5927,25 +5927,31 @@ COALESCE(s.annual_impressions, 146000)::numeric(10,2) AS annual_impressions,
     AND ($4 = '' OR e.qr_id::text = $4)
     AND ($5 = '' OR e.campaign_id::text = $5)
 AND (
-  $6 = 'all'
+  $6::text = 'all'
+
   OR (
-    $6 = 'active'
-    AND COALESCE(c.is_archived,false) = false
-    AND COALESCE(qc.is_archived,false) = false
-    AND COALESCE(s.is_archived,false) = false
-  )
-  OR (
-    $6 = 'archived'
+    $6::text = 'active'
     AND (
-      COALESCE(c.is_archived,false) = true
-      OR COALESCE(qc.is_archived,false) = true
-      OR COALESCE(s.is_archived,false) = true
+      ($7::text = 'campaign' AND COALESCE(c.is_archived,false) = false)
+      OR ($7::text = 'qr' AND COALESCE(qc.is_archived,false) = false)
+      OR ($7::text = 'location' AND COALESCE(s.is_archived,false) = false)
+      OR ($7::text = 'all' AND COALESCE(c.is_archived,false) = false)
+    )
+  )
+
+  OR (
+    $6::text = 'archived'
+    AND (
+      ($7::text = 'campaign' AND COALESCE(c.is_archived,false) = true)
+      OR ($7::text = 'qr' AND COALESCE(qc.is_archived,false) = true)
+      OR ($7::text = 'location' AND COALESCE(s.is_archived,false) = true)
+      OR ($7::text = 'all' AND COALESCE(c.is_archived,false) = true)
     )
   )
 )
   GROUP BY c.name, qc.name, s.name, s.placement_cost, s.annual_impressions
   ORDER BY scans DESC
-`, [startDate, endDate, locationId, qrId, campaignId, status]);
+[startDate, endDate, locationId, qrId, campaignId, status, statusTarget]
     res.send(page("Reports", `
       <h1>Export Center</h1>
 
