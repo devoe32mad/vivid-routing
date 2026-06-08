@@ -5733,9 +5733,7 @@ AND (
     WHERE store_id::text = $3::text
   )
 )
-    SELECT id FROM qr_codes WHERE location_id::text = $3::text
-  )
-)
+    
 AND ($4 = '' OR qr_id::text = $4)
 AND ($5 = '' OR campaign_id::text = $5)
 
