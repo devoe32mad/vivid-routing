@@ -5720,7 +5720,7 @@ app.get("/admin/reports", async (req, res) => {
       SELECT
         COUNT(*)::int AS total_events,
         COUNT(*) FILTER (WHERE type = 'scan')::int AS total_scans,
-        COUNT(*) FILTER (WHERE type = 'maps')::int AS maps_clicks,
+        COUNT(*) FILTER (WHERE type = 'map')::int AS maps_clicks,
         COUNT(*) FILTER (WHERE type = 'offer')::int AS offer_clicks
       FROM events
       WHERE created_at::date BETWEEN $1::date AND $2::date
