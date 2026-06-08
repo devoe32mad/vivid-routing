@@ -4168,7 +4168,28 @@ app.get("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
   if (!c) {
     return res.send("Campaign not found or access denied");
   }
+const qrs = await q(
+  `
+  SELECT id, name
+  FROM qr_codes
+  WHERE user_id = $1
+  AND COALESCE(is_archived,false) = false
+  ORDER BY name
+  `,
+  [currentUser.id]
+);
 
+const assignedQrs = await q(
+  `
+  SELECT qr_id
+  FROM qr_campaigns
+  WHERE campaign_id = $1
+  AND COALESCE(is_active,true) = true
+  `,
+  [req.params.campaignId]
+);
+
+const assignedQrIds = new Set(assignedQrs.rows.map(r => String(r.qr_id)));
   res.send(page("Edit Campaign", `
     <div class="topbar">
       <div class="brand">Vivid Spots</div>
