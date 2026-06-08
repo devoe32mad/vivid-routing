@@ -5833,10 +5833,11 @@ const qrs = await q(
   SELECT qc.id, qc.name
   FROM qr_codes qc
   JOIN spaces s ON s.id = qc.space_id
-  ${userId ? "WHERE s.user_id = $1" : ""}
+  WHERE
+    (${userId ? "s.user_id = $1 AND" : ""} ($${userId ? 2 : 1}::text = '' OR qc.space_id::text = $${userId ? 2 : 1}::text))
   ORDER BY qc.name ASC
   `,
-  userId ? [userId] : []
+  userId ? [userId, locationId] : [locationId]
 );
   
  
