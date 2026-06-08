@@ -5225,7 +5225,7 @@ const userId = currentUser.role === "super_admin" ? null : currentUser.id;
 
   if (endDate) {
     params.push(endDate);
-    where.push(`e.created_at <= $${params.length}`);
+    where.push(`e.created_at < ($${params.length}::date + interval '1 day')`);
   }
 if (locationId) {
   params.push(locationId);
