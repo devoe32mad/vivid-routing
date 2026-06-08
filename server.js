@@ -5724,7 +5724,7 @@ app.get("/admin/reports", async (req, res) => {
         COUNT(*) FILTER (WHERE type = 'offer')::int AS offer_clicks
       FROM events
       WHERE created_at::date BETWEEN $1::date AND $2::date
-AND (1=1)
+AND ($3::text = '' OR store_id::text = $3::text)
 AND ($4 = '' OR qr_id::text = $4)
 AND ($5 = '' OR campaign_id::text = $5)
 
