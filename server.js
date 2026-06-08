@@ -5247,7 +5247,7 @@ where.push(`($${params.length}::int IS NULL OR st.user_id = $${params.length}::i
         c.name AS campaign,
         c.advertiser AS advertiser,
         qr.name AS qr_name,
-        st.name AS store_name,
+        COALESCE(st.name, s.name) AS store_name,
         COUNT(*) AS total_events,
         COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
         COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
@@ -5258,6 +5258,7 @@ where.push(`($${params.length}::int IS NULL OR st.user_id = $${params.length}::i
 LEFT JOIN campaigns c ON c.id = e.campaign_id
 LEFT JOIN stores st ON st.id = e.store_id
 LEFT JOIN qr_codes qr ON qr.id = e.qr_id
+LEFT JOIN spaces s ON s.id = qr.space_id
       ${whereSql}
       GROUP BY c.name, c.advertiser, qr.name, st.name
       ORDER BY total_events DESC
