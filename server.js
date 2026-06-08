@@ -2112,7 +2112,7 @@ let reportQuery = "";
         COUNT(*) FILTER (WHERE e.type='scan') AS scans,
 
         COUNT(*) FILTER (
-          WHERE e.type IN ('offer','maps','waze')
+          WHERE e.type IN ('offer','map','waze')
         ) AS intent_actions
 ,
 
@@ -2141,7 +2141,7 @@ SUM(e.value) FILTER (
         COUNT(*) FILTER (WHERE e.type='scan') AS scans,
 
         COUNT(*) FILTER (
-          WHERE e.type IN ('offer','maps','waze')
+          WHERE e.type IN ('offer','map','waze')
         ) AS intent_actions
 ) AS intent_actions,
 
@@ -2175,7 +2175,7 @@ const reportRows = await q(
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
 
             COUNT(*) FILTER (
-              WHERE e.type IN ('offer','maps','waze')
+              WHERE e.type IN ('offer','map','waze')
             ) AS intent_actions
 
           FROM events e
