@@ -1040,9 +1040,9 @@ const userParams = isSuperAdmin ? [] : [currentUser.id];
   SELECT
     COUNT(*) FILTER (WHERE e.type='scan') AS scans,
     COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
-    COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
+  COUNT(*) FILTER (WHERE e.type='map') AS maps_clicks,
     COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
-    COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+   COUNT(*) FILTER (WHERE e.type IN ('offer','map','waze')) AS intent_clicks
   FROM events e
   JOIN campaigns c ON c.id = e.campaign_id
   WHERE 1=1
@@ -1052,7 +1052,7 @@ const userParams = isSuperAdmin ? [] : [currentUser.id];
 const trendResult = await q(`
   SELECT DATE(e.created_at) AS day,
     COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-    COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+    COUNT(*) FILTER (WHERE e.type IN ('offer','map','waze')) AS intent_clicks
   FROM events e
   JOIN campaigns c ON c.id = e.campaign_id
   WHERE 1=1 ${userFilterSql} ${dateSql}
