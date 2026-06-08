@@ -5822,10 +5822,14 @@ const locations = await q(
   `
   SELECT id, name
   FROM spaces
-  ${userId ? "WHERE user_id = $1" : ""}
+  WHERE (
+    $1::text = 'all'
+    OR ($1::text = 'active' AND COALESCE(is_archived,false) = false)
+    OR ($1::text = 'archived' AND COALESCE(is_archived,false) = true)
+  )
   ORDER BY name ASC
   `,
-  userId ? [userId] : []
+  [status]
 );
 
 const qrs = await q(
@@ -5833,11 +5837,15 @@ const qrs = await q(
   SELECT qc.id, qc.name
   FROM qr_codes qc
   JOIN spaces s ON s.id = qc.space_id
-  WHERE
-    (${userId ? "s.user_id = $1 AND" : ""} ($${userId ? 2 : 1}::text = '' OR qc.space_id::text = $${userId ? 2 : 1}::text))
+  WHERE ($1::text = '' OR qc.space_id::text = $1::text)
+  AND (
+    $2::text = 'all'
+    OR ($2::text = 'active' AND COALESCE(qc.is_archived,false) = false)
+    OR ($2::text = 'archived' AND COALESCE(qc.is_archived,false) = true)
+  )
   ORDER BY qc.name ASC
   `,
-  userId ? [userId, locationId] : [locationId]
+  [locationId, status]
 );
   
  
@@ -5847,12 +5855,17 @@ const campaigns = await q(
   `
   SELECT DISTINCT c.id, c.name
   FROM campaigns c
-  JOIN qr_campaigns qc ON qc.campaign_id = c.id
-  JOIN qr_codes q ON q.id = qc.qr_id
-  WHERE ($1::text = '' OR q.space_id::text = $1::text)
+  JOIN campaign_schedules cs ON cs.campaign_id = c.id
+  JOIN qr_codes qr ON qr.id = cs.qr_id
+  WHERE ($1::text = '' OR qr.space_id::text = $1::text)
+  AND (
+    $2::text = 'all'
+    OR ($2::text = 'active' AND COALESCE(c.is_archived,false) = false)
+    OR ($2::text = 'archived' AND COALESCE(c.is_archived,false) = true)
+  )
   ORDER BY c.name ASC
   `,
-  [locationId]
+  [locationId, status]
 );
     const relationships = await q(
   `
