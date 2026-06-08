@@ -3299,7 +3299,7 @@ app.post("/admin/edit-qr/:qrId", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
     const isSuperAdmin = currentUser.role === "super_admin";
-
+const { name, space_id, campaign_id } = req.body;
     const result = await q(
       isSuperAdmin
         ? `
@@ -3339,12 +3339,22 @@ app.post("/admin/edit-qr/:qrId", requireLogin, async (req, res) => {
     );
 
     if (!result.rows[0]) {
-      return res.send("QR not found or access denied");
-    }
+  return res.send("QR not found or access denied");
+}
 
-    res.send(
-      "QR updated <br><a href='/my-setup'>Back to My Setup</a>"
-    );
+if (req.body.campaign_id) {
+  await q(
+    `INSERT INTO qr_campaigns (qr_id, campaign_id, is_active, assigned_at)
+     VALUES ($1, $2, true, NOW())
+     ON CONFLICT (qr_id, campaign_id)
+     DO UPDATE SET is_active = true`,
+    [req.params.qrId, req.body.campaign_id]
+  );
+}
+
+res.send(
+  "QR updated <br><a href='/my-setup'>Back to My Setup</a>"
+);
 
   } catch (err) {
     res.send("EDIT QR ERROR: " + err.message);
