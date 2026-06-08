@@ -1111,7 +1111,7 @@ const locationRows = await q(
         COUNT(*) FILTER (WHERE e.type='scan') AS scans,
         COUNT(*) FILTER (WHERE e.type='map') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
-        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+        COUNT(*) FILTER (WHERE e.type IN ('offer','map','waze')) AS intent_clicks
       FROM events e
       JOIN campaigns c ON c.id = e.campaign_id
       JOIN qr_codes qr ON qr.id = e.qr_id
@@ -1127,7 +1127,7 @@ const locationRows = await q(
         COUNT(*) FILTER (WHERE e.type='scan') AS scans,
         COUNT(*) FILTER (WHERE e.type='map') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
-        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+        COUNT(*) FILTER (WHERE e.type IN ('offer','map','waze')) AS intent_clicks
       FROM events e
       JOIN campaigns c ON c.id = e.campaign_id
       JOIN qr_codes qr ON qr.id = e.qr_id
@@ -1159,7 +1159,7 @@ const locationRows = await q(
         c.conversion_rate,
         COUNT(*) FILTER (WHERE e.type='map') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
-        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+        COUNT(*) FILTER (WHERE e.type IN ('offer','map','waze')) AS intent_clicks
       FROM stores st
       LEFT JOIN events e
         ON e.store_id = st.id
@@ -1185,7 +1185,7 @@ const locationRows = await q(
         c.conversion_rate,
         COUNT(*) FILTER (WHERE e.type='map') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
-        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+        COUNT(*) FILTER (WHERE e.type IN ('offer','map','waze')) AS intent_clicks
       FROM stores st
       LEFT JOIN events e
         ON e.store_id = st.id
@@ -1242,7 +1242,7 @@ let bestQr = null;
           COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
           COUNT(*) FILTER (WHERE e.type='map') AS maps_clicks,
           COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
-          COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+          COUNT(*) FILTER (WHERE e.type IN ('offer','map','waze')) AS intent_clicks
         FROM events e WHERE e.qr_id = $1 ${hasDate ? "AND e.created_at BETWEEN $2::date AND ($3::date + interval '1 day')" : ""}
       `, hasDate ? [qr.qr_id, start, end] : [qr.qr_id]);
       const row = m.rows[0];
@@ -1276,7 +1276,7 @@ const cost =
           COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
           COUNT(*) FILTER (WHERE e.type='map') AS maps_clicks,
           COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
-          COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+          COUNT(*) FILTER (WHERE e.type IN ('offer','map','waze')) AS intent_clicks
         FROM events e WHERE e.campaign_id = $1 ${hasDate ? "AND e.created_at BETWEEN $2::date AND ($3::date + interval '1 day')" : ""}
       `, hasDate ? [c.id, start, end] : [c.id]);
       const row = m.rows[0];
@@ -2206,7 +2206,7 @@ COUNT(*) FILTER (
   WHERE e.type='waze'
 ) AS waze,
             COUNT(*) FILTER (
-              WHERE e.type IN ('offer','maps','waze')
+              WHERE e.type IN ('offer','map','waze')
             ) AS intent_actions
 
           FROM events e
@@ -2424,7 +2424,7 @@ if (startDate && endDate) {
             COUNT(*) FILTER (WHERE e.type='offer') AS offers,
 COUNT(*) FILTER (WHERE e.type='map') AS maps,
 COUNT(*) FILTER (WHERE e.type='waze') AS waze,
-COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
+COUNT(*) FILTER (WHERE e.type IN ('offer','map','waze')) AS intent_actions
           FROM events e
           JOIN qr_codes qr ON qr.id = e.qr_id
           WHERE 1=1
@@ -2439,7 +2439,7 @@ COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
             COUNT(*) FILTER (WHERE e.type='offer') AS offers,
 COUNT(*) FILTER (WHERE e.type='map') AS maps,
 COUNT(*) FILTER (WHERE e.type='waze') AS waze,
-COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
+COUNT(*) FILTER (WHERE e.type IN ('offer','map','waze')) AS intent_actions
           FROM events e
           JOIN qr_codes qr ON qr.id = e.qr_id
           JOIN spaces s ON s.id = qr.space_id
