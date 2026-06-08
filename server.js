@@ -795,7 +795,15 @@ app.get("/click/:type/:qrId", async (req, res) => {
   if (!campaign) return res.status(404).send("No active campaign.");
   let store = null;
   if (type === "maps" || type === "waze") store = await pickBestStoreForCampaign(campaign);
-  await saveEvent({ qrId, campaignId: campaign.id, storeId: store ? store.id : null, type });
+
+console.log("CLICK EVENT:", { 
+  type, 
+  qrId, 
+  campaignId: campaign.id, 
+  storeId: store ? store.id : null 
+});
+
+await saveEvent({ qrId, campaignId: campaign.id, storeId: store ? store.id : null, type });
   if (type === "offer") return res.redirect(campaign.campaign_url || "/");
 if (type === "maps") {
   const searchTerm = campaign.advertiser || campaign.name || "store";
