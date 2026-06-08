@@ -5227,7 +5227,13 @@ if (endDate) {
   params.push(endDate);
   where.push(`e.created_at < ($${params.length}::date + interval '1 day')`);
 }
-
+if (locationId) {
+  params.push(locationId);
+  where.push(`(
+    e.store_id::text = $${params.length}
+    OR qr.space_id::text = $${params.length}
+  )`);
+}
   if (campaignId) {
     params.push(campaignId);
     where.push(`e.campaign_id = $${params.length}`);
