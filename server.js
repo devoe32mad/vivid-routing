@@ -5933,7 +5933,7 @@ AND (
 )
   GROUP BY c.name, qc.name, s.name, s.placement_cost, s.annual_impressions
   ORDER BY scans DESC
-[startDate, endDate, locationId, qrId, campaignId, status]
+`, [startDate, endDate, locationId, qrId, campaignId, status]);
     res.send(page("Reports", `
       <h1>Export Center</h1>
 
