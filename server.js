@@ -4169,14 +4169,16 @@ app.get("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
     return res.send("Campaign not found or access denied");
   }
 const qrs = await q(
-  `
-  SELECT id, name
-  FROM qr_codes
-  WHERE user_id = $1
-  AND COALESCE(is_archived,false) = false
-  ORDER BY name
-  `,
-  [currentUser.id]
+`
+SELECT qr.id, qr.name
+FROM qr_codes qr
+JOIN spaces s ON s.id = qr.space_id
+WHERE s.user_id = $1
+AND COALESCE(qr.is_archived,false) = false
+AND COALESCE(s.is_archived,false) = false
+ORDER BY qr.name
+`,
+[currentUser.id]
 );
 
 const assignedQrs = await q(
