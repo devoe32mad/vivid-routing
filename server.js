@@ -5822,14 +5822,15 @@ const locations = await q(
   `
   SELECT id, name
   FROM spaces
-  WHERE (
-    $1::text = 'all'
-    OR ($1::text = 'active' AND COALESCE(is_archived,false) = false)
-    OR ($1::text = 'archived' AND COALESCE(is_archived,false) = true)
+  WHERE ($1::int IS NULL OR user_id = $1::int)
+  AND (
+    $2::text = 'all'
+    OR ($2::text = 'active' AND COALESCE(is_archived,false) = false)
+    OR ($2::text = 'archived' AND COALESCE(is_archived,false) = true)
   )
   ORDER BY name ASC
   `,
-  [status]
+  [userId, status]
 );
 
 const qrs = await q(
