@@ -5715,7 +5715,13 @@ app.get("/admin/reports", async (req, res) => {
     const qrId = req.query.qr_id || "";
     const campaignId = req.query.campaign_id || "";
     const status = (req.query.status || "all").toLowerCase();
-
+const statusTarget = campaignId
+  ? "campaign"
+  : qrId
+  ? "qr"
+  : locationId
+  ? "location"
+  : "all";
     const report = await q(`
       SELECT
         COUNT(*)::int AS total_events,
