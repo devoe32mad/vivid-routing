@@ -2225,7 +2225,7 @@ SUM(e.value) FILTER (
       WHERE 1=1
       ${dateSql}
 
-      GROUP BY c.name, c.advertiser
+      GROUP BY c.id, c.name, c.advertiser
       ORDER BY scans DESC
     `
     : `
@@ -2271,7 +2271,7 @@ SUM(e.value) FILTER (
       WHERE c.user_id = $1
       ${dateSql}
 
-      GROUP BY c.name, c.advertiser
+      GROUP BY c.id, c.name, c.advertiser
       ORDER BY scans DESC
     `;
 }
