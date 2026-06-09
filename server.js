@@ -1514,6 +1514,11 @@ const archivedCampaigns = await q(
   COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP) AS started_at,
 qc.ended_at,
 s.placement_cost
+,
+GREATEST(
+  1,
+  CURRENT_DATE - DATE(COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP))
+) AS assignment_days
 FROM qr_campaigns qc
 JOIN qr_codes qr ON qr.id = qc.qr_id
 JOIN spaces s ON s.id = qr.space_id
