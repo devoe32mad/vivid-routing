@@ -532,6 +532,8 @@ await q(`
   await q(`ALTER TABLE qr_campaigns ADD COLUMN IF NOT EXISTS started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
   await q(`ALTER TABLE qr_campaigns ADD COLUMN IF NOT EXISTS ended_at TIMESTAMP`);
   await q(`ALTER TABLE qr_campaigns ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
+  await q(`ALTER TABLE qr_campaigns ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+await q(`UPDATE qr_campaigns SET assigned_at = CURRENT_TIMESTAMP WHERE assigned_at IS NULL`);
   await q(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS inventory_priority INT DEFAULT 50`);
   await q(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS inventory_units INT DEFAULT 0`);
   await q(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS days_on_hand INT DEFAULT 0`);
