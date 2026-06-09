@@ -2336,6 +2336,7 @@ const roi =
         <tr>
           <td>${r.advertiser || ""}</td>
           <td>${r.campaign_name || ""}</td>
+          <td>${r.campaign_id || "NO ID"}</td>
          <td style="text-align:center;">${scans}</td>
 <td style="text-align:center;">${offers}</td>
 
@@ -2402,6 +2403,7 @@ const roi =
             <tr>
               <th>Advertiser</th>
               <th>Campaign</th>
+              <th>ID</th>
             <th style="text-align:center;">Scans</th>
 <th style="text-align:center;">Offers</th>
 <th style="text-align:center;">Maps</th>
