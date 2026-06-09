@@ -2579,13 +2579,19 @@ COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
 
 LEFT JOIN campaigns c
   ON c.id = COALESCE(e.campaign_id, qc.campaign_id)
+         LEFT JOIN spaces s
+  ON s.id = qr.space_id
           WHERE s.user_id = $1
           ${dateSql}
-          GROUP BY
+   GROUP BY
   c.advertiser,
   c.name,
   c.id,
-  qr.name
+  qr.name,
+  qc.id,
+  qc.started_at,
+  qc.assigned_at,
+  s.placement_cost
           ORDER BY scans DESC
         `,
       isSuperAdmin ? [] : [currentUser.id]
