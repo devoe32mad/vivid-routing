@@ -2497,23 +2497,41 @@ if (startDate && endDate) {
     const reportRows = await q(
       isSuperAdmin
         ? `
-          SELECT
-            qr.name AS qr_name,
+         SELECT
+  c.advertiser,
+  c.name AS campaign_name,
+  qr.name AS qr_name,
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
             COUNT(*) FILTER (WHERE e.type='offer') AS offers,
 COUNT(*) FILTER (WHERE e.type='maps') AS maps,
 COUNT(*) FILTER (WHERE e.type='waze') AS waze,
 COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
-          FROM events e
-          JOIN qr_codes qr ON qr.id = e.qr_id
-          WHERE 1=1
+         FROM events e
+JOIN qr_codes qr ON qr.id = e.qr_id
+
+LEFT JOIN qr_campaigns qc
+  ON qc.qr_id = qr.id
+  AND COALESCE(qc.is_active,true) = true
+
+LEFT JOIN campaigns c
+  ON c.id = qc.campaign_id
+
+LEFT JOIN spaces s
+  ON s.id = qr.space_id
+
+WHERE 1=1
           ${dateSql}
-          GROUP BY qr.name
-          ORDER BY scans DESC
+GROUP BY
+  c.advertiser,
+  c.name,
+  qr.name
+  ORDER BY scans DESC
         `
         : `
           SELECT
-            qr.name AS qr_name,
+  c.advertiser,
+  c.name AS campaign_name,
+  qr.name AS qr_name,
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
             COUNT(*) FILTER (WHERE e.type='offer') AS offers,
 COUNT(*) FILTER (WHERE e.type='maps') AS maps,
@@ -2524,7 +2542,10 @@ COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
           JOIN spaces s ON s.id = qr.space_id
           WHERE s.user_id = $1
           ${dateSql}
-          GROUP BY qr.name
+          GROUP BY
+  c.advertiser,
+  c.name,
+  qr.name
           ORDER BY scans DESC
         `,
       isSuperAdmin ? [] : [currentUser.id]
