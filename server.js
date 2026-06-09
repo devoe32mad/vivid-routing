@@ -2508,6 +2508,7 @@ if (startDate && endDate) {
   c.advertiser,
   c.name AS campaign_name,
   c.id AS campaign_id,
+  c.id AS campaign_id,
   qr.name AS qr_name,
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
             COUNT(*) FILTER (WHERE e.type='offer') AS offers,
