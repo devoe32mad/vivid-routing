@@ -2506,7 +2506,25 @@ if (startDate && endDate) {
             COUNT(*) FILTER (WHERE e.type='offer') AS offers,
 COUNT(*) FILTER (WHERE e.type='maps') AS maps,
 COUNT(*) FILTER (WHERE e.type='waze') AS waze,
-COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
+COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
+ROUND(
+  SUM(
+    CASE
+      WHEN qc.id IS NOT NULL THEN
+        (s.placement_cost / 365.0) *
+        GREATEST(
+          1,
+          FLOOR(
+            EXTRACT(EPOCH FROM (
+              NOW() - COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP)
+            )) / 86400
+          )
+        )
+      ELSE 0
+    END
+  ),
+  2
+) AS allocated_cost
          FROM events e
 JOIN qr_codes qr ON qr.id = e.qr_id
 
@@ -2523,9 +2541,14 @@ LEFT JOIN spaces s
 WHERE 1=1
           ${dateSql}
 GROUP BY
+ GROUP BY
   c.advertiser,
   c.name,
-  qr.name
+  qr.name,
+  qc.id,
+  qc.started_at,
+  qc.assigned_at,
+  s.placement_cost
   ORDER BY scans DESC
         `
         : `
