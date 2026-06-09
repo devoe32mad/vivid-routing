@@ -2505,6 +2505,7 @@ if (startDate && endDate) {
          SELECT
   c.advertiser,
   c.name AS campaign_name,
+  c.id AS campaign_id,
   qr.name AS qr_name,
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
             COUNT(*) FILTER (WHERE e.type='offer') AS offers,
@@ -2548,6 +2549,7 @@ WHERE 1=1
  GROUP BY
   c.advertiser,
   c.name,
+  c.id,
   qr.name,
   qc.id,
   qc.started_at,
@@ -2559,6 +2561,7 @@ WHERE 1=1
           SELECT
   c.advertiser,
   c.name AS campaign_name,
+  c.id AS campaign_id,
   qr.name AS qr_name,
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
             COUNT(*) FILTER (WHERE e.type='offer') AS offers,
@@ -2579,6 +2582,7 @@ LEFT JOIN campaigns c
           GROUP BY
   c.advertiser,
   c.name,
+  c.id,
   qr.name
           ORDER BY scans DESC
         `,
