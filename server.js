@@ -2316,11 +2316,7 @@ const estimatedCustomers =
   Math.round(intent * 0.1);
 
 const revenue = conversionValue;
-    const placementCost = await allocatedSpotCostForCampaign(
-  r.campaign_id,
-  startDate,
-  endDate
-);
+const placementCost = Number(r.allocated_cost || 0);
 
 const roi =
   placementCost > 0
