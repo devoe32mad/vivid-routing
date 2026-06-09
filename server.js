@@ -2282,14 +2282,32 @@ const reportRows = await q(
         ? `
           SELECT
             c.name AS campaign_name,
-            c.advertiser,
+            c.advertiser,c.id AS campaign_id,
 
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
 
             COUNT(*) FILTER (
               WHERE e.type IN ('offer','maps','waze')
             ) AS intent_actions
-
+,
+0 AS conversions,
+0 AS conversion_value,
+COALESCE((
+  SELECT ROUND(
+    SUM((s2.placement_cost / 365.0) *
+      GREATEST(
+        1,
+        CURRENT_DATE - DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+      )
+    ),
+    2
+  )
+  FROM qr_campaigns qc2
+  JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
+  JOIN spaces s2 ON s2.id = qr2.space_id
+  WHERE qc2.campaign_id = c.id
+    AND COALESCE(qc2.is_active,true) = true
+), 0) AS allocated_cost
           FROM events e
           LEFT JOIN campaigns c
             ON c.id = e.campaign_id
@@ -2297,7 +2315,7 @@ const reportRows = await q(
           WHERE 1=1
           ${dateSql}
 
-          GROUP BY c.name, c.advertiser
+          GROUP BY GROUP BY c.id, c.name, c.advertiser
           ORDER BY scans DESC
         `
         : `
