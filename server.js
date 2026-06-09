@@ -4109,13 +4109,26 @@ const qrId = req.body.qr_ids;
 if (qrId) {
   await q(
     `
+    UPDATE qr_campaigns
+    SET is_active = false,
+        ended_at = NOW()
+    WHERE qr_id = $1
+      AND COALESCE(is_active,true) = true
+    `,
+    [Number(qrId)]
+  );
+
+  await q(
+    `
     INSERT INTO qr_campaigns (
       qr_id,
       campaign_id,
       is_active,
-      assigned_at
+      assigned_at,
+      started_at,
+      ended_at
     )
-    VALUES ($1, $2, true, NOW())
+    VALUES ($1, $2, true, NOW(), NOW(), NULL)
     `,
     [Number(qrId), Number(req.params.campaignId)]
   );
