@@ -2540,7 +2540,7 @@ LEFT JOIN spaces s
 
 WHERE 1=1
           ${dateSql}
-GROUP BY
+
  GROUP BY
   c.advertiser,
   c.name,
