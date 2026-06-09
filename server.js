@@ -1517,7 +1517,11 @@ s.placement_cost
 ,
 GREATEST(
   1,
-  CURRENT_DATE - DATE(COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP))
+  FLOOR(
+    EXTRACT(EPOCH FROM (
+      NOW() - COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP)
+    )) / 86400
+  )
 ) AS assignment_days
 ,
 ROUND(
