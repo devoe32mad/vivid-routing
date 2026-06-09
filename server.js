@@ -2540,6 +2540,12 @@ COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
           FROM events e
           JOIN qr_codes qr ON qr.id = e.qr_id
           JOIN spaces s ON s.id = qr.space_id
+          LEFT JOIN qr_campaigns qc
+  ON qc.qr_id = qr.id
+  AND COALESCE(qc.is_active,true) = true
+
+LEFT JOIN campaigns c
+  ON c.id = qc.campaign_id
           WHERE s.user_id = $1
           ${dateSql}
           GROUP BY
