@@ -2510,7 +2510,7 @@ COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
 ROUND(
   SUM(
     CASE
-      WHEN qc.id IS NOT NULL THEN
+      WHEN s.placement_cost IS NOT NULL THEN
         (s.placement_cost / 365.0) *
         GREATEST(
           1,
