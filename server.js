@@ -2332,7 +2332,7 @@ const roi =
         <tr>
           <td>${r.advertiser || ""}</td>
           <td>${r.campaign_name || ""}</td>
-          <td>${Object.keys(r).join(", ")}</td>
+        
          <td style="text-align:center;">${scans}</td>
 <td style="text-align:center;">${offers}</td>
 
