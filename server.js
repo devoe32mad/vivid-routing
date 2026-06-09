@@ -1552,7 +1552,31 @@ SELECT
   c.advertiser,
   s.location AS market,
   s.name AS location_name,
-  COALESCE(qc.started_at, qc.assigned_at) AS started_at
+  COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP) AS started_at,
+  qc.ended_at,
+  s.placement_cost,
+
+  GREATEST(
+    1,
+    FLOOR(
+      EXTRACT(EPOCH FROM (
+        NOW() - COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP)
+      )) / 86400
+    )
+  ) AS assignment_days,
+
+  ROUND(
+    (s.placement_cost / 365.0) *
+    GREATEST(
+      1,
+      FLOOR(
+        EXTRACT(EPOCH FROM (
+          NOW() - COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP)
+        )) / 86400
+      )
+    ),
+    2
+  ) AS allocated_cost
 FROM qr_campaigns qc
 JOIN qr_codes qr ON qr.id = qc.qr_id
 JOIN spaces s ON s.id = qr.space_id
