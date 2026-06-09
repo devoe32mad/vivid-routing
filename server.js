@@ -1524,6 +1524,7 @@ GREATEST(
   )
 ) AS assignment_days
 ,
+COALESCE(qc.started_at, qc.assigned_at) AS debug_start
 ROUND(
   (
     s.placement_cost / 365.0
@@ -1801,6 +1802,7 @@ for (const s of schedules.rows) {
     for (const a of assignments.rows) {
    assignmentTable += `
   <tr>
+  <td>${a.debug_start || ""}</td>
    <td>${a.market || ""}</td>
 <td>${a.location_name || ""}</td>
 <td>${a.qr_name || ""}</td>
