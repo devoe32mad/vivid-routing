@@ -1803,6 +1803,8 @@ for (const s of schedules.rows) {
 <td>${a.advertiser || ""}</td>
 <td>${a.campaign_name || ""}</td>
 <td>${daysActive(a.started_at || a.assigned_at)}</td>
+<td>${a.assignment_days || 0}</td>
+<td>$${Number(a.allocated_cost || 0).toFixed(2)}</td>
 <td>
 ${a.is_active
 ? '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Active</span>'
