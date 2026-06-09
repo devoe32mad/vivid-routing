@@ -4090,17 +4090,18 @@ app.post("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
     if (!result.rows[0]) {
       return res.send("Campaign not found or access denied");
     }
-const qrId = req.body.qr_ids;
-
 if (qrId) {
   await q(
     `
-    INSERT INTO qr_campaigns (qr_id, campaign_id, is_active, assigned_at)
+    INSERT INTO qr_campaigns (
+      qr_id,
+      campaign_id,
+      is_active,
+      assigned_at
+    )
     VALUES ($1, $2, true, NOW())
-    ON CONFLICT (qr_id, campaign_id)
-    DO UPDATE SET is_active = true
     `,
-    [qrId, req.params.campaignId]
+    [Number(qrId), Number(req.params.campaignId)]
   );
 }
     res.send("Campaign updated <br><a href='/dashboard'>Back to Dashboard</a>");
