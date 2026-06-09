@@ -2108,6 +2108,8 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
   Days in Market
   <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
 </th>
+<th>Assignment Days</th>
+<th>Allocated Cost</th>
 <th>Status</th>
 
 <th>Archive</th>
