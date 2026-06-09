@@ -1612,7 +1612,16 @@ const hasSchedules = activeScheduleCount > 0;
         <tr>
           <td>${qr.id}</td>
 <td>${qr.name || ""}</td>
-<td>${qr.advertiser || ""}</td>
+<td>${
+  relationships.rows
+    .filter(r => String(r.qr_id) === String(qr.id))
+    .map(r => {
+      const campaign = campaigns.rows.find(c => String(c.id) === String(r.campaign_id));
+      return campaign ? campaign.advertiser : "";
+    })
+    .filter(Boolean)
+    .join(", ")
+}</td>
 <td>
 ${qr.description && qr.description.startsWith("http")
   ? "Imported"
