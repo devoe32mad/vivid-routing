@@ -2406,6 +2406,7 @@ const roi =
 <th>Conversions</th>
 <th>Conversion Value</th>
               <th>Revenue</th>
+              <th>Allocated Cost</th>
 <th>ROI</th>
             </tr>
 
