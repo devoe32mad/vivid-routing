@@ -1519,6 +1519,17 @@ GREATEST(
   1,
   CURRENT_DATE - DATE(COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP))
 ) AS assignment_days
+,
+ROUND(
+  (
+    s.placement_cost / 365.0
+  ) *
+  GREATEST(
+    1,
+    CURRENT_DATE - DATE(COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP))
+  ),
+  2
+) AS allocated_cost
 FROM qr_campaigns qc
 JOIN qr_codes qr ON qr.id = qc.qr_id
 JOIN spaces s ON s.id = qr.space_id
