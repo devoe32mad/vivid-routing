@@ -2316,7 +2316,7 @@ const estimatedCustomers =
   Math.round(intent * 0.1);
 
 const revenue = conversionValue;
-      const placementCost = 800;
+     const placementCost = 800;
 
 const roi =
   placementCost > 0
