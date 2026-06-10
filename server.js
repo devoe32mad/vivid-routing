@@ -2341,7 +2341,13 @@ COUNT(*) FILTER (
 ,
 0 AS conversions,
 0 AS conversion_value,
-0 AS allocated_cost
+COALESCE((
+  SELECT ROUND(SUM(s2.placement_cost / 365.0), 2)
+  FROM qr_campaigns qc2
+  JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
+  JOIN spaces s2 ON s2.id = qr2.space_id
+  WHERE qc2.campaign_id = c.id
+), 0) AS allocated_cost
           FROM events e
           LEFT JOIN campaigns c
             ON c.id = e.campaign_id
