@@ -2508,6 +2508,8 @@ const roi =
 <td style="text-align:center;">${money(conversionValue)}</td>
    <td>${money(revenue)}</td>
 <td>${activeDays}</td>
+<td>${startDate || 'NO START'}</td>
+<td>${endDate || 'NO END'}</td>
 <td>${money(Number(r.allocated_cost || 0))}</td>
 <td>${roi}%</td>
         </tr>
