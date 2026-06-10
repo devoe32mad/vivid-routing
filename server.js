@@ -2375,8 +2375,19 @@ COALESCE((
   SELECT ROUND(
     SUM((s2.placement_cost / 365.0) *
       GREATEST(
-        1,
-        CURRENT_DATE - DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+        1,LEAST(
+  COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE),
+  CURRENT_DATE
+)
+-
+GREATEST(
+  DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
+  COALESCE(
+    NULLIF('${startDate}','')::date,
+    DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+  )
+)
++ 1
       )
     ),
     2
