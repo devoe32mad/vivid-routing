@@ -2510,7 +2510,10 @@ const estimatedCustomers =
 
 const revenue = conversionValue;
 const placementCost = Number(r.allocated_cost || 0);
-const activeDays = Number(r.active_days || 0);
+const activeDays =
+  Number(r.allocated_cost || 0) > 0
+    ? Math.round(Number(r.allocated_cost || 0) / 2.1918)
+    : 0;
 const roi =
   placementCost > 0
     ? (((revenue - placementCost)
