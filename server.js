@@ -2378,7 +2378,25 @@ COUNT(*) FILTER (
 0 AS conversions,
 0 AS conversion_value,
 COALESCE((
-  SELECT ROUND(SUM(s2.placement_cost / 365.0), 2)
+  SELECT ROUND(SUM((s2.placement_cost / 365.0) *
+  GREATEST(
+    1,
+    (
+      LEAST(
+        CURRENT_DATE,
+        COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE)
+      )
+      -
+      GREATEST(
+        DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
+        COALESCE(
+          NULLIF('${startDate}','')::date,
+          DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+        )
+      )
+    ) + 1
+  )
+), 2)
   FROM qr_campaigns qc2
   JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
   JOIN spaces s2 ON s2.id = qr2.space_id
@@ -2388,7 +2406,20 @@ COALESCE((
   SELECT SUM(
     GREATEST(
       1,
-      CURRENT_DATE - DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+      (
+  LEAST(
+    CURRENT_DATE,
+    COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE)
+  )
+  -
+  GREATEST(
+    DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
+    COALESCE(
+      NULLIF('${startDate}','')::date,
+      DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+    )
+  )
+) + 1
     )
   )
   FROM qr_campaigns qc2
