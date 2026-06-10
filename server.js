@@ -2261,7 +2261,7 @@ COALESCE((
 COALESCE((
   SELECT SUM(
     GREATEST(
-      0,
+      1,
       (
         LEAST(CURRENT_DATE, COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE))
         -
