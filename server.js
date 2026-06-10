@@ -2414,7 +2414,7 @@ const estimatedCustomers =
 
 const revenue = conversionValue;
 const placementCost = Number(r.allocated_cost || 0);
-
+const activeDays = placementCost > 0 ? Math.round((placementCost / 800) * 365) : 0;
 const roi =
   placementCost > 0
     ? (((revenue - placementCost)
@@ -2442,7 +2442,7 @@ const roi =
 <td style="text-align:center;">${conversions}</td>
 <td style="text-align:center;">${money(conversionValue)}</td>
    <td>${money(revenue)}</td>
-<td>${r.active_days ?? "NO ACTIVE FIELD"}</td>
+<td>${activeDays}</td>
 <td>${money(Number(r.allocated_cost || 0))}</td>
 <td>${roi}%</td>
         </tr>
