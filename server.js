@@ -2193,8 +2193,16 @@ let reportQuery = "";
           WHERE e.type IN ('offer','maps','waze')
         ) AS intent_actions
 ,
-0 AS conversions,
-0 AS conversion_value,
+COUNT(*) FILTER (
+  WHERE e.type IN ('purchase','conversion','lead','signup')
+) AS conversions,
+
+COALESCE(
+  SUM(e.value) FILTER (
+    WHERE e.type IN ('purchase','conversion','lead','signup')
+  ),
+  0
+) AS conversion_value,
 COALESCE((
   SELECT ROUND(
     SUM((s2.placement_cost / 365.0) *
