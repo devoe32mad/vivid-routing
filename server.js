@@ -2335,7 +2335,7 @@ COALESCE((
           WHERE 1=1
           ${dateSql}
 
-          GROUP BY GROUP BY c.id, c.name, c.advertiser
+          GROUP BY c.id, c.name, c.advertiser
           ORDER BY scans DESC
         `
         : `
