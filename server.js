@@ -2338,7 +2338,10 @@ COUNT(*) FILTER (
             COUNT(*) FILTER (
               WHERE e.type IN ('offer','maps','waze')
             ) AS intent_actions
-
+,
+0 AS conversions,
+0 AS conversion_value,
+0 AS allocated_cost
           FROM events e
           LEFT JOIN campaigns c
             ON c.id = e.campaign_id
@@ -2346,7 +2349,7 @@ COUNT(*) FILTER (
           WHERE c.user_id = $1
           ${dateSql}
 
-          GROUP BY c.name, c.advertiser
+          GROUP BY c.id, c.name, c.advertiser
           ORDER BY scans DESC
         `,
       isSuperAdmin ? [] : [currentUser.id]
