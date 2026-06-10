@@ -2383,7 +2383,17 @@ COALESCE((
   JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
   JOIN spaces s2 ON s2.id = qr2.space_id
   WHERE qc2.campaign_id = c.id
-), 0) AS allocated_cost
+), 0) AS allocated_cost,
+COALESCE((
+  SELECT SUM(
+    GREATEST(
+      1,
+      CURRENT_DATE - DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+    )
+  )
+  FROM qr_campaigns qc2
+  WHERE qc2.campaign_id = c.id
+), 0) AS active_days
           FROM events e
           LEFT JOIN campaigns c
             ON c.id = e.campaign_id
