@@ -2520,15 +2520,7 @@ const activeDays =
         ) + 1
       )
     : Number(r.active_days || 0);
-      const dailyCost =
-  Number(r.active_days || 0) > 0
-    ? Number(r.allocated_cost || 0) / Number(r.active_days || 1)
-    : 0;
 
-const placementCost =
-  startDate && endDate
-    ? dailyCost * activeDays
-    : Number(r.allocated_cost || 0);
 const roi =
   placementCost > 0
     ? (((revenue - placementCost)
