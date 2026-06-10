@@ -2517,6 +2517,7 @@ const roi =
 <form method="GET" action="/reports" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0;">
   <div>
     <label>Start Date</label><br>
+    <input type="hidden" name="group" value="${group}">
     <input type="date" name="start_date" value="${startDate || ""}">
   </div>
 
