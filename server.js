@@ -2550,7 +2550,7 @@ const roi =
    <td>${money(revenue)}</td>
 <td>${activeDays}</td>
 
-${money(placementCost)}
+<td>${money(placementCost)}</td>
 <td>${roi}%</td>
         </tr>
       `;
