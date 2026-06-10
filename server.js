@@ -2414,7 +2414,7 @@ const estimatedCustomers =
 
 const revenue = conversionValue;
 const placementCost = Number(r.allocated_cost || 0);
-const activeDays = placementCost > 0 ? Math.round((placementCost / 800) * 365) : 0;
+const activeDays = Number(r.active_days || 0);
 const roi =
   placementCost > 0
     ? (((revenue - placementCost)
