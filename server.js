@@ -2257,7 +2257,7 @@ COALESCE((
   JOIN spaces s2 ON s2.id = qr2.space_id
   WHERE qc2.campaign_id = c.id
     AND COALESCE(qc2.is_active,true) = true
-    ),0) AS active_days,
+    ),0) AS allocated_cost,
 COALESCE((
   SELECT SUM(
     GREATEST(
@@ -2268,7 +2268,7 @@ COALESCE((
   FROM qr_campaigns qc2
   WHERE qc2.campaign_id = c.id
   AND COALESCE(qc2.is_active,true) = true
-), 0) AS allocated_cost
+), 0) AS active_days
 COUNT(*) FILTER (
   WHERE e.type IN ('purchase','conversion','lead','signup')
 ) AS conversions,
