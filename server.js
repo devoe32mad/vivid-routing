@@ -2511,9 +2511,24 @@ const estimatedCustomers =
 const revenue = conversionValue;
 const placementCost = Number(r.allocated_cost || 0);
 const activeDays =
-  Number(r.allocated_cost || 0) > 0
-    ? Math.round(Number(r.allocated_cost || 0) / 2.1918)
+  startDate && endDate
+    ? Math.max(
+        1,
+        Math.floor(
+          (new Date(endDate) - new Date(startDate)) /
+          (1000 * 60 * 60 * 24)
+        ) + 1
+      )
+    : Number(r.active_days || 0);
+      const dailyCost =
+  Number(r.active_days || 0) > 0
+    ? Number(r.allocated_cost || 0) / Number(r.active_days || 1)
     : 0;
+
+const placementCost =
+  startDate && endDate
+    ? dailyCost * activeDays
+    : Number(r.allocated_cost || 0);
 const roi =
   placementCost > 0
     ? (((revenue - placementCost)
