@@ -2442,7 +2442,7 @@ const roi =
 <td style="text-align:center;">${conversions}</td>
 <td style="text-align:center;">${money(conversionValue)}</td>
    <td>${money(revenue)}</td>
-<td>${Number(r.active_days || 0)}</td>
+<td>${JSON.stringify(r)}</td>
 <td>${money(Number(r.allocated_cost || 0))}</td>
 <td>${roi}%</td>
         </tr>
