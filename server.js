@@ -2309,6 +2309,21 @@ const reportRows = await q(
             COUNT(*) FILTER (
               WHERE e.type IN ('offer','maps','waze')
             ) AS intent_actions
+            ,
+0 AS conversions,
+0 AS conversion_value,
+COALESCE((
+  SELECT SUM(
+    GREATEST(
+      1,
+      CURRENT_DATE - DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+    )
+  )
+  FROM qr_campaigns qc2
+  WHERE qc2.campaign_id = c.id
+  AND COALESCE(qc2.is_active,true) = true
+),0) AS active_days,
+0 AS allocated_cost
 ,
 0 AS conversions,
 0 AS conversion_value,
@@ -2335,7 +2350,8 @@ COALESCE((
           WHERE 1=1
           ${dateSql}
 
-          GROUP BY c.id, c.name, c.advertiser
+          GROUP BY c.id, c.name, c.advertiser,
+          c.id AS campaign_id,
           ORDER BY scans DESC
         `
         : `
