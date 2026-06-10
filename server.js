@@ -2257,6 +2257,17 @@ COALESCE((
   JOIN spaces s2 ON s2.id = qr2.space_id
   WHERE qc2.campaign_id = c.id
     AND COALESCE(qc2.is_active,true) = true
+    ),0) AS active_days,
+COALESCE((
+  SELECT SUM(
+    GREATEST(
+      1,
+      CURRENT_DATE - DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+    )
+  )
+  FROM qr_campaigns qc2
+  WHERE qc2.campaign_id = c.id
+  AND COALESCE(qc2.is_active,true) = true
 ), 0) AS allocated_cost
 COUNT(*) FILTER (
   WHERE e.type IN ('purchase','conversion','lead','signup')
