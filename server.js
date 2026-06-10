@@ -2243,7 +2243,8 @@ SUM(e.value) FILTER (
 0 AS conversion_value,
 COALESCE((
   SELECT ROUND(
-    SUM((s2.placement_cost / 365.0) *
+    SUM(
+      (s2.placement_cost / 365.0) *
       GREATEST(
         1,
         CURRENT_DATE - DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
