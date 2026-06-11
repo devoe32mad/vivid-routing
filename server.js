@@ -2888,6 +2888,7 @@ const conversionValue =
           <table>
             <tr>
               <th>QR Code</th>
+              <th>Campaign Count</th>
               <th style="text-align:center;">Scans</th>
               <th style="text-align:center;">Offers</th>
 <th style="text-align:center;">Maps</th>
