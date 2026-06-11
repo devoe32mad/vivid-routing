@@ -2858,6 +2858,8 @@ const roi =
   ${money(customerValue)}
 </td>
 <td style="text-align:center;">${money(revenue)}</td>
+<td style="text-align:center;">${money(allocatedCost)}</td>
+<td style="text-align:center;">${roi}%</td>
         </tr>
       `;
     }
@@ -2904,6 +2906,8 @@ const roi =
               <th>Est. Customers</th>
 <th style="text-align:center;">Customer Value</th>
 <th>Est. Revenue</th>
+<th>Allocated Cost</th>
+<th>ROI</th>
             </tr>
 
             ${reportTable || `
