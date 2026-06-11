@@ -2851,6 +2851,7 @@ const revenue = estimatedCustomers * customerValue;
 <td style="text-align:center;">
   ${money(customerValue)}
 </td>
+<td style="text-align:center;">${money(revenue)}</td>
         </tr>
       `;
     }
@@ -2895,7 +2896,8 @@ const revenue = estimatedCustomers * customerValue;
 <th style="text-align:center;">Total Intent</th>
               <th style="text-align:center;">Intent Rate</th>
               <th>Est. Customers</th>
-<th style="text-align:center;">Conversion Value</th>
+<th style="text-align:center;">Customer Value</th>
+<th>Est. Revenue</th>
             </tr>
 
             ${reportTable || `
