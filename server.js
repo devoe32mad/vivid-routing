@@ -2413,20 +2413,21 @@ ${dateSql}
             c.advertiser,
 
             COUNT(e.id) FILTER (WHERE e.type='scan') AS scans,
-COUNT(*) FILTER (
+COUNT(e.id) FILTER (
   WHERE e.type='offer'
 ) AS offers,
 
-COUNT(*) FILTER (
+COUNT(e.id) FILTER (
   WHERE e.type='maps'
 ) AS maps,
 
-COUNT(*) FILTER (
+COUNT(e.id) FILTER (
   WHERE e.type='waze'
 ) AS waze,
-            COUNT(*) FILTER (
-              WHERE e.type IN ('offer','maps','waze')
-            ) AS intent_actions
+            COUNT(e.id) FILTER (
+  WHERE e.type IN ('offer','maps','waze')
+) AS intent_actions
+              
 ,
 0 AS conversions,
 0 AS conversion_value,
