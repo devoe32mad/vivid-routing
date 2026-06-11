@@ -2412,7 +2412,7 @@ ${dateSql}
             c.name AS campaign_name,
             c.advertiser,
 
-            COUNT(e.id) FILTER (WHERE e.type='scan') AS scans
+            COUNT(e.id) FILTER (WHERE e.type='scan') AS scans,
 COUNT(*) FILTER (
   WHERE e.type='offer'
 ) AS offers,
