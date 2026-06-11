@@ -2849,7 +2849,7 @@ const revenue = estimatedCustomers * customerValue;
 </td>
 
 <td style="text-align:center;">
-  ${money(conversionValue)}
+  ${money(customerValue)}
 </td>
         </tr>
       `;
