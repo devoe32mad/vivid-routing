@@ -2537,7 +2537,11 @@ const roi =
         <tr>
           <td>${r.advertiser || ""}</td>
           <td>${r.campaign_name || ""}</td>
-        <td>${r.status || "Active"}</td>
+        <td>
+  ${r.status === "Archived"
+    ? '<span style="background:#dc2626;color:white;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">Archived</span>'
+    : '<span style="background:#16a34a;color:white;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">Active</span>'}
+</td>
          <td style="text-align:center;">${scans}</td>
 <td style="text-align:center;">${offers}</td>
 
