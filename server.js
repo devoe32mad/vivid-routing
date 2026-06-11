@@ -2478,12 +2478,12 @@ COALESCE((
   FROM qr_campaigns qc2
   WHERE qc2.campaign_id = c.id
 ), 0) AS active_days
-          FROM events e
-          LEFT JOIN campaigns c
-            ON c.id = e.campaign_id
+          FROM campaigns c
+LEFT JOIN events e
+  ON e.campaign_id = c.id
+  ${dateSql}
 
-          WHERE c.user_id = $1
-          ${dateSql}
+WHERE c.user_id = $1
 
           GROUP BY c.id, c.name, c.advertiser
           ORDER BY scans DESC
