@@ -2827,8 +2827,8 @@ const intent =
       const estimatedCustomers = Math.round(intent * 0.08);
       const conversions = Number(r.conversions || 0);
 
-const conversionValue =
-  Number(r.conversion_value || 0);
+const customerValue = Number(r.conversion_value || 50);
+const revenue = estimatedCustomers * customerValue;
       const intentRate = scans > 0 ? ((intent / scans) * 100).toFixed(1) : 0;
 
       reportTable += `
