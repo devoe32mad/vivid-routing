@@ -2307,7 +2307,7 @@ COALESCE((
   FROM qr_campaigns qc2
   WHERE qc2.campaign_id = c.id
   AND COALESCE(qc2.is_active,true) = true
-),0) AS active_days
+),0) AS active_days,
 COUNT(*) FILTER (
   WHERE e.type IN ('purchase','conversion','lead','signup')
 ) AS conversions,
