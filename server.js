@@ -2824,6 +2824,7 @@ const waze = Number(r.waze || 0);
 
 const intent =
   offers + maps + waze;
+      const estimatedCustomers = Math.round(intent * 0.08);
       const conversions = Number(r.conversions || 0);
 
 const conversionValue =
