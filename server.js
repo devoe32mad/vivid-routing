@@ -2845,7 +2845,7 @@ const conversionValue =
 <td style="text-align:center;">${intent}</td>
           <td style="text-align:center;">${intentRate}%</td>
           <td style="text-align:center;">
-  ${conversions}
+  ${estimatedCustomers}
 </td>
 
 <td style="text-align:center;">
