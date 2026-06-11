@@ -2738,7 +2738,7 @@ if (startDate && endDate) {
 COUNT(*) FILTER (WHERE e.type='maps') AS maps,
 COUNT(*) FILTER (WHERE e.type='waze') AS waze,
 COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
-(
+
 
          FROM events e
 JOIN qr_codes qr ON qr.id = e.qr_id
