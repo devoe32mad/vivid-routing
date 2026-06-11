@@ -2396,14 +2396,13 @@ GREATEST(
   JOIN spaces s2 ON s2.id = qr2.space_id
   WHERE qc2.campaign_id = c.id
     AND COALESCE(qc2.is_active,true) = true
-), 0) AS allocated_cost
-          FROM campaigns c
-LEFT JOIN events e
-  ON e.campaign_id = c.id
-  ${dateSql.replaceAll("e.created_at", "e.created_at")}
+), 0) AS allocated_cost,
+     FROM events e
+LEFT JOIN campaigns c
+  ON c.id = e.campaign_id
 
           WHERE 1=1
-
+${dateSql}
           GROUP BY c.id, c.name, c.advertiser,
           c.id AS campaign_id,
           ORDER BY scans DESC
