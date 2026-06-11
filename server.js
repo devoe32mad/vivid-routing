@@ -2816,7 +2816,7 @@ const intent =
 
 const customerValue = Number(r.conversion_value || 50);
 const revenue = estimatedCustomers * customerValue;
-      const allocatedCost = Number(r.allocated_cost || 0);
+      
 
 const roi =
   allocatedCost > 0
