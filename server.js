@@ -2739,13 +2739,7 @@ COUNT(*) FILTER (WHERE e.type='maps') AS maps,
 COUNT(*) FILTER (WHERE e.type='waze') AS waze,
 COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
 (
-  SELECT COALESCE(ROUND(SUM(s2.placement_cost / 365.0), 2), 0)
-  FROM qr_campaigns qc2
-  JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
-  JOIN spaces s2 ON s2.id = qr2.space_id
-  WHERE qc2.qr_id = qr.id
-    AND COALESCE(qc2.is_active,true) = true
-) AS allocated_cost
+
          FROM events e
 JOIN qr_codes qr ON qr.id = e.qr_id
 
