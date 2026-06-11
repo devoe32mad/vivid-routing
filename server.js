@@ -2411,7 +2411,10 @@ ${dateSql}
           SELECT
             c.name AS campaign_name,
             c.advertiser,
-
+CASE
+  WHEN COALESCE(c.is_archived,false) THEN 'Archived'
+  ELSE 'Active'
+END AS status,
             COUNT(e.id) FILTER (WHERE e.type='scan') AS scans,
 COUNT(e.id) FILTER (
   WHERE e.type='offer'
