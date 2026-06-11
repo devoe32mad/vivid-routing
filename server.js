@@ -2537,7 +2537,7 @@ const roi =
         <tr>
           <td>${r.advertiser || ""}</td>
           <td>${r.campaign_name || ""}</td>
-        
+        <td>${r.status || "Active"}</td>
          <td style="text-align:center;">${scans}</td>
 <td style="text-align:center;">${offers}</td>
 
