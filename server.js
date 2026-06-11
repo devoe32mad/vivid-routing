@@ -2811,7 +2811,7 @@ qr.name
    const offers = Number(r.offers || 0);
 const maps = Number(r.maps || 0);
 const waze = Number(r.waze || 0);
-
+const allocatedCost = Number(r.allocated_cost || 0);
 const intent =
   offers + maps + waze;
       const estimatedCustomers = Math.round(intent * 0.08);
