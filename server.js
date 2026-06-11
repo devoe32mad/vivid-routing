@@ -2829,6 +2829,12 @@ const intent =
 
 const customerValue = Number(r.conversion_value || 50);
 const revenue = estimatedCustomers * customerValue;
+      const allocatedCost = Number(r.allocated_cost || 0);
+
+const roi =
+  allocatedCost > 0
+    ? (((revenue - allocatedCost) / allocatedCost) * 100).toFixed(1)
+    : 0;
       const intentRate = scans > 0 ? ((intent / scans) * 100).toFixed(1) : 0;
 
       reportTable += `
