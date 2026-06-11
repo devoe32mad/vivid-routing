@@ -2841,6 +2841,7 @@ const conversionValue =
       reportTable += `
         <tr>
           <td>${r.qr_name || ""}</td>
+          <td style="text-align:center;">${r.campaign_count || 0}</td>
           <td style="text-align:center;">${scans}</td>
           <td style="text-align:center;">${offers}</td>
 
