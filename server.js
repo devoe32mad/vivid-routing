@@ -2511,9 +2511,9 @@ const maps = Number(r.maps || 0);
 const waze = Number(r.waze || 0);
 
 const intent = offers + maps + waze;
-  const estimatedCustomers = Math.round(intent * 0.08);    
-      const conversions = Number(r.conversions || 0);
-const conversionValue = Number(r.conversion_value || 0);
+  const estimatedCustomers = Math.round(intent * 0.08);
+const customerValue = Number(r.conversion_value || 50);
+const revenue = estimatedCustomers * customerValue;
 
 
 
