@@ -2517,7 +2517,7 @@ const revenue = estimatedCustomers * customerValue;
 
 
 
-const revenue = conversionValue;
+
   const placementCost = Number(r.allocated_cost || 0);    
 const activeDays =
   startDate && endDate
