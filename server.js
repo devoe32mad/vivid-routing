@@ -2618,6 +2618,7 @@ const roi =
               <th>Advertiser</th>
               <th>Campaign</th>
               <th>Status</th>
+              <th style="text-align:center;">QR Count</th>
             <th style="text-align:center;">Scans</th>
 <th style="text-align:center;">Offers</th>
 <th style="text-align:center;">Maps</th>
