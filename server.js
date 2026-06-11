@@ -2785,9 +2785,7 @@ WHERE 1=1
         `
         : `
           SELECT
-  c.advertiser,
-  c.name AS campaign_name,
-  c.id AS campaign_id,
+  
   qr.name AS qr_name,
   COUNT(DISTINCT qc.campaign_id) AS campaign_count,
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
