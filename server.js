@@ -2782,7 +2782,23 @@ WHERE 1=1
             COUNT(*) FILTER (WHERE e.type='offer') AS offers,
 COUNT(*) FILTER (WHERE e.type='maps') AS maps,
 COUNT(*) FILTER (WHERE e.type='waze') AS waze,
-COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
+COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
+(
+  SELECT COALESCE(ROUND(SUM(
+    (s2.placement_cost / 365.0) *
+    GREATEST(
+      1,
+      FLOOR(EXTRACT(EPOCH FROM (
+        NOW() - COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)
+      )) / 86400)
+    )
+  ), 2), 0)
+  FROM qr_campaigns qc2
+  JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
+  JOIN spaces s2 ON s2.id = qr2.space_id
+  WHERE qc2.qr_id = qr.id
+    AND COALESCE(qc2.is_active,true) = true
+) AS allocated_cost
           FROM events e
           JOIN qr_codes qr ON qr.id = e.qr_id
           JOIN spaces s ON s.id = qr.space_id
