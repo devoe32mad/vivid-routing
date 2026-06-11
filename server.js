@@ -2819,6 +2819,7 @@ LEFT JOIN campaigns c
     let reportTable = "";
 
     for (const r of reportRows.rows) {
+     const campaignCount = Number(r.campaign_count || 0);
       const scans = Number(r.scans || 0);
    const offers = Number(r.offers || 0);
 const maps = Number(r.maps || 0);
