@@ -2727,7 +2727,12 @@ if (startDate && endDate) {
   c.name AS campaign_name,
   c.id AS campaign_id,
   qr.name AS qr_name,
-  COUNT(DISTINCT qc.campaign_id) AS campaign_count,
+  (
+  SELECT COUNT(DISTINCT qc2.campaign_id)
+  FROM qr_campaigns qc2
+  WHERE qc2.qr_id = qr.id
+    AND COALESCE(qc2.is_active,true) = true
+) AS campaign_count,
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
             COUNT(*) FILTER (WHERE e.type='offer') AS offers,
 COUNT(*) FILTER (WHERE e.type='maps') AS maps,
