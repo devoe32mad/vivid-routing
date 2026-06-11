@@ -2243,7 +2243,6 @@ SUM(e.value) FILTER (
         ON c.id = e.campaign_id
 
       WHERE 1=1
-      ${dateSql}
 
       GROUP BY c.id, c.name, c.advertiser
       ORDER BY scans DESC
@@ -2401,7 +2400,7 @@ GREATEST(
           FROM campaigns c
 LEFT JOIN events e
   ON e.campaign_id = c.id
-  ${dateSql.replaceAll("e.created_at", "e.created_at")}d
+  ${dateSql.replaceAll("e.created_at", "e.created_at")}
 
           WHERE 1=1
 
@@ -2414,7 +2413,7 @@ LEFT JOIN events e
             c.name AS campaign_name,
             c.advertiser,
 
-            COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+            COUNT(e.id) FILTER (WHERE e.type='scan') AS scans
 COUNT(*) FILTER (
   WHERE e.type='offer'
 ) AS offers,
