@@ -2783,6 +2783,7 @@ WHERE 1=1
 COUNT(*) FILTER (WHERE e.type='maps') AS maps,
 COUNT(*) FILTER (WHERE e.type='waze') AS waze,
 COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
+0 AS allocated_cost
 (
   SELECT COALESCE(ROUND(SUM(
     (s2.placement_cost / 365.0) *
