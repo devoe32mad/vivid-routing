@@ -2415,6 +2415,12 @@ CASE
   WHEN COALESCE(c.is_archived,false) THEN 'Archived'
   ELSE 'Active'
 END AS status,
+(
+  SELECT COUNT(DISTINCT qc2.qr_id)
+  FROM qr_campaigns qc2
+  WHERE qc2.campaign_id = c.id
+    AND COALESCE(qc2.is_active,true) = true
+) AS qr_count,
             COUNT(e.id) FILTER (WHERE e.type='scan') AS scans,
 COUNT(e.id) FILTER (
   WHERE e.type='offer'
