@@ -2518,6 +2518,7 @@ const conversionValue = Number(r.conversion_value || 0);
 
 
 const revenue = conversionValue;
+  const placementCost = Number(r.allocated_cost || 0);    
 const activeDays =
   startDate && endDate
     ? Math.max(
