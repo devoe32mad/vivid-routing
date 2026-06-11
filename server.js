@@ -2514,11 +2514,10 @@ const intent = offers + maps + waze;
   const estimatedCustomers = Math.round(intent * 0.08);    
       const conversions = Number(r.conversions || 0);
 const conversionValue = Number(r.conversion_value || 0);
-const estimatedCustomers =
-  Math.round(intent * 0.1);
+
 
 const revenue = conversionValue;
-const placementCost = Number(r.allocated_cost || 0);
+const revenue = estimatedCustomers * conversionValue;
 const activeDays =
   startDate && endDate
     ? Math.max(
