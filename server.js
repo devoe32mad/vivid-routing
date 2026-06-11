@@ -2516,8 +2516,8 @@ const intent = offers + maps + waze;
 const conversionValue = Number(r.conversion_value || 0);
 
 
+
 const revenue = conversionValue;
-const revenue = estimatedCustomers * conversionValue;
 const activeDays =
   startDate && endDate
     ? Math.max(
