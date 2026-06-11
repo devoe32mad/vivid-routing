@@ -2807,15 +2807,9 @@ LEFT JOIN campaigns c
          
           WHERE s.user_id = $1
           ${dateSql}
-   GROUP BY
-  c.advertiser,
-  c.name,
-  c.id,
-  qr.name,
-  qc.id,
-  qc.started_at,
-  qc.assigned_at,
-  s.placement_cost
+GROUP BY
+qr.id,
+qr.name
           ORDER BY scans DESC
         `,
       isSuperAdmin ? [] : [currentUser.id]
