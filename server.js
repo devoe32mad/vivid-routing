@@ -431,6 +431,28 @@ await q(`
   ALTER TABLE qr_codes
   ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false
 `);
+  await q(`
+  ALTER TABLE qr_codes
+  ADD COLUMN IF NOT EXISTS annual_cost NUMERIC DEFAULT 800
+`);
+  await q(`
+  ALTER TABLE qr_codes
+  ADD COLUMN IF NOT EXISTS annual_impressions NUMERIC DEFAULT 146000
+`);
+  await q(`
+  UPDATE qr_codes qr
+  SET annual_cost = COALESCE(s.placement_cost, 800)
+  FROM spaces s
+  WHERE s.id = qr.space_id
+  AND (qr.annual_cost IS NULL OR qr.annual_cost = 0)
+`);
+  await q(`
+  UPDATE qr_codes qr
+  SET annual_impressions = COALESCE(s.annual_impressions, 146000)
+  FROM spaces s
+  WHERE s.id = qr.space_id
+  AND (qr.annual_impressions IS NULL OR qr.annual_impressions = 0)
+`);
   await q(`CREATE TABLE IF NOT EXISTS campaigns (
     id SERIAL PRIMARY KEY,
     name TEXT,
