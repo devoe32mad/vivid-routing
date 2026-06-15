@@ -2461,7 +2461,7 @@ COALESCE((
   WHERE qc2.campaign_id = c.id
 ), 0) AS allocated_cost,
 (
-  SELECT MAX(
+  SELECT MIN(
     GREATEST(
       1,
       CURRENT_DATE - DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)) + 1
