@@ -1103,8 +1103,8 @@ const qrRows = await q(
         qr.created_at,
         s.name AS space_name,
         s.location,
-        s.annual_impressions,
-        s.placement_cost
+      qr.annual_impressions,
+qr.annual_cost AS placement_cost
       FROM qr_codes qr
       LEFT JOIN spaces s ON s.id = qr.space_id
       ORDER BY qr.id
@@ -1116,8 +1116,8 @@ const qrRows = await q(
         qr.created_at,
         s.name AS space_name,
         s.location,
-        s.annual_impressions,
-        s.placement_cost
+     qr.annual_impressions,
+qr.annual_cost AS placement_cost
       FROM qr_codes qr
       JOIN qr_campaigns qc ON qc.qr_id = qr.id
       JOIN campaigns c ON c.id = qc.campaign_id
