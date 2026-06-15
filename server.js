@@ -3818,7 +3818,11 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
         placeholder="https://example.com"
         required
       />
+<label>Annual QR Cost</label>
+<input name="annual_cost" type="number" value="800" />
 
+<label>Annual Impressions</label>
+<input name="annual_impressions" type="number" value="146000" />
       <button class="btn" type="submit">Create Tracking QR</button>
 
     </form>
