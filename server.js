@@ -1516,14 +1516,9 @@ const archivedCampaigns = await q(
   COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP) AS started_at,
 qc.ended_at,
 s.placement_cost
-,
 GREATEST(
   1,
-  FLOOR(
-    EXTRACT(EPOCH FROM (
-      NOW() - COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP)
-    )) / 86400
-  )
+  CURRENT_DATE - DATE(COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP)) + 1
 ) AS assignment_days
 ,
 
