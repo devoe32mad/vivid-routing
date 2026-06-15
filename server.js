@@ -4176,7 +4176,13 @@ app.get("/admin/ai-insights", requireLogin, async (req, res) => {
 const { startDate, endDate } = req.query;
     let where = [];
 let params = [];
+const currentUser = req.session.user;
+const isSuperAdmin = currentUser.role === "super_admin";
 
+if (!isSuperAdmin) {
+  params.push(currentUser.id);
+  where.push(`c.user_id = $${params.length}`);
+}
 if (startDate) {
   params.push(startDate);
   where.push(`e.created_at >= $${params.length}`);
@@ -4198,7 +4204,8 @@ const whereSql = where.length
     COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
     COUNT(*) FILTER (WHERE e.type = 'maps') AS map_clicks
   FROM events e
-  ${whereSql}
+LEFT JOIN campaigns c ON c.id = e.campaign_id
+${whereSql}
 `, params);
     const totalEvents = Number(summary.rows[0]?.total_events || 0);
 const activeCampaigns = Number(summary.rows[0]?.active_campaigns || 0);
