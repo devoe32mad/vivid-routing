@@ -6192,7 +6192,7 @@ app.get("/admin/reports", async (req, res) => {
   try {
     const currentUser = req.session.user;
 const isSuperAdmin = currentUser.role === "super_admin";
-    const userId = isSuperAdmin ? null : currentUser.id;
+    const userId = isSuperAdmin ? 0 : currentUser.id;
     const today = new Date().toISOString().slice(0, 10);
 
     const startDate = req.query.start_date || today;
@@ -6261,7 +6261,7 @@ WHERE e.type = 'scan'
       )
     )
   )
-    AND ($4 IS NULL OR c.user_id = CAST($4 AS int))
+    AND ($4 = 0 OR c.user_id = $4)
 `, [startDate, endDate, status, userId]);
 
     const revenue = revenueReport.rows[0] || {};
