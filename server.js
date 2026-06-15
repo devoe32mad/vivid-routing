@@ -5821,8 +5821,10 @@ app.get("/export/report.pdf", requireLogin, async (req, res) => {
 
     const campaigns = await q(`
       SELECT
-        c.advertiser,
-        c.name AS campaign_name,
+       c.advertiser,
+c.name AS campaign_name,
+qc.name AS qr_name,
+s.name AS location_name,
         COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
         COUNT(*) FILTER (WHERE e.type = 'maps') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
@@ -5831,10 +5833,12 @@ app.get("/export/report.pdf", requireLogin, async (req, res) => {
         COALESCE(c.avg_customer_value, 50) AS avg_customer_value,
         COALESCE(c.conversion_rate, 10) AS conversion_rate
       FROM events e
-      LEFT JOIN campaigns c ON c.id = e.campaign_id
+LEFT JOIN campaigns c ON c.id = e.campaign_id
+LEFT JOIN qr_codes qc ON qc.id = e.qr_id
+LEFT JOIN spaces s ON s.id = qc.space_id
       WHERE e.created_at::date BETWEEN $1::date AND $2::date
       AND ($3 = 0 OR c.user_id = $3)
-      GROUP BY c.id
+      GROUP BY c.id, qc.name, s.name
       ORDER BY intent_clicks DESC
       LIMIT 10
     `, [startDate, endDate, userId]);
@@ -5893,7 +5897,10 @@ app.get("/export/report.pdf", requireLogin, async (req, res) => {
         const revenue = customers * avgValue;
 
         doc.fontSize(12).text(`${i + 1}. ${c.advertiser || "Advertiser"} — ${c.campaign_name || "Campaign"}`);
-        doc.fontSize(10).text(
+
+doc.fontSize(10).text(`QR: ${c.qr_name || "-"} | Location: ${c.location_name || "-"}`);
+
+doc.fontSize(10).text(
           `Scans: ${c.scans || 0} | Maps: ${c.maps_clicks || 0} | Offers: ${c.offer_clicks || 0} | Waze: ${c.waze_clicks || 0} | Customers: ${customers} | Revenue: $${revenue.toLocaleString()}`
         );
         doc.moveDown();
