@@ -1515,7 +1515,7 @@ const archivedCampaigns = await q(
   s.name AS location_name,
   COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP) AS started_at,
 qc.ended_at,
-s.placement_cost
+s.placement_cost,
 GREATEST(
   1,
   CURRENT_DATE - DATE(COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP)) + 1
