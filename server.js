@@ -6261,7 +6261,7 @@ WHERE e.type = 'scan'
       )
     )
   )
-    AND ($4::int IS NULL OR c.user_id = $4::int)
+    AND ($4 IS NULL OR c.user_id = CAST($4 AS int))
 `, [startDate, endDate, status, userId]);
 
     const revenue = revenueReport.rows[0] || {};
