@@ -6192,6 +6192,7 @@ app.get("/admin/reports", async (req, res) => {
   try {
     const currentUser = req.session.user;
 const isSuperAdmin = currentUser.role === "super_admin";
+    const userId = isSuperAdmin ? null : currentUser.id;
     const today = new Date().toISOString().slice(0, 10);
 
     const startDate = req.query.start_date || today;
@@ -6225,13 +6226,11 @@ AND (
     WHERE space_id::text = $3::text
   )
 )
-    
-AND ($4 = '' OR qr_id::text = $4)
-AND ($5 = '' OR campaign_id::text = $5)
 
+AND ($5 = '' OR e.campaign_id::text = $5)
+AND ($6::int IS NULL OR c.user_id = $6::int)
 
-    `,[startDate, endDate, locationId, qrId, campaignId]);
-
+`,[startDate, endDate, locationId, qrId, campaignId, userId]);
     const totals = report.rows[0] || {};
 
    const revenueReport = await q(`
@@ -6262,7 +6261,8 @@ WHERE e.type = 'scan'
       )
     )
   )
-    `, [startDate, endDate, status]);
+    AND ($4::int IS NULL OR c.user_id = $4::int)
+`, [startDate, endDate, status, userId]);
 
     const revenue = revenueReport.rows[0] || {};
 
@@ -6306,10 +6306,7 @@ const roi =
   proratedImpressions > 0
     ? ((proratedCost / proratedImpressions) * 1000).toFixed(2)
     : "0.00";
-   const userId =
-  req.session.user.role === "super_admin"
-    ? null
-    : req.session.user.id;
+   
 const locations = await q(
   `
   SELECT id, name
