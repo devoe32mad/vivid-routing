@@ -4238,6 +4238,7 @@ const engagementRate =
         st.name,
         COUNT(*) AS total_events
       FROM events e
+LEFT JOIN campaigns c ON c.id = e.campaign_id
 LEFT JOIN stores st ON st.id = e.store_id
 ${whereSql}
 ${whereSql ? "AND" : "WHERE"} st.name IS NOT NULL
