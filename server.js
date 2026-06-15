@@ -3721,14 +3721,17 @@ const { name, space_id, campaign_id } = req.body;
 }
 
 if (req.body.campaign_id) {
-  await q(
-DELETE FROM qr_campaigns
-WHERE qr_id = $1;
-    `INSERT INTO qr_campaigns (qr_id, campaign_id, is_active, assigned_at)
-     VALUES ($1, $2, true, NOW())
-     ,
-    [req.params.qrId, req.body.campaign_id]
-  );
+await q(
+  `DELETE FROM qr_campaigns
+   WHERE qr_id = $1`,
+  [req.params.qrId]
+);
+
+await q(
+  `INSERT INTO qr_campaigns (qr_id, campaign_id, is_active, assigned_at)
+   VALUES ($1, $2, true, NOW())`,
+  [req.params.qrId, req.body.campaign_id]
+);
 }
 
 res.send(
