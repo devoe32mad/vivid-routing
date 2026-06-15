@@ -2759,7 +2759,7 @@ WHERE 1=1
   qc.id,
   qc.started_at,
   qc.assigned_at,
-  s.placement_cost
+  qr.annual_cost AS placement_cost
   ORDER BY scans DESC
         `
         : `
@@ -2969,8 +2969,8 @@ COUNT(*) FILTER (
   WHERE e.type='waze'
 ) AS waze,
 
-            COALESCE(s.annual_impressions, 0) AS impressions,
-            COALESCE(s.placement_cost, 800) AS placement_cost
+           COALESCE(qr.annual_impressions, 0) AS impressions,
+COALESCE(qr.annual_cost, 800) AS placement_cost
 
           FROM events e
 
@@ -2986,8 +2986,8 @@ COUNT(*) FILTER (
           GROUP BY
             s.name,
             s.location,
-            s.annual_impressions,
-            s.placement_cost
+            qr.annual_impressions,
+qr.annual_cost
 
           ORDER BY scans DESC
         `
@@ -3010,8 +3010,8 @@ COUNT(*) FILTER (
   WHERE e.type='waze'
 ) AS waze,
 
-            COALESCE(s.annual_impressions, 0) AS impressions,
-            COALESCE(s.placement_cost, 800) AS placement_cost
+            COALESCE(qr.annual_impressions, 0) AS impressions,
+COALESCE(qr.annual_cost, 800) AS placement_cost
 
           FROM events e
 
@@ -3027,8 +3027,8 @@ COUNT(*) FILTER (
           GROUP BY
             s.name,
             s.location,
-            s.annual_impressions,
-            s.placement_cost
+            qr.annual_impressions,
+qr.annual_cost
 
           ORDER BY scans DESC
         `,
@@ -6542,8 +6542,8 @@ const campaigns = await q(
     COALESCE(c.name, '') AS campaign_name,
     COALESCE(qc.name, '') AS qr_name,
     COALESCE(s.name, '') AS location_name,
-COALESCE(s.placement_cost, 800)::numeric(10,2) AS placement_cost,
-COALESCE(s.annual_impressions, 146000)::numeric(10,2) AS annual_impressions,
+COALESCE(qc.annual_cost, 800)::numeric(10,2) AS placement_cost,
+COALESCE(qc.annual_impressions, 146000)::numeric(10,2) AS annual_impressions,
     COUNT(*) FILTER (WHERE e.type = 'scan')::int AS scans,
     COUNT(*) FILTER (WHERE e.type = 'maps')::int AS maps_clicks,
     COUNT(*) FILTER (WHERE e.type = 'offer')::int AS offer_clicks,
@@ -6583,7 +6583,7 @@ AND (
   OR ($6::text = 'active' AND COALESCE(c.is_archived,false) = false)
   OR ($6::text = 'archived' AND COALESCE(c.is_archived,false) = true)
 )
-  GROUP BY c.name, qc.name, s.name, s.placement_cost, s.annual_impressions
+  GROUP BY qc.annual_cost, qc.annual_impressions
   ORDER BY scans DESC
 `, [startDate, endDate, locationId, qrId, campaignId, status, userId]);
     res.send(page("Reports", `
