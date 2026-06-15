@@ -4192,7 +4192,10 @@ if (endDate) {
   params.push(endDate);
   where.push(`e.created_at <= $${params.length}`);
 }
-
+if (!isSuperAdmin) {
+  where.push(`c.user_id = $${params.length + 1}`);
+  params.push(currentUser.id);
+}
 const whereSql = where.length
   ? `WHERE ${where.join(" AND ")}`
   : "";
