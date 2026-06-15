@@ -6227,8 +6227,9 @@ AND (
   )
 )
 
-AND ($5 = '' OR e.campaign_id::text = $5)
-AND ($6::int IS NULL OR c.user_id = $6::int)
+AND ($4 = '' OR qr_id::text = $4)
+AND ($5 = '' OR campaign_id::text = $5)
+AND ($6 = 0 OR c.user_id = $6)
 
 `,[startDate, endDate, locationId, qrId, campaignId, userId]);
     const totals = report.rows[0] || {};
