@@ -3861,19 +3861,23 @@ app.post("/admin/import-qr", requireLogin, async (req, res) => {
 
     const result = await q(
       `
-      INSERT INTO qr_codes (
-        space_id,
-        name,
-        description
-      )
-      VALUES ($1,$2,$3)
-      RETURNING *
+     INSERT INTO qr_codes (
+  space_id,
+  name,
+  description,
+  annual_cost,
+  annual_impressions
+)
+VALUES ($1,$2,$3,$4,$5)
+RETURNING * 
       `,
-      [
-        Number(req.body.space_id),
-        req.body.name,
-        req.body.destination_url
-      ]
+    [
+  Number(req.body.space_id),
+  req.body.name,
+  req.body.destination_url,
+  Number(req.body.annual_cost || 800),
+  Number(req.body.annual_impressions || 146000)
+]  
     );
 
     const qr = result.rows[0];
