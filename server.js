@@ -4481,7 +4481,7 @@ const qrId = req.body.qr_ids;
 
 if (qrId) {
   await q(
-    `
+    
    UPDATE qr_campaigns
 SET is_active = false,
     ended_at = NOW()
