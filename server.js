@@ -6610,6 +6610,9 @@ AND (
 <button type="submit" formaction="/export/report.csv" formmethod="get">
   Export Executive CSV
 </button>
+<button type="submit" formaction="/export/report.pdf" formmethod="get">
+  Export Executive PDF
+</button>
       </form>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
