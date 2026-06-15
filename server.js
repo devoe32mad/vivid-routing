@@ -6207,8 +6207,9 @@ const statusTarget = campaignId
         COUNT(*) FILTER (WHERE type = 'scan')::int AS total_scans,
         COUNT(*) FILTER (WHERE type = 'maps')::int AS maps_clicks,
         COUNT(*) FILTER (WHERE type = 'offer')::int AS offer_clicks
-      FROM events
-      WHERE created_at::date BETWEEN $1::date AND $2::date
+      FROM events e
+LEFT JOIN campaigns c ON c.id = e.campaign_id
+WHERE e.created_at::date BETWEEN $1::date AND $2::date
 AND (
   $3::text = ''
   OR store_id::text = $3::text
