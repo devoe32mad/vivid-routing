@@ -1139,7 +1139,7 @@ const locationRows = await q(
   isSuperAdmin
     ? `
       SELECT c.id AS campaign_id, c.name AS campaign_name, c.advertiser,
-        s.id AS space_id, s.name AS location_name, s.location, s.placement_cost,
+        s.id AS space_id, s.name AS location_name, s.location, qr.annual_cost AS placement_cost,
         c.avg_customer_value, c.conversion_rate,
         COUNT(*) FILTER (WHERE e.type='scan') AS scans,
         COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
@@ -1155,7 +1155,7 @@ const locationRows = await q(
     `
     : `
       SELECT c.id AS campaign_id, c.name AS campaign_name, c.advertiser,
-        s.id AS space_id, s.name AS location_name, s.location, s.placement_cost,
+        s.id AS space_id, s.name AS location_name, s.location, qr.annual_cost AS placement_cost,
         c.avg_customer_value, c.conversion_rate,
         COUNT(*) FILTER (WHERE e.type='scan') AS scans,
         COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
