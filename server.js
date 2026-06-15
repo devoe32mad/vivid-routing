@@ -3854,20 +3854,37 @@ app.get("/admin/new-qr", async (req, res) => {
     `,
   isSuperAdmin ? [] : [req.session.user.id]
 );;
-  res.send(page("Add QR", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add QR Code</h1></div>
-  <div class="wrap"><form method="POST" action="/admin/new-qr"><label>Select Location</label><select name="space_id">${spaces.rows.map(s => `<option value="${s.id}">${s.name}
-  (${s.location})</option>`).join("")}</select><label>QR Name</label><input name="name" placeholder="Car Line QR" />
-  <label>Description</label>
-<input name="description" />
+res.send(page("Add QR", `
+  <div class="topbar">
+    <div class="brand">Vivid Spots</div>
+    <h1>Add QR Code</h1>
+  </div>
 
-<label>Annual QR Cost ($)</label>
-<input type="number" name="annual_cost" value="800" />
+  <div class="wrap">
+    <form method="POST" action="/admin/new-qr">
 
-<label>Annual Impressions</label>
-<input type="number" name="annual_impressions" value="146000" />
+      <label>Select Location</label>
+      <select name="space_id">
+        ${spaces.rows.map(s => `<option value="${s.id}">${s.name} (${s.location})</option>`).join("")}
+      </select>
 
-<button class="btn" type="submit">Create QR</button>
-});
+      <label>QR Name</label>
+      <input name="name" placeholder="Car Line QR" />
+
+      <label>Description</label>
+      <input name="description" />
+
+      <label>Annual QR Cost ($)</label>
+      <input type="number" name="annual_cost" value="800" />
+
+      <label>Annual Impressions</label>
+      <input type="number" name="annual_impressions" value="146000" />
+
+      <button class="btn" type="submit">Create QR</button>
+
+    </form>
+  </div>
+`));
 app.post("/admin/import-qr", requireLogin, async (req, res) => {
   try {
 
