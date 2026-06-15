@@ -3723,8 +3723,9 @@ const { name, space_id, campaign_id } = req.body;
 if (req.body.campaign_id) {
 await q(
   `DELETE FROM qr_campaigns
-   WHERE qr_id = $1`,
-  [req.params.qrId]
+   WHERE qr_id = $1
+     AND campaign_id = $2`,
+  [req.params.qrId, req.body.campaign_id]
 );
 
 await q(
