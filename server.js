@@ -2460,15 +2460,6 @@ COALESCE((
   JOIN spaces s2 ON s2.id = qr2.space_id
   WHERE qc2.campaign_id = c.id
 ), 0) AS allocated_cost,
-COALESCE((
-  SELECT SUM(
-    GREATEST(
-      1,
-      (
-  LEAST(
-    CURRENT_DATE,
-    COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE)
-  
 (
   SELECT MAX(
     GREATEST(
