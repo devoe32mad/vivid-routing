@@ -4480,16 +4480,7 @@ if (!result.rows[0]) {
 const qrId = req.body.qr_ids;
 
 if (qrId) {
- await q(`
-UPDATE qr_campaigns
-SET is_active = false,
-    ended_at = NOW()
-WHERE qr_id = $1
-  AND COALESCE(is_active,true) = true
-`,
-[
-  Number(qrId)
-]);
+
 
 
   await q(
