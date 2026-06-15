@@ -6190,6 +6190,8 @@ app.post("/admin/archive-schedule/:id", requireAdmin, async (req, res) => {
 });
 app.get("/admin/reports", async (req, res) => {
   try {
+    const currentUser = req.session.user;
+const isSuperAdmin = currentUser.role === "super_admin";
     const today = new Date().toISOString().slice(0, 10);
 
     const startDate = req.query.start_date || today;
