@@ -1537,7 +1537,7 @@ const archivedCampaigns = await q(
   s.name AS location_name,
   COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP) AS started_at,
 qc.ended_at,
-s.placement_cost,
+qr.annual_cost AS placement_cost,
 GREATEST(
   1,
   CURRENT_DATE - DATE(COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP)) + 1
@@ -1546,7 +1546,7 @@ GREATEST(
 
 ROUND(
   (
-    s.placement_cost / 365.0
+    qr.annual_cost / 365.0
   ) *
   GREATEST(
     1,
@@ -1571,7 +1571,7 @@ SELECT
   s.name AS location_name,
   COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP) AS started_at,
   qc.ended_at,
-  s.placement_cost,
+  qr.annual_cost AS placement_cost,
 
   GREATEST(
     1,
@@ -1583,7 +1583,7 @@ SELECT
   ) AS assignment_days,
 
   ROUND(
-    (s.placement_cost / 365.0) *
+   (qr.annual_cost / 365.0) *
     GREATEST(
       1,
       FLOOR(
