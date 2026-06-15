@@ -4480,17 +4480,17 @@ if (!result.rows[0]) {
 const qrId = req.body.qr_ids;
 
 if (qrId) {
-  await q(
-    
-   UPDATE qr_campaigns
+ await q(`
+UPDATE qr_campaigns
 SET is_active = false,
     ended_at = NOW()
 WHERE qr_id = $1
-  AND campaign_id = $2
   AND COALESCE(is_active,true) = true
-    `,
-    [Number(qrId), Number(req.body.campaign_id)]
-  );
+`,
+[
+  Number(qrId)
+]);
+
 
   await q(
     `
