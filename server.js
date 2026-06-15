@@ -5787,6 +5787,132 @@ new Date(r.last_event).toLocaleDateString()
     res.status(500).send(err.message);
   }
 });
+app.get("/export/report.pdf", requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const userId = currentUser.role === "super_admin" ? 0 : currentUser.id;
+
+    const startDate =
+      req.query.start_date ||
+      req.query.startDate ||
+      req.query.start ||
+      req.query.from ||
+      "2000-01-01";
+
+    const endDate =
+      req.query.end_date ||
+      req.query.endDate ||
+      req.query.end ||
+      req.query.to ||
+      new Date().toISOString().slice(0, 10);
+
+    const summary = await q(`
+      SELECT
+        COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
+        COUNT(*) FILTER (WHERE e.type = 'maps') AS maps_clicks,
+        COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
+        COUNT(*) FILTER (WHERE e.type = 'waze') AS waze_clicks,
+        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+      FROM events e
+      LEFT JOIN campaigns c ON c.id = e.campaign_id
+      WHERE e.created_at::date BETWEEN $1::date AND $2::date
+      AND ($3 = 0 OR c.user_id = $3)
+    `, [startDate, endDate, userId]);
+
+    const campaigns = await q(`
+      SELECT
+        c.advertiser,
+        c.name AS campaign_name,
+        COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
+        COUNT(*) FILTER (WHERE e.type = 'maps') AS maps_clicks,
+        COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
+        COUNT(*) FILTER (WHERE e.type = 'waze') AS waze_clicks,
+        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks,
+        COALESCE(c.avg_customer_value, 50) AS avg_customer_value,
+        COALESCE(c.conversion_rate, 10) AS conversion_rate
+      FROM events e
+      LEFT JOIN campaigns c ON c.id = e.campaign_id
+      WHERE e.created_at::date BETWEEN $1::date AND $2::date
+      AND ($3 = 0 OR c.user_id = $3)
+      GROUP BY c.id
+      ORDER BY intent_clicks DESC
+      LIMIT 10
+    `, [startDate, endDate, userId]);
+
+    const s = summary.rows[0] || {};
+    const scans = Number(s.scans || 0);
+    const maps = Number(s.maps_clicks || 0);
+    const offers = Number(s.offer_clicks || 0);
+    const waze = Number(s.waze_clicks || 0);
+    const intent = Number(s.intent_clicks || 0);
+
+    const estimatedCustomers = Math.round(intent * 0.10);
+    const estimatedRevenue = estimatedCustomers * 50;
+    const intentRate = scans > 0 ? ((intent / scans) * 100).toFixed(1) : "0.0";
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=vivid-executive-report.pdf"
+    );
+
+    const doc = new PDFDocument({ margin: 50 });
+    doc.pipe(res);
+
+    doc.fontSize(22).text("Vivid Spots", { align: "center" });
+    doc.fontSize(16).text("Executive Performance Report", { align: "center" });
+    doc.moveDown();
+    doc.fontSize(10).text(`Date Range: ${startDate} to ${endDate}`, { align: "center" });
+
+    doc.moveDown(2);
+    doc.fontSize(16).text("Executive Summary");
+    doc.moveDown();
+
+    doc.fontSize(12);
+    doc.text(`Total Scans: ${scans}`);
+    doc.text(`Google Maps Clicks: ${maps}`);
+    doc.text(`Offer Clicks: ${offers}`);
+    doc.text(`Waze Clicks: ${waze}`);
+    doc.text(`Intent Clicks: ${intent}`);
+    doc.text(`Intent Rate: ${intentRate}%`);
+    doc.text(`Estimated Customers: ${estimatedCustomers}`);
+    doc.text(`Estimated Revenue: $${estimatedRevenue.toLocaleString()}`);
+
+    doc.moveDown(2);
+    doc.fontSize(16).text("Top Campaigns");
+    doc.moveDown();
+
+    if (campaigns.rows.length === 0) {
+      doc.fontSize(11).text("No campaign activity found for this date range.");
+    } else {
+      campaigns.rows.forEach((c, i) => {
+        const campaignIntent = Number(c.intent_clicks || 0);
+        const conversionRate = Number(c.conversion_rate || 10);
+        const avgValue = Number(c.avg_customer_value || 50);
+        const customers = Math.round(campaignIntent * (conversionRate / 100));
+        const revenue = customers * avgValue;
+
+        doc.fontSize(12).text(`${i + 1}. ${c.advertiser || "Advertiser"} — ${c.campaign_name || "Campaign"}`);
+        doc.fontSize(10).text(
+          `Scans: ${c.scans || 0} | Maps: ${c.maps_clicks || 0} | Offers: ${c.offer_clicks || 0} | Waze: ${c.waze_clicks || 0} | Customers: ${customers} | Revenue: $${revenue.toLocaleString()}`
+        );
+        doc.moveDown();
+      });
+    }
+
+    doc.moveDown();
+    doc.fontSize(9).text(
+      "Vivid Spots helps advertisers measure physical-world engagement through QR routing, campaign analytics, and performance reporting.",
+      { align: "center" }
+    );
+
+    doc.end();
+
+  } catch (err) {
+    console.error("PDF REPORT ERROR:", err);
+    res.status(500).send("PDF REPORT ERROR: " + err.message);
+  }
+});
 app.get("/analytics", async (req, res) => {
   const result = await q(`SELECT COUNT(*) FILTER (WHERE type='scan') AS scans, COUNT(*) FILTER (WHERE type='offer') AS offer_clicks, COUNT(*) FILTER (WHERE type='maps') AS maps_clicks, COUNT(*) FILTER (WHERE type='waze') AS waze_clicks, COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks FROM events`);
   res.json(result.rows[0]);
