@@ -626,7 +626,7 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
 
   const assignments = await q(`
   SELECT
-    s.placement_cost,
+    qr.annual_cost AS placement_cost,
     COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP) AS started_at,
     qc.ended_at
   FROM qr_campaigns qc
@@ -636,7 +636,7 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
 `, [campaignId]);
   
   const schedules = await q(`
-    SELECT s.placement_cost, cs.created_at AS started_at
+    SELECT qr.annual_cost AS placement_cost, cs.created_at AS started_at
     FROM campaign_schedules cs
     JOIN qr_codes qr ON qr.id = cs.qr_id
     JOIN spaces s ON s.id = qr.space_id
