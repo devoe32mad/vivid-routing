@@ -6525,18 +6525,14 @@ const qrs = await q(
 const campaigns = await q(
   `
   SELECT DISTINCT c.id, c.name
-  FROM campaigns c
-  JOIN campaign_schedules cs ON cs.campaign_id = c.id
-  JOIN qr_codes qr ON qr.id = cs.qr_id
-  JOIN spaces s ON s.id = qr.space_id
-  WHERE ($1::int IS NULL OR s.user_id = $1::int OR c.user_id = $1::int)
-    AND ($2::text = '' OR qr.space_id::text = $2::text)
-    AND (
-      $3::text = 'all'
-      OR ($3::text = 'active' AND COALESCE(c.is_archived,false) = false)
-      OR ($3::text = 'archived' AND COALESCE(c.is_archived,false) = true)
-    )
-  ORDER BY c.name ASC
+FROM campaigns c
+WHERE ($1::int IS NULL OR c.user_id = $1::int)
+  AND (
+    $3::text = 'all'
+    OR ($3::text = 'active' AND COALESCE(c.is_archived,false) = false)
+    OR ($3::text = 'archived' AND COALESCE(c.is_archived,false) = true)
+  )
+ORDER BY c.name ASC
   `,
   [userId, locationId, status]
 );
