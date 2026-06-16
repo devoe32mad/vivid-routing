@@ -1669,8 +1669,8 @@ const hasSchedules = activeScheduleCount > 0;
     .join(", ")
 }</td>
 <td>${daysActive(s.created_at)}</td>
-<td>${s.annual_impressions || 0}</td>
-<td>${money(s.placement_cost || 0)}</td>
+
+
           <td><a href="/admin/edit-location/${s.id}">Edit</a></td>
 
 <td>
