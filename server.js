@@ -3555,7 +3555,7 @@ app.post("/admin/edit-location/:spaceId", requireLogin, async (req, res) => {
   }
 });
 app.get("/admin/new-location", async (req, res) => {
-  res.send(page("Add Location", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add Location / Space</h1></div><div class="wrap"><form method="POST" action="/admin/new-location"><label>Name</label><input name="name" required /><label>Market</label><input name="location" placeholder="Naples, FL" /><label>Description</label><input name="description" /><label>Annual Impressions</label><input name="annual_impressions" type="number" value="100000" /><label>Placement Cost</label><input name="placement_cost" type="number" value="800" /><button class="btn" type="submit">Create Location</button></form></div>`));
+  res.send(page("Add Location", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add Location / Space</h1></div><div class="wrap"><form method="POST" action="/admin/new-location"><label>Name</label><input name="name" required /><label>Market</label><input name="location" placeholder="Naples, FL" /><label>Description</label><input name="description" /><button class="btn" type="submit">Create Location</button></form></div>`));
 });
 app.post("/admin/new-location", async (req, res) => {
   try {
