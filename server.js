@@ -6528,13 +6528,13 @@ const campaigns = await q(
 FROM campaigns c
 WHERE ($1::int IS NULL OR c.user_id = $1::int)
   AND (
-    $3::text = 'all'
-    OR ($3::text = 'active' AND COALESCE(c.is_archived,false) = false)
-    OR ($3::text = 'archived' AND COALESCE(c.is_archived,false) = true)
+    $2::text = 'all'
+    OR ($2::text = 'active' AND COALESCE(c.is_archived,false) = false)
+    OR ($2::text = 'archived' AND COALESCE(c.is_archived,false) = true)
   )
 ORDER BY c.name ASC
   `,
-  [userId, locationId, status]
+  [userId, status]
 );
     const relationships = await q(
   `
