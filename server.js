@@ -2084,13 +2084,12 @@ ${hasCampaigns
   Days in Market
   <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
 </th>
-            <th>Impressions</th>
-            <th>Placement Cost</th>
+          
+        
             <th>Edit</th>
             <th>Archive</th>
           </tr>
-          ${locationTable || `<tr><td colspan="8">No locations yet.</td></tr>`}
-        </table>
+${locationTable || `<tr><td colspan="6">No locations yet.</td></tr>`}        </table>
 
         <h2>QR Codes</h2>
         <table>
