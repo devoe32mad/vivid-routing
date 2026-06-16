@@ -1150,7 +1150,16 @@ const locationRows = await q(
       JOIN qr_codes qr ON qr.id = e.qr_id
       JOIN spaces s ON s.id = qr.space_id
       WHERE 1=1 ${dateSql}
-      GROUP BY c.id, s.id
+      GROUP BY
+  c.id,
+  c.name,
+  c.advertiser,
+  c.avg_customer_value,
+  c.conversion_rate,
+  s.id,
+  s.name,
+  s.location,
+  qr.annual_cost
       ORDER BY intent_clicks DESC, scans DESC
     `
     : `
