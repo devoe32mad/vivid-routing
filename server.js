@@ -3561,20 +3561,17 @@ app.post("/admin/new-location", async (req, res) => {
   try {
     await q(`
       INSERT INTO spaces (
-        user_id,
-        name,
-        location,
-        annual_impressions,
-        placement_cost
-      )
-      VALUES ($1,$2,$3,$4,$5)
+  user_id,
+  name,
+  location
+)
+      VALUES ($1,$2,$3)
     `, [
-      req.session.user.id,
-      req.body.name,
-      req.body.location,
-      Number(req.body.annual_impressions || 0),
-      Number(req.body.placement_cost || 800)
-    ]);
+  req.session.user.id,
+  req.body.name,
+  req.body.location
+]
+      );
 
     res.send(successPage(
   "Location Created Successfully",
