@@ -6599,7 +6599,7 @@ AND (
   OR ($6::text = 'active' AND COALESCE(c.is_archived,false) = false)
   OR ($6::text = 'archived' AND COALESCE(c.is_archived,false) = true)
 )
-  GROUP BY qc.annual_cost, qc.annual_impressions
+  GROUP BY c.name, c.advertiser, qc.name, s.name, qc.annual_cost, qc.annual_impressions
   ORDER BY scans DESC
 `, [startDate, endDate, locationId, qrId, campaignId, status, userId]);
     res.send(page("Reports", `
