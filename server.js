@@ -1719,6 +1719,8 @@ ${qr.description && qr.description.startsWith("http")
 }</td>
 
           <td>${daysActive(qr.created_at)}</td>
+          <td>${Number(qr.annual_impressions || 0).toLocaleString()}</td>
+<td>${money(qr.annual_cost || 0)}</td>
           <td><a href="/r/${qr.id}" target="_blank">Open</a></td>
           <td>
   <a href="/admin/edit-qr/${qr.id}">
