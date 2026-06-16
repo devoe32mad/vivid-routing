@@ -2429,8 +2429,8 @@ LEFT JOIN campaigns c
 
           WHERE 1=1
 ${dateSql}
-          GROUP BY c.id, c.name, c.advertiser,
-          c.id AS campaign_id,
+          GROUP BY c.id, c.name, c.advertiser
+          
           ORDER BY scans DESC
         `
         : `
@@ -5877,7 +5877,14 @@ LEFT JOIN qr_codes qc ON qc.id = e.qr_id
 LEFT JOIN spaces s ON s.id = qc.space_id
       WHERE e.created_at::date BETWEEN $1::date AND $2::date
       AND ($3 = 0 OR c.user_id = $3)
-      GROUP BY c.id, qc.name, s.name
+      GROUP BY
+  c.id,
+  c.name,
+  c.advertiser,
+  c.avg_customer_value,
+  c.conversion_rate,
+  qc.name,
+  s.name
       ORDER BY intent_clicks DESC
       LIMIT 10
     `, [startDate, endDate, userId]);
