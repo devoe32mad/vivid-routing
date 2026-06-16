@@ -2107,6 +2107,8 @@ ${locationTable || `<tr><td colspan="6">No locations yet.</td></tr>`}        </t
   Days in Market
   <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
 </th>
+<th>Annual Impressions</th>
+<th>Annual Cost</th>
             <th>Open</th>
 <th>Edit</th>
 <th>Download</th>
