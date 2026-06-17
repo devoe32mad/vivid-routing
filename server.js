@@ -3893,14 +3893,15 @@ res.send(page("Add QR", `<div class="topbar"><div class="brand">Vivid Spots</div
 
     const result = await q(
       `
-     INSERT INTO qr_codes (
+INSERT INTO qr_codes (
   space_id,
   name,
   description,
   annual_cost,
-  annual_impressions
+  annual_impressions,
+  is_imported
 )
-VALUES ($1,$2,$3,$4,$5)
+VALUES ($1,$2,$3,$4,$5,true)
 RETURNING * 
       `,
     [
