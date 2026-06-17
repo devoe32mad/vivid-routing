@@ -3832,7 +3832,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
 
 <label>Annual Impressions</label>
 <input name="annual_impressions" type="number" value="146000" />
-      <button class="btn" type="submit">Create Tracking QR</button>
+      <button class="btn" type="submit">Create Vivid Tracking Link</button>
 
     </form>
   </div>
