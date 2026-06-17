@@ -6888,7 +6888,7 @@ ${detailRows.rows.map(row => `
     <td style="padding:10px;border:1px solid #ddd;">${row.campaign_name ? "$" + Number(row.estimated_revenue).toFixed(2) : "$0.00"}</td>
     <td style="padding:10px;border:1px solid #ddd;">
   ${
-    Number(row.estimated_customers) > 0
+    row.campaign_name && Number(row.estimated_customers) > 0
       ? "$" + (
           (
             (Number(row.placement_cost) / 365) * selectedDays
@@ -6900,7 +6900,7 @@ ${detailRows.rows.map(row => `
 </td>
     <td style="padding:10px;border:1px solid #ddd;">
   ${
-    Number(row.estimated_revenue) > 0
+    row.campaign_name && Number(row.estimated_revenue) > 0
       ? (
           (
             (
@@ -6915,7 +6915,7 @@ ${detailRows.rows.map(row => `
 </td>
    <td style="padding:10px;border:1px solid #ddd;">
   ${
-    Number(row.annual_impressions) > 0
+    row.campaign_name && Number(row.annual_impressions) > 0
       ? "$" + (
           (
             (
