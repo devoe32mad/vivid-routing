@@ -3910,7 +3910,9 @@ res.send(`
   <strong>Vivid Tracking URL:</strong><br>
 <input type="text" readonly value="${process.env.BASE_URL || "https://vivid-routing-production.up.railway.app"}/r/${qr.id}" style="width:100%;padding:12px;border:1px solid #cfd8d3;border-radius:8px;font-size:16px;">
 </p>
-
+<p style="font-size:14px;color:#2f855a;margin-top:8px;">
+✓ Once your QR provider points to this URL, all scans will be tracked automatically.
+</p>
 <p>
   <strong>Current Destination URL:</strong><br>
   ${req.body.destination_url}
