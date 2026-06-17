@@ -3782,7 +3782,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
      <div class="topbar">
   <div class="brand">Vivid Spots</div>
   <h1>
-    Create Tracking QR from Existing URL
+    Convert Existing QR to Vivid Tracking
     <a class="btn secondary"
        href="#"
        onclick="const p=document.getElementById('importHelpPanel'); if(p){p.style.display=p.style.display==='none'?'block':'none';} return false;"
