@@ -3903,7 +3903,7 @@ res.send(`
 <p>Your Vivid tracking link has been created successfully.</p>
 
 <p>
-  <strong>Important:</strong> Vivid cannot track scans from an existing QR code until the original QR destination is updated to the Vivid Tracking URL below.
+  <strong>Important:</strong> To enable Vivid tracking, update your existing QR code destination to the Vivid Tracking URL below.
 </p>
 
 <p>
@@ -3912,7 +3912,7 @@ res.send(`
 </p>
 
 <p>
-  <strong>Final Destination URL:</strong><br>
+  <strong>Current Destination URL:</strong><br>
   ${req.body.destination_url}
 </p>
 
@@ -3925,7 +3925,7 @@ res.send(`
 </p>
 
 <p>Vivid will record each scan and automatically forward visitors to the final destination URL.</p>
-
+<a href="${process.env.BASE_URL || "https://vivid-routing-production.up.railway.app"}/r/${qr.id}" target="_blank" style="background:#0b3d2e;color:white;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold;">Test Tracking Link</a>
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;">
       <a href="/admin/new-campaign" style="background:#2f855a;color:white;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold;">Create Campaign</a>
       <a href="/my-setup" style="background:#eef5f0;color:#003c2f;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold;">Back to My Setup</a>
