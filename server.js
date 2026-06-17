@@ -6460,7 +6460,12 @@ AND (
 
 AND ($4::text = '' OR e.qr_id::text = $4::text)
 AND ($5::text = '' OR e.campaign_id::text = $5::text)
-AND ($6 = 0 OR c.user_id = $6)
+AND ($6 = 0 OR c.user_id = $6 OR e.qr_id IN (
+  SELECT qr.id
+  FROM qr_codes qr
+  JOIN spaces s ON s.id = qr.space_id
+  WHERE s.user_id = $6
+))
 
 `,[startDate, endDate, locationId, qrId, campaignId, userId]);
     const totals = report.rows[0] || {};
