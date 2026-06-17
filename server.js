@@ -6646,7 +6646,12 @@ COALESCE(qc.annual_impressions, 146000)::numeric(10,2) AS annual_impressions,
 )
     AND ($4 = '' OR e.qr_id::text = $4)
     AND ($5 = '' OR e.campaign_id::text = $5)
-AND ($7 = 0 OR c.user_id = $7)
+AND ($7 = 0 OR c.user_id = $7 OR e.qr_id IN (
+  SELECT qr.id
+  FROM qr_codes qr
+  JOIN spaces sp ON sp.id = qr.space_id
+  WHERE sp.user_id = $7
+))
 AND (
   $6::text = 'all'
   OR ($6::text = 'active' AND COALESCE(c.is_archived,false) = false)
