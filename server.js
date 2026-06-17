@@ -3908,7 +3908,7 @@ res.send(`
 
 <p>
   <strong>Vivid Tracking URL:</strong><br>
-  ${process.env.BASE_URL || ""}/r/${qr.id}
+<input type="text" readonly value="${process.env.BASE_URL || "https://vivid-routing-production.up.railway.app"}/r/${qr.id}" style="width:100%;padding:12px;border:1px solid #cfd8d3;border-radius:8px;font-size:16px;">
 </p>
 
 <p>
