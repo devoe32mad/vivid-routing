@@ -6455,8 +6455,8 @@ AND (
   )
 )
 
-AND ($4 = '' OR qr_id::text = $4)
-AND ($5 = '' OR campaign_id::text = $5)
+AND ($4 = '' OR e.qr_id::text = $4)
+AND ($5 = '' OR e.campaign_id::text = $5)
 AND ($6 = 0 OR c.user_id = $6)
 
 `,[startDate, endDate, locationId, qrId, campaignId, userId]);
