@@ -3821,7 +3821,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
         ${locationOptions}
       </select>
 
-      <label>Existing Destination URL</label>
+      <label>Current QR Destination URL</label>
       <input
         name="destination_url"
         placeholder="https://example.com"
