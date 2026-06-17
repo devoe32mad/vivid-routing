@@ -6428,6 +6428,7 @@ const isSuperAdmin = currentUser.role === "super_admin";
     const endDate = req.query.end_date || today;
     const locationId = req.query.location_id || "";
     const qrId = req.query.qr_id || "";
+    console.log("QR FILTER =", qrId);
     const campaignId = req.query.campaign_id || "";
     const status = (req.query.status || "all").toLowerCase();
 const statusTarget = campaignId
