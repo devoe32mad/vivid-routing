@@ -6015,7 +6015,11 @@ AND ($6 = 0 OR c.user_id = $6 OR e.qr_id IN (
         const customers = Math.round(campaignIntent * (conversionRate / 100));
         const revenue = customers * avgValue;
 
-        doc.fontSize(12).text(`${i + 1}. ${c.advertiser || "Advertiser"} — ${c.campaign_name || "Campaign"}`);
+        doc.fontSize(12).text(
+  c.campaign_name
+    ? `${i + 1}. ${c.advertiser || "Unknown Advertiser"} — ${c.campaign_name}`
+    : `${i + 1}. No Campaign Assigned`
+);
 
 doc.fontSize(10).text(`QR: ${c.qr_name || "-"} | Location: ${c.location_name || "-"}`);
 
