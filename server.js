@@ -5911,8 +5911,8 @@ const status = (req.query.status || "all").toLowerCase();
       AND ($3 = '' OR e.store_id::text = $3 OR e.qr_id IN (
   SELECT qr.id FROM qr_codes qr WHERE qr.space_id::text = $3
 ))
-AND ($4 = '' OR e.qr_id::text = $4)
-AND ($5 = '' OR e.campaign_id::text = $5)
+AND ($4::text = '' OR e.qr_id::text = $4::text)
+AND ($5::text = '' OR e.campaign_id::text = $5::text)
 AND ($6 = 0 OR c.user_id = $6 OR e.qr_id IN (
   SELECT qr.id
   FROM qr_codes qr
@@ -5939,7 +5939,17 @@ LEFT JOIN campaigns c ON c.id = e.campaign_id
 LEFT JOIN qr_codes qc ON qc.id = e.qr_id
 LEFT JOIN spaces s ON s.id = qc.space_id
       WHERE e.created_at::date BETWEEN $1::date AND $2::date
-      AND ($3 = 0 OR c.user_id = $3)
+      AND ($3 = '' OR e.store_id::text = $3 OR e.qr_id IN (
+  SELECT qr.id FROM qr_codes qr WHERE qr.space_id::text = $3
+))
+AND ($4::text = '' OR e.qr_id::text = $4::text)
+AND ($5::text = '' OR e.campaign_id::text = $5::text)
+AND ($6 = 0 OR c.user_id = $6 OR e.qr_id IN (
+  SELECT qr.id
+  FROM qr_codes qr
+  JOIN spaces s ON s.id = qr.space_id
+  WHERE s.user_id = $6
+))
       GROUP BY
   c.id,
   c.name,
@@ -5950,7 +5960,7 @@ LEFT JOIN spaces s ON s.id = qc.space_id
   s.name
       ORDER BY intent_clicks DESC
       LIMIT 10
-    `, [startDate, endDate, userId]);
+    `, [startDate, endDate, locationId, qrId, campaignId, userId]);
 
     const s = summary.rows[0] || {};
     const scans = Number(s.scans || 0);
