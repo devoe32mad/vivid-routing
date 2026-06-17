@@ -3893,19 +3893,33 @@ RETURNING *
 
 res.send(`
   <div style="max-width:720px;margin:40px auto;padding:28px;border-radius:18px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.08);font-family:Arial,sans-serif;color:#003c2f;">
-    <h2 style="margin-top:0;">✅ QR Imported Successfully</h2>
+    <h2 style="margin-top:0;">✅ Vivid Tracking Link Created</h2>
 
-    <p>Your existing QR has been added to Vivid tracking.</p>
+<p>Your Vivid tracking link has been created successfully.</p>
 
-    <p>
-      <strong>Tracking URL:</strong><br>
-      ${process.env.BASE_URL || ""}/r/${qr.id}
-    </p>
+<p>
+  <strong>Important:</strong> Vivid cannot track scans from an existing QR code until the original QR destination is updated to the Vivid Tracking URL below.
+</p>
 
-    <p>
-      <strong>Next Recommended Step:</strong><br>
-      Create a campaign for this QR code.
-    </p>
+<p>
+  <strong>Vivid Tracking URL:</strong><br>
+  ${process.env.BASE_URL || ""}/r/${qr.id}
+</p>
+
+<p>
+  <strong>Final Destination URL:</strong><br>
+  ${req.body.destination_url}
+</p>
+
+<p>
+  <strong>Next Steps:</strong><br>
+  1. Copy the Vivid Tracking URL above.<br>
+  2. Log into your current QR code provider.<br>
+  3. Replace the old destination URL with the Vivid Tracking URL.<br>
+  4. Scan the original QR code to confirm tracking.
+</p>
+
+<p>Vivid will record each scan and automatically forward visitors to the final destination URL.</p>
 
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;">
       <a href="/admin/new-campaign" style="background:#2f855a;color:white;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold;">Create Campaign</a>
