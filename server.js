@@ -6448,16 +6448,16 @@ LEFT JOIN campaigns c ON c.id = e.campaign_id
 WHERE e.created_at::date BETWEEN $1::date AND $2::date
 AND (
   $3::text = ''
-  OR store_id::text = $3::text
-  OR qr_id IN (
+  OR e.store_id::text = $3::text
+  OR e.qr_id IN (
     SELECT id
     FROM qr_codes
     WHERE space_id::text = $3::text
   )
 )
 
-AND ($4 = '' OR e.qr_id::text = $4)
-AND ($5 = '' OR e.campaign_id::text = $5)
+AND ($4::text = '' OR e.qr_id::text = $4::text)
+AND ($5::text = '' OR e.campaign_id::text = $5::text)
 AND ($6 = 0 OR c.user_id = $6)
 
 `,[startDate, endDate, locationId, qrId, campaignId, userId]);
