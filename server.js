@@ -5894,7 +5894,10 @@ app.get("/export/report.pdf", requireLogin, async (req, res) => {
       req.query.end ||
       req.query.to ||
       new Date().toISOString().slice(0, 10);
-
+const locationId = req.query.location_id || "";
+const qrId = req.query.qr_id || "";
+const campaignId = req.query.campaign_id || "";
+const status = (req.query.status || "all").toLowerCase();
     const summary = await q(`
       SELECT
         COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
@@ -5905,8 +5908,18 @@ app.get("/export/report.pdf", requireLogin, async (req, res) => {
       FROM events e
       LEFT JOIN campaigns c ON c.id = e.campaign_id
       WHERE e.created_at::date BETWEEN $1::date AND $2::date
-      AND ($3 = 0 OR c.user_id = $3)
-    `, [startDate, endDate, userId]);
+      AND ($3 = '' OR e.store_id::text = $3 OR e.qr_id IN (
+  SELECT qr.id FROM qr_codes qr WHERE qr.space_id::text = $3
+))
+AND ($4 = '' OR e.qr_id::text = $4)
+AND ($5 = '' OR e.campaign_id::text = $5)
+AND ($6 = 0 OR c.user_id = $6 OR e.qr_id IN (
+  SELECT qr.id
+  FROM qr_codes qr
+  JOIN spaces s ON s.id = qr.space_id
+  WHERE s.user_id = $6
+))
+    `, [startDate, endDate, locationId, qrId, campaignId, userId]);
 
     const campaigns = await q(`
       SELECT
