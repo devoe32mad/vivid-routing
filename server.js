@@ -451,6 +451,17 @@ await q(`
   AND description LIKE 'http%'
 `);
   await q(`
+  ALTER TABLE qr_codes
+  ADD COLUMN IF NOT EXISTS is_imported BOOLEAN DEFAULT false
+`);
+
+await q(`
+  UPDATE qr_codes
+  SET is_imported = true
+  WHERE description IS NOT NULL
+  AND description LIKE 'http%'
+`);
+  await q(`
   UPDATE qr_codes qr
   SET annual_cost = COALESCE(s.placement_cost, 800)
   FROM spaces s
