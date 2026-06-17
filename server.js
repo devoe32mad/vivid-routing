@@ -1699,7 +1699,7 @@ const hasSchedules = activeScheduleCount > 0;
     .join(", ")
 }</td>
 <td>
-${qr.description && qr.description.startsWith("http")
+${qr.description && qr.description.trim().toLowerCase().startsWith("http")
   ? "Imported"
   : "Native"}
 </td>
