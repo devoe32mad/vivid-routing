@@ -6652,7 +6652,9 @@ AND (
 `, [startDate, endDate, locationId, qrId, campaignId, status, userId]);
     res.send(page("Reports", `
       <h1>Export Center</h1>
-
+<div style="padding:10px;background:#fff3cd;margin-bottom:12px;">
+  DEBUG: ${debugFilters}
+</div>
       <form method="GET" action="/admin/reports" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:20px;">
         <div>
           <label>Start Date</label><br>
