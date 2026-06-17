@@ -770,10 +770,11 @@ app.get("/r/:qrId", async (req, res) => {
   const qrId = Number(req.params.qrId);
   const importedQr = await q(`
   SELECT *
-  FROM qr_codes
-  WHERE id = $1
-  AND description IS NOT NULL
-  AND description LIKE 'http%'
+FROM qr_codes
+WHERE id = $1
+AND is_imported = true
+AND description IS NOT NULL
+AND description LIKE 'http%'
 `, [qrId]);
 
 if (importedQr.rows[0]) {
