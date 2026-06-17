@@ -3650,6 +3650,10 @@ const campaigns = await q(
       <form method="POST" action="/admin/edit-qr/${qr.id}">
         <label>QR Name</label>
         <input name="name" value="${qr.name || ""}" />
+       ${qr.description && qr.description.startsWith("http") ? `
+  <label>Current Destination URL</label>
+  <input value="${qr.description}" readonly />
+` : ""} 
 ${qr.description && qr.description.startsWith("http") ? `
   <label>Current Destination URL</label>
   <input value="${qr.description}" readonly />
