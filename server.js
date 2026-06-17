@@ -6884,8 +6884,8 @@ ${detailRows.rows.map(row => `
     <td style="padding:10px;border:1px solid #ddd;">${row.scans}</td>
     <td style="padding:10px;border:1px solid #ddd;">${row.maps_clicks}</td>
     <td style="padding:10px;border:1px solid #ddd;">${row.offer_clicks}</td>
-    <td style="padding:10px;border:1px solid #ddd;">${Number(row.estimated_customers).toFixed(2)}</td>
-    <td style="padding:10px;border:1px solid #ddd;">$${Number(row.estimated_revenue).toFixed(2)}</td>
+    <td style="padding:10px;border:1px solid #ddd;">${row.campaign_name ? Number(row.estimated_customers).toFixed(2) : "0.00"}</td>
+    <td style="padding:10px;border:1px solid #ddd;">${row.campaign_name ? "$" + Number(row.estimated_revenue).toFixed(2) : "$0.00"}</td>
     <td style="padding:10px;border:1px solid #ddd;">
   ${
     Number(row.estimated_customers) > 0
