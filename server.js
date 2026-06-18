@@ -1825,7 +1825,17 @@ qrs.rows.find(q =>
   )
 )?.name || ""
 }</td>
-<td>${dateLabel(c.live_date || c.created_at)}</td>
+<td>${dateLabel(c.created_at)}</td>
+
+<td>${dateLabel(
+  relationships.rows
+    .filter(r => String(r.campaign_id) === String(c.id))
+    .map(r => r.created_at)
+    .filter(Boolean)
+    .sort()[0],
+  "Not Assigned"
+)}</td>
+
 <td>${
   daysActive(
     relationships.rows
@@ -1836,6 +1846,7 @@ qrs.rows.find(q =>
     c.archived_at
   )
 }</td>
+
      <td>
   <a href="/admin/edit-campaign/${c.id}">
     Edit
@@ -2178,9 +2189,10 @@ ${locationTable || `<tr><td colspan="6">No locations yet.</td></tr>`}        </t
 <th>Market</th>
 <th>Location</th>
 <th>QR Code</th>
-<th>Live Date</th>
+<th>Created Date</th>
+<th>First Assigned</th>
 <th>
-  Days in Market
+Days Deployed
   <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
 </th>
 <th>Edit</th>
