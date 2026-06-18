@@ -1825,6 +1825,7 @@ qrs.rows.find(q =>
   )
 )?.name || ""
 }</td>
+<td>${dateLabel(c.live_date || c.created_at)}</td>
 <td>${
   daysActive(
     relationships.rows
@@ -2177,6 +2178,7 @@ ${locationTable || `<tr><td colspan="6">No locations yet.</td></tr>`}        </t
 <th>Market</th>
 <th>Location</th>
 <th>QR Code</th>
+<th>Live Date</th>
 <th>
   Days in Market
   <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
