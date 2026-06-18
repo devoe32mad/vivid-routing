@@ -4261,18 +4261,24 @@ ${archivedSchedules.rows.map(s => `
 
 <table class="table">
 <tr>
-  <th>ID</th>
-  <th>Name</th>
-  <th>Location</th>
-  <th>Status</th>
-  <th>Action</th>
+ <th>ID</th>
+<th>Name</th>
+<th>Location</th>
+<th>Live Date</th>
+<th>Archived</th>
+<th>Days Active</th>
+<th>Status</th>
+<th>Action</th>
 </tr>
 
 ${archivedQrs.rows.map(qr => `
 <tr>
   <td>${qr.id}</td>
-  <td>${qr.name || ""}</td>
-  <td>${qr.location_name || ""}</td>
+<td>${qr.name || ""}</td>
+<td>${qr.location_name || ""}</td>
+<td>${dateLabel(qr.live_date)}</td>
+<td>${dateLabel(qr.archived_at, "Not Set")}</td>
+<td>${daysActive(qr.live_date, qr.archived_at)}</td>
   <td>
     <span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">
       Archived
