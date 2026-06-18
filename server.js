@@ -579,6 +579,24 @@ await q(`
   await q(`ALTER TABLE spaces ADD COLUMN IF NOT EXISTS annual_impressions INT DEFAULT 146000`);
   await q(`ALTER TABLE spaces ADD COLUMN IF NOT EXISTS placement_cost INT DEFAULT 800`);
   await q(`ALTER TABLE spaces ADD COLUMN IF NOT EXISTS host_payout INT DEFAULT 300`);
+  await q(`ALTER TABLE spaces ADD COLUMN IF NOT EXISTS live_date DATE`);
+await q(`ALTER TABLE spaces ADD COLUMN IF NOT EXISTS end_date DATE`);
+
+await q(`ALTER TABLE qr_codes ADD COLUMN IF NOT EXISTS live_date DATE`);
+await q(`ALTER TABLE qr_codes ADD COLUMN IF NOT EXISTS end_date DATE`);
+
+await q(`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS live_date DATE`);
+await q(`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS end_date DATE`);
+
+await q(`ALTER TABLE campaign_schedules ADD COLUMN IF NOT EXISTS live_date DATE`);
+await q(`ALTER TABLE campaign_schedules ADD COLUMN IF NOT EXISTS end_date DATE`);
+  await q(`UPDATE spaces SET live_date = created_at::date WHERE live_date IS NULL`);
+
+await q(`UPDATE qr_codes SET live_date = created_at::date WHERE live_date IS NULL`);
+
+await q(`UPDATE campaigns SET live_date = created_at::date WHERE live_date IS NULL`);
+
+await q(`UPDATE campaign_schedules SET live_date = created_at::date WHERE live_date IS NULL`);
   await q(`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS avg_customer_value INT DEFAULT 50`);
   await q(`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS campaign_cost INT DEFAULT 0`);
   await q(`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS conversion_rate INT DEFAULT 10`);
