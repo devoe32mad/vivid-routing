@@ -2575,16 +2575,30 @@ COALESCE((
   WHERE qc2.campaign_id = c.id
     AND COALESCE(qc2.is_active,true) = true
 ), 0) AS allocated_cost,
-(
+COALESCE((
   SELECT MIN(
     GREATEST(
       1,
-      CURRENT_DATE - DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)) + 1
+      (
+        LEAST(
+          CURRENT_DATE,
+          COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE)
+        )
+        -
+        GREATEST(
+          DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
+          COALESCE(
+            NULLIF('${startDate}','')::date,
+            DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+          )
+        )
+        + 1
+      )
     )
   )
   FROM qr_campaigns qc2
   WHERE qc2.campaign_id = c.id
-) AS active_days
+), 0) AS active_days
           FROM campaigns c
 LEFT JOIN events e
   ON e.campaign_id = c.id
