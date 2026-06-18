@@ -4169,11 +4169,14 @@ const archivedQrs = await q(
 <h2>Archived Campaigns</h2>
   <table class="table">
     <tr>
-  <th>ID</th>
-  <th>Name</th>
-  <th>Advertiser</th>
-  <th>Status</th>
-  <th>Action</th>
+<th>ID</th>
+<th>Name</th>
+<th>Advertiser</th>
+<th>Created</th>
+<th>Archived</th>
+<th>Days Active</th>
+<th>Status</th>
+<th>Action</th>
 </tr>
 
     ${campaigns.rows.map(c => `
@@ -4181,7 +4184,9 @@ const archivedQrs = await q(
         <td>${c.id}</td>
 <td>${c.advertiser || ""}</td>
 <td>${c.name || ""}</td>
-
+<td>${dateLabel(c.created_at)}</td>
+<td>${dateLabel(c.archived_at, "Not Set")}</td>
+<td>${daysActive(c.created_at, c.archived_at)}</td>
 <td>
   ${
     c.is_archived
