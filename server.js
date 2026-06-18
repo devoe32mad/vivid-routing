@@ -4451,7 +4451,7 @@ GROUP BY c.name
 
       <div class="topbar">
         <div class="brand">Vivid Spots</div>
-        <h1>AI Insights</h1>
+        <h1>Performance Insights</h1>
       </div>
 <form method="GET" style="margin-bottom:24px;display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
 
