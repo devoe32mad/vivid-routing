@@ -4537,7 +4537,7 @@ GROUP BY c.name
         </div>
 
         <div class="card">
-          <h3>🏫 Best Performing Store/School</h3>
+          <h3>📍 Top Performing Location</h3>
           <p><strong>${topStore.rows[0]?.name || "N/A"}</strong></p>
           <p>Total Events: ${topStore.rows[0]?.total_events || 0}</p>
           <p>
