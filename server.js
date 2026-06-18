@@ -4087,7 +4087,9 @@ app.get("/admin/archive-location/:locationId", requireLogin, async (req, res) =>
   try {
     await q(`
       UPDATE spaces
-      SET is_archived = true
+      SET is_archived = true,
+    archived_at = CURRENT_TIMESTAMP,
+    end_date = CURRENT_DATE
       WHERE id = $1
     `, [req.params.locationId]);
 
