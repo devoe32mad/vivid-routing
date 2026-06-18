@@ -4182,8 +4182,8 @@ const archivedQrs = await q(
     ${campaigns.rows.map(c => `
       <tr>
         <td>${c.id}</td>
+   <td>${c.name || ""}</td>     
 <td>${c.advertiser || ""}</td>
-<td>${c.name || ""}</td>
 <td>${dateLabel(c.created_at)}</td>
 <td>${dateLabel(c.archived_at, "Not Set")}</td>
 <td>${daysActive(c.created_at, c.archived_at)}</td>
