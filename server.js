@@ -4095,7 +4095,9 @@ app.get("/admin/archive-qr/:qrId", requireLogin, async (req, res) => {
 
     const result = await q(`
       UPDATE qr_codes
-      SET is_archived = true
+      SET is_archived = true,
+    archived_at = CURRENT_TIMESTAMP,
+    end_date = CURRENT_DATE
       WHERE id = $1
       RETURNING *
     `, [req.params.qrId]);
