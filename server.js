@@ -3093,7 +3093,7 @@ COUNT(*) FILTER (
   WHERE e.type='waze'
 ) AS waze,
 
-           COALESCE(qr.annual_impressions, 0) AS impressions,
+           
 const reportRows = await q(
   isSuperAdmin
     ? `
