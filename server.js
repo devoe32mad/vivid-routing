@@ -597,6 +597,12 @@ await q(`
 await q(`ALTER TABLE campaign_schedules ADD COLUMN IF NOT EXISTS live_date DATE`);
 await q(`ALTER TABLE campaign_schedules ADD COLUMN IF NOT EXISTS end_date DATE`);
  await q(`ALTER TABLE campaign_schedules ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP`); 
+  await q(`
+  UPDATE campaign_schedules
+  SET archived_at = COALESCE(archived_at, CURRENT_TIMESTAMP),
+      end_date = COALESCE(end_date, CURRENT_DATE)
+  WHERE COALESCE(is_active,false) = false
+`);
   await q(`UPDATE spaces SET live_date = created_at::date WHERE live_date IS NULL`);
 
 await q(`UPDATE qr_codes SET live_date = created_at::date WHERE live_date IS NULL`);
