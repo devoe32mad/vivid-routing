@@ -41,6 +41,15 @@ function dayLabel(n) {
   if (d === 6) return "Saturday";
   return String(n || "");
 }
+function dateLabel(d, fallback = "Not Set") {
+  if (!d) return fallback;
+
+  const date = new Date(d);
+
+  if (isNaN(date.getTime())) return fallback;
+
+  return date.toLocaleDateString();
+}
 function daysActive(createdAt, endedAt = null) {
   if (!createdAt) return 0;
 
