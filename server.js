@@ -4446,7 +4446,7 @@ GROUP BY c.name
       LIMIT 1
     `, params);
 
-    res.send(page("AI Insights", `
+    res.send(page("Performance Insights", `
 
       <div class="topbar">
         <div class="brand">Vivid Spots</div>
