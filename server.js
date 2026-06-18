@@ -2130,6 +2130,7 @@ ${hasCampaigns
             <th>Market</th>
             <th>QR Codes</th>
             <th>Campaigns</th>
+            <th>Live Date</th>
            <th>
   Days in Market
   <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
