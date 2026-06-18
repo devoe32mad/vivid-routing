@@ -1766,7 +1766,7 @@ ${qr.is_imported ? "Imported" : "Native"}
     .filter(Boolean)
     .join(", ")
 }</td>
-
+<td>${dateLabel(qr.live_date || qr.created_at)}</td>
           <td>${daysActive(qr.created_at)}</td>
           <td>${Number(qr.annual_impressions || 0).toLocaleString()}</td>
 <td>${money(qr.annual_cost || 0)}</td>
@@ -2153,6 +2153,7 @@ ${locationTable || `<tr><td colspan="6">No locations yet.</td></tr>`}        </t
             <th>Market</th>
             <th>Location</th>
             <th>Campaigns</th>
+            <th>Live Date</th>
             <th>
   Days in Market
   <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
