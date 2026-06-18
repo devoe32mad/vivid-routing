@@ -1923,7 +1923,7 @@ for (const s of schedules.rows) {
 <td>${a.qr_name || ""}</td>
 <td>${a.advertiser || ""}</td>
 <td>${a.campaign_name || ""}</td>
-<td>${daysActive(a.started_at || a.assigned_at)}</td>
+<td>${dateLabel(a.started_at || a.assigned_at)}</td>
 <td>${Number(a.assignment_days || 1)}</td>
 <td>$${Number(a.allocated_cost || ((a.placement_cost || 0) / 365)).toFixed(2)}</td>
 <td>
@@ -2233,7 +2233,7 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
 <th>Advertiser</th>
 <th>Campaign</th>
 <th>
-  Days in Market
+  Assigned On
   <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
 </th>
 <th>Assignment Days</th>
