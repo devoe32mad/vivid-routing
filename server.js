@@ -3071,29 +3071,7 @@ const endDate = req.query.end_date || "";
 } else {
   dateSql = `AND e.created_at >= NOW() - INTERVAL '30 days'`;
 }
-
-    const reportRows = await q(
-      isSuperAdmin
-        ? `
-          SELECT
-            s.name AS location_name,
-            s.location,
-
-            COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-
-           COUNT(*) FILTER (
-  WHERE e.type='offer'
-) AS offers,
-
-COUNT(*) FILTER (
-  WHERE e.type='maps'
-) AS maps,
-
-COUNT(*) FILTER (
-  WHERE e.type='waze'
-) AS waze,
-
-           
+        
 const reportRows = await q(
   isSuperAdmin
     ? `
