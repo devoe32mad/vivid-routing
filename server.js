@@ -3094,70 +3094,73 @@ COUNT(*) FILTER (
 ) AS waze,
 
            COALESCE(qr.annual_impressions, 0) AS impressions,
-COALESCE(qr.annual_cost, 800) AS placement_cost
+const reportRows = await q(
+  isSuperAdmin
+    ? `
+      SELECT
+        s.name AS location_name,
+        s.location,
 
-          FROM events e
+        COUNT(e.id) FILTER (WHERE e.type='scan') AS scans,
+        COUNT(e.id) FILTER (WHERE e.type='offer') AS offers,
+        COUNT(e.id) FILTER (WHERE e.type='maps') AS maps,
+        COUNT(e.id) FILTER (WHERE e.type='waze') AS waze,
 
-          JOIN qr_codes qr
-            ON qr.id = e.qr_id
+        COALESCE(SUM(DISTINCT qr.annual_impressions), 0) AS impressions,
+        COALESCE(SUM(DISTINCT COALESCE(qr.annual_cost, 800)), 0) AS placement_cost
 
-          JOIN spaces s
-            ON s.id = qr.space_id
+      FROM spaces s
+      LEFT JOIN qr_codes qr
+        ON qr.space_id = s.id
+        AND COALESCE(qr.is_archived,false) = false
 
-          WHERE 1=1
-          ${dateSql}
+      LEFT JOIN events e
+        ON e.qr_id = qr.id
+        ${dateSql}
 
-          GROUP BY
-            s.name,
-            s.location,
-            qr.annual_impressions,
-qr.annual_cost
+      WHERE COALESCE(s.is_archived,false) = false
 
-          ORDER BY scans DESC
-        `
-        : `
-          SELECT
-            s.name AS location_name,
-            s.location,
+      GROUP BY
+        s.id,
+        s.name,
+        s.location
 
-            COUNT(*) FILTER (WHERE e.type='scan') AS scans,
+      ORDER BY scans DESC
+      `
+    : `
+      SELECT
+        s.name AS location_name,
+        s.location,
 
-           COUNT(*) FILTER (
-  WHERE e.type='offer'
-) AS offers,
+        COUNT(e.id) FILTER (WHERE e.type='scan') AS scans,
+        COUNT(e.id) FILTER (WHERE e.type='offer') AS offers,
+        COUNT(e.id) FILTER (WHERE e.type='maps') AS maps,
+        COUNT(e.id) FILTER (WHERE e.type='waze') AS waze,
 
-COUNT(*) FILTER (
-  WHERE e.type='maps'
-) AS maps,
+        COALESCE(SUM(DISTINCT qr.annual_impressions), 0) AS impressions,
+        COALESCE(SUM(DISTINCT COALESCE(qr.annual_cost, 800)), 0) AS placement_cost
 
-COUNT(*) FILTER (
-  WHERE e.type='waze'
-) AS waze,
+      FROM spaces s
+      LEFT JOIN qr_codes qr
+        ON qr.space_id = s.id
+        AND COALESCE(qr.is_archived,false) = false
 
-            COALESCE(qr.annual_impressions, 0) AS impressions,
-COALESCE(qr.annual_cost, 800) AS placement_cost
+      LEFT JOIN events e
+        ON e.qr_id = qr.id
+        ${dateSql}
 
-          FROM events e
+      WHERE s.user_id = $1
+        AND COALESCE(s.is_archived,false) = false
 
-          JOIN qr_codes qr
-            ON qr.id = e.qr_id
+      GROUP BY
+        s.id,
+        s.name,
+        s.location
 
-          JOIN spaces s
-            ON s.id = qr.space_id
-
-          WHERE s.user_id = $1
-          ${dateSql}
-
-          GROUP BY
-            s.name,
-            s.location,
-            qr.annual_impressions,
-qr.annual_cost
-
-          ORDER BY scans DESC
-        `,
-      isSuperAdmin ? [] : [currentUser.id]
-    );
+      ORDER BY scans DESC
+      `,
+  isSuperAdmin ? [] : [currentUser.id]
+);
 
     let reportTable = "";
 
