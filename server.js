@@ -4327,11 +4327,14 @@ ${archivedQrs.rows.map(qr => `
 
 ${archivedLocations.rows.map(l => `
 <tr>
-  <td>${l.id}</td>
-  <td>${l.name || ""}</td>
-  <td>${l.location || ""}</td>
-  <td>${l.annual_impressions || 0}</td>
-  <td>${money(l.placement_cost || 0)}</td>
+ <td>${l.id}</td>
+<td>${l.name || ""}</td>
+<td>${l.location || ""}</td>
+<td>${dateLabel(l.live_date)}</td>
+<td>${dateLabel(l.archived_at, "Not Set")}</td>
+<td>${daysActive(l.live_date, l.archived_at)}</td>
+<td>${l.annual_impressions || 0}</td>
+<td>${money(l.placement_cost || 0)}</td>
   <td>
     <span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">
       Archived
