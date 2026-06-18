@@ -158,8 +158,7 @@ function page(title, body) {
   </a>
 
   <a href="/admin/ai-insights" style="color:white;text-decoration:none;">
-    AI Insights
-  </a>
+ Performance Insights </a>
 
  
 
