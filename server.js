@@ -4306,12 +4306,15 @@ ${archivedQrs.rows.map(qr => `
 <table class="table">
 <tr>
   <th>ID</th>
-  <th>Name</th>
-  <th>Market</th>
-  <th>Impressions</th>
-  <th>Placement Cost</th>
-  <th>Status</th>
-  <th>Action</th>
+<th>Name</th>
+<th>Market</th>
+<th>Live Date</th>
+<th>Archived</th>
+<th>Days Active</th>
+<th>Impressions</th>
+<th>Placement Cost</th>
+<th>Status</th>
+<th>Action</th>
 </tr>
 
 ${archivedLocations.rows.map(l => `
