@@ -2564,7 +2564,21 @@ COALESCE((
       (COALESCE(qr2.annual_cost, s2.placement_cost, 800) / 365.0) *
       GREATEST(
         1,
-        CURRENT_DATE - DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)) + 1
+        (
+          LEAST(
+            CURRENT_DATE,
+            COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE)
+          )
+          -
+          GREATEST(
+            DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
+            COALESCE(
+              NULLIF('${startDate}','')::date,
+              DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+            )
+          )
+          + 1
+        )
       )
     ),
     2
