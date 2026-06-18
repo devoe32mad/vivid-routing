@@ -4048,7 +4048,9 @@ app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) =>
   try {
     const result = await q(`
       UPDATE campaigns
-      SET is_archived = true
+      SET is_archived = true,
+    archived_at = CURRENT_TIMESTAMP,
+    end_date = CURRENT_DATE
       WHERE id = $1
       RETURNING *
     `, [req.params.campaignId]);
