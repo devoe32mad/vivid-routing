@@ -4516,23 +4516,6 @@ GROUP BY c.name
   gap:20px;
   margin-top:12px;
 ">
-       <div class="card" style="margin-bottom:20px;">
-  <h3>Performance Reports</h3>
-
-  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;">
-    <a class="btn" href="/reports-location">
-      Location Reports
-    </a>
-
-    <a class="btn" href="/reports-campaign">
-      Campaign Reports
-    </a>
-
-    <a class="btn" href="/reports-qr">
-      QR Reports
-    </a>
-  </div>
-</div>
         <div class="card">
           <h3>🏆 Top Performing Campaign</h3>
           <p><strong>${topCampaign.rows[0]?.name || "N/A"}</strong></p>
@@ -4576,6 +4559,15 @@ GROUP BY c.name
         </div>
 
       </div>
+      <div class="card" style="margin-top:24px;">
+  <h2>Performance Reports</h2>
+
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;">
+    <a class="btn" href="/reports-location">Location Reports</a>
+    <a class="btn" href="/reports-campaign">Campaign Reports</a>
+    <a class="btn" href="/reports-qr">QR Reports</a>
+  </div>
+</div>
     <div class="card" style="margin-top:12px;">  
  <h3>⚡ AI Recommendations</h3>
 
