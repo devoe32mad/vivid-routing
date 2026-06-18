@@ -2234,9 +2234,9 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
 <th>Campaign</th>
 <th>
   Assigned On
-  <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
+  
 </th>
-<th>Assignment Days</th>
+<th>Assignment Days<span title="Number of days this campaign has been actively assigned to this QR code." style="cursor:help;">ⓘ</span></th>
 <th>Allocated Cost</th>
 <th>Status</th>
 
