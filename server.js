@@ -1718,6 +1718,7 @@ const hasSchedules = activeScheduleCount > 0;
     .filter(Boolean)
     .join(", ")
 }</td>
+<td>${dateLabel(s.live_date || s.created_at)}</td>
 <td>${daysActive(s.created_at)}</td>
 
 
