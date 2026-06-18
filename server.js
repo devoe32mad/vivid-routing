@@ -3085,7 +3085,7 @@ const reportRows = await q(
         COUNT(e.id) FILTER (WHERE e.type='waze') AS waze,
 
         COALESCE(SUM(DISTINCT qr.annual_impressions), 0) AS impressions,
-        COALESCE(SUM(DISTINCT COALESCE(qr.annual_cost, 800)), 0) AS placement_cost
+        COALESCE(SUM(COALESCE(qr.annual_cost, 800)), 0) AS placement_cost
 
       FROM spaces s
       LEFT JOIN qr_codes qr
@@ -3116,7 +3116,7 @@ const reportRows = await q(
         COUNT(e.id) FILTER (WHERE e.type='waze') AS waze,
 
         COALESCE(SUM(DISTINCT qr.annual_impressions), 0) AS impressions,
-        COALESCE(SUM(DISTINCT COALESCE(qr.annual_cost, 800)), 0) AS placement_cost
+        COALESCE(SUM(COALESCE(qr.annual_cost, 800)), 0) AS placement_cost
 
       FROM spaces s
       LEFT JOIN qr_codes qr
