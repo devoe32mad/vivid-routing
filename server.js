@@ -4218,19 +4218,25 @@ const archivedQrs = await q(
 <table class="table">
 <tr>
   <th>QR Code</th>
-  <th>Campaign</th>
-  <th>Start</th>
-  <th>End</th>
-  <th>Status</th>
-  <th>Action</th>
+<th>Campaign</th>
+<th>Assigned</th>
+<th>Archived</th>
+<th>Days Active</th>
+<th>Start</th>
+<th>End</th>
+<th>Status</th>
+<th>Action</th>
 </tr>
 
 ${archivedSchedules.rows.map(s => `
 <tr>
   <td>${s.qr_name || ""}</td>
-  <td>${s.campaign_name || ""}</td>
-  <td>${s.start_time || ""}</td>
-  <td>${s.end_time || ""}</td>
+<td>${s.campaign_name || ""}</td>
+<td>${dateLabel(s.created_at)}</td>
+<td>${dateLabel(s.archived_at, "Not Set")}</td>
+<td>${daysActive(s.created_at, s.archived_at)}</td>
+<td>${s.start_time || ""}</td>
+<td>${s.end_time || ""}</td>
   <td>
     <span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">
       Archived
