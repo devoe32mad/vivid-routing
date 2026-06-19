@@ -2347,7 +2347,10 @@ COALESCE(
 ) AS conversion_value,
 COALESCE((
   SELECT ROUND(
-    SUM((s2.placement_cost / 365.0) *
+    SUM(((COALESCE(qr2.annual_cost, s2.placement_cost, 800) / GREATEST(
+  1,
+  COALESCE(qr2.end_date::date, CURRENT_DATE) - COALESCE(qr2.live_date::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))) + 1
+)) *
       GREATEST(
         1,
         LEAST(
@@ -2514,7 +2517,10 @@ GREATEST(
 0 AS conversion_value,
 COALESCE((
   SELECT ROUND(
-    SUM((s2.placement_cost / 365.0) *
+    SUM(((COALESCE(qr2.annual_cost, s2.placement_cost, 800) / GREATEST(
+  1,
+  COALESCE(qr2.end_date::date, CURRENT_DATE) - COALESCE(qr2.live_date::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))) + 1
+)) *
       GREATEST(
         1,LEAST(
   COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE),
@@ -2585,7 +2591,10 @@ COUNT(e.id) FILTER (
 COALESCE((
   SELECT ROUND(
     SUM(
-      (COALESCE(qr2.annual_cost, s2.placement_cost, 800) / 365.0) *
+      (COALESCE(qr2.annual_cost, s2.placement_cost, 800) / GREATEST(
+  1,
+  COALESCE(qr2.end_date::date, CURRENT_DATE) - COALESCE(qr2.live_date::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))) + 1
+))*
       GREATEST(
         1,
         (
