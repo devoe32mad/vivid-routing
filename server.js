@@ -4716,46 +4716,53 @@ app.post("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
     const result = await q(
       isSuperAdmin
         ? `
-          UPDATE campaigns
-          SET
-            advertiser = $1,
-            name = $2,
-            campaign_url = $3,
-            avg_customer_value = $4,
-            conversion_rate = $5
-          WHERE id = $6
-          RETURNING id
+       UPDATE campaigns
+SET
+  advertiser = $1,
+  name = $2,
+  campaign_url = $3,
+  avg_customer_value = $4,
+  conversion_rate = 8,
+  start_date = $5,
+  end_date = $6
+WHERE id = $7
+RETURNING id
         `
         : `
-          UPDATE campaigns
-          SET
-            advertiser = $1,
-            name = $2,
-            campaign_url = $3,
-            avg_customer_value = $4,
-            conversion_rate = $5
-          WHERE id = $6
-          AND user_id = $7
-          RETURNING id
+    UPDATE campaigns
+SET
+  advertiser = $1,
+  name = $2,
+  campaign_url = $3,
+  avg_customer_value = $4,
+  conversion_rate = 8,
+  start_date = $5,
+  end_date = $6
+WHERE id = $7
+AND user_id = $8
+RETURNING id
         `,
       isSuperAdmin
-        ? [
-            req.body.advertiser || "",
-            req.body.name || "",
-            req.body.campaign_url || "",
-            Number(req.body.avg_customer_value || 50),
-            Number(req.body.conversion_rate || 10),
-            req.params.campaignId
-          ]
+        ?[
+  req.body.advertiser || "",
+  req.body.name || "",
+  req.body.campaign_url || "",
+  Number(req.body.avg_customer_value || 50),
+  req.body.start_date || null,
+  req.body.end_date || null,
+  req.params.campaignId
+]
         : [
-            req.body.advertiser || "",
-            req.body.name || "",
-            req.body.campaign_url || "",
-            Number(req.body.avg_customer_value || 50),
-            Number(req.body.conversion_rate || 10),
-            req.params.campaignId,
-            currentUser.id
-          ]
+  req.body.advertiser || "",
+  req.body.name || "",
+  req.body.campaign_url || "",
+  Number(req.body.avg_customer_value || 50),
+  req.body.start_date || null,
+  req.body.end_date || null,
+  req.params.campaignId,
+  currentUser.id
+]
+
     );
 
     if (!result.rows[0]) {
