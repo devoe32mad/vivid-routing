@@ -705,9 +705,13 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
 
   const assignments = await q(`
   SELECT
-    qr.annual_cost AS placement_cost,
-    COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP) AS started_at,
-    qc.ended_at
+  COALESCE(qr.total_cost, qr.annual_cost, 800) AS placement_cost,
+  COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP) AS started_at,
+  qc.ended_at,
+  GREATEST(
+    1,
+    COALESCE(qr.end_date::date, CURRENT_DATE) - COALESCE(qr.live_date::date, COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP)::date) + 1
+  ) AS contract_days
   FROM qr_campaigns qc
   JOIN qr_codes qr ON qr.id = qc.qr_id
   JOIN spaces s ON s.id = qr.space_id
@@ -715,7 +719,13 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
 `, [campaignId]);
   
   const schedules = await q(`
-    SELECT qr.annual_cost AS placement_cost, cs.created_at AS started_at
+    SELECT 
+  COALESCE(qr.total_cost, qr.annual_cost, 800) AS placement_cost,
+  cs.created_at AS started_at,
+  GREATEST(
+    1,
+    COALESCE(qr.end_date::date, CURRENT_DATE) - COALESCE(qr.live_date::date, cs.created_at::date) + 1
+  ) AS contract_days
     FROM campaign_schedules cs
     JOIN qr_codes qr ON qr.id = cs.qr_id
     JOIN spaces s ON s.id = qr.space_id
@@ -731,7 +741,7 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
       if (sDate < rangeStart) sDate = rangeStart;
       if (eDate > rangeEnd) eDate = rangeEnd;
     }
-    if (eDate >= sDate) total += (Number(a.placement_cost || 0) / 365) * Math.max(1, daysBetween(sDate, eDate));
+    if (eDate >= sDate) total += (Number(a.placement_cost || 0) / Math.max(1, Number(a.contract_days || 365))) * Math.max(1, daysBetween(sDate, eDate));
   }
 
   for (const a of schedules.rows) {
@@ -741,7 +751,7 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
       if (sDate < rangeStart) sDate = rangeStart;
       if (eDate > rangeEnd) eDate = rangeEnd;
     }
-    if (eDate >= sDate) total += (Number(a.placement_cost || 0) / 365) * Math.max(1, daysBetween(sDate, eDate));
+    if (eDate >= sDate) total += (Number(a.placement_cost || 0) / Math.max(1, Number(a.contract_days || 365))) * Math.max(1, daysBetween(sDate, eDate));
   }
 
   return total;
