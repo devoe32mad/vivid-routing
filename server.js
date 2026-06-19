@@ -2411,7 +2411,7 @@ SUM(e.value) FILTER (
 COALESCE((
   SELECT ROUND(
     SUM(
-      (s2.placement_cost / 365.0) *
+      (s2.placement_cost / GREATEST(1, COALESCE(qr2.contract_days, 365))::numeric) *
       GREATEST(
         1,
         LEAST(
