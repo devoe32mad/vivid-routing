@@ -3582,7 +3582,7 @@ app.get("/admin/edit-location/:spaceId", requireLogin, async (req, res) => {
         <label>Market / Address</label>
         <input name="location" value="${s.location || ""}" />
 
-        <label>Annual Impressions</label>
+        <label>Estimated Impressions</label>
         <input name="annual_impressions" value="${s.annual_impressions || 0}" />
 
         <label>Placement Cost</label>
@@ -3947,7 +3947,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
 <p style="font-size:14px;color:#40624f;margin-top:14px;">
   After creating your Vivid Tracking Link, update your existing QR code's destination URL to the Vivid Tracking URL provided on the next screen.
 </p>
-<label>Annual Impressions</label>
+<label>Estimated Impressions</label>
 <input name="annual_impressions" type="number" value="146000" />
       <button class="btn" type="submit">Create Vivid Tracking Link</button>
 
@@ -3993,7 +3993,7 @@ res.send(page("Add QR", `<div class="topbar"><div class="brand">Vivid Spots</div
 Contract Days will be calculated automatically from Live Date to End Date.
 </p>
 
-<label>Annual Impressions</label><input type="number" name="annual_impressions" value="146000" /><button class="btn" type="submit">Create QR</button></form></div>`));
+<label>Estimated Impressions</label><input type="number" name="annual_impressions" value="146000" /><button class="btn" type="submit">Create QR</button></form></div>`));
 });
   app.post("/admin/import-qr", requireLogin, async (req, res) => {
   try {
