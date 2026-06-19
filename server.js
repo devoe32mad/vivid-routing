@@ -2929,7 +2929,10 @@ COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
 COALESCE((
   SELECT ROUND(
     SUM(
-      (COALESCE(qr2.annual_cost, s2.placement_cost, 800) / 365.0) *
+       (COALESCE(qr2.annual_cost, s2.placement_cost, 800) / GREATEST(
+  1,
+  COALESCE(qr2.end_date::date, CURRENT_DATE) - COALESCE(qr2.live_date::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))) + 1
+))*
       GREATEST(
         1,
         (
@@ -7103,7 +7106,7 @@ ${detailRows.rows.map(row => `
     row.campaign_name && Number(row.estimated_customers) > 0
       ? "$" + (
           (
-            (Number(row.placement_cost) / 365) * selectedDays
+            (Number(row.placement_cost) / Math.max(1, Number(row.contract_days || 365))) * selectedDays
           ) /
           Number(row.estimated_customers)
         ).toFixed(2)
@@ -7117,7 +7120,7 @@ ${detailRows.rows.map(row => `
           (
             (
               Number(row.estimated_revenue) -
-              ((Number(row.placement_cost) / 365) * selectedDays)
+              ((Number(row.placement_cost) / Math.max(1, Number(row.contract_days || 365))) * selectedDays)
             ) /
             ((Number(row.placement_cost) / 365) * selectedDays)
           ) * 100
