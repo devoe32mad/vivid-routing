@@ -4981,7 +4981,7 @@ const userId =
       req.body.advertiser || "",
       req.body.campaign_url || "",
       Number(req.body.avg_customer_value || 50),
-      Number(req.body.conversion_rate || 10),
+      Number(req.body.conversion_rate || 8),
       req.body.is_deal_of_day === "on",
       userId
     ]);
