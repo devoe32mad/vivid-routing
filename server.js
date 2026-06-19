@@ -4910,6 +4910,34 @@ const assignedQrIds = new Set(assignedQrs.rows.map(r => String(r.qr_id)));
 
 <label>End Date</label>
 <input type="date" name="end_date" value="${c.end_date ? String(c.end_date).substring(0,10) : ""}" />
+<div id="campaignDays" style="font-weight:600;color:#40624f;margin-top:10px;">
+  Campaign Days: 0
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const startInput = document.querySelector('input[name="start_date"]');
+  const endInput = document.querySelector('input[name="end_date"]');
+  const daysDisplay = document.getElementById('campaignDays');
+
+  function updateDays() {
+    if (!startInput.value || !endInput.value) {
+      daysDisplay.innerHTML = 'Campaign Days: 0';
+      return;
+    }
+
+    const start = new Date(startInput.value);
+    const end = new Date(endInput.value);
+    const days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+    daysDisplay.innerHTML = 'Campaign Days: ' + Math.max(days, 0);
+  }
+
+  updateDays();
+
+  startInput.addEventListener('change', updateDays);
+  endInput.addEventListener('change', updateDays);
+});
+</script>
         <label>Avg Customer Value</label>
         <input name="avg_customer_value" value="${c.avg_customer_value || 50}" />
 <div style="font-size:12px;color:#666;margin-top:4px;margin-bottom:10px;">
