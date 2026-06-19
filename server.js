@@ -1883,7 +1883,7 @@ qrs.rows.find(q =>
     .sort()[0],
   "Not Assigned"
 )}</td>
-
+<td>${c.archived_at ? dateLabel(c.archived_at) : "-"}</td>
 <td>${
   daysActive(
     relationships.rows
