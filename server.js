@@ -4905,14 +4905,17 @@ const assignedQrIds = new Set(assignedQrs.rows.map(r => String(r.qr_id)));
 
         <label>Campaign URL</label>
         <input name="campaign_url" value="${c.campaign_url || ""}" />
+<label>Start Date</label>
+<input type="date" name="start_date" value="${c.start_date ? String(c.start_date).substring(0,10) : ""}" />
 
+<label>End Date</label>
+<input type="date" name="end_date" value="${c.end_date ? String(c.end_date).substring(0,10) : ""}" />
         <label>Avg Customer Value</label>
         <input name="avg_customer_value" value="${c.avg_customer_value || 50}" />
 <div style="font-size:12px;color:#666;margin-top:4px;margin-bottom:10px;">
   Average customer value used to estimate campaign revenue.
 </div>
-        <label>Conversion Rate (%)</label>
-        <input name="conversion_rate" value="${c.conversion_rate || 10}" />
+       
 <label>Assign to QR Codes</label>
 
 <select name="qr_ids">
