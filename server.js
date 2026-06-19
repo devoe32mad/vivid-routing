@@ -6769,8 +6769,9 @@ const costBasis = await q(`
 const annualCost = Number(costBasis.rows[0]?.annual_cost || 800);
 const annualImpressions = Number(costBasis.rows[0]?.annual_impressions || 146000);
 
-const proratedCost = Number(((annualCost / 365) * selectedDays).toFixed(2));
-const proratedImpressions = Number(((annualImpressions / 365) * selectedDays).toFixed(0));
+const contractDays = Math.max(1, selectedDays || 365);
+const proratedCost = Number(((annualCost / contractDays) * selectedDays).toFixed(2));
+const proratedImpressions = Number(((annualImpressions / contractDays) * selectedDays).toFixed(0));
 const costPerEngagement =
   totalScans > 0
     ? (proratedCost / totalScans).toFixed(2)
