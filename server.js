@@ -3944,13 +3944,36 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
 
 <label>End Date</label>
 <input name="end_date" type="date" />
+<div id="contractDays" style="margin-top:10px;font-weight:600;color:#40624f;">
+  Contract Days: 0
+</div>
 <p style="font-size:14px;color:#40624f;margin-top:14px;">
   After creating your Vivid Tracking Link, update your existing QR code's destination URL to the Vivid Tracking URL provided on the next screen.
 </p>
 <label>Estimated Impressions</label>
 <input name="annual_impressions" type="number" value="146000" />
       <button class="btn" type="submit">Create Vivid Tracking Link</button>
+<script>
+const liveDate = document.querySelector('[name="live_date"]');
+const endDate = document.querySelector('[name="end_date"]');
+const contractDays = document.getElementById('contractDays');
 
+function updateContractDays() {
+  if (!liveDate.value || !endDate.value) {
+    contractDays.innerHTML = 'Contract Days: 0';
+    return;
+  }
+
+  const start = new Date(liveDate.value);
+  const end = new Date(endDate.value);
+  const diff = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+  contractDays.innerHTML = `Contract Days: ${diff > 0 ? diff : 0}`;
+}
+
+liveDate.addEventListener('change', updateContractDays);
+endDate.addEventListener('change', updateContractDays);
+</script>
     </form>
   </div>
 
