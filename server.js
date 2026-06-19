@@ -3980,7 +3980,20 @@ app.get("/admin/new-qr", async (req, res) => {
     `,
   isSuperAdmin ? [] : [req.session.user.id]
 );;
-res.send(page("Add QR", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add QR Code</h1></div><div class="wrap"><form method="POST" action="/admin/new-qr"><label>Select Location</label><select name="space_id">${spaces.rows.map(s => `<option value="${s.id}">${s.name} (${s.location})</option>`).join("")}</select><label>QR Name</label><input name="name" placeholder="Car Line QR" /><label>Description</label><input name="description" /><label>Annual QR Cost ($)</label><input type="number" name="annual_cost" value="800" /><label>Annual Impressions</label><input type="number" name="annual_impressions" value="146000" /><button class="btn" type="submit">Create QR</button></form></div>`));
+res.send(page("Add QR", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add QR Code</h1></div><div class="wrap"><form method="POST" action="/admin/new-qr"><label>Select Location</label><select name="space_id">${spaces.rows.map(s => `<option value="${s.id}">${s.name} (${s.location})</option>`).join("")}</select><label>QR Name</label><input name="name" placeholder="Car Line QR" /><label>Description</label><input name="description" /><label>QR Cost ($)</label>
+<input type="number" name="annual_cost" value="800" />
+
+<label>Live Date</label>
+<input type="date" name="live_date" />
+
+<label>End Date</label>
+<input type="date" name="end_date" />
+
+<p style="font-size:14px;color:#40624f;margin-top:6px;">
+Contract Days will be calculated automatically from Live Date to End Date.
+</p>
+
+<label>Annual Impressions</label><input type="number" name="annual_impressions" value="146000" /><button class="btn" type="submit">Create QR</button></form></div>`));
 });
   app.post("/admin/import-qr", requireLogin, async (req, res) => {
   try {
