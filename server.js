@@ -4972,7 +4972,34 @@ ${req.session.user.role === "super_admin" ? `
 <div id="campaignDays"
      style="font-weight:600;color:#40624f;margin-top:10px;">
   Campaign Days: 0
-</div></div><label><input type="checkbox" name="is_deal_of_day" style="width:auto" /> Deal of the Day</label><br><br><button class="btn" type="submit">Create Campaign</button></form></div>`));
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const startInput = document.querySelector('input[name="start_date"]');
+  const endInput = document.querySelector('input[name="end_date"]');
+  const daysDisplay = document.getElementById('campaignDays');
+
+  function updateDays() {
+    if (!startInput.value || !endInput.value) {
+      daysDisplay.innerHTML = 'Campaign Days: 0';
+      return;
+    }
+
+    const start = new Date(startInput.value);
+    const end = new Date(endInput.value);
+
+    const days =
+      Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+    daysDisplay.innerHTML =
+      'Campaign Days: ' + Math.max(days, 0);
+  }
+
+  startInput.addEventListener('change', updateDays);
+  endInput.addEventListener('change', updateDays);
+});
+</script>
+</div><label><input type="checkbox" name="is_deal_of_day" style="width:auto" /> Deal of the Day</label><br><br><button class="btn" type="submit">Create Campaign</button></form></div>`));
 });
 
 app.post("/admin/new-campaign", requireLogin, async (req, res) => {
