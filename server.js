@@ -499,6 +499,15 @@ await q(`
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 `);
   await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS start_date DATE
+`);
+
+await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS end_date DATE
+`);
+  await q(`
   UPDATE campaigns
   SET created_at = CURRENT_TIMESTAMP
   WHERE created_at IS NULL
