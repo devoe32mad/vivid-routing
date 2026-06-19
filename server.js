@@ -1383,8 +1383,10 @@ let bestQr = null;
       const customers = Math.round(intent * 0.10);
       const revenue = customers * 50;
       const liveDays = daysBetween(qr.created_at, new Date());
+const contractDays = Math.max(1, daysBetween(qr.live_date || qr.created_at, qr.end_date || new Date()));
+
 const cost =
-  (Number(qr.placement_cost || 800) / 365) *
+  (Number(qr.placement_cost || 800) / contractDays) *
   liveDays;
       const cac = customers ? cost / customers : 0;
       const roi = cost ? ((revenue - cost) / cost) * 100 : 0;
@@ -1645,7 +1647,10 @@ GREATEST(
 
 ROUND(
   (
-    qr.annual_cost / 365.0
+    qr.annual_cost / GREATEST(
+  1,
+  COALESCE(qr.end_date::date, CURRENT_DATE) - COALESCE(qr.live_date::date, DATE(COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP))) + 1
+)
   ) *
   GREATEST(
     1,
@@ -1682,7 +1687,10 @@ SELECT
   ) AS assignment_days,
 
   ROUND(
-   (qr.annual_cost / 365.0) *
+    qr.annual_cost / GREATEST(
+  1,
+  COALESCE(qr.end_date::date, CURRENT_DATE) - COALESCE(qr.live_date::date, DATE(COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP))) + 1
+)*
     GREATEST(
       1,
       FLOOR(
