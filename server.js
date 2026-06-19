@@ -2242,6 +2242,7 @@ ${locationTable || `<tr><td colspan="6">No locations yet.</td></tr>`}        </t
 <th>QR Code</th>
 <th>Created Date</th>
 <th>First Assigned</th>
+<th>End Date</th>
 <th>
 Days in Market
   <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
