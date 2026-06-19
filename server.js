@@ -3967,8 +3967,7 @@ function updateContractDays() {
   const start = new Date(liveDate.value);
   const end = new Date(endDate.value);
   const diff = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
-
-  contractDays.innerHTML = `Contract Days: ${diff > 0 ? diff : 0}`;
+contractDays.innerHTML = 'Contract Days: ' + (diff > 0 ? diff : 0);
 }
 
 liveDate.addEventListener('change', updateContractDays);
