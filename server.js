@@ -7126,7 +7126,7 @@ ${detailRows.rows.map(row => `
               Number(row.estimated_revenue) -
               ((Number(row.placement_cost) / Math.max(1, Number(row.contract_days || 365))) * selectedDays)
             ) /
-            ((Number(row.placement_cost) / 365) * selectedDays)
+            ((Number(row.placement_cost) / Math.max(1, Number(row.contract_days || 365))) * selectedDays)
           ) * 100
         ).toFixed(2) + "%"
       : "--"
@@ -7138,10 +7138,10 @@ ${detailRows.rows.map(row => `
       ? "$" + (
           (
             (
-              (Number(row.placement_cost) / 365) * selectedDays
+              (Number(row.placement_cost) / Math.max(1, Number(row.contract_days || 365))) * selectedDays
             ) /
             (
-              (Number(row.annual_impressions) / 365) * selectedDays
+              (Number(row.annual_impressions) / Math.max(1, Number(row.contract_days || 365))) * selectedDays
             )
           ) * 1000
         ).toFixed(2)
