@@ -4010,12 +4010,34 @@ res.send(page("Add QR", `<div class="topbar"><div class="brand">Vivid Spots</div
 
 <label>End Date</label>
 <input type="date" name="end_date" />
-
+<div id="contractDays" style="margin-top:10px;font-weight:600;color:#40624f;">
+  Contract Days: 0
+</div>
 <p style="font-size:14px;color:#40624f;margin-top:6px;">
 Contract Days will be calculated automatically from Live Date to End Date.
 </p>
 
-<label>Estimated Impressions</label><input type="number" name="annual_impressions" value="146000" /><button class="btn" type="submit">Create QR</button></form></div>`));
+<label>Estimated Impressions</label><input type="number" name="annual_impressions" value="146000" /><button class="btn" type="submit">Create QR</button><script>
+const liveDate = document.querySelector('[name="live_date"]');
+const endDate = document.querySelector('[name="end_date"]');
+const contractDays = document.getElementById('contractDays');
+
+function updateContractDays() {
+  if (!liveDate.value || !endDate.value) {
+    contractDays.innerHTML = 'Contract Days: 0';
+    return;
+  }
+
+  const start = new Date(liveDate.value);
+  const end = new Date(endDate.value);
+  const diff = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+  contractDays.innerHTML = 'Contract Days: ' + (diff > 0 ? diff : 0);
+}
+
+liveDate.addEventListener('change', updateContractDays);
+endDate.addEventListener('change', updateContractDays);
+</script></form></div>`));
 });
   app.post("/admin/import-qr", requireLogin, async (req, res) => {
   try {
