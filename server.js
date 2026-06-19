@@ -589,6 +589,12 @@ await q(`ALTER TABLE spaces ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP`);
 `);
 await q(`ALTER TABLE qr_codes ADD COLUMN IF NOT EXISTS live_date DATE`);
 await q(`ALTER TABLE qr_codes ADD COLUMN IF NOT EXISTS end_date DATE`);
+  await q(`ALTER TABLE qr_codes ADD COLUMN IF NOT EXISTS total_cost NUMERIC DEFAULT 800`);
+  await q(`
+  UPDATE qr_codes
+  SET total_cost = COALESCE(total_cost, annual_cost, 800)
+  WHERE total_cost IS NULL OR total_cost = 0
+`);
 await q(`ALTER TABLE qr_codes ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP`);
   await q(`
 UPDATE qr_codes
