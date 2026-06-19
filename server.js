@@ -2243,7 +2243,7 @@ ${locationTable || `<tr><td colspan="6">No locations yet.</td></tr>`}        </t
 <th>Created Date</th>
 <th>First Assigned</th>
 <th>
-Days Deployed
+Days in Market
   <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
 </th>
 <th>Edit</th>
