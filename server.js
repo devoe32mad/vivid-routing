@@ -5037,25 +5037,30 @@ const userId =
     ? Number(req.body.user_id)
     : req.session.user.id;
     await q(`
-      INSERT INTO campaigns (
-        name,
-        advertiser,
-        campaign_url,
-        avg_customer_value,
-        conversion_rate,
-        is_deal_of_day,
-        user_id
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
+ INSERT INTO campaigns (
+  name,
+  advertiser,
+  campaign_url,
+  avg_customer_value,
+  conversion_rate,
+  is_deal_of_day,
+  user_id,
+  start_date,
+  end_date
+)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
     `, [
-      req.body.name || "",
-      req.body.advertiser || "",
-      req.body.campaign_url || "",
-      Number(req.body.avg_customer_value || 50),
-      Number(req.body.conversion_rate || 8),
-      req.body.is_deal_of_day === "on",
-      userId
-    ]);
+  req.body.name || "",
+  req.body.advertiser || "",
+  req.body.campaign_url || "",
+  Number(req.body.avg_customer_value || 50),
+  8,
+  req.body.is_deal_of_day === "on",
+  userId,
+  req.body.start_date || null,
+  req.body.end_date || null
+]
+    );
 
     res.send(successPage(
   "Campaign Created Successfully",
