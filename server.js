@@ -2892,8 +2892,8 @@ COUNT(*) FILTER (WHERE e.type='waze') AS waze,
 COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
 
 
-         FROM events e
-JOIN qr_codes qr ON qr.id = e.qr_id
+         FROM qr_codes qr
+LEFT JOIN events e ON e.qr_id = qr.id
 
 LEFT JOIN qr_campaigns qc
   ON qc.qr_id = qr.id
