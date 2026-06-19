@@ -4067,17 +4067,27 @@ res.send(`
 app.post("/admin/new-qr", async (req, res) => {
   try {
  const newQr = await q(`
-  INSERT INTO qr_codes (
-    space_id,
-    name,
-    description
-  )
-  VALUES ($1,$2,$3)
-  RETURNING id
+ INSERT INTO qr_codes (
+  space_id,
+  name,
+  description,
+  annual_cost,
+  total_cost,
+  live_date,
+  end_date,
+  annual_impressions
+)
+VALUES ($1,$2,$3,$4,$5,NULLIF($6,'')::date,NULLIF($7,'')::date,$8)
+RETURNING id
 `, [
   Number(req.body.space_id),
   req.body.name || "",
-  req.body.description || ""
+  req.body.description || "",
+  Number(req.body.annual_cost || req.body.total_cost || 800),
+  Number(req.body.total_cost || req.body.annual_cost || 800),
+  req.body.live_date || "",
+  req.body.end_date || "",
+  Number(req.body.annual_impressions || 146000)
 ]);
 
 const qrId = newQr.rows[0].id;
