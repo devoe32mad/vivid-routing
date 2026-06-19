@@ -1512,7 +1512,7 @@ ${isSuperAdmin ? `
       Offer Clicks × Conversion Rate × Average Customer Value
     </p>
   </div>
-</div> <div class="note"><strong>Money View:</strong> Campaign ROI now uses allocated spot cost: annual placement cost / 365 × active days.</div>
+</div> <div class="note"><strong>Money View:</strong> Campaign ROI now uses allocated spot cost: QR cost / contract days × active days.</div>
         <div class="cards"><div class="card"><div class="label">Total Scans</div><div class="num">${total.scans || 0}</div></div><div class="card"><div class="label">Google Maps Clicks</div><div class="num">${total.maps_clicks || 0}</div></div><div class="card"><div class="label">Offer Clicks</div><div class="num">${total.offer_clicks || 0}</div></div><div class="card"><div class="label">Intent Rate</div><div class="num">${pct(totalIntentRate)}</div></div></div>
         <h2>Daily Trend Activity</h2><table><tr><th>Date</th><th>Scans</th><th>Intent Clicks</th></tr>${trendTable || `<tr><td colspan="3">No activity for selected range.</td></tr>`}</table>
         <h2>Active Campaign Schedules</h2><table><tr><th>QR</th><th>Advertiser</th><th>Campaign</th><th>Day</th><th>Start</th><th>End</th><th>Priority</th><th>Status</th><th>Action</th></tr>${activeScheduleTable || `<tr><td colspan="8">No active schedules.</td></tr>`}</table>
@@ -1973,7 +1973,10 @@ for (const s of schedules.rows) {
 <td>${a.campaign_name || ""}</td>
 <td>${dateLabel(a.started_at || a.assigned_at)}</td>
 <td>${Number(a.assignment_days || 1)}</td>
-<td>$${Number(a.allocated_cost || ((a.placement_cost || 0) / 365)).toFixed(2)}</td>
+<td>$${Number(
+  a.allocated_cost ||
+  ((a.placement_cost || 0) / Math.max(1, Number(a.contract_days || 365)))
+).toFixed(2)}</td>
 <td>
 ${a.is_active
 ? '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Active</span>'
