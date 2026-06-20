@@ -3052,14 +3052,9 @@ const roi =
           <td style="text-align:center;">${offers}</td>
 
 <td style="text-align:center;">${maps}</td>
-
 <td style="text-align:center;">${waze}</td>
-
+<td style="text-align:center;">${r.conversions || 0}</td>
 <td style="text-align:center;">${intent}</td>
-          <td style="text-align:center;">${intentRate}%</td>
-          <td style="text-align:center;">
-  ${estimatedCustomers}
-</td>
 
 <td style="text-align:center;">
   ${money(customerValue)}
