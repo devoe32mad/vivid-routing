@@ -3281,30 +3281,24 @@ const conversionValue =
 </td>
 
           <td style="text-align:center;">
-            ${intentRate}%
-          </td>
-<td style="text-align:center;">
   ${conversions}
+</td>
+
+<td style="text-align:center;">
+  ${intent}
 </td>
 
 <td style="text-align:center;">
   ${money(conversionValue)}
 </td>
-          <td style="text-align:center;">
-            ${customers}
-          </td>
 
-          <td style="text-align:center;">
-            ${money(revenue)}
-          </td>
+<td style="text-align:center;">
+  ${money(revenue)}
+</td>
 
-          <td style="text-align:center;">
-            ${money(cost)}
-          </td>
-
-          <td style="text-align:center;">
-            ${cpm}
-          </td>
+<td style="text-align:center;">
+  ${money(cost)}
+</td>
 
           <td style="text-align:center;">
             ${roi}%
