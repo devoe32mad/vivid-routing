@@ -2922,8 +2922,19 @@ if (startDate && endDate) {
   c.name AS campaign_name,
   c.id AS campaign_id,
   qr.name AS qr_name,
-  COALESCE(conv.conversions, 0) AS conversions,
-COALESCE(conv.conversion_value, 0) AS conversion_value,
+  (
+  SELECT COUNT(*)
+  FROM events ce
+  WHERE ce.qr_id = qr.id
+    AND ce.type = 'conversion'
+) AS conversions,
+
+(
+  SELECT COALESCE(SUM(ce.value), 0)
+  FROM events ce
+  WHERE ce.qr_id = qr.id
+    AND ce.type = 'conversion'
+) AS conversion_value,
   (
   SELECT COUNT(DISTINCT qc2.campaign_id)
   FROM qr_campaigns qc2
@@ -2971,8 +2982,6 @@ WHERE 1=1
   qc.started_at,
   qc.assigned_at,
   qr.annual_cost,
-  conv.conversions,
-conv.conversion_value,
   ORDER BY scans DESC
         `
         : `
