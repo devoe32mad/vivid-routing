@@ -817,8 +817,12 @@ async function pickBestStoreForCampaign(campaign) {
   return bestStore ? bestStore.store : null;
 }
 
-async function saveEvent({ qrId, campaignId, storeId = null, type }) {
-  await q(`INSERT INTO events (qr_id,campaign_id,store_id,type) VALUES ($1,$2,$3,$4)`, [qrId, campaignId, storeId, type]);
+async function saveEvent({ qrId, campaignId, storeId = null, type, value = 0 }) {
+  await q(
+    `INSERT INTO events (qr_id, campaign_id, store_id, type, value)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [qrId, campaignId, storeId, type, Number(value || 0)]
+  );
 }
 
 app.get("/", (req, res) => {
