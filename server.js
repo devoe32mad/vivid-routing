@@ -3035,7 +3035,7 @@ const intent =
       const conversions = Number(r.conversions || 0);
 
 const customerValue = Number(r.conversion_value || 50);
-const revenue = estimatedCustomers * customerValue;
+const revenue = conversions * customerValue;
       
 
 const roi =
