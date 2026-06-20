@@ -3044,7 +3044,7 @@ qr.name
         `,
       isSuperAdmin ? [] : [currentUser.id]
     );
-
+console.log("QR REPORT ROWS:", reportRows.rows);
     let reportTable = "";
 
     for (const r of reportRows.rows) {
