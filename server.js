@@ -2938,7 +2938,8 @@ COALESCE(SUM(e.value) FILTER (WHERE e.type='conversion'), 0) AS conversion_value
 
 
          FROM qr_codes qr
-LEFT JOIN events e ON e.qr_id = qr.id
+LEFT JOIN events e 
+  ON e.qr_id = qr.id
 
 LEFT JOIN qr_campaigns qc
   ON qc.qr_id = qr.id
