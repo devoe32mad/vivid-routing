@@ -2922,6 +2922,8 @@ if (startDate && endDate) {
   c.name AS campaign_name,
   c.id AS campaign_id,
   qr.name AS qr_name,
+  COALESCE(conv.conversions, 0) AS conversions,
+COALESCE(conv.conversion_value, 0) AS conversion_value,
   (
   SELECT COUNT(DISTINCT qc2.campaign_id)
   FROM qr_campaigns qc2
