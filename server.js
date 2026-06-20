@@ -911,7 +911,23 @@ try {
     </div></div>
   `));
 });
+app.get("/conversion/:qrId", async (req, res) => {
+  try {
+    const qrId = Number(req.params.qrId);
+    const campaign = await activeCampaignForQr(qrId);
 
+    await saveEvent({
+      qrId,
+      campaignId: campaign?.id || campaign?.campaign_id || null,
+      type: "conversion",
+      value: Number(req.query.value || 0)
+    });
+
+    res.status(200).send("Conversion tracked");
+  } catch (err) {
+    res.status(500).send("CONVERSION TRACKING ERROR: " + err.message);
+  }
+});
 app.get("/click/:type/:qrId", async (req, res) => {
   const qrId = Number(req.params.qrId);
   const type = req.params.type;
