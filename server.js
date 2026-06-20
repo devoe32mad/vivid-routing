@@ -2940,6 +2940,15 @@ COALESCE(SUM(e.value) FILTER (WHERE e.type='conversion'), 0) AS conversion_value
 
 
          FROM qr_codes qr
+         LEFT JOIN (
+  SELECT
+    qr_id,
+    COUNT(*) AS conversions,
+    COALESCE(SUM(value), 0) AS conversion_value
+  FROM events
+  WHERE type = 'conversion'
+  GROUP BY qr_id
+) conv ON conv.qr_id = qr.id
 LEFT JOIN events e
   ON e.qr_id = qr.id
   AND (
