@@ -3235,7 +3235,7 @@ const intent =
         scans > 0
           ? ((intent / scans) * 100).toFixed(1)
           : 0;
-const conversions = Number(r.conversions || 0);
+const conversions = Number(r.conversions || 999);
 
 const conversionValue =
   Number(r.conversion_value || 0);
