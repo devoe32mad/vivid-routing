@@ -2986,8 +2986,24 @@ WHERE 1=1
         `
         : `
           SELECT
-  
-  qr.name AS qr_name,
+
+qr.name AS qr_name,
+
+(
+  SELECT COUNT(*)
+  FROM events ce
+  WHERE ce.qr_id = qr.id
+    AND ce.type = 'conversion'
+) AS conversions,
+
+(
+  SELECT COALESCE(SUM(ce.value),0)
+  FROM events ce
+  WHERE ce.qr_id = qr.id
+    AND ce.type = 'conversion'
+) AS conversion_value,
+
+COUNT(DISTINCT qc.campaign_id) AS campaign_count,
   COUNT(DISTINCT qc.campaign_id) AS campaign_count,
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
             COUNT(*) FILTER (WHERE e.type='offer') AS offers,
