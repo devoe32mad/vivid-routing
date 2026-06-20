@@ -2970,7 +2970,9 @@ WHERE 1=1
   qc.id,
   qc.started_at,
   qc.assigned_at,
-  qr.annual_cost AS placement_cost
+  qr.annual_cost,
+  conv.conversions,
+conv.conversion_value,
   ORDER BY scans DESC
         `
         : `
