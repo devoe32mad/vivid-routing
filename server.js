@@ -848,7 +848,17 @@ app.get("/db-test", async (req, res) => {
   const result = await q("SELECT NOW()");
   res.json(result.rows[0]);
 });
+app.get("/debug-conversions", async (req, res) => {
+  const result = await q(`
+    SELECT id, qr_id, campaign_id, type, value, created_at
+    FROM events
+    WHERE type = 'conversion'
+    ORDER BY id DESC
+    LIMIT 20
+  `);
 
+  res.json(result.rows);
+});
 app.get("/r/:qrId", async (req, res) => {
   const qrId = Number(req.params.qrId);
   const importedQr = await q(`
