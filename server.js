@@ -3043,7 +3043,7 @@ const allocatedCost = Number(r.allocated_cost || 0);
 const intent =
   offers + maps + waze;
       const estimatedCustomers = Math.round(intent * 0.08);
-      const conversions = Number(r.conversions || 0);
+      const conversions = Number(r.conversions || 999);
 
 const customerValue = Number(r.conversion_value || 50);
 const revenue = conversions * customerValue;
