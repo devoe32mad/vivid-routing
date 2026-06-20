@@ -2922,7 +2922,9 @@ if (startDate && endDate) {
             COUNT(*) FILTER (WHERE e.type='offer') AS offers,
 COUNT(*) FILTER (WHERE e.type='maps') AS maps,
 COUNT(*) FILTER (WHERE e.type='waze') AS waze,
-COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions
+COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
+COUNT(*) FILTER (WHERE e.type='conversion') AS conversions,
+COALESCE(SUM(e.value) FILTER (WHERE e.type='conversion'), 0) AS conversion_value
 
 
          FROM qr_codes qr
