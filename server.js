@@ -2950,12 +2950,6 @@ COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
 ) conv ON conv.qr_id = qr.id
 LEFT JOIN events e
   ON e.qr_id = qr.id
-  AND (
-    e.campaign_id = qc.campaign_id
-    OR e.type = 'conversion'
-  )
-
-LEFT JOIN qr_campaigns qc
   ON qc.qr_id = qr.id
   AND COALESCE(qc.is_active,true) = true
 
