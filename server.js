@@ -897,6 +897,16 @@ app.get("/debug-conversions", async (req, res) => {
 
   res.json(result.rows);
 });
+function addVividClickIdToUrl(destinationUrl, vividClickId) {
+  if (!destinationUrl || !vividClickId) {
+    return destinationUrl || "/";
+  }
+
+  const separator =
+    destinationUrl.includes("?") ? "&" : "?";
+
+  return `${destinationUrl}${separator}vivid_click_id=${encodeURIComponent(vividClickId)}`;
+}
 app.get("/r/:qrId", async (req, res) => {
   const qrId = Number(req.params.qrId);
   const importedQr = await q(`
