@@ -5030,14 +5030,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateDays() {
 if (!startInput.value || !endInput.value) {
-  daysDisplay.innerHTML = `
-    <div style="font-size:13px;color:#666;">
-      Contract Length
-    </div>
-    <div style="font-size:28px;font-weight:700;color:#0b4f2f;">
-      0 Days
-    </div>
-  `;
+  daysDisplay.innerHTML =
+    '<div style="font-size:13px;color:#666;">Contract Length</div>' +
+    '<div style="font-size:28px;font-weight:700;color:#0b4f2f;">0 Days</div>';
+  return;
+}
   return;
 }
 
@@ -5045,22 +5042,20 @@ if (!startInput.value || !endInput.value) {
     const end = new Date(endInput.value);
     const days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
- daysDisplay.innerHTML = `
-  <div style="font-size:13px;color:#666;">
-    Contract Length
-  </div>
-  <div style="font-size:28px;font-weight:700;color:#0b4f2f;">
-    ${Math.max(days, 0)} Days
-  </div>
-`; }
+ 
+daysDisplay.innerHTML =
+  '<div style="font-size:13px;color:#666;">Contract Length</div>' +
+  '<div style="font-size:28px;font-weight:700;color:#0b4f2f;">' +
+  Math.max(days, 0) +
+  ' Days</div>';
 
-  updateDays();
+updateDays();
 
   startInput.addEventListener('change', updateDays);
   endInput.addEventListener('change', updateDays);
 });
 </script>
-        <label>Avg Customer Value</label>
+        <label>Revenue Per Conversion ($)</label>
         <input name="avg_customer_value" value="${c.avg_customer_value || 50}" />
 <div style="font-size:12px;color:#666;margin-top:4px;margin-bottom:10px;">
   Average customer value used to estimate campaign revenue.
