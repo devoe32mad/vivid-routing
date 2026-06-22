@@ -381,6 +381,10 @@ await q(`
   ADD COLUMN IF NOT EXISTS archive_reason TEXT
 `);
   await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS conversion_url TEXT
+`);
+  await q(`
     INSERT INTO users (
       name,
       email,
