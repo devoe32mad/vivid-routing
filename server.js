@@ -3303,8 +3303,7 @@ const conversions = Number(r.conversions || 0);
 
 const conversionValue =
   Number(r.conversion_value || 0);
-      const customers =
-        Math.round(intent * 0.1);
+      const customers = conversions;
 
       const revenue =
   conversions * conversionValue;
