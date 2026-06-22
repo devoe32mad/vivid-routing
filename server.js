@@ -2821,10 +2821,9 @@ const roi =
 <th style="text-align:center;">Maps</th>
 <th style="text-align:center;">Waze</th>
 <th style="text-align:center;">Total Intent</th>
-<th style="text-align:center;">Intent Rate</th>
-<th>Est. Customers</th>
+<th style="text-align:center;">Conversions</th>
 <th>Customer Value</th>
-<th>Est. Revenue</th>
+<th>Revenue</th>
               <th>Active Days</th>
               <th>Allocated Cost</th>
 <th>ROI</th>
