@@ -1929,7 +1929,7 @@ qrs.rows.find(q =>
     .sort()[0],
   "Not Assigned"
 )}</td>
-<td>${c.archived_at ? dateLabel(c.archived_at) : "-"}</td>
+<td>${c.end_date ? dateLabel(c.end_date) : "No End Date"}</td>
 <td>${
   daysActive(
     relationships.rows
