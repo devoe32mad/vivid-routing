@@ -3332,10 +3332,6 @@ const conversionValue =
 </td>
 
 <td style="text-align:center;">
-  ${intent}
-</td>
-
-<td style="text-align:center;">
   ${money(conversionValue)}
 </td>
 
