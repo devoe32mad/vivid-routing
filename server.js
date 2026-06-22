@@ -5162,7 +5162,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 app.post("/admin/new-campaign", requireLogin, async (req, res) => {
   try {
-const userId =
+await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS conversion_url TEXT
+`);
+    const userId =
   req.session.user.role === "super_admin"
     ? Number(req.body.user_id)
     : req.session.user.id;
