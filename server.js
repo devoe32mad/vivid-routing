@@ -2743,6 +2743,7 @@ const roi =
     ? '<span style="background:#dc2626;color:white;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">Archived</span>'
     : '<span style="background:#16a34a;color:white;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">Active</span>'}
 </td>
+<td style="text-align:center;">${activeDays}</td>
 <td style="text-align:center;">${r.qr_count || 0}</td>
          <td style="text-align:center;">${scans}</td>
 <td style="text-align:center;">${offers}</td>
@@ -2756,7 +2757,7 @@ const roi =
 <td style="text-align:center;">${conversions}</td>
 <td style="text-align:center;">${money(customerValue)}</td>
    <td>${money(revenue)}</td>
-<td>${activeDays}</td>
+
 
 <td>${money(placementCost)}</td>
 <td>${roi}%</td>
@@ -2814,6 +2815,7 @@ const roi =
               <th>Advertiser</th>
               <th>Campaign</th>
               <th>Status</th>
+              <th>Active Days</th>
               <th style="text-align:center;">QR Count</th>
             <th style="text-align:center;">Scans</th>
 <th style="text-align:center;">Offers</th>
@@ -2823,7 +2825,6 @@ const roi =
 <th style="text-align:center;">Conversions</th>
 <th>Customer Value</th>
 <th>Revenue</th>
-              <th>Active Days</th>
               <th>Allocated Cost</th>
 <th>ROI</th>
             </tr>
