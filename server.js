@@ -2536,8 +2536,8 @@ const reportRows = await q(
               WHERE e.type IN ('offer','maps','waze')
             ) AS intent_actions
             ,
-0 AS conversions,
-0 AS conversion_value,
+COUNT(e.id) FILTER (WHERE e.type='conversion') AS conversions,
+COALESCE(SUM(e.value) FILTER (WHERE e.type='conversion'), 0) AS conversion_value,
 COALESCE((
   SELECT SUM(
     GREATEST(
@@ -2720,7 +2720,7 @@ const waze = Number(r.waze || 0);
 
 const intent = offers + maps + waze;
 const conversions = Number(r.conversions || 0);
-const customerValue = Number(r.conversion_value || 50);
+const customerValue = Number(r.avg_customer_value || 50);
 const revenue = conversions * customerValue;
 
 
