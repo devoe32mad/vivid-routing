@@ -5092,7 +5092,7 @@ ${req.session.user.role === "super_admin" ? `
   <small style="display:block;margin-top:6px;color:#666;">
     Optional. Enter the confirmation or thank-you page customers reach after a purchase, registration, reservation, appointment, form submission, or other successful action.
   </small>
-</div><div><label>Avg Customer Value</label><input name="avg_customer_value" value="35" /></div><div>
+</div><div><label>Revenue Per Conversion ($)</label><input name="avg_customer_value" value="35" /></div><div>
 <label>Start Date</label>
 <input type="date" name="start_date" />
 </div>
