@@ -3099,8 +3099,8 @@ const roi =
 
 <td style="text-align:center;">${maps}</td>
 <td style="text-align:center;">${waze}</td>
-<td style="text-align:center;">${r.conversions || 0}</td>
 <td style="text-align:center;">${intent}</td>
+<td style="text-align:center;">${r.conversions || 0}</td>
 
 <td style="text-align:center;">
   ${money(customerValue)}
@@ -3149,8 +3149,9 @@ const roi =
               <th style="text-align:center;">Offers</th>
 <th style="text-align:center;">Maps</th>
 <th style="text-align:center;">Waze</th>
-<th style="text-align:center;">Conversions</th>
+
 <th style="text-align:center;">Total Intent</th>
+<th style="text-align:center;">Conversions</th>
 <th style="text-align:center;">Customer Value</th>
 <th>Revenue</th>
 <th>Allocated Cost</th>
