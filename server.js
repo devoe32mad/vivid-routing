@@ -3193,7 +3193,21 @@ const reportRows = await q(
       SELECT
         s.name AS location_name,
         s.location,
+(
+  SELECT COUNT(*)
+  FROM events ce
+  JOIN qr_codes qrx ON qrx.id = ce.qr_id
+  WHERE qrx.space_id = s.id
+    AND ce.type = 'conversion'
+) AS conversions,
 
+(
+  SELECT COALESCE(SUM(ce.value), 0)
+  FROM events ce
+  JOIN qr_codes qrx ON qrx.id = ce.qr_id
+  WHERE qrx.space_id = s.id
+    AND ce.type = 'conversion'
+) AS conversion_value,
         COUNT(e.id) FILTER (WHERE e.type='scan') AS scans,
         COUNT(e.id) FILTER (WHERE e.type='offer') AS offers,
         COUNT(e.id) FILTER (WHERE e.type='maps') AS maps,
@@ -3224,7 +3238,21 @@ const reportRows = await q(
       SELECT
         s.name AS location_name,
         s.location,
+(
+  SELECT COUNT(*)
+  FROM events ce
+  JOIN qr_codes qrx ON qrx.id = ce.qr_id
+  WHERE qrx.space_id = s.id
+    AND ce.type = 'conversion'
+) AS conversions,
 
+(
+  SELECT COALESCE(SUM(ce.value), 0)
+  FROM events ce
+  JOIN qr_codes qrx ON qrx.id = ce.qr_id
+  WHERE qrx.space_id = s.id
+    AND ce.type = 'conversion'
+) AS conversion_value,
         COUNT(e.id) FILTER (WHERE e.type='scan') AS scans,
         COUNT(e.id) FILTER (WHERE e.type='offer') AS offers,
         COUNT(e.id) FILTER (WHERE e.type='maps') AS maps,
