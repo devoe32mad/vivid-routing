@@ -834,12 +834,36 @@ async function pickBestStoreForCampaign(campaign) {
   return bestStore ? bestStore.store : null;
 }
 
-async function saveEvent({ qrId, campaignId, storeId = null, type, value = 0 }) {
-  await q(
-    `INSERT INTO events (qr_id, campaign_id, store_id, type, value)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [qrId, campaignId, storeId, type, Number(value || 0)]
+async function saveEvent({
+  qrId,
+  campaignId,
+  storeId = null,
+  type,
+  value = 0,
+  vividClickId = null
+}) {
+  const result = await q(
+    `INSERT INTO events (
+      qr_id,
+      campaign_id,
+      store_id,
+      type,
+      value,
+      vivid_click_id
+    )
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING *`,
+    [
+      qrId,
+      campaignId,
+      storeId,
+      type,
+      Number(value || 0),
+      vividClickId
+    ]
   );
+
+  return result.rows[0];
 }
 
 app.get("/", (req, res) => {
