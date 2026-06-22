@@ -2517,7 +2517,7 @@ SUM(e.value) FILTER (
       WHERE c.user_id = $1
       ${dateSql}
 
-      GROUP BY c.id, c.name, c.advertiser
+      GROUP BY c.id, c.name, c.advertiser, c.avg_customer_value
       ORDER BY scans DESC
     `;
 }
@@ -2528,7 +2528,9 @@ const reportRows = await q(
         ? `
           SELECT
             c.name AS campaign_name,
-            c.advertiser,c.id AS campaign_id,
+            c.advertiser,
+c.avg_customer_value,
+c.id AS campaign_id,
 
             COUNT(*) FILTER (WHERE e.type='scan') AS scans,
 
@@ -2609,6 +2611,7 @@ ${dateSql}
           SELECT
             c.name AS campaign_name,
             c.advertiser,
+c.avg_customer_value,
 CASE
   WHEN COALESCE(c.is_archived,false) THEN 'Archived'
   ELSE 'Active'
