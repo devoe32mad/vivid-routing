@@ -3406,22 +3406,19 @@ const conversionValue =
           <table>
 </div>
             <tr>
-              <th>Location</th>
-              <th>Market</th>
-              <th>Impressions</th>
-              <th>Scans</th>
-              <th>Offers</th>
+          <th>Location</th>
+<th>Market</th>
+<th>Impressions</th>
+<th>Scans</th>
+<th>Offers</th>
 <th>Maps</th>
 <th>Waze</th>
 <th>Total Intent</th>
-              <th>Intent Rate</th>
-              <th>Conversions</th>
-<th>Conversion Value</th>
-              <th>Customers</th>
-              <th>Revenue</th>
-              <th>Placement Cost</th>
-              <th>CPM</th>
-              <th>ROI</th>
+<th>Conversions</th>
+<th>Customer Value</th>
+<th>Revenue</th>
+<th>Allocated Cost</th>
+<th>ROI</th>
             </tr>
 
             ${reportTable || `
