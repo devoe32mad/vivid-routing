@@ -3104,6 +3104,7 @@ const roi =
   ${money(customerValue)}
 </td>
 <td style="text-align:center;">${money(revenue)}</td>
+<td style="text-align:center;">${activeDays}</td>
 <td style="text-align:center;">${money(allocatedCost)}</td>
 <td style="text-align:center;">${roi}%</td>
         </tr>
