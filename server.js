@@ -5029,17 +5029,30 @@ document.addEventListener('DOMContentLoaded', () => {
   const daysDisplay = document.getElementById('campaignDays');
 
   function updateDays() {
-    if (!startInput.value || !endInput.value) {
-      daysDisplay.innerHTML = 'Campaign Days: 0';
-      return;
-    }
+if (!startInput.value || !endInput.value) {
+  daysDisplay.innerHTML = `
+    <div style="font-size:13px;color:#666;">
+      Contract Length
+    </div>
+    <div style="font-size:28px;font-weight:700;color:#0b4f2f;">
+      0 Days
+    </div>
+  `;
+  return;
+}
 
     const start = new Date(startInput.value);
     const end = new Date(endInput.value);
     const days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
-    daysDisplay.innerHTML = 'Campaign Days: ' + Math.max(days, 0);
-  }
+ daysDisplay.innerHTML = `
+  <div style="font-size:13px;color:#666;">
+    Contract Length
+  </div>
+  <div style="font-size:28px;font-weight:700;color:#0b4f2f;">
+    ${Math.max(days, 0)} Days
+  </div>
+`; }
 
   updateDays();
 
