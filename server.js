@@ -3307,7 +3307,7 @@ const conversionValue =
         Math.round(intent * 0.1);
 
       const revenue =
-  conversionValue;
+  conversions * conversionValue;
 
       const cost =
         Number(r.placement_cost || 800);
