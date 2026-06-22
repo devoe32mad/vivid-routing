@@ -592,6 +592,15 @@ await q(`
   ALTER TABLE events
   ADD COLUMN IF NOT EXISTS value NUMERIC DEFAULT 0
 `);
+  await q(`
+  ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS vivid_click_id TEXT
+`);
+
+await q(`
+  ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS converted_at TIMESTAMP
+`);
   await q(`ALTER TABLE spaces ADD COLUMN IF NOT EXISTS annual_impressions INT DEFAULT 146000`);
   await q(`ALTER TABLE spaces ADD COLUMN IF NOT EXISTS placement_cost INT DEFAULT 800`);
   await q(`ALTER TABLE spaces ADD COLUMN IF NOT EXISTS host_payout INT DEFAULT 300`);
