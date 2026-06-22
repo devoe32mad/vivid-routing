@@ -2753,7 +2753,7 @@ const roi =
 
 <td style="text-align:center;">${intent}</td>
 <td style="text-align:center;">${intentRate}%</td>
-<td style="text-align:center;">${estimatedCustomers}</td>
+<td style="text-align:center;">${conversions}</td>
 <td style="text-align:center;">${money(customerValue)}</td>
    <td>${money(revenue)}</td>
 <td>${activeDays}</td>
