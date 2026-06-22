@@ -5083,7 +5083,16 @@ ${req.session.user.role === "super_admin" ? `
 <div>
   <label>Advertiser</label>
   <input name="advertiser" value="Pepsi" />
-</div><div><label>Campaign Name</label><input name="name" value="Low Inventory Store Push" /></div><div><label>Campaign URL</label><input name="campaign_url" value="https://www.pepsi.com" /></div><div><label>Avg Customer Value</label><input name="avg_customer_value" value="35" /></div><div>
+</div><div><label>Campaign Name</label><input name="name" value="Low Inventory Store Push" /></div><div><label>Campaign URL</label><input name="campaign_url" value="https://www.pepsi.com" /></div><div>
+  <label>Conversion Tracking URL</label>
+  <input
+    name="conversion_url"
+    placeholder="https://yourwebsite.com/thank-you"
+  />
+  <small style="display:block;margin-top:6px;color:#666;">
+    Optional. Enter the confirmation or thank-you page customers reach after a purchase, registration, reservation, appointment, form submission, or other successful action.
+  </small>
+</div><div><label>Avg Customer Value</label><input name="avg_customer_value" value="35" /></div><div>
 <label>Start Date</label>
 <input type="date" name="start_date" />
 </div>
