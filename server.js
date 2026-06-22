@@ -5006,8 +5006,21 @@ const assignedQrIds = new Set(assignedQrs.rows.map(r => String(r.qr_id)));
 
 <label>End Date</label>
 <input type="date" name="end_date" value="${c.end_date ? String(c.end_date).substring(0,10) : ""}" />
-<div id="campaignDays" style="font-weight:600;color:#40624f;margin-top:10px;">
-  Campaign Days: 0
+<div
+  id="campaignDays"
+  style="
+    text-align:center;
+    margin-top:15px;
+    padding:10px;
+  "
+>
+  <div style="font-size:13px;color:#666;">
+    Contract Length
+  </div>
+
+  <div style="font-size:28px;font-weight:700;color:#0b4f2f;">
+    0 Days
+  </div>
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
