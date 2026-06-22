@@ -2636,8 +2636,8 @@ COUNT(e.id) FILTER (
 ) AS intent_actions
               
 ,
-0 AS conversions,
-0 AS conversion_value,
+COUNT(e.id) FILTER (WHERE e.type='conversion') AS conversions,
+COALESCE(SUM(e.value) FILTER (WHERE e.type='conversion'), 0) AS conversion_value,
 COALESCE((
   SELECT ROUND(
     SUM(
