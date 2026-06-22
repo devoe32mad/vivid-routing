@@ -5167,6 +5167,7 @@ const userId =
   name,
   advertiser,
   campaign_url,
+  conversion_url,
   avg_customer_value,
   conversion_rate,
   is_deal_of_day,
@@ -5174,11 +5175,12 @@ const userId =
   start_date,
   end_date
 )
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
     `, [
   req.body.name || "",
   req.body.advertiser || "",
   req.body.campaign_url || "",
+      req.body.conversion_url || "",
   Number(req.body.avg_customer_value || 50),
   8,
   req.body.is_deal_of_day === "on",
