@@ -1186,7 +1186,18 @@ app.get("/help", requireLogin, async (req, res) => {
         <li>Track performance and ROI.</li>
         <li>Archive campaigns when complete.</li>
       </ul>
+<h2>
+<a href="/admin/conversion-tracking" style="text-decoration:none;color:inherit;">
+  Conversion Tracking →
+</a>
+</h2>
 
+<ul>
+  <li>Track purchases, registrations, appointments, and form submissions.</li>
+  <li>Automatically attribute conversions to QR Codes and Campaigns.</li>
+  <li>Calculate Customer Value, Revenue, and ROI.</li>
+  <li>Install a single tracking code on your confirmation page.</li>
+</ul>
       <h2>
   <a href="/admin/schedule" style="text-decoration:none;color:inherit;">
     Scheduling →
