@@ -5231,23 +5231,14 @@ ${req.session.user.role === "super_admin" ? `
   <label>Advertiser</label>
   <input name="advertiser" value="Pepsi" />
 </div><div><label>Campaign Name</label><input name="name" value="Low Inventory Store Push" /></div><div><label>Campaign URL</label><input name="campaign_url" value="https://www.pepsi.com" /></div><div>
-  <label>Conversion Tracking URL</label>
-  <input
-    name="conversion_url"
-    placeholder="https://yourwebsite.com/thank-you"
-  />
-<small style="display:block;margin-top:6px;color:#666;">
-  Optional. Enter the confirmation or thank-you page...
-</small>
+  
 
 <div style="margin-top:15px;padding:12px;background:#f8f8f8;border-radius:8px;">
 
-  <strong>Conversion Tracking Code</strong>
+  <strong>Install Conversion Tracking</strong>
 
   <p style="margin-top:8px;font-size:14px;">
-    Copy and paste this code on your thank-you page, confirmation page,
-    checkout success page, or registration success page before the closing
-    &lt;/body&gt; tag.
+Copy and paste this code on your thank-you page, confirmation page, checkout success page, or registration success page before the closing </body> tag.
   </p>
 
   <textarea readonly
