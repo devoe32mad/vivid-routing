@@ -985,21 +985,51 @@ try {
     </div></div>
   `));
 });
-app.get("/conversion/:qrId", async (req, res) => {
+app.get("/conversion", async (req, res) => {
   try {
-    const qrId = Number(req.params.qrId);
-    const campaign = await activeCampaignForQr(qrId);
+    const vividClickId = req.query.vivid_click_id || req.query.click_id;
+    const value = Number(req.query.value || 0);
+
+    if (!vividClickId) {
+      return res.status(400).send("Missing vivid_click_id");
+    }
+
+    const scanResult = await q(`
+      SELECT *
+      FROM events
+      WHERE vivid_click_id = $1
+      AND type = 'scan'
+      LIMIT 1
+    `, [vividClickId]);
+
+    const scan = scanResult.rows[0];
+
+    if (!scan) {
+      return res.status(400).send("Invalid vivid_click_id");
+    }
+
+    if (scan.converted_at) {
+      return res.status(200).send("Conversion already tracked");
+    }
 
     await saveEvent({
-      qrId,
-      campaignId: campaign?.id || campaign?.campaign_id || null,
+      qrId: scan.qr_id,
+      campaignId: scan.campaign_id,
+      storeId: scan.store_id,
       type: "conversion",
-      value: Number(req.query.value || 0)
+      value,
+      vividClickId
     });
 
-    res.status(200).send("Conversion tracked");
+    await q(`
+      UPDATE events
+      SET converted_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `, [scan.id]);
+
+    return res.status(200).send("Conversion tracked");
   } catch (err) {
-    res.status(500).send("CONVERSION TRACKING ERROR: " + err.message);
+    return res.status(500).send("CONVERSION TRACKING ERROR: " + err.message);
   }
 });
 app.get("/click/:type/:qrId", async (req, res) => {
