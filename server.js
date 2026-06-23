@@ -927,7 +927,9 @@ if (importedQr.rows[0]) {
     vividClickId
   });
 
-  return res.redirect(importedQr.rows[0].description);
+  return res.redirect(
+  addVividClickIdToUrl(importedQr.rows[0].description, vividClickId)
+);
 }
   const campaign = await activeCampaignForQr(qrId);
   if (!campaign) return res.status(404).send("No active campaign assigned to this QR.");
