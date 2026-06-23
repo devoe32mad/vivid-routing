@@ -1272,10 +1272,10 @@ app.get("/admin/conversion-tracking", requireLogin, async (req, res) => {
 
       <h2>Reporting →</h2>
       <ul>
-        <li>View Conversions in QR Reports.</li>
-        <li>View Revenue in QR Reports.</li>
-        <li>View Customer Value in QR Reports.</li>
-        <li>View ROI in QR Reports.</li>
+       <li>View Conversions by QR Code.</li>
+<li>View Revenue generated from conversions.</li>
+<li>View Actual Customer Value.</li>
+<li>Measure ROI using real conversion data.</li>
       </ul>
 
       <h2>Example Installation →</h2>
