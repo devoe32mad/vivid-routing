@@ -3184,8 +3184,8 @@ const intent =
       
       const conversions = Number(r.conversions || 0);
 
-const customerValue = Number(r.conversion_value || 50);
-const revenue = conversions * customerValue;
+const revenue = Number(r.conversion_value || 0);
+const customerValue = conversions > 0 ? revenue / conversions : 0;
       
 
 const roi =
