@@ -5258,7 +5258,7 @@ ${req.session.user.role === "super_admin" ? `
   <strong>Install Conversion Tracking</strong>
 
   <p style="margin-top:8px;font-size:14px;">
-Copy and paste this code on your thank-you page, confirmation page, checkout success page, or registration success page before the closing </body> tag.
+Copy and paste this code on your thank-you page, confirmation page, checkout success page, or registration success page before the closing &lt;/body&gt; tag.
   </p>
 
   <textarea readonly
