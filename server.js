@@ -931,7 +931,12 @@ if (importedQr.rows[0]) {
 }
   const campaign = await activeCampaignForQr(qrId);
   if (!campaign) return res.status(404).send("No active campaign assigned to this QR.");
-  await saveEvent({ qrId, campaignId: campaign.id, type: "scan" });
+  await saveEvent({
+  qrId,
+  campaignId: campaign.id,
+  type: "scan",
+  vividClickId
+});
 try {
   const routedStore = await q(`
     SELECT s.*
