@@ -992,7 +992,9 @@ try {
 app.get("/conversion", async (req, res) => {
   try {
     const vividClickId = req.query.vivid_click_id || req.query.click_id;
-    const value = Number(req.query.value || 0);
+    let value = req.query.value !== undefined
+  ? Number(req.query.value || 0)
+  : null;
 
     if (!vividClickId) {
       return res.status(400).send("Missing vivid_click_id");
@@ -1015,7 +1017,16 @@ app.get("/conversion", async (req, res) => {
     if (scan.converted_at) {
       return res.status(200).send("Conversion already tracked");
     }
+if (value === null || value === 0) {
+  const campaignValueResult = await q(`
+    SELECT avg_customer_value
+    FROM campaigns
+    WHERE id = $1
+    LIMIT 1
+  `, [scan.campaign_id]);
 
+  value = Number(campaignValueResult.rows[0]?.avg_customer_value || 0);
+}
     await saveEvent({
       qrId: scan.qr_id,
       campaignId: scan.campaign_id,
