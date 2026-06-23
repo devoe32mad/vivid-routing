@@ -5236,10 +5236,34 @@ ${req.session.user.role === "super_admin" ? `
     name="conversion_url"
     placeholder="https://yourwebsite.com/thank-you"
   />
-  <small style="display:block;margin-top:6px;color:#666;">
-    Optional. Enter the confirmation or thank-you page customers reach after a purchase, registration, reservation, appointment, form submission, or other successful action.
-  </small>
-</div><div><label>Revenue Per Conversion ($)</label><input name="avg_customer_value" value="35" /></div><div>
+<small style="display:block;margin-top:6px;color:#666;">
+  Optional. Enter the confirmation or thank-you page...
+</small>
+
+<div style="margin-top:15px;padding:12px;background:#f8f8f8;border-radius:8px;">
+
+  <strong>Conversion Tracking Code</strong>
+
+  <p style="margin-top:8px;font-size:14px;">
+    Copy and paste this code on your thank-you page, confirmation page,
+    checkout success page, or registration success page before the closing
+    &lt;/body&gt; tag.
+  </p>
+
+  <textarea readonly
+    style="width:100%;height:70px;padding:10px;font-family:monospace;border-radius:6px;">
+<script src="https://vivid-routing-production.up.railway.app/vivid-conversion.js"></script>
+  </textarea>
+
+  <p style="margin-top:8px;font-size:13px;color:#666;">
+    Vivid only records conversions that originate from a valid Vivid QR scan.
+  </p>
+
+</div>
+
+</div>
+
+<div><label>Actual Customer Value ($)</label><input name="avg_customer_value" value="35" /></div><div>
 <label>Start Date</label>
 <input type="date" name="start_date" />
 </div>
