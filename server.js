@@ -1047,6 +1047,27 @@ if (value === null || value === 0) {
     return res.status(500).send("CONVERSION TRACKING ERROR: " + err.message);
   }
 });
+app.get("/vivid-conversion.js", (req, res) => {
+  res.type("application/javascript");
+
+  res.send(`
+(function () {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const clickId = params.get("vivid_click_id");
+
+    if (!clickId) return;
+
+    fetch("${BASE_URL}/conversion?vivid_click_id=" + encodeURIComponent(clickId), {
+      method: "GET",
+      mode: "no-cors"
+    });
+  } catch (err) {
+    console.error("Vivid conversion tracking error", err);
+  }
+})();
+  `);
+});
 app.get("/click/:type/:qrId", async (req, res) => {
   const qrId = Number(req.params.qrId);
   const type = req.params.type;
