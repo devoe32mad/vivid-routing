@@ -1194,9 +1194,9 @@ app.get("/help", requireLogin, async (req, res) => {
 
 <ul>
   <li>Track purchases, registrations, appointments, and form submissions.</li>
-  <li>Automatically attribute conversions to QR Codes and Campaigns.</li>
+  <li>Automatically attribute conversions to the originating QR Code and Campaign.</li>
   <li>Calculate Customer Value, Revenue, and ROI.</li>
-  <li>Install a single tracking code on your confirmation page.</li>
+  <li>Install a single tracking code on your thank-you or confirmation page.</li>
 </ul>
       <h2>
   <a href="/admin/schedule" style="text-decoration:none;color:inherit;">
