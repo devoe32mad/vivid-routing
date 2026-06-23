@@ -920,12 +920,19 @@ AND description LIKE 'http%'
 `, [qrId]);
 
 if (importedQr.rows[0]) {
+  const campaign = await activeCampaignForQr(qrId);
+
   await saveEvent({
     qrId,
-    campaignId: null,
+    campaignId: campaign?.id || campaign?.campaign_id || null,
     type: "scan",
     vividClickId
   });
+
+  return res.redirect(
+    addVividClickIdToUrl(importedQr.rows[0].description, vividClickId)
+  );
+}
 
   return res.redirect(
   addVividClickIdToUrl(importedQr.rows[0].description, vividClickId)
