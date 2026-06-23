@@ -1294,7 +1294,7 @@ app.get("/admin/conversion-tracking", requireLogin, async (req, res) => {
       <h2>Notes →</h2>
       <ul>
         <li>Only valid Vivid QR scans are tracked.</li>
-        <li>Direct visits are ignored.</li>
+        <li>Only visitors originating from a Vivid QR scan are eligible for conversion tracking.</li>
         <li>Revenue is calculated using the Campaign's Actual Customer Value.</li>
         <li>ROI is updated automatically.</li>
         <li>No API setup is required.</li>
