@@ -5127,6 +5127,26 @@ const assignedQrIds = new Set(assignedQrs.rows.map(r => String(r.qr_id)));
 
         <label>Campaign URL</label>
         <input name="campaign_url" value="${c.campaign_url || ""}" />
+        <div style="margin-top:15px;padding:12px;background:#f8f8f8;border-radius:8px;">
+
+  <strong>Install Conversion Tracking</strong>
+
+  <p style="margin-top:8px;font-size:14px;">
+    Copy and paste this code on your thank-you page, confirmation page,
+    checkout success page, or registration success page before the closing tag.
+  </p>
+
+  <textarea readonly
+    style="width:100%;height:70px;padding:10px;font-family:monospace;border-radius:6px;">
+<script src="https://vivid-routing-production.up.railway.app/vivid-conversion.js"></script>
+  </textarea>
+
+  <p style="margin-top:8px;font-size:13px;color:#666;">
+    Vivid automatically attributes conversions back to the originating QR code and campaign.
+    Only conversions from valid Vivid QR scans are recorded.
+  </p>
+
+</div>
 <label>Start Date</label>
 <input type="date" name="start_date" value="${c.start_date ? String(c.start_date).substring(0,10) : ""}" />
 
