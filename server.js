@@ -1236,6 +1236,74 @@ app.get("/help", requireLogin, async (req, res) => {
   `));
 
 });
+app.get("/admin/conversion-tracking", requireLogin, async (req, res) => {
+  res.send(page("Conversion Tracking", `
+    <div class="card">
+
+      <h1>Conversion Tracking</h1>
+
+      <p>
+        Create and manage conversion tracking for campaigns.
+      </p>
+
+      <h2>Install Conversion Tracking →</h2>
+      <ul>
+        <li>Copy the tracking code from Create Campaign or Edit Campaign.</li>
+        <li>Paste the code before the closing &lt;/body&gt; tag on your thank-you or confirmation page.</li>
+        <li>Only one installation is required per website.</li>
+      </ul>
+
+      <h2>Supported Conversion Types →</h2>
+      <ul>
+        <li>Purchases</li>
+        <li>Registrations</li>
+        <li>Appointments</li>
+        <li>Reservations</li>
+        <li>Form Submissions</li>
+      </ul>
+
+      <h2>Attribution →</h2>
+      <ul>
+        <li>Conversions are automatically matched to the originating QR Code.</li>
+        <li>Conversions are automatically matched to the originating Campaign.</li>
+        <li>No API integration is required.</li>
+      </ul>
+
+      <h2>Reporting →</h2>
+      <ul>
+        <li>View Conversions in QR Reports.</li>
+        <li>View Revenue in QR Reports.</li>
+        <li>View Customer Value in QR Reports.</li>
+        <li>View ROI in QR Reports.</li>
+      </ul>
+
+      <h2>Example Installation →</h2>
+
+      <textarea readonly
+        style="width:100%;height:70px;padding:10px;font-family:monospace;border-radius:6px;">
+<script src="https://vivid-routing-production.up.railway.app/vivid-conversion.js"></script>
+      </textarea>
+
+      <p>
+        Paste immediately before:
+      </p>
+
+      <pre style="background:#f8f8f8;padding:12px;border-radius:8px;">&lt;/body&gt;</pre>
+
+      <h2>Notes →</h2>
+      <ul>
+        <li>Only valid Vivid QR scans are tracked.</li>
+        <li>Direct visits are ignored.</li>
+        <li>Revenue is calculated using the Campaign's Actual Customer Value.</li>
+        <li>ROI is updated automatically.</li>
+        <li>No API setup is required.</li>
+      </ul>
+
+      <a class="btn" href="/help">Back to Help Center</a>
+
+    </div>
+  `));
+});
 app.get("/login", (req, res) => {
 
   res.send(page("Login", `
