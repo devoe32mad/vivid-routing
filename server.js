@@ -909,6 +909,7 @@ function addVividClickIdToUrl(destinationUrl, vividClickId) {
 }
 app.get("/r/:qrId", async (req, res) => {
   const qrId = Number(req.params.qrId);
+  const vividClickId = crypto.randomUUID();
   const importedQr = await q(`
   SELECT *
 FROM qr_codes
@@ -923,6 +924,7 @@ if (importedQr.rows[0]) {
     qrId,
     campaignId: null,
     type: "scan"
+    vividClickId
   });
 
   return res.redirect(importedQr.rows[0].description);
