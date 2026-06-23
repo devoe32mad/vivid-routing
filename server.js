@@ -923,7 +923,7 @@ if (importedQr.rows[0]) {
   await saveEvent({
     qrId,
     campaignId: null,
-    type: "scan"
+    type: "scan",
     vividClickId
   });
 
