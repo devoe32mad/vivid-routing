@@ -5260,13 +5260,13 @@ Copy and paste this code on your thank-you page, confirmation page, checkout suc
 </div>
 
 <div>
-<label>End Date</label>
-<input type="date" name="end_date" />
-</div>
+  <label>End Date</label>
+  <input type="date" name="end_date" />
 
-<div id="campaignDays"
-     style="font-weight:600;color:#40624f;margin-top:10px;">
-  Campaign Days: 0
+  <div id="campaignDays"
+    style="font-weight:600;color:#40624f;margin-top:10px;">
+    Campaign Days: 0
+  </div>
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
