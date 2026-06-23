@@ -2922,8 +2922,11 @@ const waze = Number(r.waze || 0);
 
 const intent = offers + maps + waze;
 const conversions = Number(r.conversions || 0);
-const customerValue = Number(r.avg_customer_value || 50);
-const revenue = conversions * customerValue;
+const revenue = Number(r.conversion_value || 0);
+const customerValue =
+  conversions > 0
+    ? revenue / conversions
+    : Number(r.avg_customer_value || 0);
 
 
 
