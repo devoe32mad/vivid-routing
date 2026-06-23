@@ -1248,7 +1248,7 @@ app.get("/admin/conversion-tracking", requireLogin, async (req, res) => {
 
       <h2>Install Conversion Tracking →</h2>
       <ul>
-        <li>Copy the tracking code from Create Campaign or Edit Campaign.</li>
+        <li>Copy the Vivid tracking code from Create Campaign or Edit Campaign.</li>
         <li>Paste the code before the closing &lt;/body&gt; tag on your thank-you or confirmation page.</li>
         <li>Only one installation is required per website.</li>
       </ul>
@@ -1264,9 +1264,10 @@ app.get("/admin/conversion-tracking", requireLogin, async (req, res) => {
 
       <h2>Attribution →</h2>
       <ul>
-        <li>Conversions are automatically matched to the originating QR Code.</li>
-        <li>Conversions are automatically matched to the originating Campaign.</li>
+        <li>Conversions are automatically attributed to the originating QR Code.</li>
+        <li>Conversions are automatically attributed to the originating Campaign.</li>
         <li>No API integration is required.</li>
+        <li>Only conversions originating from a valid Vivid QR scan are recorded.</li>
       </ul>
 
       <h2>Reporting →</h2>
