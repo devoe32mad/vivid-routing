@@ -2451,8 +2451,10 @@ ${hasCampaigns
           </tr>
 ${locationTable || `<tr><td colspan="6">No locations yet.</td></tr>`}        </table>
 
-        <h2>QR Codes</h2>
-        <table>
+       <h2>QR Codes</h2>
+
+<div style="overflow-x:auto;width:100%;">
+<table>
           <tr>
             <th>ID</th>
             <th>Name</th>
@@ -2473,8 +2475,9 @@ ${locationTable || `<tr><td colspan="6">No locations yet.</td></tr>`}        </t
 <th>Download</th>
 <th>Archive</th>
           </tr>
-          ${qrTable || `<tr><td colspan="8">No QR codes yet.</td></tr>`}
-        </table>
+        ${qrTable || '<tr><td colspan="...">No QR Codes yet.</td></tr>'}
+</table>
+</div>
 
         <h2>Campaigns</h2>
         <table>
