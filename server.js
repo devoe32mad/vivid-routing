@@ -5534,7 +5534,7 @@ document.addEventListener('DOMContentLoaded', () => {
     daysDisplay.innerHTML =
       'Campaign Days: ' + Math.max(days, 0);
   }
-
+updateDays();
   startInput.addEventListener('change', updateDays);
   endInput.addEventListener('change', updateDays);
 });
