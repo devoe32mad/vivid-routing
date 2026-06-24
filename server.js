@@ -2625,7 +2625,7 @@ LIMIT 1
         <p><b>Advertiser:</b> ${qr.advertiser || ""}</p>
         <p><b>Type:</b> ${qr.is_imported ? "Imported" : "Native"}</p>
         <p><b>Market:</b> ${qr.market || ""}</p>
-        <p><b>Location:</b> ${qr.location_name || qr.space_name || "Not set"}</p>
+        <p><b>Location:</b> ${qr.display_location || qr.location_name || qr.space_name || "Not set"}</p>
         <p><b>Live Date:</b> ${qr.live_date || "Not set"}</p>
         <p><b>Annual Impressions:</b> ${qr.annual_impressions || 0}</p>
         <p><b>Annual Cost:</b> $${qr.annual_cost || 0}</p>
