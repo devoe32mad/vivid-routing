@@ -2163,15 +2163,17 @@ qrs.rows.find(q =>
 )}</td>
 <td>${c.end_date ? dateLabel(c.end_date) : "No End Date"}</td>
 <td>${
-  ${daysActive(
-  c.start_date || relationships.rows
-    .filter(r => String(r.campaign_id) === String(c.id))
-    .map(r => r.created_at)
-    .filter(Boolean)
-    .sort()[0] || c.created_at,
-  c.end_date || c.archived_at
-)}
-</td>
+  daysActive(
+    c.start_date || (
+      relationships.rows
+        .filter(r => String(r.campaign_id) === String(c.id))
+        .map(r => r.created_at)
+        .filter(Boolean)
+        .sort()[0] || c.created_at
+    ),
+    c.end_date || c.archived_at
+  )
+}</td>
 
  <td>
   <a href="/admin/view-campaign/${c.id}">
