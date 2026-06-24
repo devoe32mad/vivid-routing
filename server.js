@@ -2592,16 +2592,11 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
 app.get("/admin/view-qr/:id", requireLogin, async (req, res) => {
   const id = Number(req.params.id);
 
-  const result = await q(
-    `
-    SELECT *
-    FROM qr_codes
-    WHERE id = $1
-      AND user_id = $2
-    LIMIT 1
-    `,
-    [id, req.session.user.id]
-  );
+const result = await q(`
+  SELECT *
+  FROM qr_codes
+  WHERE id = $1
+`, [id]);
 
   const qr = result.rows[0];
 
