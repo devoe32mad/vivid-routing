@@ -5142,9 +5142,14 @@ campaign_url = $3,
  conversion_url = $4,
  avg_customer_value = $5,
  conversion_rate = 8,
- start_date = $6,
- end_date = $7
- WHERE id = $8
+start_date = $6,
+end_date = $7,
+days = CASE
+  WHEN $6::date IS NOT NULL AND $7::date IS NOT NULL
+  THEN ($7::date - $6::date + 1)
+  ELSE days
+END
+WHERE id = $8
 RETURNING id
         `
         : `
