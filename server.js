@@ -2031,6 +2031,7 @@ const hasSchedules = activeScheduleCount > 0;
 }</td>
 
 <td>${
+[...new Set(
   relationships.rows
     .filter(r => String(r.location_id) === String(s.id))
     .map(r => {
@@ -2040,7 +2041,7 @@ const hasSchedules = activeScheduleCount > 0;
       return campaign ? campaign.name : "";
     })
     .filter(Boolean)
-    .join(", ")
+)].join(", ")
 }</td>
 <td>${dateLabel(s.live_date || s.created_at)}</td>
 <td>${daysActive(s.created_at)}</td>
