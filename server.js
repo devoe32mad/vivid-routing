@@ -2600,7 +2600,7 @@ app.get("/admin/view-qr/:id", requireLogin, async (req, res) => {
 const result = await q(`
 SELECT
   qr.*,
-  COALESCE(s.name, qr.location, qr.space_name, '') AS display_location
+  COALESCE(s.name, '') AS display_location
 FROM qr_codes qr
 LEFT JOIN spaces s
   ON s.id = qr.space_id
@@ -2623,7 +2623,7 @@ LIMIT 1
         <p><b>Advertiser:</b> ${qr.advertiser || ""}</p>
         <p><b>Type:</b> ${qr.is_imported ? "Imported" : "Native"}</p>
         <p><b>Market:</b> ${qr.market || ""}</p>
-        <p><b>Location:</b> ${qr.display_location || qr.location || qr.space_name || "Not set"}</p>
+<p><b>Location:</b> ${qr.display_location || qr.space_name || "Not set"}</p>
         <p><b>Live Date:</b> ${qr.live_date || "Not set"}</p>
         <p><b>Annual Impressions:</b> ${qr.annual_impressions || 0}</p>
         <p><b>Annual Cost:</b> $${qr.annual_cost || 0}</p>
