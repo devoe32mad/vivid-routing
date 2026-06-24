@@ -5244,6 +5244,12 @@ const assignedQrIds = new Set(assignedQrs.rows.map(r => String(r.qr_id)));
 
         <label>Campaign URL</label>
         <input name="campaign_url" value="${c.campaign_url || ""}" />
+        <label>Conversion Page URL</label>
+<input name="conversion_url" value="${c.conversion_url || ""}" placeholder="https://yourwebsite.com/thank-you" />
+
+<div style="font-size:13px;color:#666;margin-top:4px;">
+  Vivid records a conversion only when a visitor from a valid Vivid QR scan reaches this page.
+</div>
         <div style="margin-top:15px;padding:12px;background:#f8f8f8;border-radius:8px;">
 
   <strong>Install Conversion Tracking</strong>
