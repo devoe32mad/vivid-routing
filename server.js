@@ -2587,6 +2587,48 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
     res.send("MY SETUP ERROR: " + err.message);
   }
 });
+app.get("/admin/view-campaign/:id", requireLogin, async (req, res) => {
+  const id = Number(req.params.id);
+
+  const result = await q(
+    `
+    SELECT *
+    FROM campaigns
+    WHERE id = $1
+      AND user_id = $2
+    LIMIT 1
+    `,
+    [id, req.session.user.id]
+  );
+
+  const c = result.rows[0];
+
+  if (!c) {
+    return res.status(404).send("Campaign not found");
+  }
+
+  res.send(page("View Campaign", `
+    <div class="wrap">
+      <h1>View Campaign</h1>
+
+      <div class="card">
+        <p><b>Advertiser:</b> ${c.advertiser || ""}</p>
+        <p><b>Campaign Name:</b> ${c.name || ""}</p>
+        <p><b>Campaign URL:</b> ${c.campaign_url || ""}</p>
+        <p><b>Conversion Page URL:</b> ${c.conversion_url || "Not set"}</p>
+        <p><b>Actual Customer Value:</b> $${c.avg_customer_value || 0}</p>
+        <p><b>Start Date:</b> ${c.start_date || "Not set"}</p>
+        <p><b>End Date:</b> ${c.end_date || "Not set"}</p>
+        <p><b>Status:</b> ${c.is_active === false ? "Archived" : "Active"}</p>
+
+        <br>
+
+        <a class="btn" href="/admin/edit-campaign/${c.id}">Edit Campaign</a>
+        <a class="btn" href="/admin/setup">Back to My Setup</a>
+      </div>
+    </div>
+  `));
+});
 app.get("/reports", requireLogin, async (req, res) => {
   try {
 
