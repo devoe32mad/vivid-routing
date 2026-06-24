@@ -1057,7 +1057,7 @@ if (
 
 value = Number(campaign.avg_customer_value || 0);
   
-}
+
     await saveEvent({
       qrId: scan.qr_id,
       campaignId: scan.campaign_id,
