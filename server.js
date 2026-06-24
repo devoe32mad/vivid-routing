@@ -992,6 +992,7 @@ try {
 app.get("/conversion", async (req, res) => {
   try {
     const vividClickId = req.query.vivid_click_id || req.query.click_id;
+    const pageUrl = req.query.page_url || "";
     let value = req.query.value !== undefined
   ? Number(req.query.value || 0)
   : null;
@@ -1017,14 +1018,44 @@ app.get("/conversion", async (req, res) => {
     if (scan.converted_at) {
       return res.status(200).send("Conversion already tracked");
     }
-if (value === null || value === 0) {
-  const campaignValueResult = await q(`
-    SELECT avg_customer_value
-    FROM campaigns
-    WHERE id = $1
-    LIMIT 1
-  `, [scan.campaign_id]);
+const campaignValueResult = await q(
+  `
+  SELECT avg_customer_value, conversion_url
+  FROM campaigns
+  WHERE id = $1
+  LIMIT 1
+  `,
+  [scan.campaign_id]
+);
 
+const campaign = campaignValueResult.rows[0];
+
+if (!campaign) {
+  return res.status(400).send("Campaign not found");
+}
+
+if (!campaign.conversion_url) {
+  return res.status(400).send("Missing conversion URL");
+}
+
+if (!pageUrl) {
+  return res.status(400).send("Missing page URL");
+}
+
+const expectedUrl = new URL(campaign.conversion_url);
+const actualUrl = new URL(pageUrl);
+
+const expectedPath = expectedUrl.pathname.replace(/\/$/, "");
+const actualPath = actualUrl.pathname.replace(/\/$/, "");
+
+if (
+  expectedUrl.hostname !== actualUrl.hostname ||
+  expectedPath !== actualPath
+) {
+  return res.status(200).send("Not conversion page");
+}
+
+value = Number(campaign.avg_customer_value || 0);
   value = Number(campaignValueResult.rows[0]?.avg_customer_value || 0);
 }
     await saveEvent({
