@@ -5148,17 +5148,18 @@ campaign_url = $3,
 RETURNING id
         `
         : `
-    UPDATE campaigns
+ UPDATE campaigns
 SET
   advertiser = $1,
   name = $2,
   campaign_url = $3,
-  avg_customer_value = $4,
+  conversion_url = $4,
+  avg_customer_value = $5,
   conversion_rate = 8,
-  start_date = $5,
-  end_date = $6
-WHERE id = $7
-AND user_id = $8
+  start_date = $6,
+  end_date = $7
+WHERE id = $8
+AND user_id = $9
 RETURNING id
         `,
       isSuperAdmin
