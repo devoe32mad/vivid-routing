@@ -2601,7 +2601,7 @@ const result = await q(`
 SELECT
   qr.*,
  COALESCE(s.name, '') AS display_location,
-COALESCE(s.market, '') AS display_market
+COALESCE(s.location, '') AS display_market
 FROM qr_codes qr
 LEFT JOIN spaces s
   ON s.id = qr.space_id
@@ -2623,7 +2623,7 @@ LIMIT 1
         <p><b>Name:</b> ${qr.name || ""}</p>
         <p><b>Advertiser:</b> ${qr.advertiser || ""}</p>
         <p><b>Type:</b> ${qr.is_imported ? "Imported" : "Native"}</p>
-        <p><b>Market:</b> ${qr.display_market || qr.market || "Not set"}</p>
+        <p><b>Market:</b> ${qr.market_name || "Not set"}</p>
 <p><b>Location:</b> ${qr.display_location || qr.space_name || "Not set"}</p>
         <p><b>Live Date:</b> ${qr.live_date || "Not set"}</p>
         <p><b>Annual Impressions:</b> ${qr.annual_impressions || 0}</p>
