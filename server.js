@@ -2600,12 +2600,10 @@ app.get("/admin/view-qr/:id", requireLogin, async (req, res) => {
 const result = await q(`
 SELECT
   qr.*,
-  COALESCE(l.name, qr.location, qr.location_name, '') AS display_location
+  COALESCE(s.name, qr.location_name, qr.space_name, '') AS display_location
 FROM qr_codes qr
-LEFT JOIN qr_campaigns qc
-  ON qc.qr_id = qr.id
-LEFT JOIN locations l
-  ON l.id = qc.location_id
+LEFT JOIN spaces s
+  ON s.id = qr.space_id
 WHERE qr.id = $1
 LIMIT 1
 `, [id]);
