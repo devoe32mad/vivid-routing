@@ -5136,15 +5136,15 @@ app.post("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
         ? `
        UPDATE campaigns
 SET
-  5139 advertiser = $1,
-5140 name = $2,
-5141 campaign_url = $3,
-5142 conversion_url = $4,
-5143 avg_customer_value = $5,
-5144 conversion_rate = 8,
-5145 start_date = $6,
-5146 end_date = $7
-5147 WHERE id = $8
+advertiser = $1,
+name = $2,
+campaign_url = $3,
+ conversion_url = $4,
+ avg_customer_value = $5,
+ conversion_rate = 8,
+ start_date = $6,
+ end_date = $7
+ WHERE id = $8
 RETURNING id
         `
         : `
@@ -5163,24 +5163,24 @@ RETURNING id
         `,
       isSuperAdmin
         ?[
-  5165 req.body.advertiser || "",
-5166 req.body.name || "",
-5167 req.body.campaign_url || "",
-5168 req.body.conversion_url || "",
-5169 Number(req.body.avg_customer_value || 50),
-5170 req.body.start_date || null,
-5171 req.body.end_date || null,
-5172 req.params.campaignId
+   req.body.advertiser || "",
+req.body.name || "",
+req.body.campaign_url || "",
+ req.body.conversion_url || "",
+Number(req.body.avg_customer_value || 50),
+req.body.start_date || null,
+ req.body.end_date || null,
+req.params.campaignId
 ]
         : [
-  5165 req.body.advertiser || "",
-5166 req.body.name || "",
-5167 req.body.campaign_url || "",
-5168 req.body.conversion_url || "",
-5169 Number(req.body.avg_customer_value || 50),
-5170 req.body.start_date || null,
-5171 req.body.end_date || null,
-5172 req.params.campaignId,
+  req.body.advertiser || "",
+req.body.name || "",
+ req.body.campaign_url || "",
+req.body.conversion_url || "",
+Number(req.body.avg_customer_value || 50),
+req.body.start_date || null,
+ req.body.end_date || null,
+req.params.campaignId,
   currentUser.id
 ]
 
