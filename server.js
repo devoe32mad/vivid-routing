@@ -5403,8 +5403,6 @@ if (!startInput.value || !endInput.value) {
     '<div style="font-size:28px;font-weight:700;color:#0b4f2f;">0 Days</div>';
   return;
 }
-  return;
-}
 
     const start = new Date(startInput.value);
     const end = new Date(endInput.value);
