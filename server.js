@@ -3086,6 +3086,10 @@ const roi =
 
       </div>
     `));
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
 
   } catch (err) {
     res.send("REPORT ERROR: " + err.message);
