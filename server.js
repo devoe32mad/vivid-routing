@@ -1054,14 +1054,25 @@ app.get("/vivid-conversion.js", (req, res) => {
 (function () {
   try {
     const params = new URLSearchParams(window.location.search);
-    const clickId = params.get("vivid_click_id");
+    const clickIdFromUrl = params.get("vivid_click_id");
 
+    if (clickIdFromUrl) {
+      localStorage.setItem("vivid_click_id", clickIdFromUrl);
+    }
+
+    const clickId = localStorage.getItem("vivid_click_id");
     if (!clickId) return;
 
-    fetch("${BASE_URL}/conversion?vivid_click_id=" + encodeURIComponent(clickId), {
-      method: "GET",
-      mode: "no-cors"
-    });
+    const pageUrl = window.location.href;
+
+    fetch("${BASE_URL}/conversion?vivid_click_id=" +
+      encodeURIComponent(clickId) +
+      "&page_url=" +
+      encodeURIComponent(pageUrl), {
+        method: "GET",
+        mode: "no-cors"
+      }
+    );
   } catch (err) {
     console.error("Vivid conversion tracking error", err);
   }
