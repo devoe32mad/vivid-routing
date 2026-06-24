@@ -2064,6 +2064,7 @@ const hasSchedules = activeScheduleCount > 0;
           <td>${qr.id}</td>
 <td>${qr.name || ""}</td>
 <td>${
+[...new Set(
   relationships.rows
     .filter(r => String(r.qr_id) === String(qr.id))
     .map(r => {
@@ -2071,7 +2072,7 @@ const hasSchedules = activeScheduleCount > 0;
       return campaign ? campaign.advertiser : "";
     })
     .filter(Boolean)
-    .join(", ")
+)].join(", ")
 }</td>
 <td>
 ${qr.is_imported ? "Imported" : "Native"}
@@ -2079,6 +2080,7 @@ ${qr.is_imported ? "Imported" : "Native"}
 <td>${qr.location || ""}</td>
           <td>${qr.location_name || ""}</td>
           <td>${
+[...new Set(
   relationships.rows
     .filter(r => String(r.qr_id) === String(qr.id))
     .map(r => {
@@ -2088,7 +2090,7 @@ ${qr.is_imported ? "Imported" : "Native"}
       return campaign ? campaign.name : "";
     })
     .filter(Boolean)
-    .join(", ")
+)].join(", ")
 }</td>
 <td>${dateLabel(qr.live_date || qr.created_at)}</td>
           <td>${daysActive(qr.created_at)}</td>
