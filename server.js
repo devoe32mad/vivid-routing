@@ -2171,7 +2171,11 @@ qrs.rows.find(q =>
   )
 }</td>
 
-     <td>
+ <td>
+  <a href="/admin/view-campaign/${c.id}">
+    View
+  </a>
+  &nbsp;|&nbsp;
   <a href="/admin/edit-campaign/${c.id}">
     Edit
   </a>
