@@ -5501,12 +5501,12 @@ Copy and paste this code on your thank-you page, confirmation page, checkout suc
 
 <div><label>Actual Customer Value ($)</label><input name="avg_customer_value" value="35" /></div><div>
 <label>Start Date</label>
-<input type="date" name="start_date" />
+<input type="date" name="start_date" value="${dateInput(c.start_date)}" />
 </div>
 
 <div>
   <label>End Date</label>
-  <input type="date" name="end_date" />
+  <input type="date" name="end_date" value="${dateInput(c.end_date)}" />
 
   <div id="campaignDays"
     style="font-weight:600;color:#40624f;margin-top:10px;">
