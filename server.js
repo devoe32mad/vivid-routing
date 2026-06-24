@@ -2096,6 +2096,8 @@ ${qr.is_imported ? "Imported" : "Native"}
 <td>${money(qr.annual_cost || 0)}</td>
           <td><a href="/r/${qr.id}" target="_blank">Open</a></td>
           <td>
+  <a href="/admin/view-qr/${qr.id}">View</a>
+&nbsp;|&nbsp;
   <a href="/admin/edit-qr/${qr.id}">
     Edit
   </a>
@@ -2586,6 +2588,49 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
   } catch (err) {
     res.send("MY SETUP ERROR: " + err.message);
   }
+});
+app.get("/admin/view-qr/:id", requireLogin, async (req, res) => {
+  const id = Number(req.params.id);
+
+  const result = await q(
+    `
+    SELECT *
+    FROM qr_codes
+    WHERE id = $1
+      AND user_id = $2
+    LIMIT 1
+    `,
+    [id, req.session.user.id]
+  );
+
+  const qr = result.rows[0];
+
+  if (!qr) {
+    return res.status(404).send("QR Code not found");
+  }
+
+  res.send(page("View QR Code", `
+    <div class="wrap">
+      <h1>View QR Code</h1>
+
+      <div class="card">
+        <p><b>Name:</b> ${qr.name || ""}</p>
+        <p><b>Advertiser:</b> ${qr.advertiser || ""}</p>
+        <p><b>Type:</b> ${qr.is_imported ? "Imported" : "Native"}</p>
+        <p><b>Market:</b> ${qr.market || ""}</p>
+        <p><b>Location:</b> ${qr.location_name || qr.space_name || "Not set"}</p>
+        <p><b>Live Date:</b> ${qr.live_date || "Not set"}</p>
+        <p><b>Annual Impressions:</b> ${qr.annual_impressions || 0}</p>
+        <p><b>Annual Cost:</b> $${qr.annual_cost || 0}</p>
+        <p><b>Status:</b> ${qr.is_archived ? "Archived" : "Active"}</p>
+
+        <br>
+
+        <a class="btn" href="/admin/edit-qr/${qr.id}">Edit QR Code</a>
+        <a class="btn" href="/admin/setup">Back to My Setup</a>
+      </div>
+    </div>
+  `));
 });
 app.get("/admin/view-campaign/:id", requireLogin, async (req, res) => {
   const id = Number(req.params.id);
