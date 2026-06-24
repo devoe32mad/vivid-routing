@@ -5336,7 +5336,12 @@ ${req.session.user.role === "super_admin" ? `
 <div>
   <label>Advertiser</label>
   <input name="advertiser" value="Pepsi" />
-</div><div><label>Campaign Name</label><input name="name" value="Low Inventory Store Push" /></div><div><label>Campaign URL</label><input name="campaign_url" value="https://www.pepsi.com" /></div><div>
+</div><div><label>Campaign Name</label><input name="name" value="Low Inventory Store Push" /></div><div><label>Campaign URL</label><input name="campaign_url" value="https://www.pepsi.com" /><label>Conversion Page URL</label>
+<input name="conversion_url" value="${c.conversion_url || ''}" placeholder="https://yourwebsite.com/thank-you" />
+
+<div style="font-size:13px;color:#666;margin-top:4px;">
+  Vivid records a conversion only when a visitor from a valid Vivid QR scan reaches this page.
+</div></div><div>
   
 
 <div style="margin-top:15px;padding:12px;background:#f8f8f8;border-radius:8px;">
