@@ -2047,7 +2047,11 @@ const hasSchedules = activeScheduleCount > 0;
 <td>${daysActive(s.created_at)}</td>
 
 
-          <td><a href="/admin/edit-location/${s.id}">Edit</a></td>
+          <td>
+  <a href="/admin/view-location/${s.id}">View</a>
+  &nbsp;|&nbsp;
+  <a href="/admin/edit-location/${s.id}">Edit</a>
+</td>
 
 <td>
   <a href="/admin/archive-location/${s.id}">
