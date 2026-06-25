@@ -3420,6 +3420,7 @@ COALESCE((
   LEFT JOIN spaces s2 ON s2.id = qr2.space_id
   WHERE qc2.qr_id = qr.id
     AND COALESCE(qc2.is_active,true) = true
+AND qc2.campaign_id = c.id
 ), 0) AS allocated_cost
 
   
