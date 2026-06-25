@@ -2610,7 +2610,7 @@ LIMIT 1
 `, [id]);
 
   const qr = result.rows[0];
-
+console.log("VIEW QR DATA:", qr);
   if (!qr) {
     return res.status(404).send("QR Code not found");
   }
