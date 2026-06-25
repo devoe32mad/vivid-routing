@@ -2598,6 +2598,40 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
     res.send("MY SETUP ERROR: " + err.message);
   }
 });
+app.get("/admin/view-location/:id", requireLogin, async (req, res) => {
+  const id = Number(req.params.id);
+
+  const result = await q(`
+    SELECT *
+    FROM spaces
+    WHERE id = $1
+    LIMIT 1
+  `, [id]);
+
+  const s = result.rows[0];
+
+  if (!s) {
+    return res.status(404).send("Location not found");
+  }
+
+  res.send(page("View Location", `
+    <div class="wrap">
+      <h1>View Location</h1>
+
+      <div class="card">
+        <p><b>Name:</b> ${s.name || ""}</p>
+        <p><b>Market:</b> ${s.location || ""}</p>
+        <p><b>Live Date:</b> ${s.live_date || "Not set"}</p>
+        <p><b>Status:</b> ${s.is_archived ? "Archived" : "Active"}</p>
+
+        <br>
+
+        <a class="btn" href="/admin/edit-location/${s.id}">Edit Location</a>
+        <a class="btn" href="/admin/setup">Back to My Setup</a>
+      </div>
+    </div>
+  `));
+});
 app.get("/admin/view-qr/:id", requireLogin, async (req, res) => {
   const id = Number(req.params.id);
 
