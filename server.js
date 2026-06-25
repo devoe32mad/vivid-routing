@@ -2495,8 +2495,7 @@ ${hasCampaigns
 </th>
           
         
-            <th>Edit</th>
-            <th>Archive</th>
+            <th>Action</th>
           </tr>
 ${locationTable || `<tr><td colspan="6">No locations yet.</td></tr>`}        </table>
 
