@@ -5901,7 +5901,7 @@ app.get("/admin/view-schedule/:id", requireLogin, async (req, res) => {
         <p><b>QR Code:</b> ${s.qr_name || s.qr_id || "Not set"}</p>
         <p><b>Advertiser:</b> ${s.advertiser_name || "Not set"}</p>
         <p><b>Campaign:</b> ${s.campaign_name || s.campaign_id || "Not set"}</p>
-        <p><b>Day:</b> ${s.day || "Not set"}</p>
+       <p><b>Day:</b> ${dayLabels(s.days_of_week) || "Every Day"}</p>
         <p><b>Start:</b> ${s.start_time || "Not set"}</p>
         <p><b>End:</b> ${s.end_time || "Not set"}</p>
         <p><b>Priority:</b> ${s.priority || "Not set"}</p>
