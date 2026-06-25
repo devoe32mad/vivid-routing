@@ -2199,19 +2199,6 @@ qrs.rows.find(q =>
   }
 </td>
 
-
-
-<td>
-  <a href="/admin/archive-campaign/${c.id}"
-     onclick="return confirm('Archive this campaign?')"
-     style="color:red;">
-     Archive
-  </a>
-</td>
-
-
-
-
         </tr>
       `;
     }
