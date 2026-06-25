@@ -2097,21 +2097,22 @@ ${qr.is_imported ? "Imported" : "Native"}
           <td>${daysActive(qr.created_at)}</td>
           <td>${Number(qr.annual_impressions || 0).toLocaleString()}</td>
 <td>${money(qr.annual_cost || 0)}</td>
-          <td><a href="/r/${qr.id}" target="_blank">Open</a></td>
-          <td>
+  <td>
+  <a href="/r/${qr.id}" target="_blank">Open</a>
+  &nbsp;|&nbsp;
   <a href="/admin/view-qr/${qr.id}">View</a>
-&nbsp;|&nbsp;
-  <a href="/admin/edit-qr/${qr.id}">
-    Edit
-  </a>
-</td>
-          <td><a href="/qr/${qr.id}.png" target="_blank">Download</a></td>
-<td>
+  &nbsp;|&nbsp;
+  <a href="/admin/edit-qr/${qr.id}">Edit</a>
+  &nbsp;|&nbsp;
   <a href="/admin/archive-qr/${qr.id}"
      onclick="return confirm('Archive this QR code?')"
      style="color:red;">
      Archive
   </a>
+</td>
+
+<td>
+  <a href="/qr/${qr.id}.png" target="_blank">Download</a>
 </td>
 </tr>
         
