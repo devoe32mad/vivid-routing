@@ -6232,13 +6232,17 @@ if (scheduleForm) {
 </td>
  
 <td>
-  <a href="/admin/edit-schedule/${s.id}">
-    Edit
-  </a>
+<a href="/admin/view-schedule/${s.id}">
+  View
+</a>
 &nbsp;|&nbsp;
-  <a href="/admin/deactivate-schedule/${s.id}">
-    ARCHIVE
-  </a>
+<a href="/admin/edit-schedule/${s.id}">
+  Edit
+</a>
+&nbsp;|&nbsp;
+<a href="/admin/deactivate-schedule/${s.id}">
+  Archive
+</a>
 </td></tr>`).join("")}</table></div>`));
 });
 
