@@ -2280,9 +2280,7 @@ ${a.is_active
 : '<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Inactive</span>'
 }
 </td>
-  <td>
-  <a href="/admin/view-assignment/${a.id}">View</a>
-  &nbsp;|&nbsp;
+<td>
   <a href="/admin/archive-assignment/${a.id}">Archive</a>
 </td>
   </tr>
