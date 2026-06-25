@@ -2623,7 +2623,7 @@ console.log("VIEW QR DATA:", qr);
         <p><b>Name:</b> ${qr.name || ""}</p>
         <p><b>Advertiser:</b> ${qr.advertiser || ""}</p>
         <p><b>Type:</b> ${qr.is_imported ? "Imported" : "Native"}</p>
-        <p><b>Market:</b> ${qr.market_name || "Not set"}</p>
+        <p><b>Market:</b> ${qr.display_market || "Not set"}</p>
 <p><b>Location:</b> ${qr.display_location || qr.space_name || "Not set"}</p>
         <p><b>Live Date:</b> ${qr.live_date || "Not set"}</p>
         <p><b>Annual Impressions:</b> ${qr.annual_impressions || 0}</p>
