@@ -2514,8 +2514,7 @@ ${locationTable || `<tr><td colspan="6">No locations yet.</td></tr>`}        </t
 </th>
 <th>Annual Impressions</th>
 <th>Annual Cost</th>
-            <th>Open</th>
-<th>Edit</th>
+            <th>Action</th>
 <th>Download</th>
 <th>Archive</th>
           </tr>
