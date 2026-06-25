@@ -2527,9 +2527,8 @@ ${locationTable || `<tr><td colspan="6">No locations yet.</td></tr>`}        </t
 Days in Market
   <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
 </th>
-<th>Edit</th>
+<th>Action</th>
 <th>Status</th>
-<th>Archive</th>
 </tr>
 ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
         </table>
