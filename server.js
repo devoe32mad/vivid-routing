@@ -2113,9 +2113,7 @@ ${qr.is_imported ? "Imported" : "Native"}
   <a href="/qr/${qr.id}.png" target="_blank">Download</a>
 </td>
 
-<td>
-  <a href="/qr/${qr.id}.png" target="_blank">Download</a>
-</td>
+
 </tr>
         
       `;
