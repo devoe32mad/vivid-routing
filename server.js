@@ -1118,7 +1118,12 @@ console.log("CLICK EVENT:", {
 });
 
 await saveEvent({ qrId, campaignId: campaign.id, storeId: store ? store.id : null, type });
-  if (type === "offer") return res.redirect(campaign.campaign_url || "/");
+ if (type === "offer") {
+  const vividClickId = req.query.vivid_click_id || req.query.click_id;
+  return res.redirect(
+    addVividClickIdToUrl(campaign.campaign_url || "/", vividClickId)
+  );
+}
 if (type === "maps") {
   const searchTerm = campaign.advertiser || campaign.name || "store";
 
