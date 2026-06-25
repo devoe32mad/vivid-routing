@@ -2529,6 +2529,7 @@ Days in Market
 </th>
 <th>Action</th>
 <th>Status</th>
+
 </tr>
 ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
         </table>
