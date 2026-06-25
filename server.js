@@ -5863,6 +5863,52 @@ app.post("/admin/bulk-schedule", requireLogin, async (req, res) => {
     res.send("BULK SCHEDULE ERROR: " + err.message);
   }
 });
+app.get("/admin/view-schedule/:id", requireLogin, async (req, res) => {
+  const id = Number(req.params.id);
+
+  const result = await q(`
+    SELECT
+      cs.*,
+      c.name AS campaign_name,
+      c.advertiser AS advertiser_name,
+      qr.name AS qr_name
+    FROM campaign_schedules cs
+    LEFT JOIN campaigns c
+      ON c.id = cs.campaign_id
+    LEFT JOIN qr_codes qr
+      ON qr.id = cs.qr_id
+    WHERE cs.id = $1
+    LIMIT 1
+  `, [id]);
+
+  const s = result.rows[0];
+
+  if (!s) {
+    return res.status(404).send("Schedule not found");
+  }
+
+  res.send(page("View Schedule", `
+    <div class="wrap">
+      <h1>View Schedule</h1>
+
+      <div class="card">
+        <p><b>QR Code:</b> ${s.qr_name || s.qr_id || "Not set"}</p>
+        <p><b>Advertiser:</b> ${s.advertiser_name || "Not set"}</p>
+        <p><b>Campaign:</b> ${s.campaign_name || s.campaign_id || "Not set"}</p>
+        <p><b>Day:</b> ${s.day || "Not set"}</p>
+        <p><b>Start:</b> ${s.start_time || "Not set"}</p>
+        <p><b>End:</b> ${s.end_time || "Not set"}</p>
+        <p><b>Priority:</b> ${s.priority || "Not set"}</p>
+        <p><b>Status:</b> ${s.is_active ? "Active" : "Inactive"}</p>
+
+        <br>
+
+        <a class="btn" href="/admin/edit-schedule/${s.id}">Edit Schedule</a>
+        <a class="btn" href="/admin/setup">Back to My Setup</a>
+      </div>
+    </div>
+  `));
+});
 app.get("/admin/edit-schedule/:id", requireLogin, async (req, res) => {
   const schedule = await q(
     `SELECT * FROM campaign_schedules WHERE id = $1`,
