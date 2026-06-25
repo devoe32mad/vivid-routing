@@ -982,9 +982,9 @@ try {
       ${campaign.is_deal_of_day ? `<span class="deal">🔥 Deal of the Day</span>` : `<span class="pill">Smart Campaign</span>`}
       <h1>${campaign.name || "Campaign"}</h1>
       <p><b>QR:</b> ${campaign.qr_name || qrId}<br><b>Location:</b> ${campaign.space_name || ""}</p>
-      <a class="choice-btn" href="/click/offer/${qrId}">View Offer</a>
-      <a class="choice-btn dark" href="/click/maps/${qrId}">Find Store on Google Maps</a>
-      <a class="choice-btn dark" href="/click/waze/${qrId}">Open in Waze</a>
+      <a class="choice-btn" href="/click/offer/${qrId}?vivid_click_id=${encodeURIComponent(vividClickId)}">View Offer</a>
+  <a class="choice-btn dark" href="/click/maps/${qrId}?vivid_click_id=${encodeURIComponent(vividClickId)}">Find Store on Google Maps</a>
+     <a class="choice-btn dark" href="/click/waze/${qrId}?vivid_click_id=${encodeURIComponent(vividClickId)}">Open in Waze</a>
       <p class="small">Vivid routes traffic based on campaign, performance, schedule, and inventory priority.</p>
     </div></div>
   `));
