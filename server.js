@@ -2179,13 +2179,15 @@ qrs.rows.find(q =>
   )
 }</td>
 
- <td>
-  <a href="/admin/view-campaign/${c.id}">
-    View
-  </a>
+<td>
+  <a href="/admin/view-campaign/${c.id}">View</a>
   &nbsp;|&nbsp;
-  <a href="/admin/edit-campaign/${c.id}">
-    Edit
+  <a href="/admin/edit-campaign/${c.id}">Edit</a>
+  &nbsp;|&nbsp;
+  <a href="/admin/archive-campaign/${c.id}"
+     onclick="return confirm('Archive this campaign?')"
+     style="color:red;">
+     Archive
   </a>
 </td>
 
