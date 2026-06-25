@@ -1089,10 +1089,13 @@ app.get("/vivid-conversion.js", (req, res) => {
 
     if (!clickId) return;
 
-    fetch("${BASE_URL}/conversion?vivid_click_id=" + encodeURIComponent(clickId), {
-      method: "GET",
-      mode: "no-cors"
-    });
+fetch("${BASE_URL}/conversion?vivid_click_id=" 
+  + encodeURIComponent(clickId) 
+  + "&page_url=" 
+  + encodeURIComponent(window.location.href), {
+  method: "GET",
+  mode: "no-cors"
+});
   } catch (err) {
     console.error("Vivid conversion tracking error", err);
   }
