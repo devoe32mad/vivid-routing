@@ -2602,9 +2602,15 @@ SELECT
   qr.*,
  COALESCE(s.name, '') AS display_location,
 COALESCE(s.location, '') AS display_market
+, COALESCE(c.advertiser, '') AS display_advertiser
 FROM qr_codes qr
 LEFT JOIN spaces s
   ON s.id = qr.space_id
+  LEFT JOIN qr_campaigns qc
+  ON qc.qr_id = qr.id
+
+LEFT JOIN campaigns c
+  ON c.id = qc.campaign_id
 WHERE qr.id = $1
 LIMIT 1
 `, [id]);
@@ -2621,7 +2627,7 @@ console.log("VIEW QR DATA:", qr);
 
       <div class="card">
         <p><b>Name:</b> ${qr.name || ""}</p>
-        <p><b>Advertiser:</b> ${qr.advertiser || ""}</p>
+        <p><b>Advertiser:</b> ${qr.display_advertiser || "Not set"}</p>
         <p><b>Type:</b> ${qr.is_imported ? "Imported" : "Native"}</p>
         <p><b>Market:</b> ${qr.display_market || "Not set"}</p>
 <p><b>Location:</b> ${qr.display_location || qr.space_name || "Not set"}</p>
