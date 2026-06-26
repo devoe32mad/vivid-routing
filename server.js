@@ -2670,6 +2670,12 @@ console.log("VIEW QR DATA:", qr);
         <p><b>Market:</b> ${qr.display_market || "Not set"}</p>
 <p><b>Location:</b> ${qr.display_location || qr.space_name || "Not set"}</p>
         <p><b>Live Date:</b> ${qr.live_date || "Not set"}</p>
+        <p><b>End Date:</b> ${qr.end_date ? dayLabel(qr.end_date) : "Not set"}</p>
+<p><b>Contract Days:</b> ${
+  qr.live_date && qr.end_date
+    ? daysBetween(qr.live_date, qr.end_date)
+    : "Not set"
+}</p>
         <p><b>Annual Impressions:</b> ${qr.annual_impressions || 0}</p>
         <p><b>Annual Cost:</b> $${qr.annual_cost || 0}</p>
         <p><b>Status:</b> ${qr.is_archived ? "Archived" : "Active"}</p>
