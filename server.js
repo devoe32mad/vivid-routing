@@ -6321,26 +6321,56 @@ app.get("/admin/assign", requireLogin, async (req, res) => {
 });
 app.post("/admin/assign", requireLogin, async (req, res) => {
   try {
-  await q(`
+ await q(
+  `
   UPDATE qr_campaigns
-  SET is_active = false,
-      ended_at = CURRENT_TIMESTAMP
+  SET
+    is_active = true,
+    started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
+    assigned_at = COALESCE(assigned_at, CURRENT_TIMESTAMP),
+    ended_at = NULL
   WHERE qr_id = $1
     AND campaign_id = $2
-`, [req.body.qr_id, req.body.campaign_id]);
+  `,
+  [
+    Number(req.body.qr_id),
+    Number(req.body.campaign_id)
+  ]
+);
 
-    await q(`
-      INSERT INTO qr_campaigns (
-        qr_id,
-        campaign_id,
-        is_active,
-        started_at
-      )
-      VALUES ($1,$2,true,CURRENT_TIMESTAMP)
-    `, [
+const existing = await q(
+  `
+  SELECT id
+  FROM qr_campaigns
+  WHERE qr_id = $1
+    AND campaign_id = $2
+  LIMIT 1
+  `,
+  [
+    Number(req.body.qr_id),
+    Number(req.body.campaign_id)
+  ]
+);
+
+if (existing.rows.length === 0) {
+  await q(
+    `
+    INSERT INTO qr_campaigns (
+      qr_id,
+      campaign_id,
+      is_active,
+      assigned_at,
+      started_at,
+      ended_at
+    )
+    VALUES ($1,$2,true,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,NULL)
+    `,
+    [
       Number(req.body.qr_id),
       Number(req.body.campaign_id)
-    ]);
+    ]
+  );
+}
 
   res.send(successPage(
   "Campaign Assigned Successfully",
