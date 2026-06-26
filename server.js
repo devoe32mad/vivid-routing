@@ -2747,7 +2747,22 @@ app.get("/admin/view-campaign/:id", requireLogin, async (req, res) => {
   );
 
   const c = result.rows[0];
+const qrList = await q(`
+  SELECT qr.id, qr.name, qc.is_active
+  FROM qr_campaigns qc
+  JOIN qr_codes qr ON qr.id = qc.qr_id
+  WHERE qc.campaign_id = $1
+  ORDER BY qr.name ASC
+`, [id]);
 
+const qrListHtml = qrList.rows.length
+  ? qrList.rows.map(qr => `
+      <li>
+        <a href="/admin/view-qr/${qr.id}">${qr.name}</a>
+        - ${qr.is_active ? "Active" : "Archived"}
+      </li>
+    `).join("")
+  : "<li>No QR Codes assigned</li>";
   if (!c) {
     return res.status(404).send("Campaign not found");
   }
@@ -2770,7 +2785,10 @@ app.get("/admin/view-campaign/:id", requireLogin, async (req, res) => {
     ? daysBetween(c.start_date, c.end_date)
     : "Not set"
 }</p>
-        
+      <p><b>Assigned QR Codes:</b> ${qrList.rows.length}</p>
+<ul>
+  ${qrListHtml}
+</ul>  
         <p><b>Status:</b> ${c.is_active === false ? "Archived" : "Active"}</p>
 
         <br>
