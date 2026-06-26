@@ -3338,8 +3338,14 @@ COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
 ) conv ON conv.qr_id = qr.id
 LEFT JOIN events e
   ON e.qr_id = qr.id
+LEFT JOIN (
+  SELECT DISTINCT ON (qr_id, campaign_id)
+    *
+  FROM qr_campaigns
+  WHERE COALESCE(is_active,true) = true
+  ORDER BY qr_id, campaign_id, id DESC
+) qc
   ON qc.qr_id = qr.id
-  AND COALESCE(qc.is_active,true) = true
 
 LEFT JOIN campaigns c
   ON c.id = COALESCE(e.campaign_id, qc.campaign_id)
