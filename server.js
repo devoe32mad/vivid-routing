@@ -2622,6 +2622,12 @@ app.get("/admin/view-location/:id", requireLogin, async (req, res) => {
         <p><b>Name:</b> ${s.name || ""}</p>
         <p><b>Market:</b> ${s.location || ""}</p>
         <p><b>Live Date:</b> ${s.live_date || "Not set"}</p>
+        <p><b>End Date:</b> ${s.end_date || "Not set"}</p>
+<p><b>Contract Days:</b> ${
+  s.live_date && s.end_date
+    ? daysBetween(s.live_date, s.end_date)
+    : "Not set"
+}</p>
         <p><b>Status:</b> ${s.is_archived ? "Archived" : "Active"}</p>
 
         <br>
