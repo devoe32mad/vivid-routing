@@ -2836,40 +2836,33 @@ SUM(e.value) FILTER (
 0 AS conversions,
 0 AS conversion_value,
 COALESCE((
-  SELECT ROUND(
-    SUM(
-      (s2.placement_cost / GREATEST(1, COALESCE(qr2.contract_days, 365))::numeric) *
-      GREATEST(
-        1,
-        LEAST(
-  COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE),
-  CURRENT_DATE
-)
--
-GREATEST(
-  DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
-  COALESCE(
-    NULLIF('${startDate}','')::date,
-    DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
-  )
-)
-+ 1
-      )
-    ),
-    2
-  )
+  SELECT ROUND(SUM(x.allocated_cost), 2)
   FROM (
-  SELECT DISTINCT ON (qr_id, campaign_id)
-    *
-  FROM qr_campaigns
-  WHERE COALESCE(is_active,true) = true
-  ORDER BY qr_id, campaign_id, id DESC
-) qc2
-  JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
-  JOIN spaces s2 ON s2.id = qr2.space_id
-  WHERE qc2.campaign_id = c.id
-    AND COALESCE(qc2.is_active,true) = true
-    ),0) AS allocated_cost,
+    SELECT DISTINCT ON (qc2.qr_id, qc2.campaign_id)
+      (
+        COALESCE(qr2.annual_cost, s2.placement_cost, 0)
+        /
+        GREATEST(1, COALESCE(qr2.contract_days, 1)::numeric)
+        *
+        GREATEST(
+          1,
+          LEAST(CURRENT_DATE, COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE))
+          -
+          GREATEST(
+            DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
+            COALESCE(NULLIF('${startDate}','')::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)))
+          )
+          + 1
+        )
+      ) AS allocated_cost
+    FROM qr_campaigns qc2
+    JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
+    LEFT JOIN spaces s2 ON s2.id = qr2.space_id
+    WHERE qc2.campaign_id = c.id
+      AND COALESCE(qc2.is_active,true) = true
+    ORDER BY qc2.qr_id, qc2.campaign_id, qc2.id DESC
+  ) x
+), 0) AS allocated_cost,
 COALESCE((
   SELECT SUM(
     GREATEST(
