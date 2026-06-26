@@ -2719,6 +2719,13 @@ app.get("/admin/view-campaign/:id", requireLogin, async (req, res) => {
         <p><b>Conversion Page URL:</b> ${c.conversion_url || "Not set"}</p>
         <p><b>Actual Customer Value:</b> $${c.avg_customer_value || 0}</p>
         <p><b>Start Date:</b> ${c.start_date || "Not set"}</p>
+        <p><b>End Date:</b> ${campaign.end_date || "Not set"}</p>
+
+<p><b>Contract Days:</b> ${
+  campaign.start_date && campaign.end_date
+    ? daysBetween(campaign.start_date, campaign.end_date)
+    : "Not set"
+}</p>
         <p><b>End Date:</b> ${c.end_date || "Not set"}</p>
         <p><b>Status:</b> ${c.is_active === false ? "Archived" : "Active"}</p>
 
