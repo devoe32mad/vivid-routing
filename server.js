@@ -3060,7 +3060,7 @@ COALESCE((
   LEFT JOIN spaces s2 ON s2.id = qr2.space_id
   WHERE qc2.campaign_id = c.id
     AND COALESCE(qc2.is_active,true) = true
-), 0) AS allocated_cost_old,
+),0) AS allocated_cost,
 COALESCE((
   SELECT MIN(
     GREATEST(
