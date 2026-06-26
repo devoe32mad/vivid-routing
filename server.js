@@ -3067,7 +3067,7 @@ COALESCE((
     SELECT DISTINCT ON (qc2.qr_id, qc2.campaign_id)
       (
         COALESCE(qr2.annual_cost, s2.placement_cost, 0)
-/ GREATEST(1, COALESCE(qr2.end_date::date, CURRENT_DATE) - COALESCE(qr2.live_date::date, CURRENT_DATE) + 1)::numeric
+/ GREATEST(1, COALESCE(qr2.end_date::date, CURRENT_DATE) - COALESCE(qr2.live_date::date, qr2.created_at::date, CURRENT_DATE) + 1)::numeric
         *
         GREATEST(
           1,
