@@ -2943,7 +2943,7 @@ GREATEST(
   WHERE qc2.campaign_id = c.id
   AND COALESCE(qc2.is_active,true) = true
 ),0) AS active_days,
-0 AS allocated_cost
+0 AS allocated_cost_old
 ,
 0 AS conversions,
 0 AS conversion_value,
