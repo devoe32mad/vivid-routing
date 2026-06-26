@@ -2858,7 +2858,13 @@ GREATEST(
     ),
     2
   )
-  FROM qr_campaigns qc2
+  FROM (
+  SELECT DISTINCT ON (qr_id, campaign_id)
+    *
+  FROM qr_campaigns
+  WHERE COALESCE(is_active,true) = true
+  ORDER BY qr_id, campaign_id, id DESC
+) qc2
   JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
   JOIN spaces s2 ON s2.id = qr2.space_id
   WHERE qc2.campaign_id = c.id
