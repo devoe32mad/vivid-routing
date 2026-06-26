@@ -1985,7 +1985,13 @@ SELECT
     ),
     2
   ) AS allocated_cost
-FROM qr_campaigns qc
+FROM (
+    SELECT DISTINCT ON (qr_id, campaign_id)
+        *
+    FROM qr_campaigns
+    WHERE COALESCE(is_active, true) = true
+    ORDER BY qr_id, campaign_id, id DESC
+) qc
 JOIN qr_codes qr ON qr.id = qc.qr_id
 JOIN spaces s ON s.id = qr.space_id
 JOIN campaigns c ON c.id = qc.campaign_id
