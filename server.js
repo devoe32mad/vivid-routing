@@ -2725,6 +2725,7 @@ app.get("/admin/view-campaign/:id", requireLogin, async (req, res) => {
   `));
 });
 app.get("/reports", requireLogin, async (req, res) => {
+console.log("HIT /REPORTS ROUTE");
   try {
 
     const currentUser = req.session.user;
