@@ -3100,6 +3100,8 @@ WHERE c.user_id = $1
 console.log("REPORT TITLE:", reportTitle);
 console.log("REPORT ROW COUNT:", reportRows.rows.length);
 console.log("FIRST ROW:", reportRows.rows[0]);
+console.log("ALLOCATED COST =", reportRows.rows[0].allocated_cost);
+console.log("ROW KEYS =", Object.keys(reportRows.rows[0]));    
     let reportTable = "";
 
     for (const r of reportRows.rows) {
