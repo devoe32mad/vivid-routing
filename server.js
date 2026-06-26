@@ -2679,10 +2679,15 @@ LIMIT 1
 
   const qr = result.rows[0];
   const campaignList = await q(`
-  SELECT c.id, c.name, c.advertiser, qc.is_active
+  SELECT
+    c.id,
+    c.name,
+    c.advertiser,
+    BOOL_OR(COALESCE(qc.is_active,true)) AS is_active
   FROM qr_campaigns qc
   JOIN campaigns c ON c.id = qc.campaign_id
   WHERE qc.qr_id = $1
+  GROUP BY c.id, c.name, c.advertiser
   ORDER BY c.name ASC
 `, [id]);
 
@@ -2748,7 +2753,7 @@ app.get("/admin/view-campaign/:id", requireLogin, async (req, res) => {
 
   const c = result.rows[0];
 const qrList = await q(`
-  SELECT qr.id, qr.name, qc.is_active
+  SELECT DISTINCT qr.id, qr.name, qc.is_active
   FROM qr_campaigns qc
   JOIN qr_codes qr ON qr.id = qc.qr_id
   WHERE qc.campaign_id = $1
