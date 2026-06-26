@@ -2678,6 +2678,22 @@ LIMIT 1
 `, [id]);
 
   const qr = result.rows[0];
+  const campaignList = await q(`
+  SELECT c.id, c.name, c.advertiser, qc.is_active
+  FROM qr_campaigns qc
+  JOIN campaigns c ON c.id = qc.campaign_id
+  WHERE qc.qr_id = $1
+  ORDER BY c.name ASC
+`, [id]);
+
+const campaignListHtml = campaignList.rows.length
+  ? campaignList.rows.map(c => `
+      <li>
+        <a href="/admin/view-campaign/${c.id}">${c.advertiser} - ${c.name}</a>
+        - ${c.is_active ? "Active" : "Archived"}
+      </li>
+    `).join("")
+  : "<li>No campaigns assigned</li>";
 console.log("VIEW QR DATA:", qr);
   if (!qr) {
     return res.status(404).send("QR Code not found");
@@ -2700,6 +2716,10 @@ console.log("VIEW QR DATA:", qr);
     ? daysBetween(qr.live_date, qr.end_date)
     : "Not set"
 }</p>
+<p><b>Assigned Campaigns:</b> ${campaignList.rows.length}</p>
+<ul>
+  ${campaignListHtml}
+</ul>
         <p><b>Annual Impressions:</b> ${qr.annual_impressions || 0}</p>
         <p><b>Annual Cost:</b> $${qr.annual_cost || 0}</p>
         <p><b>Status:</b> ${qr.is_archived ? "Archived" : "Active"}</p>
