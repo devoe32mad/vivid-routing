@@ -3062,28 +3062,49 @@ COALESCE((
     AND COALESCE(qc2.is_active,true) = true
 ),0) AS allocated_cost,
 COALESCE((
+  SELECT ROUND(SUM(x.allocated_cost), 2)
+  FROM (
+    SELECT DISTINCT ON (qc2.qr_id, qc2.campaign_id)
+      (
+        COALESCE(qr2.annual_cost, s2.placement_cost, 0)
+        / GREATEST(1, COALESCE(qr2.contract_days, 365))::numeric
+        *
+        GREATEST(
+          1,
+          LEAST(CURRENT_DATE, COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE))
+          -
+          GREATEST(
+            DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
+            COALESCE(NULLIF('${startDate}','')::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)))
+          )
+          + 1
+        )
+      ) AS allocated_cost
+    FROM qr_campaigns qc2
+    JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
+    LEFT JOIN spaces s2 ON s2.id = qr2.space_id
+    WHERE qc2.campaign_id = c.id
+      AND COALESCE(qc2.is_active,true) = true
+    ORDER BY qc2.qr_id, qc2.campaign_id, qc2.id DESC
+  ) x
+), 0) AS allocated_cost,
+
+COALESCE((
   SELECT MIN(
     GREATEST(
       1,
-      (
-        LEAST(
-          CURRENT_DATE,
-          COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE)
-        )
-        -
-        GREATEST(
-          DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
-          COALESCE(
-            NULLIF('${startDate}','')::date,
-            DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
-          )
-        )
-        + 1
+      LEAST(CURRENT_DATE, COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE))
+      -
+      GREATEST(
+        DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
+        COALESCE(NULLIF('${startDate}','')::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)))
       )
+      + 1
     )
   )
   FROM qr_campaigns qc2
   WHERE qc2.campaign_id = c.id
+    AND COALESCE(qc2.is_active,true) = true
 ), 0) AS active_days
           FROM campaigns c
 LEFT JOIN events e
