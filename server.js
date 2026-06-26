@@ -3097,6 +3097,7 @@ WHERE c.user_id = $1
         `,
       isSuperAdmin ? [] : [currentUser.id]
     );
+    console.log("REPORT QUERY SQL:", reportQuery);
 console.log("REPORT TITLE:", reportTitle);
 console.log("REPORT ROW COUNT:", reportRows.rows.length);
 console.log("FIRST ROW:", reportRows.rows[0]);
