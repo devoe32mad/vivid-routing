@@ -2601,15 +2601,33 @@ ${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
 app.get("/admin/view-location/:id", requireLogin, async (req, res) => {
   const id = Number(req.params.id);
 
-  const result = await q(`
-    SELECT *
-    FROM spaces
-    WHERE id = $1
-    LIMIT 1
-  `, [id]);
+const result = await q(`
+  SELECT
+    s.*,
+    COUNT(qr.id) AS qr_count
+  FROM spaces s
+  LEFT JOIN qr_codes qr ON qr.space_id = s.id
+  WHERE s.id = $1
+  GROUP BY s.id
+  LIMIT 1
+`, [id]);
 
   const s = result.rows[0];
+const qrList = await q(`
+  SELECT id, name, is_archived
+  FROM qr_codes
+  WHERE space_id = $1
+  ORDER BY name ASC
+`, [id]);
 
+const qrListHtml = qrList.rows.length
+  ? qrList.rows.map(qr => `
+      <li>
+        <a href="/admin/view-qr/${qr.id}">${qr.name}</a>
+        - ${qr.is_archived ? "Archived" : "Active"}
+      </li>
+    `).join("")
+  : "<li>No QR Codes assigned</li>";
   if (!s) {
     return res.status(404).send("Location not found");
   }
@@ -2622,6 +2640,11 @@ app.get("/admin/view-location/:id", requireLogin, async (req, res) => {
         <p><b>Name:</b> ${s.name || ""}</p>
         <p><b>Market:</b> ${s.location || ""}</p>
         <p><b>Live Date:</b> ${s.live_date || "Not set"}</p>
+        <p><b>QR Count:</b> ${s.qr_count || 0}</p>
+<p><b>QR Codes Assigned:</b></p>
+<ul>
+  ${qrListHtml}
+</ul>
         <p><b>End Date:</b> ${s.end_date || "Not set"}</p>
 <p><b>Contract Days:</b> ${
   s.live_date && s.end_date
