@@ -547,12 +547,16 @@ await q(`
     id SERIAL PRIMARY KEY,
     qr_id INT,
     campaign_id INT,
+    contract_days INT,
     is_active BOOLEAN DEFAULT true,
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP
   )`);
-
+await q(`
+ALTER TABLE qr_campaigns
+ADD COLUMN IF NOT EXISTS contract_days INT
+`);
   await q(`CREATE TABLE IF NOT EXISTS campaign_schedules (
     id SERIAL PRIMARY KEY,
     qr_id INT,
