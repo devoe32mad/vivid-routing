@@ -2923,17 +2923,44 @@ COALESCE((
       (
         COALESCE(qr2.annual_cost, s2.placement_cost, 0)
         /
-        GREATEST(1, COALESCE(qr2.contract_days, 1)::numeric)
-        *
         GREATEST(
           1,
-          LEAST(CURRENT_DATE, COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE))
-          -
-          GREATEST(
-            DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
-            COALESCE(NULLIF('${startDate}','')::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)))
+          (
+            COALESCE(qr2.end_date::date, CURRENT_DATE)
+            -
+            COALESCE(
+              qr2.live_date::date,
+              DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+            )
+            + 1
           )
-          + 1
+        )::numeric
+        *
+        GREATEST(
+          0,
+          (
+            LEAST(
+              COALESCE(qr2.end_date::date, CURRENT_DATE),
+              COALESCE(c.end_date::date, CURRENT_DATE),
+              COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE)
+            )
+            -
+            GREATEST(
+              COALESCE(
+                qr2.live_date::date,
+                DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+              ),
+              COALESCE(
+                c.start_date::date,
+                DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+              ),
+              COALESCE(
+                NULLIF('${startDate}','')::date,
+                DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
+              )
+            )
+            + 1
+          )
         )
       ) AS allocated_cost
     FROM qr_campaigns qc2
