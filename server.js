@@ -96,6 +96,32 @@ function dayLabels(days) {
 
   return arr.map(d => map[d]).join(", ");
 }
+function toDateOnly(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return null;
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
+function inclusiveDays(start, end) {
+  if (!start || !end) return 1;
+  return Math.max(
+    1,
+    Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1
+  );
+}
+
+function overlapsDay(day, start, end) {
+  if (start && day < start) return false;
+  if (end && day > end) return false;
+  return true;
+}
 function page(title, body) {
   return `<!DOCTYPE html>
 <html>
