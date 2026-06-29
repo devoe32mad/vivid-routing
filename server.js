@@ -3313,7 +3313,7 @@ const customerValue =
 
 
 
-  const placementCost = await allocatedSpotCostForCampaign(r.id, startDate, endDate);
+  const placementCost = await allocatedSpotCostForCampaign(r.campaign_id || r.id, startDate, endDate);
 const activeDays = Number(r.active_days || 0);
 
 const roi =
