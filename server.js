@@ -827,7 +827,7 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
     while (day <= endDay) {
       const activeCampaigns = qrRows.filter(r => {
         const campaignStart = toDateOnly(r.start_date || r.assigned_at) || qrStart;
-        const campaignEnd = toDateOnly(r.end_date || r.ended_at) || qrEnd;
+        const campaignEnd = toDateOnly(r.ended_at || r.end_date) || qrEnd;
 
         return day >= campaignStart && day <= campaignEnd;
       });
