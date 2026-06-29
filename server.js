@@ -752,6 +752,16 @@ await q(`
 }
 
 function daysBetween(startDate, endDate) {
+function safeDaysBetween(startDate, endDate) {
+  if (!startDate || !endDate) return 1;
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 1;
+
+  return Math.max(1, daysBetween(start, end));
+}
   const start = new Date(startDate);
   const end = new Date(endDate);
   const diff = end.getTime() - start.getTime();
