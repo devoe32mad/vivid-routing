@@ -2893,9 +2893,10 @@ let reportQuery = "";
 
   reportQuery = isSuperAdmin
     ? `
-      SELECT
-        c.name AS label,
-        c.advertiser,
+SELECT
+    c.id AS campaign_id,
+    c.name AS label,
+    c.advertiser,
 
         COUNT(*) FILTER (WHERE e.type='scan') AS scans,
 
@@ -2968,8 +2969,9 @@ SUM(e.value) FILTER (
     `
     : `
       SELECT
-        c.name AS label,
-        c.advertiser,
+    c.id AS campaign_id,
+    c.name AS label,
+    c.advertiser,
 
         COUNT(*) FILTER (WHERE e.type='scan') AS scans,
 
