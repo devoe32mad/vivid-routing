@@ -879,13 +879,24 @@ async function allocatedSpotCostForQr(qrId, start = "", end = "") {
   const qrContractDays = safeDaysBetween(qrStart, qrEnd);
   const dailyQrCost = Number(qr.placement_cost || 0) / qrContractDays;
 
-  let total = 0;
-  let day = new Date(startDay);
+let total = 0;
+let day = new Date(startDay);
 
-  while (day <= endDay) {
-    total += dailyQrCost;
-    day = addDays(day, 1);
-  }
+while (day <= endDay) {
+  const activeCampaigns = await q(`
+    SELECT COUNT(DISTINCT campaign_id) AS count
+    FROM qr_campaigns
+    WHERE qr_id = $1
+      AND COALESCE(is_active,true) = true
+      AND DATE(COALESCE(started_at, assigned_at, CURRENT_TIMESTAMP)) <= $2::date
+      AND COALESCE(ended_at::date, $2::date) >= $2::date
+  `, [qrId, day]);
+
+  const campaignCount = Math.max(1, Number(activeCampaigns.rows[0].count || 1));
+
+  total += dailyQrCost / campaignCount;
+  day = addDays(day, 1);
+}
 
   return Number(total.toFixed(2));
 }
