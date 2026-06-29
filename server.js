@@ -752,6 +752,12 @@ await q(`
 }
 
 function daysBetween(startDate, endDate) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diff = end.getTime() - start.getTime();
+  return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+}
+
 function safeDaysBetween(startDate, endDate) {
   if (!startDate || !endDate) return 1;
 
@@ -760,12 +766,7 @@ function safeDaysBetween(startDate, endDate) {
 
   if (isNaN(start.getTime()) || isNaN(end.getTime())) return 1;
 
-  return Math.max(1, daysBetween(start, end));
-}
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const diff = end.getTime() - start.getTime();
-  return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  return Math.max(1, daysBetween(startDate, endDate));
 }
 
 async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
