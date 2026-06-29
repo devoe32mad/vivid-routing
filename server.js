@@ -4574,7 +4574,7 @@ await q(
   `,
   [req.params.qrId, req.body.campaign_id]
 );
-
+}
 res.send(
   "QR updated <br><a href='/my-setup'>Back to My Setup</a>"
 );
