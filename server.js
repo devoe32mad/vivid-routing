@@ -3314,7 +3314,7 @@ const customerValue =
     : Number(r.avg_customer_value || 0);
 
 
-
+console.log("CAMPAIGN:", r.campaign_id, r.label);
   const placementCost = await allocatedSpotCostForCampaign(r.campaign_id || r.id, startDate, endDate);
 const activeDays = Number(r.active_days || 0);
 
