@@ -1639,11 +1639,19 @@ const locationRows = await q(
         COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
         COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
-      FROM events e
-      JOIN campaigns c ON c.id = e.campaign_id
-      JOIN qr_codes qr ON qr.id = e.qr_id
-      JOIN spaces s ON s.id = qr.space_id
-      WHERE 1=1 ${dateSql}
+FROM campaigns c
+LEFT JOIN qr_campaigns qc
+  ON qc.campaign_id = c.id
+  AND COALESCE(qc.is_active,true) = true
+LEFT JOIN qr_codes qr
+  ON qr.id = qc.qr_id
+LEFT JOIN spaces s
+  ON s.id = qr.space_id
+LEFT JOIN events e
+  ON e.campaign_id = c.id
+  AND e.qr_id = qr.id
+  AND e.created_at::date BETWEEN '${startDate}' AND '${endDate}'
+WHERE 1=1
       GROUP BY
   c.id,
   c.name,
@@ -1664,11 +1672,19 @@ const locationRows = await q(
         COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
         COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
-      FROM events e
-      JOIN campaigns c ON c.id = e.campaign_id
-      JOIN qr_codes qr ON qr.id = e.qr_id
-      JOIN spaces s ON s.id = qr.space_id
-      WHERE c.user_id = $1 ${dateSql}
+     FROM campaigns c
+LEFT JOIN qr_campaigns qc
+  ON qc.campaign_id = c.id
+  AND COALESCE(qc.is_active,true) = true
+LEFT JOIN qr_codes qr
+  ON qr.id = qc.qr_id
+LEFT JOIN spaces s
+  ON s.id = qr.space_id
+LEFT JOIN events e
+  ON e.campaign_id = c.id
+  AND e.qr_id = qr.id
+  AND e.created_at::date BETWEEN '${startDate}' AND '${endDate}'
+WHERE c.user_id = $1
       GROUP BY c.id, s.id
       ORDER BY intent_clicks DESC, scans DESC
     `,
