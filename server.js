@@ -3620,6 +3620,8 @@ COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
 ) conv ON conv.qr_id = qr.id
 LEFT JOIN events e
   ON e.qr_id = qr.id
+  AND e.created_at::date BETWEEN '${startDate}' AND '${endDate}'
+  ON e.qr_id = qr.id
 LEFT JOIN (
   SELECT DISTINCT ON (qr_id, campaign_id)
     *
@@ -3636,7 +3638,7 @@ LEFT JOIN spaces s
   ON s.id = qr.space_id
 
 WHERE 1=1
-          ${dateSql}
+          
 
  GROUP BY
   c.advertiser,
