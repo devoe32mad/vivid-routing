@@ -4464,6 +4464,7 @@ app.get("/admin/new-location", async (req, res) => {
   res.send(page("Add Location", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add Location / Space</h1></div><div class="wrap"><form method="POST" action="/admin/new-location"><label>Name</label><input name="name" required /><label>Market</label><input name="location" placeholder="Naples, FL" /><label>Description</label><input name="description" /><button class="btn" type="submit">Create Location</button></form></div>`));
 });
 app.post("/admin/new-location", async (req, res) => {
+console.log("NEW LOCATION POST", new Date().toISOString(), req.body);
   try {
     await q(`
       INSERT INTO spaces (
