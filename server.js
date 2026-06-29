@@ -867,7 +867,7 @@ async function allocatedSpotCostForQr(qrId, start = "", end = "") {
   const qr = qrResult.rows[0];
 
   const qrStart = toDateOnly(qr.live_date);
-  const qrEnd = toDateOnly(qr.qr_end_date) || rangeEnd || toDateOnly(new Date());
+  const qrEnd = toDateOnly(qr.qr_end_date) || addDays(qrStart, 364);
 
   if (!qrStart || !qrEnd) return 0;
 
