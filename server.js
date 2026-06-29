@@ -3167,7 +3167,8 @@ ${dateSql}
         `
         : `
           SELECT
-            c.name AS campaign_name,
+            c.id AS campaign_id,
+c.name AS campaign_name,
             c.advertiser,
 c.avg_customer_value,
 CASE
