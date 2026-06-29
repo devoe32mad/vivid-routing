@@ -878,14 +878,7 @@ console.log("FILTER:", start, end);
   const endDay = rangeEnd && rangeEnd < qrEnd ? rangeEnd : qrEnd;
 console.log("CALCULATED:", startDay, endDay);
   if (endDay < startDay) return 0;
-console.log({
-  qrStart,
-  qrEnd,
-  startDay,
-  endDay,
-  qrContractDays,
-  dailyQrCost
-});
+
   const qrContractDays = safeDaysBetween(qrStart, qrEnd);
   const dailyQrCost = Number(qr.placement_cost || 0) / qrContractDays;
 
