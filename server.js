@@ -3561,11 +3561,12 @@ if (startDate && endDate) {
     const reportRows = await q(
       isSuperAdmin
         ? `
-         SELECT
-  c.advertiser,
-  c.name AS campaign_name,
-  c.id AS campaign_id,
-  qr.name AS qr_name,
+  SELECT
+    qr.id AS qr_id,
+    c.advertiser,
+    c.name AS campaign_name,
+    c.id AS campaign_id,
+    qr.name AS qr_name,
   (
   SELECT COUNT(*)
   FROM events ce
@@ -3635,10 +3636,9 @@ WHERE 1=1
   ORDER BY scans DESC
         `
         : `
-          SELECT
-
-qr.name AS qr_name,
-
+ SELECT
+    qr.id AS qr_id,
+    qr.name AS qr_name,
 (
   SELECT COUNT(*)
   FROM events ce
