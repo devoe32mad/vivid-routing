@@ -801,7 +801,7 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
       if (sDate < rangeStart) sDate = rangeStart;
       if (eDate > rangeEnd) eDate = rangeEnd;
     }
-    if (eDate >= sDate) total += (Number(a.placement_cost || 0) / Math.max(1, Number(a.contract_days || 365))) * Math.max(1, daysBetween(sDate, eDate));
+    if (eDate >= sDate) total += (Number(a.placement_cost || 0) / Math.max(1,Number(a.contract_days || daysBetween(sDate, eDate))) * Math.max(1, daysBetween(sDate, eDate));
   }
 
   for (const a of schedules.rows) {
@@ -811,7 +811,7 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
       if (sDate < rangeStart) sDate = rangeStart;
       if (eDate > rangeEnd) eDate = rangeEnd;
     }
-    if (eDate >= sDate) total += (Number(a.placement_cost || 0) / Math.max(1, Number(a.contract_days || 365))) * Math.max(1, daysBetween(sDate, eDate));
+    if (eDate >= sDate) total += (Number(a.placement_cost || 0) / Math.max(1,Number(a.contract_days || daysBetween(sDate, eDate))) * Math.max(1, daysBetween(sDate, eDate));
   }
 
   return total;
