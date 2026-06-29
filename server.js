@@ -312,6 +312,10 @@ async function initDb() {
   )
 `);
   await q(`
+  ALTER TABLE qr_campaigns
+  ADD COLUMN IF NOT EXISTS contract_days INT
+`);
+  await q(`
   CREATE TABLE IF NOT EXISTS campaign_stores (
     id SERIAL PRIMARY KEY,
     campaign_id INTEGER,
