@@ -846,7 +846,49 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
 
   return Number(total.toFixed(2));
 }
+async function allocatedSpotCostForQr(qrId, start = "", end = "") {
+  const hasDate = Boolean(start && end);
+  const rangeStart = hasDate ? toDateOnly(start) : null;
+  const rangeEnd = hasDate ? toDateOnly(end) : toDateOnly(new Date());
 
+  const qrResult = await q(`
+    SELECT
+      qr.id,
+      COALESCE(qr.total_cost, qr.annual_cost, 800) AS placement_cost,
+      qr.live_date,
+      qr.end_date AS qr_end_date
+    FROM qr_codes qr
+    WHERE qr.id = $1
+    LIMIT 1
+  `, [qrId]);
+
+  if (qrResult.rows.length === 0) return 0;
+
+  const qr = qrResult.rows[0];
+
+  const qrStart = toDateOnly(qr.live_date);
+  const qrEnd = toDateOnly(qr.qr_end_date) || rangeEnd || toDateOnly(new Date());
+
+  if (!qrStart || !qrEnd) return 0;
+
+  const startDay = rangeStart && rangeStart > qrStart ? rangeStart : qrStart;
+  const endDay = rangeEnd && rangeEnd < qrEnd ? rangeEnd : qrEnd;
+
+  if (endDay < startDay) return 0;
+
+  const qrContractDays = safeDaysBetween(qrStart, qrEnd);
+  const dailyQrCost = Number(qr.placement_cost || 0) / qrContractDays;
+
+  let total = 0;
+  let day = new Date(startDay);
+
+  while (day <= endDay) {
+    total += dailyQrCost;
+    day = addDays(day, 1);
+  }
+
+  return Number(total.toFixed(2));
+}
 async function activeCampaignForQr(qrId) {
   const scheduled = await q(`
     SELECT c.*, qr.id AS qr_id, qr.name AS qr_name, s.name AS space_name, s.location
