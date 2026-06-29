@@ -3748,7 +3748,14 @@ const allocatedCost = await allocatedSpotCostForQr(
     startDate,
     endDate
 );
-const intent =
+console.log("QR COST DEBUG:", {
+  qr_id: r.qr_id,
+  qr_name: r.qr_name,
+  startDate,
+  endDate,
+  allocatedCost
+});
+      const intent =
   offers + maps + waze;
       
       const conversions = Number(r.conversions || 0);
