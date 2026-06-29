@@ -806,7 +806,7 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
 
   for (const a of schedules.rows) {
     let sDate = new Date(a.started_at || new Date());
-    let eDate = new Date();
+    let eDate = a.ended_at ? new Date(a.ended_at) : new Date();
     if (hasDate) {
       if (sDate < rangeStart) sDate = rangeStart;
       if (eDate > rangeEnd) eDate = rangeEnd;
