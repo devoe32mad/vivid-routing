@@ -3731,7 +3731,11 @@ console.log("QR REPORT ROWS:", reportRows.rows);
    const offers = Number(r.offers || 0);
 const maps = Number(r.maps || 0);
 const waze = Number(r.waze || 0);
-const allocatedCost = Number(r.allocated_cost || 0);
+const allocatedCost = await allocatedSpotCostForQr(
+    r.qr_id,
+    startDate,
+    endDate
+);
 const intent =
   offers + maps + waze;
       
