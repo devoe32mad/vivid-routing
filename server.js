@@ -1028,7 +1028,7 @@ function addVividClickIdToUrl(destinationUrl, vividClickId) {
   return `${destinationUrl}${separator}vivid_click_id=${encodeURIComponent(vividClickId)}`;
 }
 app.get("/debug-users-spaces", requireLogin, async (req, res) => {
-  const users = await q(`SELECT id, email, name, role, customer_id FROM users ORDER BY id`);
+  const users = await q(`SELECT * FROM users ORDER BY id`);
   const spaces = await q(`SELECT id, name, user_id FROM spaces ORDER BY id DESC`);
   const campaigns = await q(`SELECT id, name, user_id FROM campaigns ORDER BY id DESC`);
 
