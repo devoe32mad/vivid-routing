@@ -3577,6 +3577,7 @@ app.get("/reports-qr", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
     const isSuperAdmin = currentUser.role === "super_admin";
+    console.log("REPORT USER:", currentUser.id, currentUser.email, currentUser.role, "isSuperAdmin:", isSuperAdmin);
     const timeframe = req.query.timeframe || "30";
 const startDate = req.query.start_date || "";
 const endDate = req.query.end_date || "";
