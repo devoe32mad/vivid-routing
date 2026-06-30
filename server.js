@@ -827,7 +827,7 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
     while (day <= endDay) {
       const activeCampaigns = qrRows.filter(r => {
         const campaignStart = toDateOnly(r.start_date || r.assigned_at) || qrStart;
-        const campaignEnd = toDateOnly(r.ended_at || r.end_date) || qrEnd;
+        const campaignEnd = toDateOnly(r.end_date || r.ended_at) || qrEnd;
 
         return day >= campaignStart && day <= campaignEnd;
       });
@@ -5883,12 +5883,12 @@ Copy and paste this code on your thank-you page, confirmation page, checkout suc
 
 <div><label>Actual Customer Value ($)</label><input name="avg_customer_value" value="35" /></div><div>
 <label>Start Date</label>
-<input type="date" name="start_date" />
+<input type="date" name="start_date" value="${dateInput(c.start_date)}" />
 </div>
 
 <div>
   <label>End Date</label>
- <input type="date" name="end_date" />
+  <input type="date" name="end_date" value="${dateInput(c.end_date)}" />
 
   <div id="campaignDays"
     style="font-weight:600;color:#40624f;margin-top:10px;">
