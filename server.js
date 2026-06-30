@@ -1945,14 +1945,13 @@ const locations = await q(
       ORDER BY id DESC
     `
     : `
-`
-SELECT *
-FROM spaces
-WHERE customer_id = $1
-AND COALESCE(is_archived,false) = false
-ORDER BY id DESC
-`,
-isSuperAdmin ? [] : [currentUser.customer_id]
+      SELECT *
+      FROM spaces
+      WHERE customer_id = $1
+      AND COALESCE(is_archived,false) = false
+      ORDER BY id DESC
+    `,
+  isSuperAdmin ? [] : [currentUser.customer_id]
 );
 
     const qrs = await q(
