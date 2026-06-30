@@ -827,7 +827,7 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
     while (day <= endDay) {
       const activeCampaigns = qrRows.filter(r => {
         const campaignStart = toDateOnly(r.start_date || r.assigned_at) || qrStart;
-        const campaignEnd = toDateOnly(r.end_date || r.ended_at) || qrEnd;
+        const campaignEnd = toDateOnly(r.ended_at || r.end_date) || qrEnd;
 
         return day >= campaignStart && day <= campaignEnd;
       });
@@ -1947,11 +1947,11 @@ const locations = await q(
     : `
       SELECT *
       FROM spaces
-      WHERE customer_id = $1
+      WHERE user_id = $1
       AND COALESCE(is_archived,false) = false
       ORDER BY id DESC
     `,
-  isSuperAdmin ? [] : [currentUser.customer_id]
+  isSuperAdmin ? [] : [currentUser.id]
 );
 
     const qrs = await q(
@@ -3620,6 +3620,8 @@ COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
 ) conv ON conv.qr_id = qr.id
 LEFT JOIN events e
   ON e.qr_id = qr.id
+  AND e.created_at::date BETWEEN '${startDate}' AND '${endDate}'
+  ON e.qr_id = qr.id
 LEFT JOIN (
   SELECT DISTINCT ON (qr_id, campaign_id)
     *
@@ -3636,7 +3638,7 @@ LEFT JOIN spaces s
   ON s.id = qr.space_id
 
 WHERE 1=1
-          ${dateSql}
+          
 
  GROUP BY
   c.advertiser,
@@ -4464,6 +4466,7 @@ app.get("/admin/new-location", async (req, res) => {
   res.send(page("Add Location", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add Location / Space</h1></div><div class="wrap"><form method="POST" action="/admin/new-location"><label>Name</label><input name="name" required /><label>Market</label><input name="location" placeholder="Naples, FL" /><label>Description</label><input name="description" /><button class="btn" type="submit">Create Location</button></form></div>`));
 });
 app.post("/admin/new-location", async (req, res) => {
+console.log("NEW LOCATION POST", new Date().toISOString(), req.body);
   try {
     await q(`
       INSERT INTO spaces (
@@ -5883,12 +5886,12 @@ Copy and paste this code on your thank-you page, confirmation page, checkout suc
 
 <div><label>Actual Customer Value ($)</label><input name="avg_customer_value" value="35" /></div><div>
 <label>Start Date</label>
-<input type="date" name="start_date" value="${dateInput(c.start_date)}" />
+<input type="date" name="start_date" />
 </div>
 
 <div>
   <label>End Date</label>
-  <input type="date" name="end_date" value="${dateInput(c.end_date)}" />
+ <input type="date" name="end_date" />
 
   <div id="campaignDays"
     style="font-weight:600;color:#40624f;margin-top:10px;">
