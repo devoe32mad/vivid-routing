@@ -886,14 +886,15 @@ let total = 0;
 let day = new Date(startDay);
 
 while (day <= endDay) {
-  const activeCampaigns = await q(`
-    SELECT COUNT(DISTINCT campaign_id) AS count
-    FROM qr_campaigns
-    WHERE qr_id = $1
-      AND COALESCE(is_active,true) = true
-      AND DATE(COALESCE(started_at, assigned_at, CURRENT_TIMESTAMP)) <= $2::date
-      AND COALESCE(ended_at::date, $2::date) >= $2::date
-  `, [qrId, day]);
+const activeCampaigns = await q(`
+  SELECT COUNT(DISTINCT qc.campaign_id) AS count
+  FROM qr_campaigns qc
+  JOIN campaigns c ON c.id = qc.campaign_id
+  WHERE qc.qr_id = $1
+    AND COALESCE(qc.is_active,true) = true
+    AND DATE(COALESCE(qc.started_at, qc.assigned_at, c.start_date, CURRENT_TIMESTAMP)) <= $2::date
+    AND COALESCE(qc.ended_at::date, c.end_date::date, $2::date) >= $2::date
+`, [qrId, day]);
 
   const campaignCount = Math.max(1, Number(activeCampaigns.rows[0].count || 1));
 
