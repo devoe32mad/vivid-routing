@@ -1616,7 +1616,7 @@ qr.annual_cost AS placement_cost
       JOIN qr_campaigns qc ON qc.qr_id = qr.id
       JOIN campaigns c ON c.id = qc.campaign_id
       LEFT JOIN spaces s ON s.id = qr.space_id
-      WHERE c.user_id = $1
+      WHERE s.user_id = $1
       ORDER BY qr.id
     `,
   isSuperAdmin ? [] : [currentUser.id]
