@@ -1952,7 +1952,7 @@ WHERE customer_id = $1
 AND COALESCE(is_archived,false) = false
 ORDER BY id DESC
 `,
-isSuperAdmin ? [] : [currentUser.customer_id]ser.id]
+isSuperAdmin ? [] : [currentUser.customer_id]
 );
 
     const qrs = await q(
