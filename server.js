@@ -3655,7 +3655,7 @@ LEFT JOIN spaces s
   ON s.id = qr.space_id
 
 WHERE 1=1
-          
+AND s.user_id = $1
 
  GROUP BY
   c.advertiser,
