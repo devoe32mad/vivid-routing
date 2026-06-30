@@ -819,7 +819,7 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
     const startDay = rangeStart && rangeStart > qrStart ? rangeStart : qrStart;
     const endDay = rangeEnd && rangeEnd < qrEnd ? rangeEnd : qrEnd;
 
-    const qrContractDays = safeDaysBetween(qrStart, qrEnd);
+    const qrContractDays = Math.max(1, safeDaysBetween(qrStart, addDays(qrEnd, 1)));
     const dailyQrCost = Number(qr.placement_cost || 0) / qrContractDays;
 
     let day = new Date(startDay);
@@ -879,7 +879,7 @@ console.log("FILTER:", start, end);
 console.log("CALCULATED:", startDay, endDay);
   if (endDay < startDay) return 0;
 
-  const qrContractDays = safeDaysBetween(qrStart, qrEnd);
+ const qrContractDays = Math.max(1, safeDaysBetween(qrStart, addDays(qrEnd, 1)));
   const dailyQrCost = Number(qr.placement_cost || 0) / qrContractDays;
 
 let total = 0;
