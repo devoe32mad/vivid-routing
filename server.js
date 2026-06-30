@@ -3577,7 +3577,6 @@ app.get("/reports-qr", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
     const isSuperAdmin = currentUser.role === "super_admin";
-    console.log("REPORT USER:", currentUser.id, currentUser.email, currentUser.role, "isSuperAdmin:", isSuperAdmin);
     const timeframe = req.query.timeframe || "30";
 const startDate = req.query.start_date || "";
 const endDate = req.query.end_date || "";
@@ -3655,7 +3654,7 @@ LEFT JOIN spaces s
   ON s.id = qr.space_id
 
 WHERE 1=1
-AND s.user_id = $1
+          
 
  GROUP BY
   c.advertiser,
