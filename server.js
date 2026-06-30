@@ -1639,19 +1639,11 @@ const locationRows = await q(
         COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
         COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
-FROM campaigns c
-LEFT JOIN qr_campaigns qc
-  ON qc.campaign_id = c.id
-  AND COALESCE(qc.is_active,true) = true
-LEFT JOIN qr_codes qr
-  ON qr.id = qc.qr_id
-LEFT JOIN spaces s
-  ON s.id = qr.space_id
-LEFT JOIN events e
-  ON e.campaign_id = c.id
-  AND e.qr_id = qr.id
-  AND e.created_at::date BETWEEN '${startDate}' AND '${endDate}'
-WHERE 1=1
+      FROM events e
+      JOIN campaigns c ON c.id = e.campaign_id
+      JOIN qr_codes qr ON qr.id = e.qr_id
+      JOIN spaces s ON s.id = qr.space_id
+      WHERE 1=1 ${dateSql}
       GROUP BY
   c.id,
   c.name,
@@ -1672,19 +1664,11 @@ WHERE 1=1
         COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
         COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
-     FROM campaigns c
-LEFT JOIN qr_campaigns qc
-  ON qc.campaign_id = c.id
-  AND COALESCE(qc.is_active,true) = true
-LEFT JOIN qr_codes qr
-  ON qr.id = qc.qr_id
-LEFT JOIN spaces s
-  ON s.id = qr.space_id
-LEFT JOIN events e
-  ON e.campaign_id = c.id
-  AND e.qr_id = qr.id
-  AND e.created_at::date BETWEEN '${startDate}' AND '${endDate}'
-WHERE c.user_id = $1
+      FROM events e
+      JOIN campaigns c ON c.id = e.campaign_id
+      JOIN qr_codes qr ON qr.id = e.qr_id
+      JOIN spaces s ON s.id = qr.space_id
+      WHERE c.user_id = $1 ${dateSql}
       GROUP BY c.id, s.id
       ORDER BY intent_clicks DESC, scans DESC
     `,
@@ -3636,8 +3620,6 @@ COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
 ) conv ON conv.qr_id = qr.id
 LEFT JOIN events e
   ON e.qr_id = qr.id
-  AND e.created_at::date BETWEEN '${startDate}' AND '${endDate}'
-  ON e.qr_id = qr.id
 LEFT JOIN (
   SELECT DISTINCT ON (qr_id, campaign_id)
     *
@@ -3654,7 +3636,7 @@ LEFT JOIN spaces s
   ON s.id = qr.space_id
 
 WHERE 1=1
-          
+          ${dateSql}
 
  GROUP BY
   c.advertiser,
@@ -4482,7 +4464,6 @@ app.get("/admin/new-location", async (req, res) => {
   res.send(page("Add Location", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add Location / Space</h1></div><div class="wrap"><form method="POST" action="/admin/new-location"><label>Name</label><input name="name" required /><label>Market</label><input name="location" placeholder="Naples, FL" /><label>Description</label><input name="description" /><button class="btn" type="submit">Create Location</button></form></div>`));
 });
 app.post("/admin/new-location", async (req, res) => {
-console.log("NEW LOCATION POST", new Date().toISOString(), req.body);
   try {
     await q(`
       INSERT INTO spaces (
