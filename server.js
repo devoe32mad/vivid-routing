@@ -1060,6 +1060,29 @@ function addVividClickIdToUrl(destinationUrl, vividClickId) {
 
   return `${destinationUrl}${separator}vivid_click_id=${encodeURIComponent(vividClickId)}`;
 }
+app.get("/debug-puma-assignments", requireLogin, async (req, res) => {
+  const rows = await q(`
+    SELECT
+      qc.id,
+      qc.qr_id,
+      qr.name AS qr_name,
+      qc.campaign_id,
+      c.name AS campaign_name,
+      qc.assigned_at,
+      qc.started_at,
+      qc.ended_at,
+      qc.is_active,
+      c.start_date,
+      c.end_date
+    FROM qr_campaigns qc
+    JOIN qr_codes qr ON qr.id = qc.qr_id
+    JOIN campaigns c ON c.id = qc.campaign_id
+    WHERE qc.campaign_id = 41
+    ORDER BY qc.qr_id, qc.id
+  `);
+
+  res.json(rows.rows);
+});
 app.get("/debug-users-spaces", requireLogin, async (req, res) => {
   const users = await q(`
 SELECT id, email, role
