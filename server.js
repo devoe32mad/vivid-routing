@@ -3227,42 +3227,7 @@ GREATEST(
 ,
 0 AS conversions,
 0 AS conversion_value,
-COALESCE((
-  SELECT ROUND(
-    SUM(x.allocated_cost),
-    2
-  )
-  FROM (
-    SELECT DISTINCT ON (qc2.qr_id, qc2.campaign_id)
-      (
-        COALESCE(qr2.annual_cost, s2.placement_cost, 800)
-        /
-        GREATEST(
-          1,
-          COALESCE(qr2.end_date::date, CURRENT_DATE)
-          - COALESCE(qr2.live_date::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)))
-          + 1
-        )
-        *
-        GREATEST(
-          1,
-          LEAST(CURRENT_DATE, COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE))
-          -
-          GREATEST(
-            DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
-            COALESCE(NULLIF('${startDate}','')::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)))
-          )
-          + 1
-        )
-      ) AS allocated_cost
-    FROM qr_campaigns qc2
-    JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
-    JOIN spaces s2 ON s2.id = qr2.space_id
-    WHERE qc2.campaign_id = c.id
-      AND COALESCE(qc2.is_active,true) = true
-    ORDER BY qc2.qr_id, qc2.campaign_id, qc2.id DESC
-  ) x
-), 0) AS allocated_cost_old,
+0 AS allocated_cost,
      FROM events e
 LEFT JOIN campaigns c
   ON c.id = e.campaign_id
