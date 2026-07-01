@@ -794,8 +794,9 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
       c.start_date,
       c.end_date,
       COALESCE(qr.total_cost, qr.annual_cost, 800) AS placement_cost,
-      qr.live_date,
-      qr.end_date AS qr_end_date
+qr.live_date,
+qr.end_date AS qr_end_date,
+qr.contract_days
     FROM qr_campaigns qc
     JOIN campaigns c ON c.id = qc.campaign_id
     JOIN qr_codes qr ON qr.id = qc.qr_id
