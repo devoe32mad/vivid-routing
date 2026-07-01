@@ -846,13 +846,13 @@ qr.end_date AS qr_end_date
       const activeCampaigns = qrRows.filter(r => {
        const campaignStart = toDateOnly(r.started_at || r.assigned_at || r.start_date) || qrStart;
         const campaignEnd = toDateOnly(r.ended_at || r.end_date) || qrEnd;
-console.log("DATE PICK TEST", {
+console.log("FILTER DEBUG", {
   campaignId,
   qrId,
-  started_at: r.started_at,
-  assigned_at: r.assigned_at,
-  raw_assigned_at: r.raw_assigned_at,
-  start_date: r.start_date
+  day,
+  campaignStart,
+  campaignEnd,
+  match: day >= campaignStart && day <= campaignEnd
 });
         return day >= campaignStart && day <= campaignEnd;
       });
