@@ -3262,7 +3262,7 @@ COALESCE((
       AND COALESCE(qc2.is_active,true) = true
     ORDER BY qc2.qr_id, qc2.campaign_id, qc2.id DESC
   ) x
-), 0) AS allocated_cost,
+), 0) AS allocated_cost_old,
      FROM events e
 LEFT JOIN campaigns c
   ON c.id = e.campaign_id
