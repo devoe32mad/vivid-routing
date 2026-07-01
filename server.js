@@ -844,9 +844,23 @@ const rows = await q(`
     let day = new Date(startDay);
 
     while (day <= endDay) {
-      const activeCampaigns = qrRows.filter(r => {
-       const campaignStart = toDateOnly(r.assigned_at || r.started_at || r.start_date) || qrStart;
-        const campaignEnd = toDateOnly(r.ended_at || r.end_date) || qrEnd;
+     const activeCampaigns = qrRows.filter(r => {
+  const assignmentStart = toDateOnly(r.started_at || r.assigned_at);
+  const campaignStartDate = toDateOnly(r.start_date);
+
+  const campaignStart = [qrStart, assignmentStart, campaignStartDate]
+    .filter(Boolean)
+    .reduce((latest, d) => d > latest ? d : latest);
+
+  const assignmentEnd = toDateOnly(r.ended_at);
+  const campaignEndDate = toDateOnly(r.end_date);
+
+  const campaignEnd = [qrEnd, assignmentEnd, campaignEndDate]
+    .filter(Boolean)
+    .reduce((earliest, d) => d < earliest ? d : earliest);
+
+  return day >= campaignStart && day <= campaignEnd;
+});
 console.log("FILTER DEBUG", {
   campaignId,
   qrId,
