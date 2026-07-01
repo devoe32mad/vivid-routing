@@ -865,6 +865,9 @@ console.log(
   {
     qrId,
     day,
+    campaignStart,
+campaignEnd,
+qrContractDays,
     dailyQrCost,
     activeCampaigns: activeCampaigns.map(c => c.campaign_id),
     targetActive
