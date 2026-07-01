@@ -871,7 +871,14 @@ console.log(
     }
   }
 
-  return Number(total.toFixed(2));
+  const finalTotal = Number(total.toFixed(2));
+
+console.log("FINAL TOTAL", {
+  campaignId,
+  total: finalTotal
+});
+
+return finalTotal;
 }
 async function allocatedSpotCostForQr(qrId, start = "", end = "") {
   const hasDate = Boolean(start && end);
