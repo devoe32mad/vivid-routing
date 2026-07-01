@@ -844,7 +844,7 @@ qr.end_date AS qr_end_date
 
     while (day <= endDay) {
       const activeCampaigns = qrRows.filter(r => {
-        const campaignStart = toDateOnly(r.start_date || r.assigned_at) || qrStart;
+       const campaignStart = toDateOnly(r.started_at || r.assigned_at || r.start_date) || qrStart;
         const campaignEnd = toDateOnly(r.ended_at || r.end_date) || qrEnd;
 
         return day >= campaignStart && day <= campaignEnd;
