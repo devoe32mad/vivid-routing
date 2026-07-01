@@ -809,6 +809,22 @@ qr.end_date AS qr_end_date
 
   for (const qrId of qrIds) {
     const qrRows = rows.rows.filter(r => Number(r.qr_id) === Number(qrId));
+    console.log("ALLOC DEBUG", {
+  campaignId,
+  qrId,
+  qrRows: qrRows.map(r => ({
+    campaign_id: r.campaign_id,
+    assigned_at: r.assigned_at,
+    raw_assigned_at: r.raw_assigned_at,
+    started_at: r.started_at,
+    ended_at: r.ended_at,
+    campaign_start: r.start_date,
+    campaign_end: r.end_date,
+    qr_live: r.live_date,
+    qr_end: r.qr_end_date,
+    placement_cost: r.placement_cost
+  }))
+});
     if (qrRows.length === 0) continue;
 
     const qr = qrRows[0];
