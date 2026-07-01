@@ -785,25 +785,26 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
 
   const qrIds = target.rows.map(r => Number(r.qr_id));
 
-  const rows = await q(`
-    SELECT
-      qc.qr_id,
-      qc.campaign_id,
-      COALESCE(qc.started_at, qc.assigned_at) AS assigned_at,
-qc.ended_at,
-c.start_date,
-c.end_date,
-qc.assigned_at AS raw_assigned_at,
-qc.started_at,
-COALESCE(qr.total_cost, qr.annual_cost, 800) AS placement_cost,
-qr.live_date,
-qr.end_date AS qr_end_date
-    FROM qr_campaigns qc
-    JOIN campaigns c ON c.id = qc.campaign_id
-    JOIN qr_codes qr ON qr.id = qc.qr_id
-    WHERE qc.qr_id = ANY($1::int[])
-      AND COALESCE(qc.is_active,true) = true
-  `, [qrIds]);
+const rows = await q(`
+  SELECT DISTINCT ON (qc.qr_id, qc.campaign_id)
+    qc.qr_id,
+    qc.campaign_id,
+    COALESCE(qc.started_at, qc.assigned_at) AS assigned_at,
+    qc.ended_at,
+    c.start_date,
+    c.end_date,
+    qc.assigned_at AS raw_assigned_at,
+    qc.started_at,
+    COALESCE(qr.total_cost, qr.annual_cost, 800) AS placement_cost,
+    qr.live_date,
+    qr.end_date AS qr_end_date
+  FROM qr_campaigns qc
+  JOIN campaigns c ON c.id = qc.campaign_id
+  JOIN qr_codes qr ON qr.id = qc.qr_id
+  WHERE qc.qr_id = ANY($1::int[])
+    AND COALESCE(qc.is_active,true) = true
+  ORDER BY qc.qr_id, qc.campaign_id, qc.assigned_at ASC
+`, [qrIds]);
 
   let total = 0;
 
