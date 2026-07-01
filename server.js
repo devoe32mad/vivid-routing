@@ -853,7 +853,16 @@ qr.end_date AS qr_end_date
       const targetActive = activeCampaigns.some(
         r => Number(r.campaign_id) === Number(campaignId)
       );
-
+console.log(
+  "DAY DEBUG",
+  {
+    qrId,
+    day,
+    dailyQrCost,
+    activeCampaigns: activeCampaigns.map(c => c.campaign_id),
+    targetActive
+  }
+);
       if (targetActive && activeCampaigns.length > 0) {
         total += dailyQrCost / activeCampaigns.length;
       }
