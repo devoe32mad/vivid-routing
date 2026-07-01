@@ -793,10 +793,9 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
       qc.ended_at,
       c.start_date,
       c.end_date,
-      COALESCE(qr.total_cost, qr.annual_cost, 800) AS placement_cost,
+COALESCE(qr.total_cost, qr.annual_cost, 800) AS placement_cost,
 qr.live_date,
-qr.end_date AS qr_end_date,
-qr.contract_days
+qr.end_date AS qr_end_date
     FROM qr_campaigns qc
     JOIN campaigns c ON c.id = qc.campaign_id
     JOIN qr_codes qr ON qr.id = qc.qr_id
@@ -820,10 +819,7 @@ qr.contract_days
     const startDay = rangeStart && rangeStart > qrStart ? rangeStart : qrStart;
     const endDay = rangeEnd && rangeEnd < qrEnd ? rangeEnd : qrEnd;
 
-   const qrContractDays = Math.max(
-  1,
-  Number(qr.contract_days || 0) || safeDaysBetween(qrStart, qrEnd)
-);
+  const qrContractDays = safeDaysBetween(qrStart, qrEnd);
     const dailyQrCost = Number(qr.placement_cost || 0) / qrContractDays;
 
     let day = new Date(startDay);
