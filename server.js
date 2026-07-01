@@ -3331,7 +3331,7 @@ COALESCE((
       AND COALESCE(qc2.is_active,true) = true
     ORDER BY qc2.qr_id, qc2.campaign_id, qc2.id DESC
   ) x
-), 0) AS allocated_cost,
+) AS allocated_cost_old,
 
 COALESCE((
   SELECT MIN(
