@@ -861,16 +861,6 @@ const activeCampaigns = qrRows.filter(r => {
 
   return day >= campaignStart && day <= campaignEnd;
 });
-console.log("FILTER DEBUG", {
-  campaignId,
-  qrId,
-  day,
-  campaignStart,
-  campaignEnd,
-  match: day >= campaignStart && day <= campaignEnd
-});
-        return day >= campaignStart && day <= campaignEnd;
-      });
 
       const targetActive = activeCampaigns.some(
         r => Number(r.campaign_id) === Number(campaignId)
