@@ -820,7 +820,10 @@ qr.contract_days
     const startDay = rangeStart && rangeStart > qrStart ? rangeStart : qrStart;
     const endDay = rangeEnd && rangeEnd < qrEnd ? rangeEnd : qrEnd;
 
-    const qrContractDays = Math.max(1, safeDaysBetween(qrStart, addDays(qrEnd, 1)));
+   const qrContractDays = Math.max(
+  1,
+  Number(qr.contract_days || 0) || safeDaysBetween(qrStart, qrEnd)
+);
     const dailyQrCost = Number(qr.placement_cost || 0) / qrContractDays;
 
     let day = new Date(startDay);
