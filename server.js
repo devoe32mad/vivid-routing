@@ -862,13 +862,13 @@ const activeCampaigns = qrRows.filter(r => {
   return day >= campaignStart && day <= campaignEnd;
 });
 
-      const targetActive = activeCampaigns.some(
-        r => Number(r.campaign_id) === Number(campaignId)
-      );
+   const targetRows = activeCampaigns.filter(
+  r => Number(r.campaign_id) === Number(campaignId)
+);
 
-      if (targetActive && activeCampaigns.length > 0) {
-        total += dailyQrCost / activeCampaigns.length;
-      }
+if (targetRows.length > 0 && activeCampaigns.length > 0) {
+  total += dailyQrCost / activeCampaigns.length;
+}
 
       day = addDays(day, 1);
     }
