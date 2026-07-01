@@ -844,7 +844,7 @@ const rows = await q(`
     let day = new Date(startDay);
 
     while (day <= endDay) {
-     const activeCampaigns = qrRows.filter(r => {
+const activeCampaigns = qrRows.filter(r => {
   const assignmentStart = toDateOnly(r.started_at || r.assigned_at);
   const campaignStartDate = toDateOnly(r.start_date);
 
