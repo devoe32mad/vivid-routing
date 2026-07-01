@@ -860,19 +860,7 @@ console.log("DATE PICK TEST", {
       const targetActive = activeCampaigns.some(
         r => Number(r.campaign_id) === Number(campaignId)
       );
-console.log(
-  "DAY DEBUG",
-  {
-    qrId,
-    day,
-    campaignStart,
-campaignEnd,
-qrContractDays,
-    dailyQrCost,
-    activeCampaigns: activeCampaigns.map(c => c.campaign_id),
-    targetActive
-  }
-);
+
       if (targetActive && activeCampaigns.length > 0) {
         total += dailyQrCost / activeCampaigns.length;
       }
