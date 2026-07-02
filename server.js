@@ -854,7 +854,15 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
       const targetActive = activeCampaigns.some(
         r => Number(r.campaign_id) === campaignId
       );
-
+console.log("DAY", day.toISOString().substring(0,10));
+console.log("QR", qrId);
+console.log("ACTIVE CAMPAIGNS", activeCampaigns.map(c => ({
+  campaign: c.campaign_id,
+  start: c.start_date,
+  end: c.end_date,
+  assigned: c.assigned_at
+})));
+console.log("TARGET ACTIVE", targetActive);
       if (targetActive && activeCampaigns.length > 0) {
         total += dailyQrCost / activeCampaigns.length;
       }
