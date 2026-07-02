@@ -3353,7 +3353,15 @@ const customerValue =
 
 console.log("CAMPAIGN:", r.campaign_id, r.label);
   const placementCost = await allocatedSpotCostForCampaign(r.campaign_id || r.id, startDate, endDate);
-    console.log(
+   console.log("PLACEMENT CHECK", {
+  campaign_name: r.campaign_name,
+  campaign_id: r.campaign_id,
+  id: r.id,
+  startDate,
+  endDate,
+  placementCost
+});
+      console.log(
     "PLACEMENT COST FUNCTION:",
     r.campaign_name,
     r.campaign_id,
