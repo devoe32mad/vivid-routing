@@ -4590,17 +4590,7 @@ ${qr.is_imported ? `
             </option>
           `).join("")}
         </select>
-<label>Assign Existing Campaign</label>
 
-<select name="campaign_id">
-  <option value="">-- Select Campaign --</option>
-
-  ${campaigns.rows.map(c => `
-    <option value="${c.id}">
-      ${c.name}
-    </option>
-  `).join("")}
-</select>
         <button class="btn" type="submit">
           Save QR
         </button>
