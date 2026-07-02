@@ -3012,43 +3012,7 @@ COALESCE(
   ),
   0
 ) AS conversion_value,
-COALESCE((
-  SELECT ROUND(
-    SUM(((COALESCE(qr2.annual_cost, s2.placement_cost, 800) / GREATEST(
-  1,
-  COALESCE(qr2.end_date::date, CURRENT_DATE) - COALESCE(qr2.live_date::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))) + 1
-)) *
-      GREATEST(
-        1,
-        LEAST(
-  COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE),
-  CURRENT_DATE
-)
--
-GREATEST(
-  DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
-  COALESCE(
-    NULLIF('${startDate}','')::date,
-    DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
-  )
-)
-+ 1
-      )
-    ),
-    2
-  )
-  FROM (
-  SELECT DISTINCT ON (qr_id, campaign_id)
-    *
-  FROM qr_campaigns
-  WHERE COALESCE(is_active,true) = true
-  ORDER BY qr_id, campaign_id, id DESC
-) qc2
-  JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
-  JOIN spaces s2 ON s2.id = qr2.space_id
-  WHERE qc2.campaign_id = c.id
-    AND COALESCE(qc2.is_active,true) = true
-), 0) AS allocated_cost,
+0 AS allocated_cost,
 COUNT(*) FILTER (
   WHERE e.type IN ('purchase','conversion','lead','signup')
 ) AS conversions,
