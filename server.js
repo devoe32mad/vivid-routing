@@ -750,7 +750,7 @@ await q(`
   const campaignStores = await q(`SELECT COUNT(*) FROM campaign_stores`);
   if (Number(campaignStores.rows[0].count) === 0) await q(`INSERT INTO campaign_stores (campaign_id,store_id,weight,is_active) VALUES (1,1,70,true),(2,2,90,true)`);
 }
-}
+
 function daysBetween(startDate, endDate) {
   const start = new Date(startDate);
   const end = new Date(endDate);
