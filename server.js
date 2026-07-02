@@ -1046,7 +1046,7 @@ app.get("/debug-puma-assignments", requireLogin, async (req, res) => {
     FROM qr_campaigns qc
     JOIN qr_codes qr ON qr.id = qc.qr_id
     JOIN campaigns c ON c.id = qc.campaign_id
-    WHERE qc.campaign_id = 41
+    WHERE qc.campaign_id = 46
     ORDER BY qc.qr_id, qc.id
   `);
 
