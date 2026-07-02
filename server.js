@@ -835,8 +835,35 @@ const rows = await q(`
 
     if (!qrStart || !qrEnd) continue;
 
-    const startDay = rangeStart && rangeStart > qrStart ? rangeStart : qrStart;
-    const endDay = rangeEnd && rangeEnd < qrEnd ? rangeEnd : qrEnd;
+  const targetAssignments = qrRows.filter(
+  r => Number(r.campaign_id) === Number(campaignId)
+);
+
+const targetStartDates = targetAssignments
+  .map(r => toDateOnly(r.started_at || r.assigned_at || r.start_date))
+  .filter(Boolean);
+
+const targetEndDates = targetAssignments
+  .map(r => toDateOnly(r.ended_at || r.end_date))
+  .filter(Boolean);
+
+const targetStart = targetStartDates.length
+  ? targetStartDates.reduce((latest, d) => d > latest ? d : latest)
+  : qrStart;
+
+const targetEnd = targetEndDates.length
+  ? targetEndDates.reduce((earliest, d) => d < earliest ? d : earliest)
+  : qrEnd;
+
+const startDay = [qrStart, rangeStart, targetStart]
+  .filter(Boolean)
+  .reduce((latest, d) => d > latest ? d : latest);
+
+const endDay = [qrEnd, rangeEnd, targetEnd]
+  .filter(Boolean)
+  .reduce((earliest, d) => d < earliest ? d : earliest);
+
+if (endDay < startDay) continue;
 
   const qrContractDays = safeDaysBetween(qrStart, qrEnd);
     const dailyQrCost = Number(qr.placement_cost || 0) / qrContractDays;
