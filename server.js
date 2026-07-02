@@ -785,47 +785,28 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
 
   const qrIds = target.rows.map(r => Number(r.qr_id));
 
-const rows = await q(`
-  SELECT DISTINCT ON (qc.qr_id, qc.campaign_id)
-    qc.qr_id,
-    qc.campaign_id,
-    COALESCE(qc.started_at, qc.assigned_at) AS assigned_at,
-    qc.ended_at,
-    c.start_date,
-    c.end_date,
-    qc.assigned_at AS raw_assigned_at,
-    qc.started_at,
-    COALESCE(qr.total_cost, qr.annual_cost, 800) AS placement_cost,
-    qr.live_date,
-    qr.end_date AS qr_end_date
-  FROM qr_campaigns qc
-  JOIN campaigns c ON c.id = qc.campaign_id
-  JOIN qr_codes qr ON qr.id = qc.qr_id
-  WHERE qc.qr_id = ANY($1::int[])
-    AND COALESCE(qc.is_active,true) = true
-  ORDER BY qc.qr_id, qc.campaign_id, qc.assigned_at ASC
-`, [qrIds]);
+  const rows = await q(`
+    SELECT
+      qc.qr_id,
+      qc.campaign_id,
+      COALESCE(qc.started_at, qc.assigned_at) AS assigned_at,
+      qc.ended_at,
+      c.start_date,
+      c.end_date,
+      COALESCE(qr.total_cost, qr.annual_cost, 800) AS placement_cost,
+      qr.live_date,
+      qr.end_date AS qr_end_date
+    FROM qr_campaigns qc
+    JOIN campaigns c ON c.id = qc.campaign_id
+    JOIN qr_codes qr ON qr.id = qc.qr_id
+    WHERE qc.qr_id = ANY($1::int[])
+      AND COALESCE(qc.is_active,true) = true
+  `, [qrIds]);
 
   let total = 0;
 
   for (const qrId of qrIds) {
     const qrRows = rows.rows.filter(r => Number(r.qr_id) === Number(qrId));
-    console.log("ALLOC DEBUG", {
-  campaignId,
-  qrId,
-  qrRows: qrRows.map(r => ({
-    campaign_id: r.campaign_id,
-    assigned_at: r.assigned_at,
-    raw_assigned_at: r.raw_assigned_at,
-    started_at: r.started_at,
-    ended_at: r.ended_at,
-    campaign_start: r.start_date,
-    campaign_end: r.end_date,
-    qr_live: r.live_date,
-    qr_end: r.qr_end_date,
-    placement_cost: r.placement_cost
-  }))
-});
     if (qrRows.length === 0) continue;
 
     const qr = qrRows[0];
@@ -835,81 +816,37 @@ const rows = await q(`
 
     if (!qrStart || !qrEnd) continue;
 
-  const targetAssignments = qrRows.filter(
-  r => Number(r.campaign_id) === Number(campaignId)
-);
+    const startDay = rangeStart && rangeStart > qrStart ? rangeStart : qrStart;
+    const endDay = rangeEnd && rangeEnd < qrEnd ? rangeEnd : qrEnd;
 
-const targetStartDates = targetAssignments
-  .map(r => toDateOnly(r.started_at || r.assigned_at || r.start_date))
-  .filter(Boolean);
-
-const targetEndDates = targetAssignments
-  .map(r => toDateOnly(r.ended_at || r.end_date))
-  .filter(Boolean);
-
-const targetStart = targetStartDates.length
-  ? targetStartDates.reduce((latest, d) => d > latest ? d : latest)
-  : qrStart;
-
-const targetEnd = targetEndDates.length
-  ? targetEndDates.reduce((earliest, d) => d < earliest ? d : earliest)
-  : qrEnd;
-
-const startDay = [qrStart, rangeStart, targetStart]
-  .filter(Boolean)
-  .reduce((latest, d) => d > latest ? d : latest);
-
-const endDay = [qrEnd, rangeEnd, targetEnd]
-  .filter(Boolean)
-  .reduce((earliest, d) => d < earliest ? d : earliest);
-
-if (endDay < startDay) continue;
-
-  const qrContractDays = safeDaysBetween(qrStart, qrEnd);
+    const qrContractDays = safeDaysBetween(qrStart, qrEnd);
     const dailyQrCost = Number(qr.placement_cost || 0) / qrContractDays;
 
     let day = new Date(startDay);
 
     while (day <= endDay) {
-const activeCampaigns = qrRows.filter(r => {
-  const assignmentStart = toDateOnly(r.started_at || r.assigned_at);
-  const campaignStartDate = toDateOnly(r.start_date);
+      const activeCampaigns = qrRows.filter(r => {
+        const campaignStart = toDateOnly(r.start_date || r.assigned_at) || qrStart;
+        const campaignEnd = toDateOnly(r.ended_at || r.end_date) || qrEnd;
 
-  const campaignStart = [qrStart, assignmentStart, campaignStartDate]
-    .filter(Boolean)
-    .reduce((latest, d) => d > latest ? d : latest);
+        return day >= campaignStart && day <= campaignEnd;
+      });
 
-  const assignmentEnd = toDateOnly(r.ended_at);
-  const campaignEndDate = toDateOnly(r.end_date);
+      const targetActive = activeCampaigns.some(
+        r => Number(r.campaign_id) === Number(campaignId)
+      );
 
-  const campaignEnd = [qrEnd, assignmentEnd, campaignEndDate]
-    .filter(Boolean)
-    .reduce((earliest, d) => d < earliest ? d : earliest);
-
-  return day >= campaignStart && day <= campaignEnd;
-});
-
-   const targetRows = activeCampaigns.filter(
-  r => Number(r.campaign_id) === Number(campaignId)
-);
-
-if (targetRows.length > 0 && activeCampaigns.length > 0) {
-  total += dailyQrCost / activeCampaigns.length;
-}
+      if (targetActive && activeCampaigns.length > 0) {
+        total += dailyQrCost / activeCampaigns.length;
+      }
 
       day = addDays(day, 1);
     }
   }
 
-  const finalTotal = Number(total.toFixed(2));
-
-console.log("FINAL TOTAL", {
-  campaignId,
-  total: finalTotal
-});
-
-return finalTotal;
+  return Number(total.toFixed(2));
 }
+
 async function allocatedSpotCostForQr(qrId, start = "", end = "") {
   const hasDate = Boolean(start && end);
   const rangeStart = hasDate ? toDateOnly(start) : null;
