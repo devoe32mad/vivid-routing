@@ -6740,8 +6740,12 @@ app.post("/admin/assign", requireLogin, async (req, res) => {
     started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
     assigned_at = COALESCE(assigned_at, CURRENT_TIMESTAMP),
     ended_at = NULL
+ WHERE id = (
+  SELECT MIN(id)
+  FROM qr_campaigns
   WHERE qr_id = $1
     AND campaign_id = $2
+)
   `,
   [
     Number(req.body.qr_id),
