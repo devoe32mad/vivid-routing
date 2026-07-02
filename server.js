@@ -3845,6 +3845,143 @@ const roi =
     res.send("QR REPORT ERROR: " + err.message);
   }
 });
+app.get("/reports-campaign", requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+
+    const startDate = req.query.start_date || "";
+    const endDate = req.query.end_date || "";
+
+    const userWhere = isSuperAdmin ? "" : "AND c.user_id = $1";
+    const params = isSuperAdmin ? [] : [currentUser.id];
+
+    const rows = await q(`
+      SELECT
+        c.id AS campaign_id,
+        c.advertiser,
+        c.name AS campaign_name,
+        c.avg_customer_value,
+        COALESCE(c.is_archived,false) AS is_archived,
+
+        COUNT(DISTINCT qc.qr_id) AS qr_count,
+
+        COUNT(e.id) FILTER (WHERE e.type='scan') AS scans,
+        COUNT(e.id) FILTER (WHERE e.type='offer') AS offers,
+        COUNT(e.id) FILTER (WHERE e.type='maps') AS maps,
+        COUNT(e.id) FILTER (WHERE e.type='waze') AS waze,
+        COUNT(e.id) FILTER (WHERE e.type IN ('offer','maps','waze')) AS total_intent,
+        COUNT(e.id) FILTER (WHERE e.type='conversion') AS conversions,
+        COALESCE(SUM(e.value) FILTER (WHERE e.type='conversion'),0) AS conversion_value,
+
+        GREATEST(
+          0,
+          COALESCE(
+            LEAST(COALESCE(c.end_date, CURRENT_DATE), COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE))
+            -
+            GREATEST(COALESCE(c.start_date, c.created_at::date), COALESCE(NULLIF('${startDate}','')::date, COALESCE(c.start_date, c.created_at::date)))
+            + 1,
+            0
+          )
+        ) AS active_days
+
+      FROM campaigns c
+      LEFT JOIN qr_campaigns qc
+        ON qc.campaign_id = c.id
+       AND COALESCE(qc.is_active,true) = true
+      LEFT JOIN events e
+        ON e.campaign_id = c.id
+       ${startDate && endDate ? `AND e.created_at::date BETWEEN '${startDate}' AND '${endDate}'` : ""}
+
+      WHERE 1=1
+        ${userWhere}
+
+      GROUP BY c.id
+      ORDER BY c.id DESC
+    `, params);
+
+    let table = "";
+
+    for (const r of rows.rows) {
+      const scans = Number(r.scans || 0);
+      const offers = Number(r.offers || 0);
+      const maps = Number(r.maps || 0);
+      const waze = Number(r.waze || 0);
+      const totalIntent = Number(r.total_intent || 0);
+      const conversions = Number(r.conversions || 0);
+      const customerValue = Number(r.avg_customer_value || 0);
+      const revenue = Number(r.conversion_value || 0);
+
+      const allocatedCost = await allocatedSpotCostForCampaign(
+        r.campaign_id,
+        startDate,
+        endDate
+      );
+
+      const roi = allocatedCost > 0
+        ? (((revenue - allocatedCost) / allocatedCost) * 100).toFixed(1)
+        : 0;
+
+      table += `
+        <tr>
+          <td>${r.advertiser || ""}</td>
+          <td>${r.campaign_name || ""}</td>
+          <td>${r.is_archived ? '<span class="bad">Archived</span>' : '<span class="good">Active</span>'}</td>
+          <td>${r.active_days || 0}</td>
+          <td>${r.qr_count || 0}</td>
+          <td>${scans}</td>
+          <td>${offers}</td>
+          <td>${maps}</td>
+          <td>${waze}</td>
+          <td>${totalIntent}</td>
+          <td>${conversions}</td>
+          <td>${money(customerValue)}</td>
+          <td>${money(revenue)}</td>
+          <td>${money(allocatedCost)}</td>
+          <td>${roi}%</td>
+        </tr>
+      `;
+    }
+
+    res.send(page("Campaign Performance", `
+      <div class="wrap">
+        <form method="GET" action="/reports-campaign">
+          <label>Start Date</label>
+          <input type="date" name="start_date" value="${startDate}" />
+          <label>End Date</label>
+          <input type="date" name="end_date" value="${endDate}" />
+          <button class="btn" type="submit">Apply Filter</button>
+        </form>
+
+        <div class="card">
+          <h1>Campaign Performance</h1>
+          <table>
+            <tr>
+              <th>Advertiser</th>
+              <th>Campaign</th>
+              <th>Status</th>
+              <th>Active Days</th>
+              <th>QR Count</th>
+              <th>Scans</th>
+              <th>Offers</th>
+              <th>Maps</th>
+              <th>Waze</th>
+              <th>Total Intent</th>
+              <th>Conversions</th>
+              <th>Customer Value</th>
+              <th>Revenue</th>
+              <th>Allocated Cost</th>
+              <th>ROI</th>
+            </tr>
+            ${table}
+          </table>
+        </div>
+      </div>
+    `));
+  } catch (err) {
+    res.send("CAMPAIGN REPORT ERROR: " + err.message);
+  }
+});
 app.get("/reports-location", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
