@@ -4645,52 +4645,7 @@ const { name, space_id, campaign_id } = req.body;
   return res.send("QR not found or access denied");
 }
 
-if (req.body.campaign_id) {
-await q(
-  `DELETE FROM qr_campaigns
-   WHERE qr_id = $1
-     AND campaign_id = $2`,
-  [req.params.qrId, req.body.campaign_id]
-);
 
-await q(
-  `
-  INSERT INTO qr_campaigns (
-    qr_id,
-    campaign_id,
-    contract_days,
-    is_active,
-    assigned_at,
-    started_at,
-    ended_at
-  )
-  SELECT
-    $1,
-    $2,
-    GREATEST(
-      1,
-      LEAST(
-        COALESCE(qr.end_date::date, c.end_date::date, CURRENT_DATE),
-        COALESCE(c.end_date::date, qr.end_date::date, CURRENT_DATE)
-      )
-      -
-      GREATEST(
-        COALESCE(qr.live_date::date, CURRENT_DATE),
-        COALESCE(c.start_date::date, CURRENT_DATE)
-      )
-      + 1
-    ),
-    true,
-    NOW(),
-    NOW(),
-    NULL
-  FROM qr_codes qr
-  JOIN campaigns c ON c.id = $2
-  WHERE qr.id = $1
-  `,
-  [req.params.qrId, req.body.campaign_id]
-);
-}
 res.send(
   "QR updated <br><a href='/my-setup'>Back to My Setup</a>"
 );
