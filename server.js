@@ -770,15 +770,17 @@ function safeDaysBetween(startDate, endDate) {
 }
 
 async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
+  campaignId = Number(campaignId);
+
   const hasDate = Boolean(start && end);
   const rangeStart = hasDate ? toDateOnly(start) : null;
   const rangeEnd = hasDate ? toDateOnly(end) : toDateOnly(new Date());
 
   const target = await q(`
-    SELECT DISTINCT qc.qr_id
-    FROM qr_campaigns qc
-    WHERE qc.campaign_id = $1
-      AND COALESCE(qc.is_active,true) = true
+    SELECT DISTINCT qr_id
+    FROM qr_campaigns
+    WHERE campaign_id = $1
+      AND COALESCE(is_active,true) = true
   `, [campaignId]);
 
   if (target.rows.length === 0) return 0;
@@ -786,24 +788,26 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
   const qrIds = target.rows.map(r => Number(r.qr_id));
 
   const rows = await q(`
-    SELECT
+    SELECT DISTINCT ON (qc.qr_id, qc.campaign_id)
       qc.qr_id,
       qc.campaign_id,
-      COALESCE(qc.started_at, qc.assigned_at) AS assigned_at,
+      qc.assigned_at,
+      qc.started_at,
       qc.ended_at,
       c.start_date,
       c.end_date,
-      COALESCE(qr.total_cost, qr.annual_cost, 800) AS placement_cost,
+      COALESCE(qr.total_cost, qr.annual_cost, s.placement_cost, 800) AS placement_cost,
       qr.live_date,
       qr.end_date AS qr_end_date
     FROM qr_campaigns qc
     JOIN campaigns c ON c.id = qc.campaign_id
     JOIN qr_codes qr ON qr.id = qc.qr_id
+    LEFT JOIN spaces s ON s.id = qr.space_id
     WHERE qc.qr_id = ANY($1::int[])
       AND COALESCE(qc.is_active,true) = true
+    ORDER BY qc.qr_id, qc.campaign_id, COALESCE(qc.started_at, qc.assigned_at) ASC
   `, [qrIds]);
-console.log("CAMPAIGN ROWS", campaignId);
-console.log(rows.rows);
+
   let total = 0;
 
   for (const qrId of qrIds) {
@@ -813,28 +817,42 @@ console.log(rows.rows);
     const qr = qrRows[0];
 
     const qrStart = toDateOnly(qr.live_date || qr.assigned_at);
-    const qrEnd = toDateOnly(qr.qr_end_date) || rangeEnd || toDateOnly(new Date());
+    const qrEnd = toDateOnly(qr.qr_end_date) || rangeEnd;
 
     if (!qrStart || !qrEnd) continue;
 
-    const startDay = rangeStart && rangeStart > qrStart ? rangeStart : qrStart;
-    const endDay = rangeEnd && rangeEnd < qrEnd ? rangeEnd : qrEnd;
-
     const qrContractDays = safeDaysBetween(qrStart, qrEnd);
     const dailyQrCost = Number(qr.placement_cost || 0) / qrContractDays;
+
+    const startDay = [qrStart, rangeStart].filter(Boolean)
+      .reduce((latest, d) => d > latest ? d : latest);
+
+    const endDay = [qrEnd, rangeEnd].filter(Boolean)
+      .reduce((earliest, d) => d < earliest ? d : earliest);
+
+    if (endDay < startDay) continue;
 
     let day = new Date(startDay);
 
     while (day <= endDay) {
       const activeCampaigns = qrRows.filter(r => {
-       const campaignStart = toDateOnly(r.start_date) || toDateOnly(r.assigned_at) || qrStart;
-      const campaignEnd = toDateOnly(r.end_date) || toDateOnly(r.ended_at) || qrEnd;
+        const assignmentStart = toDateOnly(r.started_at || r.assigned_at);
+        const campaignStart = toDateOnly(r.start_date);
+        const activeStart = [qrStart, assignmentStart, campaignStart]
+          .filter(Boolean)
+          .reduce((latest, d) => d > latest ? d : latest);
 
-        return day >= campaignStart && day <= campaignEnd;
+        const assignmentEnd = toDateOnly(r.ended_at);
+        const campaignEnd = toDateOnly(r.end_date);
+        const activeEnd = [qrEnd, assignmentEnd, campaignEnd]
+          .filter(Boolean)
+          .reduce((earliest, d) => d < earliest ? d : earliest);
+
+        return day >= activeStart && day <= activeEnd;
       });
 
       const targetActive = activeCampaigns.some(
-        r => Number(r.campaign_id) === Number(campaignId)
+        r => Number(r.campaign_id) === campaignId
       );
 
       if (targetActive && activeCampaigns.length > 0) {
