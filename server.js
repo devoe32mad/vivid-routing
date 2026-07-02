@@ -802,7 +802,8 @@ async function allocatedSpotCostForCampaign(campaignId, start = "", end = "") {
     WHERE qc.qr_id = ANY($1::int[])
       AND COALESCE(qc.is_active,true) = true
   `, [qrIds]);
-
+console.log("CAMPAIGN ROWS", campaignId);
+console.log(rows.rows);
   let total = 0;
 
   for (const qrId of qrIds) {
