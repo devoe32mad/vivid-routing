@@ -7175,6 +7175,8 @@ where.push(`($${params.length}::int IS NULL OR st.user_id = $${params.length}::i
         COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
         COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
         COUNT(*) FILTER (WHERE e.type = 'maps') AS map_clicks,
+        COUNT(*) FILTER (WHERE e.type = 'conversion') AS conversions,
+COALESCE(SUM(e.value) FILTER (WHERE e.type = 'conversion'), 0) AS conversion_value,
         MIN(e.created_at) AS first_event,
         MAX(e.created_at) AS last_event,
 COALESCE(qr.total_cost, qr.annual_cost, s.placement_cost, 0) AS placement_cost,
