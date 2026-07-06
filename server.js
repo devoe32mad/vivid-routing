@@ -7215,7 +7215,7 @@ const firstDate = r.first_event ? new Date(r.first_event) : new Date();
 const lastDate = r.last_event ? new Date(r.last_event) : firstDate;
 const activeDays = Math.max(1, Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)) + 1);
 
-const contractCost = Number(r.annual_cost || r.total_cost || 0);
+const contractCost = Number(r.placement_cost || 0);
 const contractImpressions = Number(r.annual_impressions || 0);
 
 const qrStart = r.live_date || r.created_at || r.first_event;
@@ -7230,7 +7230,7 @@ const impressions = contractDays > 0
   ? Math.round((contractImpressions / contractDays) * activeDays)
   : 0;
 
-const estimatedSpend = ((contractCost / contractDays) * activeDays).toFixed(2);
+const estimatedSpend = Number(((contractCost / contractDays) * activeDays).toFixed(2));
 const estimatedConversions = Math.round(scans * 0.01);
 const estimatedRevenue = estimatedConversions * 500;
 
