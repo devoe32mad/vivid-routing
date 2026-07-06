@@ -7935,6 +7935,7 @@ WHERE e.type = 'scan'
     const mapsClicks = Number(totals.maps_clicks || 0);
   
     const offerClicks = Number(totals.offer_clicks || 0);
+    const totalIntent = offerClicks + mapsClicks;
 const selectedDays =
   Math.max(
     1,
@@ -7960,7 +7961,7 @@ const proratedCost = Number(((annualCost / contractDays) * selectedDays).toFixed
 
 const proratedImpressions = Number(((annualImpressions / contractDays) * selectedDays).toFixed(0));
 
-const totalEngagements = Number(offerClicks || 0) + Number(mapsClicks || 0) + Number(wazeClicks || 0);
+const totalEngagements = offerClicks + mapsClicks;
 
 const costPerEngagement =
   totalEngagements > 0
