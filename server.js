@@ -8051,7 +8051,8 @@ COALESCE(qc.annual_impressions, 146000)::numeric(10,2) AS annual_impressions,
     COUNT(*) FILTER (WHERE e.type = 'scan')::int AS scans,
     COUNT(*) FILTER (WHERE e.type = 'maps')::int AS maps_clicks,
     COUNT(*) FILTER (WHERE e.type = 'offer')::int AS offer_clicks,
-
+COUNT(*) FILTER (WHERE e.type = 'conversion')::int AS conversions,
+COALESCE(SUM(e.value) FILTER (WHERE e.type = 'conversion'), 0)::numeric(10,2) AS conversion_value,
     COALESCE(SUM(
       CASE
         WHEN e.type = 'scan'
