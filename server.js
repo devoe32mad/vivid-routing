@@ -8357,7 +8357,8 @@ ${detailRows.rows.map(row => `
       <p>Offer Clicks: ${totals.offer_clicks || 0}</p>
     `));
   } catch (e) {
-    res.status(500).send("REPORTS ERROR: " + e.message);
+    console.error("REPORTS FULL ERROR:", e);
+res.status(500).send("REPORTS ERROR: " + e.message);
   }
 });
 app.get("/admin/reports", async (req, res) => {
@@ -8414,7 +8415,8 @@ const estimatedRevenue = (totalScans * 5).toFixed(2);
       </div>
     `));
   } catch (e) {
-    res.status(500).send("REPORTS ERROR: " + e.message);
+    console.error("REPORTS FULL ERROR:", e);
+res.status(500).send("REPORTS ERROR: " + e.message);
   }
 });
 app.listen(port, () => {
