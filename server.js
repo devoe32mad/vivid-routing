@@ -7200,7 +7200,7 @@ GROUP BY
     qr.annual_impressions,
     s.annual_impressions,
     qr.end_date,
-    qr.live_date,
+    qr.live_date
 
  
       ORDER BY total_events DESC
