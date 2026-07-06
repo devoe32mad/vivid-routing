@@ -7960,20 +7960,38 @@ if (campaignId) {
 
 
 
-const proratedImpressions = 0;
+const proratedCost = detailRows.rows.reduce(
+  (sum, row) => sum + Number(row.allocated_cost || 0),
+  0
+);
 
-const totalEngagements = offerClicks + mapsClicks;
+const proratedImpressions = detailRows.rows.reduce(
+  (sum, row) =>
+    sum +
+    ((Number(row.annual_impressions || 0) /
+      Math.max(1, Number(row.contract_days || 365))) *
+      selectedDays),
+  0
+);
+
+const totalEngagements = scans + offerClicks + mapsClicks;
 
 const costPerEngagement =
   totalEngagements > 0
     ? (proratedCost / totalEngagements).toFixed(2)
     : "0.00";
-    const cac = estimatedCustomers > 0 ? (proratedCost / estimatedCustomers).toFixed(2) : "0.00";
+
+const cac =
+  conversions > 0
+    ? (proratedCost / conversions).toFixed(2)
+    : "0.00";
+
 const roi =
   proratedCost > 0
-    ? (((estimatedRevenue - proratedCost) / proratedCost) * 100).toFixed(2)
+    ? (((conversionRevenue - proratedCost) / proratedCost) * 100).toFixed(2)
     : "0.00";
-    const cpm =
+
+const cpm =
   proratedImpressions > 0
     ? ((proratedCost / proratedImpressions) * 1000).toFixed(2)
     : "0.00";
