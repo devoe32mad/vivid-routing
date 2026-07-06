@@ -8120,7 +8120,22 @@ for (const row of detailRows.rows) {
     startDate,
     endDate
   );
+const reportCost = detailRows.rows.reduce((sum, row) => sum + Number(row.allocated_cost || 0), 0);
 
+const reportConversions = detailRows.rows.reduce((sum, row) => sum + Number(row.customers || 0), 0);
+
+const reportRevenue = detailRows.rows.reduce((sum, row) => sum + Number(row.revenue || 0), 0);
+
+const reportEngagements = offerClicks + mapsClicks;
+
+const reportCostPerEngagement =
+  reportEngagements > 0 ? (reportCost / reportEngagements).toFixed(2) : "0.00";
+
+const reportCAC =
+  reportConversions > 0 ? (reportCost / reportConversions).toFixed(2) : "0.00";
+
+const reportROI =
+  reportCost > 0 ? (((reportRevenue - reportCost) / reportCost) * 100).toFixed(2) : "0.00";
   row.customers = Number(row.conversions || 0);
   row.revenue = Number(row.conversion_value || 0);
   row.cac =
