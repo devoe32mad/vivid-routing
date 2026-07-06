@@ -7304,7 +7304,7 @@ const status = (req.query.status || "all").toLowerCase();
    COUNT(*) FILTER (WHERE e.type = 'waze') AS waze_clicks,
 COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks,
 COUNT(*) FILTER (WHERE e.type = 'conversion') AS conversions,
-COALESCE(SUM(e.value) FILTER (WHERE e.type = 'conversion'), 0) AS conversion_value
+COALESCE(SUM(CASE WHEN e.type = 'conversion' THEN e.value ELSE 0 END), 0) AS conversion_value
 FROM events e
       LEFT JOIN campaigns c ON c.id = e.campaign_id
       WHERE e.created_at::date BETWEEN $1::date AND $2::date
