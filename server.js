@@ -7181,7 +7181,7 @@ COALESCE(qr.total_cost, qr.annual_cost, s.placement_cost, 0) AS placement_cost,
 COALESCE(qr.annual_impressions, s.annual_impressions, 0) AS annual_impressions,
 COALESCE(qr.end_date, qr.live_date) AS end_date,
 COALESCE(qr.live_date, MIN(e.created_at)::date) AS live_date,
-COALESCE(s.contract_days, 365) AS contract_days
+365 AS contract_days
       FROM events e
 LEFT JOIN campaigns c ON c.id = e.campaign_id
 LEFT JOIN stores st ON st.id = e.store_id
