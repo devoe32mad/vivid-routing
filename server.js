@@ -7956,7 +7956,7 @@ if (campaignId) {
 
 
 
-const proratedImpressions = Number(((annualImpressions / contractDays) * selectedDays).toFixed(0));
+const proratedImpressions = 0;
 
 const totalEngagements = offerClicks + mapsClicks;
 
