@@ -8306,31 +8306,19 @@ ${detailRows.rows.map(row => `
     <td style="padding:10px;border:1px solid #ddd;">${row.campaign_name ? Number(row.estimated_customers).toFixed(2) : "0.00"}</td>
     <td style="padding:10px;border:1px solid #ddd;">${row.campaign_name ? "$" + Number(row.estimated_revenue).toFixed(2) : "$0.00"}</td>
     <td style="padding:10px;border:1px solid #ddd;">
-  ${
-    row.campaign_name && Number(row.estimated_customers) > 0
-      ? "$" + (
-          (
-            (Number(row.placement_cost) / Math.max(1, Number(row.contract_days || 365))) * selectedDays
-          ) /
-          Number(row.estimated_customers)
-        ).toFixed(2)
-      : "--"
-  }
+<td style="padding:10px;border:1px solid #ddd;">
+${
+  row.campaign_name && Number(row.estimated_customers) > 0
+    ? "$" + (Number(row.allocated_cost || 0) / Number(row.estimated_customers)).toFixed(2)
+    : "--"
+}
 </td>
-    <td style="padding:10px;border:1px solid #ddd;">
-  ${
-    row.campaign_name && Number(row.estimated_revenue) > 0
-      ? (
-          (
-            (
-              Number(row.estimated_revenue) -
-              ((Number(row.placement_cost) / Math.max(1, Number(row.contract_days || 365))) * selectedDays)
-            ) /
-            ((Number(row.placement_cost) / Math.max(1, Number(row.contract_days || 365))) * selectedDays)
-          ) * 100
-        ).toFixed(2) + "%"
-      : "--"
-  }
+<td style="padding:10px;border:1px solid #ddd;">
+${
+  row.campaign_name && Number(row.allocated_cost || 0) > 0
+    ? (((Number(row.estimated_revenue || 0) - Number(row.allocated_cost || 0)) / Number(row.allocated_cost || 0)) * 100).toFixed(2) + "%"
+    : "--"
+}
 </td>
    <td style="padding:10px;border:1px solid #ddd;">
   ${
