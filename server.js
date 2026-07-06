@@ -8120,6 +8120,7 @@ for (const row of detailRows.rows) {
     startDate,
     endDate
   );
+  }
 const reportCost = detailRows.rows.reduce((sum, row) => sum + Number(row.allocated_cost || 0), 0);
 
 const reportConversions = detailRows.rows.reduce((sum, row) => sum + Number(row.customers || 0), 0);
