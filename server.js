@@ -7951,8 +7951,13 @@ const selectedDays =
 const costBasis = await q(`
   SELECT
     COALESCE(SUM(placement_cost), 0)::numeric(10,2) AS annual_cost,
-    COALESCE(SUM(annual_impressions), 0)::numeric(10,2) AS annual_impressions
-
+    COALESCE(SUM(annual_impressions), 0)::numeric(10,2) AS annual_impressions,
+    COALESCE(MAX(
+      GREATEST(
+        1,
+        ((COALESCE(end_date, live_date)::date - COALESCE(live_date, CURRENT_DATE)::date) + 1)
+      )
+    ), 365)::int AS contract_days
   FROM spaces
   WHERE ($1 = '' OR id::text = $1)
 `, [locationId]);
@@ -7960,7 +7965,7 @@ const costBasis = await q(`
 const annualCost = Number(costBasis.rows[0]?.annual_cost || 800);
 const annualImpressions = Number(costBasis.rows[0]?.annual_impressions || 146000);
 
-const contractDays = 365;
+const contractDays = Number(costBasis.rows[0]?.contract_days || 365);
 
 const proratedCost = Number(((annualCost / contractDays) * selectedDays).toFixed(2));
 
