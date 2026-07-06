@@ -7183,7 +7183,7 @@ COALESCE(qr.total_cost, qr.annual_cost, s.placement_cost, 0) AS placement_cost,
 COALESCE(qr.annual_impressions, s.annual_impressions, 0) AS annual_impressions,
 COALESCE(qr.end_date, qr.live_date) AS end_date,
 COALESCE(qr.live_date, MIN(e.created_at)::date) AS live_date,
-365 AS contract_days
+qr.contract_days AS contract_days
       FROM events e
 LEFT JOIN campaigns c ON c.id = e.campaign_id
 LEFT JOIN stores st ON st.id = e.store_id
@@ -7202,8 +7202,8 @@ GROUP BY
     qr.annual_impressions,
     s.annual_impressions,
     qr.end_date,
-    qr.live_date
-
+    qr.live_date,
+qr.contract_days
  
       ORDER BY total_events DESC
     `, params);
@@ -7223,10 +7223,7 @@ const contractImpressions = Number(r.annual_impressions || 0);
 const qrStart = r.live_date || r.created_at || r.first_event;
 const qrEnd = r.end_date || r.live_date || r.created_at || r.last_event;
 
-const contractDays = Math.max(
-  1,
-  Math.ceil((new Date(qrEnd) - new Date(qrStart)) / (1000 * 60 * 60 * 24)) + 1
-);
+const contractDays = Number(r.contract_days || 365);
 
 const impressions = contractDays > 0
   ? Math.round((contractImpressions / contractDays) * activeDays)
