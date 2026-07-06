@@ -8317,13 +8317,12 @@ ${detailRows.rows.map(row => `
     <td style="padding:10px;border:1px solid #ddd;">${row.campaign_name ? Number(row.customers).toFixed(2) : "0.00"}</td>
     <td style="padding:10px;border:1px solid #ddd;">${row.campaign_name ? "$" + Number(row.revenue).toFixed(2) : "$0.00"}</td>
     <td style="padding:10px;border:1px solid #ddd;">
-<td style="padding:10px;border:1px solid #ddd;">
 ${
   row.campaign_name && Number(row.customers) > 0
     ? "$" + Number(row.cac).toFixed(2)
     : "--"
 }
-}
+
 </td>
 <td style="padding:10px;border:1px solid #ddd;">
 ${
