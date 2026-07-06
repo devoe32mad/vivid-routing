@@ -8102,6 +8102,7 @@ AND (
     endDate
   );
 }
+console.log("EXPORT DETAIL ROWS:", detailRows.rows);
     res.send(page("Reports", `
       <h1>Export Center</h1>
 
