@@ -7425,7 +7425,7 @@ const estimatedRevenue = Number(s.conversion_value || 0);
 doc.fontSize(10).text(`QR: ${c.qr_name || "-"} | Location: ${c.location_name || "-"}`);
 
 doc.fontSize(10).text(
-          `Scans: ${c.scans || 0} | Maps: ${c.maps_clicks || 0} | Offers: ${c.offer_clicks || 0} | Waze: ${c.waze_clicks || 0} | Customers: ${customers} | Revenue: $${revenue.toLocaleString()}`
+          `Scans: ${c.scans || 0} | Maps: ${c.maps_clicks || 0} | Offers: ${c.offer_clicks || 0} | Waze: ${c.waze_clicks || 0} | Conversions: ${customers} | Revenue: $${revenue.toLocaleString()}`
         );
         doc.moveDown();
       });
