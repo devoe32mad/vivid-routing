@@ -8042,7 +8042,8 @@ ORDER BY c.name ASC
 );
     const detailRows = await q(`
   SELECT
-    COALESCE(c.name, '') AS campaign_name,
+    c.id AS campaign_id,
+COALESCE(c.name, '') AS campaign_name,
     COALESCE(qc.name, '') AS qr_name,
     COALESCE(s.name, '') AS location_name,
 COALESCE(qc.annual_cost, 800)::numeric(10,2) AS placement_cost,
@@ -8091,9 +8092,16 @@ AND (
   OR ($6::text = 'active' AND COALESCE(c.is_archived,false) = false)
   OR ($6::text = 'archived' AND COALESCE(c.is_archived,false) = true)
 )
-  GROUP BY c.name, c.advertiser, qc.name, s.name, qc.annual_cost, qc.annual_impressions
+  GROUP BY c.id, c.name, c.advertiser, qc.name, s.name, qc.annual_cost, qc.annual_impressions
   ORDER BY scans DESC
 `, [startDate, endDate, locationId, qrId, campaignId, status, userId]);
+    for (const row of detailRows.rows) {
+  row.allocated_cost = await allocatedSpotCostForCampaign(
+    row.campaign_id,
+    startDate,
+    endDate
+  );
+}
     res.send(page("Reports", `
       <h1>Export Center</h1>
 
