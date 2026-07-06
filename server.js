@@ -7960,12 +7960,12 @@ if (campaignId) {
 
 
 
-const proratedCost = detailRows.rows.reduce(
+proratedCost = detailRows.rows.reduce(
   (sum, row) => sum + Number(row.allocated_cost || 0),
   0
 );
 
-const proratedImpressions = detailRows.rows.reduce(
+proratedImpressions = detailRows.rows.reduce(
   (sum, row) =>
     sum +
     ((Number(row.annual_impressions || 0) /
