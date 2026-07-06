@@ -8102,7 +8102,7 @@ AND (
     endDate
   );
 }
-console.log("EXPORT DETAIL ROWS:", detailRows.rows);
+console.log("DETAIL ROWS:", JSON.stringify(detailRows.rows, null, 2));
     res.send(page("Reports", `
       <h1>Export Center</h1>
 
