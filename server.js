@@ -7210,7 +7210,7 @@ qr.contract_days
 
     const header = "campaign,advertiser,qr_name,store_name,total_events,scans,offer_clicks,map_clicks,estimated_impressions,engagement_rate,estimated_spend,cpm,cost_per_scan,estimated_conversions,cac,estimated_revenue,roi,first_event,last_event\n";
 
-    const rows = result.rows.map(r => {
+    const rows = await Promise.all(result.rows.map(async r => {
       const scans = Number(r.scans || 0);
       const total = Number(r.total_events || 0);
 const firstDate = r.first_event ? new Date(r.first_event) : new Date();
@@ -7229,7 +7229,11 @@ const impressions = contractDays > 0
   ? Math.round((contractImpressions / contractDays) * activeDays)
   : 0;
 
-const estimatedSpend = Number(((contractCost / contractDays) * activeDays).toFixed(2));
+const estimatedSpend = await allocatedSpotCostForCampaign(
+  r.campaign_id,
+  startDate,
+  endDate
+);
 const estimatedConversions = Number(r.conversions || 0);
 const estimatedRevenue = Number(r.conversion_value || 0);
 
@@ -7263,7 +7267,7 @@ roi,
         new Date(r.first_event).toLocaleDateString(),
 new Date(r.last_event).toLocaleDateString()
       ].map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",");
-    }).join("\n");
+    })).then(rows => rows.join("\n"));
 
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", "attachment; filename=vivid-executive-report.csv");
