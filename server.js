@@ -8095,12 +8095,21 @@ AND (
   GROUP BY c.id, c.name, c.advertiser, qc.name, s.name, qc.annual_cost, qc.annual_impressions
   ORDER BY scans DESC
 `, [startDate, endDate, locationId, qrId, campaignId, status, userId]);
-    for (const row of detailRows.rows) {
+for (const row of detailRows.rows) {
   row.allocated_cost = await allocatedSpotCostForCampaign(
     row.campaign_id,
     startDate,
     endDate
   );
+
+  row.customers = Number(row.conversions || 0);
+  row.revenue = Number(row.conversion_value || 0);
+  row.cac =
+    row.customers > 0 ? row.allocated_cost / row.customers : 0;
+  row.roi =
+    row.allocated_cost > 0
+      ? ((row.revenue - row.allocated_cost) / row.allocated_cost) * 100
+      : 0;
 }
 console.log("DETAIL ROWS:", JSON.stringify(detailRows.rows, null, 2));
     res.send(page("Reports", `
