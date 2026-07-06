@@ -7301,9 +7301,11 @@ const status = (req.query.status || "all").toLowerCase();
         COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
         COUNT(*) FILTER (WHERE e.type = 'maps') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
-        COUNT(*) FILTER (WHERE e.type = 'waze') AS waze_clicks,
-        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
-      FROM events e
+   COUNT(*) FILTER (WHERE e.type = 'waze') AS waze_clicks,
+COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks,
+COUNT(*) FILTER (WHERE e.type = 'conversion') AS conversions,
+COALESCE(SUM(e.value) FILTER (WHERE e.type = 'conversion'), 0) AS conversion_value
+FROM events e
       LEFT JOIN campaigns c ON c.id = e.campaign_id
       WHERE e.created_at::date BETWEEN $1::date AND $2::date
       AND ($3 = '' OR e.store_id::text = $3 OR e.qr_id IN (
@@ -7367,8 +7369,8 @@ AND ($6 = 0 OR c.user_id = $6 OR e.qr_id IN (
     const waze = Number(s.waze_clicks || 0);
     const intent = Number(s.intent_clicks || 0);
 
-    const estimatedCustomers = Math.round(intent * 0.10);
-    const estimatedRevenue = estimatedCustomers * 50;
+   const estimatedCustomers = Number(s.conversions || 0);
+const estimatedRevenue = Number(s.conversion_value || 0);
     const intentRate = scans > 0 ? ((intent / scans) * 100).toFixed(1) : "0.0";
 
     res.setHeader("Content-Type", "application/pdf");
