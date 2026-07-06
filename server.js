@@ -7948,8 +7948,8 @@ const selectedDays =
 const costBasis = await q(`
   SELECT
     COALESCE(SUM(placement_cost), 0)::numeric(10,2) AS annual_cost,
-    COALESCE(SUM(annual_impressions), 0)::numeric(10,2) AS annual_impressions
-    COALESCE(MAX(contract_days), 365)::int AS contract_days
+    COALESCE(SUM(annual_impressions), 0)::numeric(10,2) AS annual_impressions,
+COALESCE(MAX(contract_days), 365)::int AS contract_days
   FROM spaces
   WHERE ($1 = '' OR id::text = $1)
 `, [locationId]);
