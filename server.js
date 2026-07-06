@@ -7331,9 +7331,11 @@ s.name AS location_name,
         COUNT(*) FILTER (WHERE e.type = 'maps') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
         COUNT(*) FILTER (WHERE e.type = 'waze') AS waze_clicks,
-        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks,
-        COALESCE(c.avg_customer_value, 50) AS avg_customer_value,
-        COALESCE(c.conversion_rate, 10) AS conversion_rate
+      COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks,
+COUNT(*) FILTER (WHERE e.type = 'conversion') AS conversions,
+COALESCE(SUM(e.value) FILTER (WHERE e.type = 'conversion'), 0) AS conversion_value,
+COALESCE(c.avg_customer_value, 50) AS avg_customer_value,
+COALESCE(c.conversion_rate, 10) AS conversion_rate
       FROM events e
 LEFT JOIN campaigns c ON c.id = e.campaign_id
 LEFT JOIN qr_codes qc ON qc.id = e.qr_id
