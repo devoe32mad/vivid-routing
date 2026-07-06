@@ -7399,8 +7399,8 @@ const estimatedRevenue = Number(s.conversion_value || 0);
     doc.text(`Waze Clicks: ${waze}`);
     doc.text(`Intent Clicks: ${intent}`);
     doc.text(`Intent Rate: ${intentRate}%`);
-    doc.text(`Estimated Customers: ${estimatedCustomers}`);
-    doc.text(`Estimated Revenue: $${estimatedRevenue.toLocaleString()}`);
+    doc.text(`Conversions: ${estimatedCustomers}`);
+    doc.text(`Revenue: $${estimatedRevenue.toLocaleString()}`);
 
     doc.moveDown(2);
     doc.fontSize(16).text("Top Campaigns");
@@ -8242,12 +8242,12 @@ document.addEventListener("DOMContentLoaded", () => {
   <p>${offerClicks}</p>
 </div>
   <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-    <h3>Estimated Customers</h3>
+    <h3>Conversions</h3>
     <p>${estimatedCustomers.toFixed(2)}</p>
   </div>
 
   <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-    <h3>Estimated Revenue</h3>
+    <h3>Revenue</h3>
     <p>$${estimatedRevenue}</p>
   </div>
 <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
