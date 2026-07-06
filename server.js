@@ -7233,8 +7233,8 @@ const impressions = contractDays > 0
   : 0;
 
 const estimatedSpend = Number(((contractCost / contractDays) * activeDays).toFixed(2));
-const estimatedConversions = Math.round(scans * 0.01);
-const estimatedRevenue = estimatedConversions * 500;
+const estimatedConversions = Number(r.conversions || 0);
+const estimatedRevenue = Number(r.conversion_value || 0);
 
 const engagementRate = impressions > 0 ? ((scans / impressions) * 100).toFixed(2) + "%" : "0.00%";
 const cpm =
