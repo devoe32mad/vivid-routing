@@ -7869,10 +7869,12 @@ const statusTarget = campaignId
   : "all";
     const report = await q(`
       SELECT
-        COUNT(*)::int AS total_events,
-        COUNT(*) FILTER (WHERE type = 'scan')::int AS total_scans,
-        COUNT(*) FILTER (WHERE type = 'maps')::int AS maps_clicks,
-        COUNT(*) FILTER (WHERE type = 'offer')::int AS offer_clicks
+COUNT(*)::int AS total_events,
+COUNT(*) FILTER (WHERE type = 'scan')::int AS total_scans,
+COUNT(*) FILTER (WHERE type = 'maps')::int AS maps_clicks,
+COUNT(*) FILTER (WHERE type = 'offer')::int AS offer_clicks,
+COUNT(*) FILTER (WHERE type = 'conversion')::int AS conversions,
+COALESCE(SUM(value) FILTER (WHERE type = 'conversion'), 0)::numeric(10,2) AS conversion_value
       FROM events e
 LEFT JOIN campaigns c ON c.id = e.campaign_id
 WHERE e.created_at::date BETWEEN $1::date AND $2::date
@@ -7931,8 +7933,8 @@ WHERE e.type = 'scan'
 
     const revenue = revenueReport.rows[0] || {};
 
-    const estimatedRevenue = Number(revenue.estimated_revenue || 0);
-    const estimatedCustomers = Number(revenue.estimated_customers || 0);
+ const estimatedRevenue = Number(totals.conversion_value || 0);
+const estimatedCustomers = Number(totals.conversions || 0);
     const totalScans = Number(totals.total_scans || 0);
     const mapsClicks = Number(totals.maps_clicks || 0);
   
