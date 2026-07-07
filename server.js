@@ -1035,6 +1035,40 @@ app.get("/db-test", async (req, res) => {
   const result = await q("SELECT NOW()");
   res.json(result.rows[0]);
 });
+app.get("/debug-clean-duplicate-assignments", requireLogin, async (req, res) => {
+  try {
+
+    const result = await q(`
+      WITH ranked AS (
+        SELECT
+          id,
+          ROW_NUMBER() OVER (
+            PARTITION BY qr_id, campaign_id
+            ORDER BY id DESC
+          ) AS rn
+        FROM qr_campaigns
+        WHERE COALESCE(is_active,true)=true
+      )
+      UPDATE qr_campaigns qc
+      SET is_active = false
+      FROM ranked r
+      WHERE qc.id = r.id
+        AND r.rn > 1
+      RETURNING
+        qc.id,
+        qc.qr_id,
+        qc.campaign_id;
+    `);
+
+    res.json({
+      deactivated: result.rowCount,
+      rows: result.rows
+    });
+
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
 app.get("/debug-preview-assignment-cleanup", requireLogin, async (req, res) => {
   try {
     const result = await q(`
