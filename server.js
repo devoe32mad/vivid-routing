@@ -7966,7 +7966,7 @@ const costPerEngagement =
     : "0.00";
 
 const cac =
-  conversions > 0
+   estimatedCustomers> 0
     ? (proratedCost / conversions).toFixed(2)
     : "0.00";
 
