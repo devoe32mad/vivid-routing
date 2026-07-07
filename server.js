@@ -1170,6 +1170,32 @@ app.get("/debug-puma-assignments", requireLogin, async (req, res) => {
 
   res.json(rows.rows);
 });
+app.get("/debug-qr-assignments/:qrId", requireLogin, async (req, res) => {
+  try {
+    const qrId = Number(req.params.qrId);
+
+    const result = await q(`
+      SELECT
+        qc.id,
+        qc.qr_id,
+        qc.campaign_id,
+        c.name AS campaign_name,
+        c.advertiser,
+        qc.is_active,
+        qc.assigned_at,
+        qc.started_at,
+        qc.ended_at
+      FROM qr_campaigns qc
+      LEFT JOIN campaigns c ON c.id = qc.campaign_id
+      WHERE qc.qr_id = $1
+      ORDER BY qc.id
+    `, [qrId]);
+
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).send("DEBUG QR ASSIGNMENTS ERROR: " + err.message);
+  }
+});
 app.get("/debug-users-spaces", requireLogin, async (req, res) => {
   const users = await q(`
 SELECT id, email, role
