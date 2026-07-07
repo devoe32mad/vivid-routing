@@ -7948,272 +7948,80 @@ async function buildExportReportRows(req, startDate, endDate, locationId, qrId, 
 
   return reportRows;
 }
-app.get("/admin/reports", async (req, res) => {
+app.get("/admin/reports", requireLogin, async (req, res) => {
   try {
-    const currentUser = req.session.user;
-const isSuperAdmin = currentUser.role === "super_admin";
-    const userId = isSuperAdmin ? 0 : currentUser.id;
     const today = new Date().toISOString().slice(0, 10);
 
     const startDate = req.query.start_date || today;
     const endDate = req.query.end_date || today;
     const locationId = req.query.location_id || "";
     const qrId = req.query.qr_id || "";
-    console.log("QR FILTER =", qrId);
     const campaignId = req.query.campaign_id || "";
-    
     const status = (req.query.status || "all").toLowerCase();
-const statusTarget = campaignId
-  ? "campaign"
-  : qrId
-  ? "qr"
-  : locationId
-  ? "location"
-  : "all";
-    const report = await q(`
-      SELECT
-COUNT(*)::int AS total_events,
-COUNT(*) FILTER (WHERE type = 'scan')::int AS total_scans,
-COUNT(*) FILTER (WHERE type = 'maps')::int AS maps_clicks,
-COUNT(*) FILTER (WHERE type = 'offer')::int AS offer_clicks,
-COUNT(*) FILTER (WHERE type = 'conversion')::int AS conversions,
-COALESCE(SUM(value) FILTER (WHERE type = 'conversion'), 0)::numeric(10,2) AS conversion_value
-      FROM events e
-LEFT JOIN campaigns c ON c.id = e.campaign_id
-WHERE e.created_at::date BETWEEN $1::date AND $2::date
-AND (
-  $3::text = ''
-  OR e.store_id::text = $3::text
-  OR e.qr_id IN (
-    SELECT id
-    FROM qr_codes
-    WHERE space_id::text = $3::text
-  )
-)
 
-AND ($4::text = '' OR e.qr_id::text = $4::text)
-AND ($5::text = '' OR e.campaign_id::text = $5::text)
-AND ($6 = 0 OR c.user_id = $6 OR e.qr_id IN (
-  SELECT qr.id
-  FROM qr_codes qr
-  JOIN spaces s ON s.id = qr.space_id
-  WHERE s.user_id = $6
-))
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+    const userId = isSuperAdmin ? null : currentUser.id;
 
-`,[startDate, endDate, locationId, qrId, campaignId, userId]);
-    const totals = report.rows[0] || {};
+    const locations = await q(`
+      SELECT DISTINCT s.id, s.name
+      FROM spaces s
+      WHERE ($1::int IS NULL OR s.user_id = $1)
+      ORDER BY s.name
+    `, [userId]);
 
-   const revenueReport = await q(`
-  SELECT
-    0::numeric(10,2) AS estimated_revenue,
-    0::numeric(10,2) AS estimated_customers,
-  COALESCE(SUM(c.campaign_cost), 0)::numeric(10,2) AS total_campaign_cost  
-      FROM events e
-LEFT JOIN campaigns c ON e.campaign_id = c.id
-LEFT JOIN qr_codes qc ON e.qr_id = qc.id
-LEFT JOIN spaces s ON e.store_id = s.id
-WHERE e.type = 'scan'
-  AND e.created_at::date BETWEEN $1::date AND $2::date
-  AND (
-    $3 = 'all'
-    OR (
-      $3 = 'active'
-      AND COALESCE(c.is_archived,false) = false
-      AND COALESCE(qc.is_archived,false) = false
-      AND COALESCE(s.is_archived,false) = false
-    )
-    OR (
-      $3 = 'archived'
-      AND (
-        COALESCE(c.is_archived,false) = true
-        OR COALESCE(qc.is_archived,false) = true
-        OR COALESCE(s.is_archived,false) = true
-      )
-    )
-  )
-    AND ($4 = 0 OR c.user_id = $4)
-`, [startDate, endDate, status, userId]);
+    const qrs = await q(`
+      SELECT DISTINCT qr.id, qr.name
+      FROM qr_codes qr
+      LEFT JOIN spaces s ON s.id = qr.space_id
+      WHERE ($1::int IS NULL OR s.user_id = $1)
+      ORDER BY qr.name
+    `, [userId]);
 
-    const revenue = revenueReport.rows[0] || {};
+    const campaigns = await q(`
+      SELECT DISTINCT c.id, c.name
+      FROM campaigns c
+      LEFT JOIN qr_campaigns qc ON qc.campaign_id = c.id
+      LEFT JOIN qr_codes qr ON qr.id = qc.qr_id
+      LEFT JOIN spaces s ON s.id = qr.space_id
+      WHERE ($1::int IS NULL OR c.user_id = $1 OR s.user_id = $1)
+      ORDER BY c.name
+    `, [userId]);
 
- const estimatedRevenue = Number(totals.conversion_value || 0);
-const estimatedCustomers = Number(totals.conversions || 0);
-const totalScans = Number(totals.total_scans || 0);
-const mapsClicks = Number(totals.maps_clicks || 0);
-const offerClicks = Number(totals.offer_clicks || 0);
-const wazeClicks = Number(totals.waze_clicks || 0);
+    const reportRows = await buildExportReportRows(
+      req,
+      startDate,
+      endDate,
+      locationId,
+      qrId,
+      campaignId,
+      status
+    );
 
-// Intent = offer clicks + map clicks + waze clicks
-const totalIntent = offerClicks + mapsClicks + wazeClicks;
+    const summary = reportRows.reduce((t, r) => {
+      t.scans += r.scans;
+      t.offerClicks += r.offerClicks;
+      t.mapClicks += r.mapClicks;
+      t.wazeClicks += r.wazeClicks;
+      t.intent += r.intent;
+      t.conversions += r.conversions;
+      t.revenue += r.revenue;
+      t.allocatedCost += r.allocatedCost;
+      return t;
+    }, {
+      scans: 0,
+      offerClicks: 0,
+      mapClicks: 0,
+      wazeClicks: 0,
+      intent: 0,
+      conversions: 0,
+      revenue: 0,
+      allocatedCost: 0
+    });
 
-// Temporary compatibility values.
-// Final cards will use reportRows below.
-let proratedCost = 0;
-let proratedImpressions = 0;
+    summary.cac = summary.conversions > 0 ? summary.allocatedCost / summary.conversions : 0;
+    summary.roi = summary.allocatedCost > 0 ? ((summary.revenue - summary.allocatedCost) / summary.allocatedCost) * 100 : 0;
 
-const costPerEngagement = "0.00";
-const cac = "0.00";
-const roi = "0.00";
-const cpm = "0.00";
-   
-const locations = await q(
-  `
-  SELECT id, name
-  FROM spaces
-  WHERE ($1::int IS NULL OR user_id = $1::int)
-  AND (
-    $2::text = 'all'
-    OR ($2::text = 'active' AND COALESCE(is_archived,false) = false)
-    OR ($2::text = 'archived' AND COALESCE(is_archived,false) = true)
-  )
-  ORDER BY name ASC
-  `,
-  [userId, status]
-);
-
-const qrs = await q(
-  `
-  SELECT qc.id, qc.name
-  FROM qr_codes qc
-  JOIN spaces s ON s.id = qc.space_id
-  WHERE ($1::int IS NULL OR s.user_id = $1::int)
-    AND ($2::text = '' OR qc.space_id::text = $2::text)
-    AND (
-      $3::text = 'all'
-      OR ($3::text = 'active' AND COALESCE(qc.is_archived,false) = false)
-      OR ($3::text = 'archived' AND COALESCE(qc.is_archived,false) = true)
-    )
-  ORDER BY qc.name ASC
-  `,
-  [userId, locationId, status]
-);
-  
- 
-  
-
-const campaigns = await q(
-  `
-  SELECT DISTINCT c.id, c.name
-FROM campaigns c
-WHERE ($1::int IS NULL OR c.user_id = $1::int)
-  AND (
-    $2::text = 'all'
-    OR ($2::text = 'active' AND COALESCE(c.is_archived,false) = false)
-    OR ($2::text = 'archived' AND COALESCE(c.is_archived,false) = true)
-  )
-ORDER BY c.name ASC
-  `,
-  [userId, status]
-);
-    const relationships = await q(
-  `
-  SELECT DISTINCT
-    cs.campaign_id,
-    cs.qr_id,
-    s.id AS location_id
-  FROM campaign_schedules cs
-  JOIN qr_codes qc ON qc.id = cs.qr_id
-  JOIN spaces s ON s.id = qc.space_id
-  ${userId ? "WHERE s.user_id = $1" : ""}
-  `,
-  userId ? [userId] : []
-);
-    const detailRows = await q(`
-  SELECT
-    c.id AS campaign_id,
-COALESCE(c.name, '') AS campaign_name,
-    COALESCE(qc.name, '') AS qr_name,
-    COALESCE(s.name, '') AS location_name,
-COALESCE(qc.annual_cost, 800)::numeric(10,2) AS placement_cost,
-COALESCE(qc.annual_impressions, 146000)::numeric(10,2) AS annual_impressions,
-    COUNT(*) FILTER (WHERE e.type = 'scan')::int AS scans,
-    COUNT(*) FILTER (WHERE e.type = 'maps')::int AS maps_clicks,
-    COUNT(*) FILTER (WHERE e.type = 'offer')::int AS offer_clicks,
-COUNT(*) FILTER (WHERE e.type = 'conversion')::int AS conversions,
-COALESCE(SUM(e.value) FILTER (WHERE e.type = 'conversion'), 0)::numeric(10,2) AS conversion_value,
-    COALESCE(SUM(
-      CASE
-        WHEN e.type = 'scan'
-        THEN (c.conversion_rate / 100.0)
-        ELSE 0
-      END
-    ), 0)::numeric(10,2) AS estimated_customers,
-
-    COALESCE(SUM(
-      CASE
-        WHEN e.type = 'scan'
-        THEN (c.conversion_rate / 100.0) * c.avg_customer_value
-        ELSE 0
-      END
-    ), 0)::numeric(10,2) AS estimated_revenue
-
-  FROM events e
-  LEFT JOIN campaigns c ON e.campaign_id = c.id
-  LEFT JOIN qr_codes qc ON e.qr_id = qc.id
-  LEFT JOIN spaces s ON s.id = qc.space_id
-
-  WHERE e.created_at::date BETWEEN $1::date AND $2::date
-   AND (
-  $3 = ''
-  OR e.store_id::text = $3
-  OR qc.space_id::text = $3
-)
-    AND ($4 = '' OR e.qr_id::text = $4)
-    AND ($5 = '' OR e.campaign_id::text = $5)
-AND ($7 = 0 OR c.user_id = $7 OR e.qr_id IN (
-  SELECT qr.id
-  FROM qr_codes qr
-  JOIN spaces sp ON sp.id = qr.space_id
-  WHERE sp.user_id = $7
-))
-AND (
-  $6::text = 'all'
-  OR ($6::text = 'active' AND COALESCE(c.is_archived,false) = false)
-  OR ($6::text = 'archived' AND COALESCE(c.is_archived,false) = true)
-)
-  GROUP BY c.id, c.name, c.advertiser, qc.name, s.name, qc.annual_cost, qc.annual_impressions
-  ORDER BY scans DESC
-`, [startDate, endDate, locationId, qrId, campaignId, status, userId]);
-for (const row of detailRows.rows) {
-  row.allocated_cost = await allocatedSpotCostForCampaign(
-    row.campaign_id,
-    startDate,
-    endDate
-  );
-
-  row.customers = Number(row.conversions || 0);
-  row.revenue = Number(row.conversion_value || 0);
-  row.cac =
-    row.customers > 0 ? row.allocated_cost / row.customers : 0;
-  row.roi =
-    row.allocated_cost > 0
-      ? ((row.revenue - row.allocated_cost) / row.allocated_cost) * 100
-      : 0;
-}
-  const reportCost = detailRows.rows.reduce((sum, row) => sum + Number(row.allocated_cost || 0), 0);
-
-const reportConversions = detailRows.rows.reduce((sum, row) => sum + Number(row.customers || 0), 0);
-
-const reportRevenue = detailRows.rows.reduce((sum, row) => sum + Number(row.revenue || 0), 0);
-
-const reportEngagements = detailRows.rows.reduce(
-  (sum, row) =>
-    sum +
-    Number(row.scans || 0) +
-    Number(row.offer_clicks || 0) +
-    Number(row.maps_clicks || 0),
-  0
-);
-
-const reportCostPerEngagement =
-  reportEngagements > 0 ? (reportCost / reportEngagements).toFixed(2) : "0.00";
-
-const reportCAC =
-  reportConversions > 0 ? (reportCost / reportConversions).toFixed(2) : "0.00";
-
-const reportROI =
-  reportCost > 0 ? (((reportRevenue - reportCost) / reportCost) * 100).toFixed(2) : "0.00";
-    console.log("DETAIL ROWS:", JSON.stringify(detailRows.rows, null, 2));
     res.send(page("Reports", `
       <h1>Export Center</h1>
 
@@ -8227,36 +8035,43 @@ const reportROI =
           <label>End Date</label><br>
           <input type="date" name="end_date" value="${endDate}">
         </div>
-<div>
-  <label>Location</label><br>
-  <select name="location_id" id="location_id">
-  <option value="" ${locationId === "" ? "selected" : ""}>All Locations</option>
-  ${locations.rows
-    .filter(location => location.name)
-    .map(location => `<option value="${location.id}" ${String(location.id) === String(locationId) ? "selected" : ""}>${location.name}</option>`)
-    .join("")}
-</select>
-</div>
-<div>
-  <label>QR Code</label><br>
-  <select name="qr_id" id="qr_id">
-  <option value="" ${qrId === "" ? "selected" : ""}>All QR Codes</option>
-  ${qrs.rows
-    .filter(qr => qr.name)
-    .map(qr => `<option value="${qr.id}" ${String(qr.id) === String(qrId) ? "selected" : ""}>${qr.name}</option>`)
-    .join("")}
-</select>
-</div>
-<div>
-  <label>Campaign</label><br>
-  <select name="campaign_id" id="campaign_id">
-    <option value="" ${campaignId === "" ? "selected" : ""}>All Campaigns</option>
-    ${campaigns.rows
-      .filter(campaign => campaign.name)
-      .map(campaign => `<option value="${campaign.id}" ${String(campaign.id) === String(campaignId) ? "selected" : ""}>${campaign.name}</option>`)
-      .join("")}
-  </select>
-</div>
+
+        <div>
+          <label>Location</label><br>
+          <select name="location_id">
+            <option value="">All Locations</option>
+            ${locations.rows.map(l => `
+              <option value="${l.id}" ${String(l.id) === String(locationId) ? "selected" : ""}>
+                ${l.name}
+              </option>
+            `).join("")}
+          </select>
+        </div>
+
+        <div>
+          <label>QR Code</label><br>
+          <select name="qr_id">
+            <option value="">All QR Codes</option>
+            ${qrs.rows.map(qr => `
+              <option value="${qr.id}" ${String(qr.id) === String(qrId) ? "selected" : ""}>
+                ${qr.name}
+              </option>
+            `).join("")}
+          </select>
+        </div>
+
+        <div>
+          <label>Campaign</label><br>
+          <select name="campaign_id">
+            <option value="">All Campaigns</option>
+            ${campaigns.rows.map(c => `
+              <option value="${c.id}" ${String(c.id) === String(campaignId) ? "selected" : ""}>
+                ${c.name}
+              </option>
+            `).join("")}
+          </select>
+        </div>
+
         <div>
           <label>Status</label><br>
           <select name="status">
@@ -8267,204 +8082,69 @@ const reportROI =
         </div>
 
         <button type="submit">Run Report</button>
-
-<button type="submit" formaction="/export/events.csv" formmethod="get">
-  Export Raw Events CSV
-</button>
-
-<button type="submit" formaction="/export/report.csv" formmethod="get">
-  Export Executive CSV
-</button>
-<button type="submit" formaction="/export/report.pdf" formmethod="get">
-  Export Executive PDF
-</button>
+        <button type="submit" formaction="/export/events.csv" formmethod="get">Export Raw Events CSV</button>
+        <button type="submit" formaction="/export/report.csv" formmethod="get">Export Executive CSV</button>
+        <button type="submit" formaction="/export/report.pdf" formmethod="get">Export Executive PDF</button>
       </form>
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const campaign = document.getElementById("campaign_id");
-  const qr = document.getElementById("qr_id");
-  const location = document.getElementById("location_id");
-  const relationships = ${JSON.stringify(relationships.rows)};
 
-  if (!campaign || !qr || !location) return;
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:24px 0;">
+        <div class="card"><h3>Scans</h3><p>${summary.scans}</p></div>
+        <div class="card"><h3>Total Intent</h3><p>${summary.intent}</p></div>
+        <div class="card"><h3>Conversions</h3><p>${summary.conversions}</p></div>
+        <div class="card"><h3>Revenue</h3><p>${money(summary.revenue)}</p></div>
+        <div class="card"><h3>Allocated Cost</h3><p>${money(summary.allocatedCost)}</p></div>
+        <div class="card"><h3>CAC</h3><p>${money(summary.cac)}</p></div>
+        <div class="card"><h3>ROI</h3><p>${pct(summary.roi)}</p></div>
+      </div>
 
-  const allCampaignOptions = Array.from(campaign.options).map(o => o.cloneNode(true));
-  const allQrOptions = Array.from(qr.options).map(o => o.cloneNode(true));
-  const allLocationOptions = Array.from(location.options).map(o => o.cloneNode(true));
+      <h2>Detailed Results</h2>
 
-  function rebuild(select, originalOptions, allowedValues) {
-    const current = select.value;
-    select.innerHTML = "";
-
-    originalOptions.forEach(opt => {
-      if (opt.value === "" || allowedValues.has(String(opt.value))) {
-        select.appendChild(opt.cloneNode(true));
-      }
-    });
-
-    if ([...select.options].some(o => o.value === current)) {
-      select.value = current;
-    } else {
-      select.value = "";
-    }
-  }
-
-  function applyFilters(changed) {
-    const campaignId = campaign.value;
-    const qrId = qr.value;
-    const locationId = location.value;
-
-    let matching = relationships;
-
-    if (campaignId) {
-      matching = matching.filter(r => String(r.campaign_id) === String(campaignId));
-    }
-
-    if (qrId) {
-      matching = matching.filter(r => String(r.qr_id) === String(qrId));
-    }
-
-    if (locationId) {
-      matching = matching.filter(r => String(r.location_id) === String(locationId));
-    }
-
-    const allowedCampaigns = new Set(matching.map(r => String(r.campaign_id)));
-    const allowedQrs = new Set(matching.map(r => String(r.qr_id)));
-    const allowedLocations = new Set(matching.map(r => String(r.location_id)));
-
-    if (changed !== "campaign") rebuild(campaign, allCampaignOptions, allowedCampaigns);
-    if (changed !== "qr") rebuild(qr, allQrOptions, allowedQrs);
-    if (changed !== "location") rebuild(location, allLocationOptions, allowedLocations);
-  }
-
-  campaign.addEventListener("change", () => applyFilters("campaign"));
-  qr.addEventListener("change", () => applyFilters("qr"));
-  location.addEventListener("change", () => applyFilters("location"));
-});
-</script>
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:24px;margin-bottom:24px;">
-
-  <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-    <h3>Total Scans</h3>
-    <p>${totalScans}</p>
-  </div>
-
-  <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-    <h3>Maps Clicks</h3>
-    <p>${mapsClicks}</p>
-  </div>
-<div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-  <h3>Offer Clicks</h3>
-  <p>${offerClicks}</p>
-</div>
-  <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-    <h3>Conversions</h3>
-    <p>${estimatedCustomers.toFixed(2)}</p>
-  </div>
-
-  <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-    <h3>Revenue</h3>
-    <p>$${estimatedRevenue}</p>
-  </div>
-<div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-  <h3>ROI</h3>
-  <p>${reportROI}%</p>
-</div>
-  <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-    <h3>Cost / Engagement</h3>
-    <p>$${reportCostPerEngagement}</p>
-  </div>
-<div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-  <h3>CPM</h3>
-  <p>$${cpm}</p>
-</div>
-  <div style="padding:16px;border:1px solid #ddd;border-radius:10px;">
-    <h3>CAC</h3>
-    <p>$${reportCAC}</p>
-  </div>
-
-</div>
-
-<div style="margin-top:32px;">
-  <h2>Detailed Results</h2>
-
-  <div style="overflow-x:auto;">
-    <table style="width:100%;border-collapse:collapse;">
-      <thead>
-        <tr style="background:#f5f5f5;">
-          <th style="padding:10px;border:1px solid #ddd;">Campaign</th>
-          <th style="padding:10px;border:1px solid #ddd;">QR Code</th>
-          <th style="padding:10px;border:1px solid #ddd;">Location</th>
-          <th style="padding:10px;border:1px solid #ddd;">Scans</th>
-          <th style="padding:10px;border:1px solid #ddd;">Maps</th>
-          <th style="padding:10px;border:1px solid #ddd;">Offers</th>
-          <th style="padding:10px;border:1px solid #ddd;">Customers</th>
-          <th style="padding:10px;border:1px solid #ddd;">Revenue</th>
-          <th style="padding:10px;border:1px solid #ddd;">CAC</th>
-          <th style="padding:10px;border:1px solid #ddd;">ROI</th>
-          <th style="padding:10px;border:1px solid #ddd;">CPM</th>
+      <table>
+        <tr>
+          <th>Advertiser</th>
+          <th>Campaign</th>
+          <th>QR Codes</th>
+          <th>Locations</th>
+          <th>Status</th>
+          <th>Scans</th>
+          <th>Offers</th>
+          <th>Maps</th>
+          <th>Waze</th>
+          <th>Intent</th>
+          <th>Conversions</th>
+          <th>Revenue</th>
+          <th>Allocated Cost</th>
+          <th>CAC</th>
+          <th>ROI</th>
         </tr>
-      </thead>
 
-      <tbody>
-${detailRows.rows.map(row => `
-  <tr>
-    <td style="padding:10px;border:1px solid #ddd;">${row.campaign_name}</td>
-    <td style="padding:10px;border:1px solid #ddd;">${row.qr_name}</td>
-    <td style="padding:10px;border:1px solid #ddd;">${row.location_name}</td>
-    <td style="padding:10px;border:1px solid #ddd;">${row.scans}</td>
-    <td style="padding:10px;border:1px solid #ddd;">${row.maps_clicks}</td>
-    <td style="padding:10px;border:1px solid #ddd;">${row.offer_clicks}</td>
-    <td style="padding:10px;border:1px solid #ddd;">${row.campaign_name ? Number(row.customers).toFixed(2) : "0.00"}</td>
-    <td style="padding:10px;border:1px solid #ddd;">${row.campaign_name ? "$" + Number(row.revenue).toFixed(2) : "$0.00"}</td>
-    <td style="padding:10px;border:1px solid #ddd;">
-${
-  row.campaign_name && Number(row.customers) > 0
-    ? "$" + Number(row.cac).toFixed(2)
-    : "--"
-}
-
-</td>
-<td style="padding:10px;border:1px solid #ddd;">
-${
-  row.campaign_name && Number(row.allocated_cost || 0) > 0
-    ? Number(row.roi).toFixed(2) + "%"
-    : "--"
-}
-</td>
-   <td style="padding:10px;border:1px solid #ddd;">
-  ${
-    row.campaign_name && Number(row.annual_impressions) > 0
-      ? "$" + (
-          (
-            (
-              (Number(row.placement_cost) / Math.max(1, Number(row.contract_days || 365))) * selectedDays
-            ) /
-            (
-              (Number(row.annual_impressions) / Math.max(1, Number(row.contract_days || 365))) * selectedDays
-            )
-          ) * 1000
-        ).toFixed(2)
-      : "--"
-  }
-</td>
-  </tr>
-`).join("")}
-      </tbody>
-    </table>
-  </div>
-</div>
-      <h2>Report Details</h2>
-      <p>Date range: ${startDate} to ${endDate}</p>
-      <p>Status: ${status}</p>
-      <p>Maps Clicks: ${totals.maps_clicks || 0}</p>
-      <p>Offer Clicks: ${totals.offer_clicks || 0}</p>
+        ${reportRows.map(r => `
+          <tr>
+            <td>${r.advertiser}</td>
+            <td>${r.campaignName}</td>
+            <td>${r.qrNames}</td>
+            <td>${r.locationNames}</td>
+            <td>${r.status}</td>
+            <td>${r.scans}</td>
+            <td>${r.offerClicks}</td>
+            <td>${r.mapClicks}</td>
+            <td>${r.wazeClicks}</td>
+            <td>${r.intent}</td>
+            <td>${r.conversions}</td>
+            <td>${money(r.revenue)}</td>
+            <td>${money(r.allocatedCost)}</td>
+            <td>${money(r.cac)}</td>
+            <td class="${r.roi >= 0 ? "good" : "bad"}">${pct(r.roi)}</td>
+          </tr>
+        `).join("")}
+      </table>
     `));
   } catch (e) {
     console.error("REPORTS FULL ERROR:", e);
-res.status(500).send("REPORTS ERROR: " + e.message);
+    res.status(500).send("REPORTS ERROR: " + e.message);
   }
 });
+
 app.get("/admin/reports", async (req, res) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
