@@ -7939,46 +7939,23 @@ WHERE e.type = 'scan'
 
  const estimatedRevenue = Number(totals.conversion_value || 0);
 const estimatedCustomers = Number(totals.conversions || 0);
-    const totalScans = Number(totals.total_scans || 0);
-    const mapsClicks = Number(totals.maps_clicks || 0);
-  
-    const offerClicks = Number(totals.offer_clicks || 0);
-    const totalIntent = offerClicks + mapsClicks;
-const selectedDays =
-  Math.max(
-    1,
-    Math.ceil(
-      (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)
-    ) + 1
-  );
+const totalScans = Number(totals.total_scans || 0);
+const mapsClicks = Number(totals.maps_clicks || 0);
+const offerClicks = Number(totals.offer_clicks || 0);
+const wazeClicks = Number(totals.waze_clicks || 0);
 
+// Intent = offer clicks + map clicks + waze clicks
+const totalIntent = offerClicks + mapsClicks + wazeClicks;
+
+// Temporary compatibility values.
+// Final cards will use reportRows below.
 let proratedCost = 0;
+let proratedImpressions = 0;
 
-if (campaignId) {
-  proratedCost = await allocatedSpotCostForCampaign(campaignId, startDate, endDate);
-}
-
-const totalEngagements = totalScans + offerClicks + mapsClicks;
-
-const costPerEngagement =
-  totalEngagements > 0
-    ? (proratedCost / totalEngagements).toFixed(2)
-    : "0.00";
-
-const cac =
-   estimatedCustomers> 0
-    ? (proratedCost / conversions).toFixed(2)
-    : "0.00";
-
-const roi =
-  proratedCost > 0
-    ? (((conversionRevenue - proratedCost) / proratedCost) * 100).toFixed(2)
-    : "0.00";
-
-const cpm =
-  proratedImpressions > 0
-    ? ((proratedCost / proratedImpressions) * 1000).toFixed(2)
-    : "0.00";
+const costPerEngagement = "0.00";
+const cac = "0.00";
+const roi = "0.00";
+const cpm = "0.00";
    
 const locations = await q(
   `
