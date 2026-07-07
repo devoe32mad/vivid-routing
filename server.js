@@ -7958,22 +7958,6 @@ if (campaignId) {
   proratedCost = await allocatedSpotCostForCampaign(campaignId, startDate, endDate);
 }
 
-
-
-proratedCost = detailRows.rows.reduce(
-  (sum, row) => sum + Number(row.allocated_cost || 0),
-  0
-);
-
-proratedImpressions = detailRows.rows.reduce(
-  (sum, row) =>
-    sum +
-    ((Number(row.annual_impressions || 0) /
-      Math.max(1, Number(row.contract_days || 365))) *
-      selectedDays),
-  0
-);
-
 const totalEngagements = scans + offerClicks + mapsClicks;
 
 const costPerEngagement =
