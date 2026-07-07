@@ -7124,158 +7124,91 @@ const qrId = req.query.qrId || req.query.qr_id || req.query.qr;
   res.status(500).send(err.message);
 } 
 });
-app.get("/export/report.csv", async (req, res) => {
-const startDate = req.query.start_date || req.query.startDate || req.query.start || req.query.from;
-const endDate = req.query.end_date || req.query.endDate || req.query.end || req.query.to;
-const locationId = req.query.location_id || "";
-const campaignId = req.query.campaign_id || req.query.campaignId || req.query.campaign;
-const qrId = req.query.qr_id || req.query.qrId || req.query.qr;
-const currentUser = req.session.user;
-const userId = currentUser.role === "super_admin" ? null : currentUser.id;
-  let where = [];
-  let params = [];
-
-  if (startDate) {
-  params.push(startDate);
-  where.push(`e.created_at >= $${params.length}::date`);
-}
-
-if (endDate) {
-  params.push(endDate);
-  where.push(`e.created_at < ($${params.length}::date + interval '1 day')`);
-}
-if (locationId) {
-  params.push(locationId);
-  where.push(`(
-    e.store_id::text = $${params.length}
-    OR qr.space_id::text = $${params.length}
-  )`);
-}
-  if (campaignId) {
-    params.push(campaignId);
-    where.push(`e.campaign_id = $${params.length}`);
-  }
-
-  if (qrId) {
-    params.push(qrId);
-    where.push(`e.qr_id = $${params.length}`);
-  }
-params.push(userId);
-where.push(`($${params.length}::int IS NULL OR st.user_id = $${params.length}::int OR s.user_id = $${params.length}::int)`);
-  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-
+app.get("/export/report.csv", requireLogin, async (req, res) => {
   try {
-    const result = await q(`
-      SELECT
-        c.name AS campaign,
-        c.advertiser AS advertiser,
-        qr.name AS qr_name,
-        COALESCE(st.name, s.name) AS store_name,
-        COUNT(*) AS total_events,
-        COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
-        COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
-        COUNT(*) FILTER (WHERE e.type = 'maps') AS map_clicks,
-        COUNT(*) FILTER (WHERE e.type = 'conversion') AS conversions,
-COALESCE(SUM(e.value) FILTER (WHERE e.type = 'conversion'), 0) AS conversion_value,
-        MIN(e.created_at) AS first_event,
-        MAX(e.created_at) AS last_event,
-COALESCE(qr.total_cost, qr.annual_cost, s.placement_cost, 0) AS placement_cost,
-COALESCE(qr.annual_impressions, s.annual_impressions, 0) AS annual_impressions,
-COALESCE(qr.end_date, qr.live_date) AS end_date,
-COALESCE(qr.live_date, MIN(e.created_at)::date) AS live_date,
-qr.contract_days AS contract_days
-      FROM events e
-LEFT JOIN campaigns c ON c.id = e.campaign_id
-LEFT JOIN stores st ON st.id = e.store_id
-LEFT JOIN qr_codes qr ON qr.id = e.qr_id
-LEFT JOIN spaces s ON s.id = qr.space_id
-      ${whereSql}
-GROUP BY
-    c.name,
-    c.advertiser,
-    qr.name,
-    st.name,
-    s.name,
-    qr.total_cost,
-    qr.annual_cost,
-    s.placement_cost,
-    qr.annual_impressions,
-    s.annual_impressions,
-    qr.end_date,
-    qr.live_date,
-qr.contract_days
- 
-      ORDER BY total_events DESC
-    `, params);
+    const today = new Date().toISOString().slice(0, 10);
 
-    const header = "campaign,advertiser,qr_name,store_name,total_events,scans,offer_clicks,map_clicks,estimated_impressions,engagement_rate,estimated_spend,cpm,cost_per_scan,estimated_conversions,cac,estimated_revenue,roi,first_event,last_event\n";
+    const startDate =
+      req.query.start_date ||
+      req.query.startDate ||
+      req.query.start ||
+      req.query.from ||
+      today;
 
-    const rows = await Promise.all(result.rows.map(async r => {
-      const scans = Number(r.scans || 0);
-      const total = Number(r.total_events || 0);
-const firstDate = r.first_event ? new Date(r.first_event) : new Date();
-const lastDate = r.last_event ? new Date(r.last_event) : firstDate;
-const activeDays = Math.max(1, Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)) + 1);
+    const endDate =
+      req.query.end_date ||
+      req.query.endDate ||
+      req.query.end ||
+      req.query.to ||
+      today;
 
-const contractCost = Number(r.placement_cost || 0);
-const contractImpressions = Number(r.annual_impressions || 0);
+    const locationId = req.query.location_id || "";
+    const qrId = req.query.qr_id || req.query.qrId || req.query.qr || "";
+    const campaignId =
+      req.query.campaign_id ||
+      req.query.campaignId ||
+      req.query.campaign ||
+      "";
 
-const qrStart = r.live_date || r.created_at || r.first_event;
-const qrEnd = r.end_date || r.live_date || r.created_at || r.last_event;
+    const status = (req.query.status || "all").toLowerCase();
 
-const contractDays = Number(r.contract_days || 365);
+    const reportRows = await buildExportReportRows(
+      req,
+      startDate,
+      endDate,
+      locationId,
+      qrId,
+      campaignId,
+      status
+    );
 
-const impressions = contractDays > 0
-  ? Math.round((contractImpressions / contractDays) * activeDays)
-  : 0;
+    const header = [
+      "Advertiser",
+      "Campaign",
+      "QR Codes",
+      "Locations",
+      "Status",
+      "Scans",
+      "Offer Clicks",
+      "Map Clicks",
+      "Waze Clicks",
+      "Intent",
+      "Conversions",
+      "Revenue",
+      "Allocated Cost",
+      "CAC",
+      "ROI %"
+    ].join(",") + "\n";
 
-const estimatedSpend = await allocatedSpotCostForCampaign(
-  r.campaign_id,
-  startDate,
-  endDate
-);
-const estimatedConversions = Number(r.conversions || 0);
-const estimatedRevenue = Number(r.conversion_value || 0);
-
-const engagementRate = impressions > 0 ? ((scans / impressions) * 100).toFixed(2) + "%" : "0.00%";
-const cpm =
-  impressions > 0
-    ? ((estimatedSpend / impressions) * 1000).toFixed(2)
-    : "0.00";
-const costPerScan = scans > 0 ? (estimatedSpend / scans).toFixed(2) : "0.00";
-const cac = estimatedConversions > 0 ? (estimatedSpend / estimatedConversions).toFixed(2) : "0.00";
-const roi = estimatedSpend > 0 ? (((estimatedRevenue - estimatedSpend) / estimatedSpend) * 100).toFixed(2) + "%" : "0.00%";
-
-      return [
-        r.campaign,
-        r.advertiser,
-        r.qr_name,
-        r.store_name,
-        r.total_events,
-        r.scans,
-        r.offer_clicks,
-        r.map_clicks,
-        impressions,
-engagementRate,
-estimatedSpend,
-cpm,
-costPerScan,
-estimatedConversions,
-cac,
-estimatedRevenue,
-roi,
-        new Date(r.first_event).toLocaleDateString(),
-new Date(r.last_event).toLocaleDateString()
-      ].map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",");
-    })).then(rows => rows.join("\n"));
+    const rows = reportRows.map(r => [
+      r.advertiser,
+      r.campaignName,
+      r.qrNames,
+      r.locationNames,
+      r.status,
+      r.scans,
+      r.offerClicks,
+      r.mapClicks,
+      r.wazeClicks,
+      r.intent,
+      r.conversions,
+      r.revenue.toFixed(2),
+      r.allocatedCost.toFixed(2),
+      r.cac.toFixed(2),
+      r.roi.toFixed(2)
+    ].map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
 
     res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", "attachment; filename=vivid-executive-report.csv");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=vivid-executive-report.csv"
+    );
+
     res.send(header + rows);
 
   } catch (err) {
     console.error("REPORT CSV ERROR:", err);
-    res.status(500).send(err.message);
+    res.status(500).send("REPORT CSV ERROR: " + err.message);
   }
 });
 app.get("/export/report.pdf", requireLogin, async (req, res) => {
