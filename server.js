@@ -6063,52 +6063,88 @@ updateDays();
 
 app.post("/admin/new-campaign", requireLogin, async (req, res) => {
   try {
-await q(`
-  ALTER TABLE campaigns
-  ADD COLUMN IF NOT EXISTS conversion_url TEXT
-`);
-    const userId =
-  req.session.user.role === "super_admin"
-    ? Number(req.body.user_id)
-    : req.session.user.id;
     await q(`
- INSERT INTO campaigns (
-  name,
-  advertiser,
-  campaign_url,
-  conversion_url,
-  avg_customer_value,
-  conversion_rate,
-  is_deal_of_day,
-  user_id,
-  start_date,
-  end_date
-)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      ALTER TABLE campaigns
+      ADD COLUMN IF NOT EXISTS conversion_url TEXT
+    `);
+
+    const userId =
+      req.session.user.role === "super_admin"
+        ? Number(req.body.user_id)
+        : req.session.user.id;
+
+    const name = req.body.name || "";
+    const advertiser = req.body.advertiser || "";
+    const startDate = req.body.start_date || null;
+    const endDate = req.body.end_date || null;
+
+    const existing = await q(`
+      SELECT id
+      FROM campaigns
+      WHERE user_id = $1
+        AND LOWER(TRIM(name)) = LOWER(TRIM($2))
+        AND LOWER(TRIM(advertiser)) = LOWER(TRIM($3))
+        AND COALESCE(start_date::text,'') = COALESCE($4::text,'')
+        AND COALESCE(end_date::text,'') = COALESCE($5::text,'')
+      LIMIT 1
     `, [
-  req.body.name || "",
-  req.body.advertiser || "",
-  req.body.campaign_url || "",
+      userId,
+      name,
+      advertiser,
+      startDate,
+      endDate
+    ]);
+
+    if (existing.rows.length) {
+      return res.send(successPage(
+        "Campaign Already Exists",
+        "A matching campaign already exists.",
+        "Assign it to a QR code instead of creating another.",
+        [
+          { label: "Assign Campaign", href: "/admin/assign" },
+          { label: "Back to My Setup", href: "/my-setup" },
+          { label: "Dashboard", href: "/dashboard" }
+        ]
+      ));
+    }
+
+    await q(`
+      INSERT INTO campaigns (
+        name,
+        advertiser,
+        campaign_url,
+        conversion_url,
+        avg_customer_value,
+        conversion_rate,
+        is_deal_of_day,
+        user_id,
+        start_date,
+        end_date
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    `, [
+      name,
+      advertiser,
+      req.body.campaign_url || "",
       req.body.conversion_url || "",
-  Number(req.body.avg_customer_value || 50),
-  8,
-  req.body.is_deal_of_day === "on",
-  userId,
-  req.body.start_date || null,
-  req.body.end_date || null
-]
-    );
+      Number(req.body.avg_customer_value || 50),
+      8,
+      req.body.is_deal_of_day === "on",
+      userId,
+      startDate,
+      endDate
+    ]);
 
     res.send(successPage(
-  "Campaign Created Successfully",
-  "Your campaign has been saved.",
-  "Assign this campaign to a QR code.",
-  [
-    { label: "Assign Campaign", href: "/admin/assign" },
-    { label: "Back to My Setup", href: "/my-setup" },
-    { label: "Dashboard", href: "/dashboard" }
-  ]
-));
+      "Campaign Created Successfully",
+      "Your campaign has been saved.",
+      "Assign this campaign to a QR code.",
+      [
+        { label: "Assign Campaign", href: "/admin/assign" },
+        { label: "Back to My Setup", href: "/my-setup" },
+        { label: "Dashboard", href: "/dashboard" }
+      ]
+    ));
 
   } catch (err) {
     res.send("ERROR: " + err.message);
