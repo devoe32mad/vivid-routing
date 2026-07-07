@@ -787,7 +787,14 @@ async function allocatedSpotCostForCampaign(campaignId, startDate, endDate) {
         (
           COALESCE(qr.total_cost, qr.annual_cost, s.placement_cost, 0)
           /
-          GREATEST(1, COALESCE(qr.contract_days, 1))::numeric
+          GREATEST(
+  1,
+  (
+    COALESCE(qr.end_date::date, CURRENT_DATE)
+    -
+    COALESCE(qr.live_date::date, CURRENT_DATE)
+  )
+)::numeric
         )
         *
         GREATEST(
@@ -821,7 +828,14 @@ async function allocatedSpotCostForQr(qrId, startDate, endDate) {
         (
           COALESCE(qr.total_cost, qr.annual_cost, s.placement_cost, 0)
           /
-GREATEST(1, COALESCE(qr.contract_days, 1))::numeric
+GREATEST(
+  1,
+  (
+    COALESCE(qr.end_date::date, CURRENT_DATE)
+    -
+    COALESCE(qr.live_date::date, CURRENT_DATE)
+  )
+)::numeric
         )
         *
         GREATEST(
