@@ -3152,241 +3152,86 @@ app.get("/track-conversion", async (req, res) => {
 });
 app.get("/reports-qr", requireLogin, async (req, res) => {
   try {
+    const today = new Date().toISOString().slice(0, 10);
+
+    const startDate = req.query.start_date || today;
+    const endDate = req.query.end_date || today;
+
     const currentUser = req.session.user;
     const isSuperAdmin = currentUser.role === "super_admin";
-    const timeframe = req.query.timeframe || "30";
-const startDate = req.query.start_date || "";
-const endDate = req.query.end_date || "";
-    let dateSql = "";
+    const userId = isSuperAdmin ? null : currentUser.id;
 
-if (startDate && endDate) {
-  dateSql = `AND e.created_at::date BETWEEN '${startDate}' AND '${endDate}'`;
-} else if (timeframe !== "all") {
-  dateSql = `AND e.created_at >= NOW() - INTERVAL '${Number(timeframe)} days'`;
-}
+    const qrResult = await q(`
+      SELECT DISTINCT
+        qr.id AS qr_id,
+        qr.name AS qr_name
+      FROM qr_codes qr
+      LEFT JOIN spaces s ON s.id = qr.space_id
+      LEFT JOIN qr_campaigns qc ON qc.qr_id = qr.id
+      LEFT JOIN campaigns c ON c.id = qc.campaign_id
+      WHERE ($1::int IS NULL OR s.user_id = $1 OR c.user_id = $1)
+      ORDER BY qr.name
+    `, [userId]);
 
-    const reportRows = await q(
-      isSuperAdmin
-        ? `
-  SELECT
-    qr.id AS qr_id,
-    c.advertiser,
-    c.name AS campaign_name,
-    c.id AS campaign_id,
-    qr.name AS qr_name,
-  (
-  SELECT COUNT(*)
-  FROM events ce
-  WHERE ce.qr_id = qr.id
-    AND ce.type = 'conversion'
-) AS conversions,
-
-(
-  SELECT COALESCE(SUM(ce.value), 0)
-  FROM events ce
-  WHERE ce.qr_id = qr.id
-    AND ce.type = 'conversion'
-) AS conversion_value,
-  (
-  SELECT COUNT(DISTINCT qc2.campaign_id)
-  FROM qr_campaigns qc2
-  WHERE qc2.qr_id = qr.id
-    AND COALESCE(qc2.is_active,true) = true
-) AS campaign_count,
-            COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-            COUNT(*) FILTER (WHERE e.type='offer') AS offers,
-COUNT(*) FILTER (WHERE e.type='maps') AS maps,
-COUNT(*) FILTER (WHERE e.type='waze') AS waze,
-COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
-
-
-
-         FROM qr_codes qr
-         LEFT JOIN (
-  SELECT
-    qr_id,
-    COUNT(*) AS conversions,
-    COALESCE(SUM(value), 0) AS conversion_value
-  FROM events
-  WHERE type = 'conversion'
-  GROUP BY qr_id
-) conv ON conv.qr_id = qr.id
-LEFT JOIN events e
-  ON e.qr_id = qr.id
-  AND e.created_at::date BETWEEN '${startDate}' AND '${endDate}'
-  ON e.qr_id = qr.id
-LEFT JOIN (
-  SELECT DISTINCT ON (qr_id, campaign_id)
-    *
-  FROM qr_campaigns
-  WHERE COALESCE(is_active,true) = true
-  ORDER BY qr_id, campaign_id, id DESC
-) qc
-  ON qc.qr_id = qr.id
-
-LEFT JOIN campaigns c
-  ON c.id = COALESCE(e.campaign_id, qc.campaign_id)
-
-LEFT JOIN spaces s
-  ON s.id = qr.space_id
-
-WHERE 1=1
-          
-
- GROUP BY
-  c.advertiser,
-  c.name,
-  c.id,
-  qr.id,
-qr.name,
-qc.id,
-  qc.started_at,
-  qc.assigned_at,
-  qr.annual_cost,
-  ORDER BY scans DESC
-        `
-        : `
- SELECT
-    qr.id AS qr_id,
-    qr.name AS qr_name,
-(
-  SELECT COUNT(*)
-  FROM events ce
-  WHERE ce.qr_id = qr.id
-    AND ce.type = 'conversion'
-) AS conversions,
-
-(
-  SELECT COALESCE(SUM(ce.value),0)
-  FROM events ce
-  WHERE ce.qr_id = qr.id
-    AND ce.type = 'conversion'
-) AS conversion_value,
-
-COUNT(DISTINCT qc.campaign_id) AS campaign_count,
-  COUNT(DISTINCT qc.campaign_id) AS campaign_count,
-            COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-            COUNT(*) FILTER (WHERE e.type='offer') AS offers,
-COUNT(*) FILTER (WHERE e.type='maps') AS maps,
-COUNT(*) FILTER (WHERE e.type='waze') AS waze,
-COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_actions,
-COALESCE((
-  SELECT ROUND(
-    SUM(
-       (COALESCE(qr2.annual_cost, s2.placement_cost, 800) / GREATEST(
-  1,
-  COALESCE(qr2.end_date::date, CURRENT_DATE) - COALESCE(qr2.live_date::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))) + 1
-))*
-      GREATEST(
-        1,
-        (
-          LEAST(
-            CURRENT_DATE,
-            COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE)
-          )
-          -
-          GREATEST(
-            DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
-            COALESCE(
-              NULLIF('${startDate}','')::date,
-              DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
-            )
-          )
-          + 1
-        )
-      )
-    ),
-    2
-  )
-  FROM (
-  SELECT DISTINCT ON (qr_id, campaign_id)
-    *
-  FROM qr_campaigns
-  WHERE COALESCE(is_active,true) = true
-  ORDER BY qr_id, campaign_id, id DESC
-) qc2
-JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
-  LEFT JOIN spaces s2 ON s2.id = qr2.space_id
-  WHERE qc2.qr_id = qr.id
-    AND COALESCE(qc2.is_active,true) = true
-
-), 0) AS allocated_cost
-
-  
-          FROM events e
-          JOIN qr_codes qr ON qr.id = e.qr_id
-          JOIN spaces s ON s.id = qr.space_id
-   LEFT JOIN qr_campaigns qc
-  ON qc.qr_id = qr.id
-  AND COALESCE(qc.is_active,true) = true
-
-LEFT JOIN campaigns c
-  ON c.id = COALESCE(e.campaign_id, qc.campaign_id)
-         
-          WHERE s.user_id = $1
-          ${dateSql}
-GROUP BY
-qr.id,
-qr.name
-          ORDER BY scans DESC
-        `,
-      isSuperAdmin ? [] : [currentUser.id]
-    );
-console.log("QR REPORT ROWS:", reportRows.rows);
     let reportTable = "";
 
-    for (const r of reportRows.rows) {
-     const campaignCount = Number(r.campaign_count || 0);
-      const scans = Number(r.scans || 0);
-   const offers = Number(r.offers || 0);
-const maps = Number(r.maps || 0);
-const waze = Number(r.waze || 0);
-const allocatedCost = await allocatedSpotCostForQr(
-    r.qr_id,
-    startDate,
-    endDate
-);
-console.log("QR COST DEBUG:", {
-  qr_id: r.qr_id,
-  qr_name: r.qr_name,
-  startDate,
-  endDate,
-  allocatedCost
-});
-      const intent =
-  offers + maps + waze;
-      
-      const conversions = Number(r.conversions || 0);
+    for (const qr of qrResult.rows) {
+      const metrics = await q(`
+        SELECT
+          COUNT(*) FILTER (WHERE e.type = 'scan')::int AS scans,
+          COUNT(*) FILTER (WHERE e.type = 'offer')::int AS offer_clicks,
+          COUNT(*) FILTER (WHERE e.type = 'maps')::int AS map_clicks,
+          COUNT(*) FILTER (WHERE e.type = 'waze')::int AS waze_clicks,
+          COUNT(*) FILTER (WHERE e.type = 'conversion')::int AS conversions,
+          COALESCE(SUM(e.value) FILTER (WHERE e.type = 'conversion'), 0)::numeric(12,2) AS revenue
+        FROM events e
+        WHERE e.qr_id = $1
+          AND e.created_at::date BETWEEN $2::date AND $3::date
+      `, [qr.qr_id, startDate, endDate]);
 
-const revenue = Number(r.conversion_value || 0);
-const customerValue = conversions > 0 ? revenue / conversions : 0;
-      
+      const campaignCountResult = await q(`
+        SELECT COUNT(DISTINCT campaign_id)::int AS campaign_count
+        FROM qr_campaigns
+        WHERE qr_id = $1
+          AND COALESCE(is_active,true) = true
+      `, [qr.qr_id]);
 
-const roi =
-  allocatedCost > 0
-    ? (((revenue - allocatedCost) / allocatedCost) * 100).toFixed(1)
-    : 0;
-      const intentRate = scans > 0 ? ((intent / scans) * 100).toFixed(1) : 0;
+      const m = metrics.rows[0] || {};
+
+      const scans = Number(m.scans || 0);
+      const offers = Number(m.offer_clicks || 0);
+      const maps = Number(m.map_clicks || 0);
+      const waze = Number(m.waze_clicks || 0);
+      const intent = offers + maps + waze;
+      const conversions = Number(m.conversions || 0);
+      const revenue = Number(m.revenue || 0);
+
+      const allocatedCost = await allocatedSpotCostForQr(
+        qr.qr_id,
+        startDate,
+        endDate
+      );
+
+      const customerValue = conversions > 0 ? revenue / conversions : 0;
+      const roi =
+        allocatedCost > 0
+          ? ((revenue - allocatedCost) / allocatedCost) * 100
+          : 0;
 
       reportTable += `
         <tr>
-          <td>${r.qr_name || ""}</td>
-          <td style="text-align:center;">${r.campaign_count || 0}</td>
+          <td>${qr.qr_name || ""}</td>
+          <td style="text-align:center;">${Number(campaignCountResult.rows[0]?.campaign_count || 0)}</td>
           <td style="text-align:center;">${scans}</td>
           <td style="text-align:center;">${offers}</td>
-
-<td style="text-align:center;">${maps}</td>
-<td style="text-align:center;">${waze}</td>
-<td style="text-align:center;">${intent}</td>
-<td style="text-align:center;">${r.conversions || 0}</td>
-
-<td style="text-align:center;">
-  ${money(customerValue)}
-</td>
-<td style="text-align:center;">${money(revenue)}</td>
-
-<td style="text-align:center;">${money(allocatedCost)}</td>
-<td style="text-align:center;">${roi}%</td>
+          <td style="text-align:center;">${maps}</td>
+          <td style="text-align:center;">${waze}</td>
+          <td style="text-align:center;">${intent}</td>
+          <td style="text-align:center;">${conversions}</td>
+          <td style="text-align:center;">${money(customerValue)}</td>
+          <td style="text-align:center;">${money(revenue)}</td>
+          <td style="text-align:center;">${money(allocatedCost)}</td>
+          <td style="text-align:center;" class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td>
         </tr>
       `;
     }
@@ -3399,24 +3244,26 @@ const roi =
 
       <div class="wrap">
         <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-        
-         <a class="btn" href="/reports-qr">QR Reports</a>
-          <a class="btn secondary" href="/reports-campaign">Campaign Reports</a>
+          <a class="btn" href="/reports-qr">QR Reports</a>
+          <a class="btn secondary" href="/reports">Campaign Reports</a>
           <a class="btn secondary" href="/reports-location">Location Reports</a>
+          <a class="btn gold" href="/admin/reports">Export Center</a>
         </div>
-<form method="GET" action="/reports-qr" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0;">
-  <div>
-    <label>Start Date</label><br>
-    <input type="date" name="start_date" value="${startDate || ""}">
-  </div>
 
-  <div>
-    <label>End Date</label><br>
-    <input type="date" name="end_date" value="${endDate || ""}">
-  </div>
+        <form method="GET" action="/reports-qr" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0;">
+          <div>
+            <label>Start Date</label><br>
+            <input type="date" name="start_date" value="${startDate}">
+          </div>
 
-  <button class="btn" type="submit">Apply Filter</button>
-</form>
+          <div>
+            <label>End Date</label><br>
+            <input type="date" name="end_date" value="${endDate}">
+          </div>
+
+          <button class="btn" type="submit">Apply Filter</button>
+        </form>
+
         <div class="card">
           <h2>QR Code Performance</h2>
 
@@ -3424,22 +3271,21 @@ const roi =
             <tr>
               <th>QR Code</th>
               <th>Campaign Count</th>
-              <th style="text-align:center;">Scans</th>
-              <th style="text-align:center;">Offers</th>
-<th style="text-align:center;">Maps</th>
-<th style="text-align:center;">Waze</th>
-
-<th style="text-align:center;">Total Intent</th>
-<th style="text-align:center;">Conversions</th>
-<th style="text-align:center;">Customer Value</th>
-<th>Revenue</th>
-<th>Allocated Cost</th>
-<th>ROI</th>
+              <th>Scans</th>
+              <th>Offers</th>
+              <th>Maps</th>
+              <th>Waze</th>
+              <th>Total Intent</th>
+              <th>Conversions</th>
+              <th>Customer Value</th>
+              <th>Revenue</th>
+              <th>Allocated Cost</th>
+              <th>ROI</th>
             </tr>
 
             ${reportTable || `
               <tr>
-                <td colspan="4">No QR report data yet.</td>
+                <td colspan="12">No QR report data yet.</td>
               </tr>
             `}
           </table>
@@ -3448,9 +3294,11 @@ const roi =
     `));
 
   } catch (err) {
+    console.error("QR REPORT ERROR:", err);
     res.send("QR REPORT ERROR: " + err.message);
   }
 });
+
 app.get("/reports-campaign", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
