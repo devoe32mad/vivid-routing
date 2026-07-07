@@ -2993,447 +2993,44 @@ const qrListHtml = qrList.rows.length
   `));
 });
 app.get("/reports", requireLogin, async (req, res) => {
-console.log("HIT /REPORTS ROUTE");
   try {
+    const today = new Date().toISOString().slice(0, 10);
 
-    const currentUser = req.session.user;
-    const isSuperAdmin = currentUser.role === "super_admin";
+    const startDate = req.query.start_date || today;
+    const endDate = req.query.end_date || today;
 
-    const timeframe = req.query.timeframe || "30";
-    const startDate = req.query.start_date || "";
-const endDate = req.query.end_date || "";
-const group = req.query.group || "campaign";
-    let dateSql = "";
-    let params = [];
-
-    if (startDate && endDate) {
-  dateSql = `AND e.created_at::date BETWEEN '${startDate}' AND '${endDate}'`;
-} else if (timeframe !== "all") {
-  dateSql = `AND e.created_at >= NOW() - INTERVAL '${Number(timeframe)} days'`;
-}
-let reportQuery = "";
-    if (group === "campaign") {
-
-  reportTitle = "Campaign Performance";
-
-  reportQuery = isSuperAdmin
-    ? `
-SELECT
-    c.id AS campaign_id,
-    c.name AS label,
-    c.advertiser,
-
-        COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-
-        COUNT(*) FILTER (
-          WHERE e.type IN ('offer','maps','waze')
-        ) AS intent_actions
-,
-COUNT(*) FILTER (
-  WHERE e.type IN ('purchase','conversion','lead','signup')
-) AS conversions,
-
-COALESCE(
-  SUM(e.value) FILTER (
-    WHERE e.type IN ('purchase','conversion','lead','signup')
-  ),
-  0
-) AS conversion_value,
-0 AS allocated_cost,
-COUNT(*) FILTER (
-  WHERE e.type IN ('purchase','conversion','lead','signup')
-) AS conversions,
-
-SUM(e.value) FILTER (
-  WHERE e.type IN ('purchase','conversion','lead','signup')
-) AS conversion_value
-      FROM events e
-      LEFT JOIN campaigns c
-        ON c.id = e.campaign_id
-
-      WHERE 1=1
-
-      GROUP BY c.id, c.name, c.advertiser
-      ORDER BY scans DESC
-    `
-    : `
-      SELECT
-    c.id AS campaign_id,
-    c.name AS label,
-    c.advertiser,
-
-        COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-
-        COUNT(*) FILTER (
-          WHERE e.type IN ('offer','maps','waze')
-        ) AS intent_actions
-) AS intent_actions,
-0 AS conversions,
-0 AS conversion_value,
-COALESCE((
-  SELECT ROUND(SUM(x.allocated_cost), 2)
-  FROM (
-    SELECT DISTINCT ON (qc2.qr_id, qc2.campaign_id)
-      (
-        COALESCE(qr2.annual_cost, s2.placement_cost, 0)
-        /
-        GREATEST(
-          1,
-          (
-            COALESCE(qr2.end_date::date, CURRENT_DATE)
-            -
-            COALESCE(
-              qr2.live_date::date,
-              DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
-            )
-            + 1
-          )
-        )::numeric
-        *
-        GREATEST(
-          0,
-          (
-            LEAST(
-              COALESCE(qr2.end_date::date, CURRENT_DATE),
-              COALESCE(c.end_date::date, CURRENT_DATE),
-              COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE)
-            )
-            -
-            GREATEST(
-              COALESCE(
-                qr2.live_date::date,
-                DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
-              ),
-              COALESCE(
-                c.start_date::date,
-                DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
-              ),
-              COALESCE(
-                NULLIF('${startDate}','')::date,
-                DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
-              )
-            )
-            + 1
-          )
-        )
-      ) AS allocated_cost
-    FROM qr_campaigns qc2
-    JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
-    LEFT JOIN spaces s2 ON s2.id = qr2.space_id
-    WHERE qc2.campaign_id = c.id
-      AND COALESCE(qc2.is_active,true) = true
-    ORDER BY qc2.qr_id, qc2.campaign_id, qc2.id DESC
-  ) x
-), 0) AS allocated_cost,
-COALESCE((
-  SELECT SUM(
-    GREATEST(
-      1,
-      (
-        LEAST(CURRENT_DATE, COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE))
-        -
-        GREATEST(
-          DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
-          COALESCE(NULLIF('${startDate}','')::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)))
-        )
-        + 1
-      )
-    )
-  )
-  FROM qr_campaigns qc2
-  WHERE qc2.campaign_id = c.id
-  AND COALESCE(qc2.is_active,true) = true
-),0) AS active_days,
-COUNT(*) FILTER (
-  WHERE e.type IN ('purchase','conversion','lead','signup')
-) AS conversions,
-
-SUM(e.value) FILTER (
-  WHERE e.type IN ('purchase','conversion','lead','signup')
-) AS conversion_value
-      FROM events e
-      LEFT JOIN campaigns c
-        ON c.id = e.campaign_id
-
-      WHERE c.user_id = $1
-      ${dateSql}
-
-      GROUP BY c.id, c.name, c.advertiser, c.avg_customer_value
-      ORDER BY scans DESC
-    `;
-}
-    
-
-const reportRows = await q(
-  isSuperAdmin
-        ? `
-          SELECT
-            c.name AS campaign_name,
-            c.advertiser,
-c.avg_customer_value,
-c.id AS campaign_id,
-
-            COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-
-            COUNT(*) FILTER (
-              WHERE e.type IN ('offer','maps','waze')
-            ) AS intent_actions
-            ,
-COUNT(e.id) FILTER (WHERE e.type='conversion') AS conversions,
-COALESCE(SUM(e.value) FILTER (WHERE e.type='conversion'), 0) AS conversion_value,
-COALESCE((
-  SELECT SUM(
-    GREATEST(
-      1,
-    LEAST(
-  COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE),
-  CURRENT_DATE
-)
--
-GREATEST(
-  DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
-  COALESCE(
-    NULLIF('${startDate}','')::date,
-    DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
-  )
-)
-+ 1
-    )
-  )
-  FROM qr_campaigns qc2
-  WHERE qc2.campaign_id = c.id
-  AND COALESCE(qc2.is_active,true) = true
-),0) AS active_days,
-0 AS allocated_cost_old
-,
-0 AS conversions,
-0 AS conversion_value,
-0 AS allocated_cost,
-     FROM events e
-LEFT JOIN campaigns c
-  ON c.id = e.campaign_id
-
-          WHERE 1=1
-${dateSql}
-          GROUP BY c.id, c.name, c.advertiser
-          
-          ORDER BY scans DESC
-        `
-        : `
-          SELECT
-            c.id AS campaign_id,
-c.name AS campaign_name,
-            c.advertiser,
-c.avg_customer_value,
-CASE
-  WHEN COALESCE(c.is_archived,false) THEN 'Archived'
-  ELSE 'Active'
-END AS status,
-(
-  SELECT COUNT(DISTINCT qc2.qr_id)
-  FROM qr_campaigns qc2
-  WHERE qc2.campaign_id = c.id
-    AND COALESCE(qc2.is_active,true) = true
-) AS qr_count,
-            COUNT(e.id) FILTER (WHERE e.type='scan') AS scans,
-COUNT(e.id) FILTER (
-  WHERE e.type='offer'
-) AS offers,
-
-COUNT(e.id) FILTER (
-  WHERE e.type='maps'
-) AS maps,
-
-COUNT(e.id) FILTER (
-  WHERE e.type='waze'
-) AS waze,
-            COUNT(e.id) FILTER (
-  WHERE e.type IN ('offer','maps','waze')
-) AS intent_actions
-              
-,
-COUNT(e.id) FILTER (WHERE e.type='conversion') AS conversions,
-COALESCE(SUM(e.value) FILTER (WHERE e.type='conversion'), 0) AS conversion_value,
-COALESCE((
-  SELECT ROUND(
-    SUM(
-      (COALESCE(qr2.annual_cost, s2.placement_cost, 800) / GREATEST(
-  1,
-  COALESCE(qr2.end_date::date, CURRENT_DATE) - COALESCE(qr2.live_date::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))) + 1
-))*
-      GREATEST(
-        1,
-        (
-          LEAST(
-            CURRENT_DATE,
-            COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE)
-          )
-          -
-          GREATEST(
-            DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
-            COALESCE(
-              NULLIF('${startDate}','')::date,
-              DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP))
-            )
-          )
-          + 1
-        )
-      )
-    ),
-    2
-  )
-  FROM qr_campaigns qc2
-  JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
-  LEFT JOIN spaces s2 ON s2.id = qr2.space_id
-  WHERE qc2.campaign_id = c.id
-    AND COALESCE(qc2.is_active,true) = true
-),0) AS allocated_cost,
-COALESCE((
-  SELECT ROUND(SUM(x.allocated_cost), 2)
-  FROM (
-    SELECT DISTINCT ON (qc2.qr_id, qc2.campaign_id)
-      (
-        COALESCE(qr2.annual_cost, s2.placement_cost, 0)
-/ GREATEST(1, COALESCE(qr2.end_date::date, CURRENT_DATE) - COALESCE(qr2.live_date::date, qr2.created_at::date, CURRENT_DATE) + 1)::numeric
-        *
-        GREATEST(
-          1,
-          LEAST(CURRENT_DATE, COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE))
-          -
-          GREATEST(
-            DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
-            COALESCE(NULLIF('${startDate}','')::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)))
-          )
-          + 1
-        )
-      ) AS allocated_cost
-    FROM qr_campaigns qc2
-    JOIN qr_codes qr2 ON qr2.id = qc2.qr_id
-    LEFT JOIN spaces s2 ON s2.id = qr2.space_id
-    WHERE qc2.campaign_id = c.id
-      AND COALESCE(qc2.is_active,true) = true
-    ORDER BY qc2.qr_id, qc2.campaign_id, qc2.id DESC
-  ) x
-), 0) AS allocated_cost,
-
-COALESCE((
-  SELECT MIN(
-    GREATEST(
-      1,
-      LEAST(CURRENT_DATE, COALESCE(NULLIF('${endDate}','')::date, CURRENT_DATE))
-      -
-      GREATEST(
-        DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)),
-        COALESCE(NULLIF('${startDate}','')::date, DATE(COALESCE(qc2.started_at, qc2.assigned_at, CURRENT_TIMESTAMP)))
-      )
-      + 1
-    )
-  )
-  FROM qr_campaigns qc2
-  WHERE qc2.campaign_id = c.id
-    AND COALESCE(qc2.is_active,true) = true
-), 0) AS active_days
-          FROM campaigns c
-LEFT JOIN events e
-  ON e.campaign_id = c.id
-  ${dateSql}
-
-WHERE c.user_id = $1
-
-          GROUP BY c.id, c.name, c.advertiser
-          ORDER BY scans DESC
-        `,
-      isSuperAdmin ? [] : [currentUser.id]
+    const reportRows = await buildExportReportRows(
+      req,
+      startDate,
+      endDate,
+      "",
+      "",
+      "",
+      "all"
     );
-    console.log("REPORT QUERY SQL:", reportQuery);
-console.log("REPORT TITLE:", reportTitle);
-console.log("REPORT ROW COUNT:", reportRows.rows.length);
-    console.log(
-  "REPORT CAMPAIGNS:",
-  reportRows.rows.map(r => ({
-    id: r.id,
-    campaign_id: r.campaign_id,
-    campaign_name: r.campaign_name,
-    advertiser: r.advertiser
-  }))
-);
-console.log("FIRST ROW:", reportRows.rows[0]);
-console.log("ALLOCATED COST =", reportRows.rows[0].allocated_cost);
-console.log("ROW KEYS =", Object.keys(reportRows.rows[0]));    
+
     let reportTable = "";
 
-    for (const r of reportRows.rows) {
-
-      const scans = Number(r.scans || 0);
-      const offers = Number(r.offers || 0);
-const maps = Number(r.maps || 0);
-const waze = Number(r.waze || 0);
-
-const intent = offers + maps + waze;
-const conversions = Number(r.conversions || 0);
-const revenue = Number(r.conversion_value || 0);
-const customerValue =
-  conversions > 0
-    ? revenue / conversions
-    : Number(r.avg_customer_value || 0);
-
-
-console.log("CAMPAIGN:", r.campaign_id, r.label);
-  const placementCost = await allocatedSpotCostForCampaign(r.campaign_id || r.id, startDate, endDate);
-   console.log("PLACEMENT CHECK", {
-  campaign_name: r.campaign_name,
-  campaign_id: r.campaign_id,
-  id: r.id,
-  startDate,
-  endDate,
-  placementCost
-});
-      console.log(
-    "PLACEMENT COST FUNCTION:",
-    r.campaign_name,
-    r.campaign_id,
-    r.id,
-    placementCost
-);  
-const activeDays = Number(r.active_days || 0);
-
-const roi =
-  placementCost > 0
-    ? (((revenue - placementCost)
-        / placementCost) * 100).toFixed(1)
-    : 0;
-      const intentRate =
-        scans > 0
-          ? ((intent / scans) * 100).toFixed(1)
-          : 0;
-
+    for (const r of reportRows) {
       reportTable += `
         <tr>
           <td>${r.advertiser || ""}</td>
-          <td>${r.campaign_name || ""}</td>
-        <td>
-  ${r.status === "Archived"
-    ? '<span style="background:#dc2626;color:white;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">Archived</span>'
-    : '<span style="background:#16a34a;color:white;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">Active</span>'}
-</td>
-<td style="text-align:center;">${activeDays}</td>
-<td style="text-align:center;">${r.qr_count || 0}</td>
-         <td style="text-align:center;">${scans}</td>
-<td style="text-align:center;">${offers}</td>
-
-<td style="text-align:center;">${maps}</td>
-
-<td style="text-align:center;">${waze}</td>
-
-<td style="text-align:center;">${intent}</td>
-
-<td style="text-align:center;">${conversions}</td>
-<td style="text-align:center;">${money(customerValue)}</td>
-   <td>${money(revenue)}</td>
-
-
-<td>${money(placementCost)}</td>
-<td>${roi}%</td>
+          <td>${r.campaignName || ""}</td>
+          <td>
+            ${r.status === "Archived"
+              ? '<span style="background:#dc2626;color:white;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">Archived</span>'
+              : '<span style="background:#16a34a;color:white;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">Active</span>'}
+          </td>
+          <td style="text-align:center;">${r.scans}</td>
+          <td style="text-align:center;">${r.offerClicks}</td>
+          <td style="text-align:center;">${r.mapClicks}</td>
+          <td style="text-align:center;">${r.wazeClicks}</td>
+          <td style="text-align:center;">${r.intent}</td>
+          <td style="text-align:center;">${r.conversions}</td>
+          <td>${money(r.revenue)}</td>
+          <td>${money(r.allocatedCost)}</td>
+          <td>${money(r.cac)}</td>
+          <td class="${r.roi >= 0 ? "good" : "bad"}">${pct(r.roi)}</td>
         </tr>
       `;
     }
@@ -3446,78 +3043,60 @@ const roi =
 
       <div class="wrap">
 
-        <div style="display:flex;gap:10px;margin-bottom:20px;">
-
-    
-
-<a class="btn" href="/reports">
-  Campaign Reports 
-</a>
-
-<a class="btn secondary" href="/reports-qr">
-  QR Reports
-</a>
-
-<a class="btn secondary" href="/reports-location">
-  Location Reports
-</a>
-</div>    
-<form method="GET" action="/reports" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0;">
-  <div>
-    <label>Start Date</label><br>
-    <input type="hidden" name="group" value="${group}">
-    <input type="date" name="start_date" value="${startDate || ""}">
-  </div>
-
-  <div>
-    <label>End Date</label><br>
-    <input type="date" name="end_date" value="${endDate || ""}">
-  </div>
-
-  <button class="btn" type="submit">Apply Filter</button>
-</form>
+        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+          <a class="btn" href="/reports">Campaign Reports</a>
+          <a class="btn secondary" href="/reports-qr">QR Reports</a>
+          <a class="btn secondary" href="/reports-location">Location Reports</a>
+          <a class="btn gold" href="/admin/reports">Export Center</a>
         </div>
 
-        <div class="card">
+        <form method="GET" action="/reports" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0;">
+          <div>
+            <label>Start Date</label><br>
+            <input type="date" name="start_date" value="${startDate}">
+          </div>
 
+          <div>
+            <label>End Date</label><br>
+            <input type="date" name="end_date" value="${endDate}">
+          </div>
+
+          <button class="btn" type="submit">Apply Filter</button>
+        </form>
+
+        <div class="card">
           <h2>Campaign Performance</h2>
 
           <table>
-
             <tr>
               <th>Advertiser</th>
               <th>Campaign</th>
               <th>Status</th>
-              <th>Active Days</th>
-              <th style="text-align:center;">QR Count</th>
-            <th style="text-align:center;">Scans</th>
-<th style="text-align:center;">Offers</th>
-<th style="text-align:center;">Maps</th>
-<th style="text-align:center;">Waze</th>
-<th style="text-align:center;">Total Intent</th>
-<th style="text-align:center;">Conversions</th>
-<th>Customer Value</th>
-<th>Revenue</th>
+              <th>Scans</th>
+              <th>Offers</th>
+              <th>Maps</th>
+              <th>Waze</th>
+              <th>Total Intent</th>
+              <th>Conversions</th>
+              <th>Revenue</th>
               <th>Allocated Cost</th>
-<th>ROI</th>
+              <th>CAC</th>
+              <th>ROI</th>
             </tr>
 
             ${reportTable || `
               <tr>
-                <td colspan="7">
-                  No report data yet.
-                </td>
+                <td colspan="13">No report data yet.</td>
               </tr>
             `}
-
           </table>
-
         </div>
 
       </div>
     `));
 
   } catch (err) {
+    console.error("REPORT ERROR:", err);
     res.send("REPORT ERROR: " + err.message);
   }
 });
