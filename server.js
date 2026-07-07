@@ -1035,6 +1035,29 @@ app.get("/db-test", async (req, res) => {
   const result = await q("SELECT NOW()");
   res.json(result.rows[0]);
 });
+app.get("/debug-preview-assignment-cleanup", requireLogin, async (req, res) => {
+  try {
+    const result = await q(`
+      SELECT
+        qc.*,
+        ROW_NUMBER() OVER (
+          PARTITION BY qr_id, campaign_id
+          ORDER BY id DESC
+        ) AS keep_rank
+      FROM qr_campaigns qc
+      WHERE COALESCE(is_active,true) = true
+      ORDER BY qr_id, campaign_id, id DESC
+    `);
+
+    res.json({
+      keep: result.rows.filter(r => Number(r.keep_rank) === 1),
+      deactivate: result.rows.filter(r => Number(r.keep_rank) > 1)
+    });
+
+  } catch (err) {
+    res.status(500).send("PREVIEW CLEANUP ERROR: " + err.message);
+  }
+});
 app.get("/debug-duplicate-assignments", requireLogin, async (req, res) => {
   try {
     const result = await q(`
