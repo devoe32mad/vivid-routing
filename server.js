@@ -5045,45 +5045,83 @@ res.send(`
     res.send("IMPORT QR ERROR: " + err.message);
   }
 });
-app.post("/admin/new-qr", async (req, res) => {
+app.post("/admin/new-qr", requireLogin, async (req, res) => {
   try {
- const newQr = await q(`
- INSERT INTO qr_codes (
-  space_id,
-  name,
-  description,
-  annual_cost,
-  total_cost,
-  live_date,
-  end_date,
-  annual_impressions
-)
-VALUES ($1,$2,$3,$4,$5,NULLIF($6,'')::date,NULLIF($7,'')::date,$8)
-RETURNING id
-`, [
-  Number(req.body.space_id),
-  req.body.name || "",
-  req.body.description || "",
-  Number(req.body.annual_cost || req.body.total_cost || 800),
-  Number(req.body.total_cost || req.body.annual_cost || 800),
-  req.body.live_date || "",
-  req.body.end_date || "",
-  Number(req.body.annual_impressions || 146000)
-]);
+    const spaceId = Number(req.body.space_id);
+    const qrName = req.body.name || "";
+    const description = req.body.description || "";
+    const liveDate = req.body.live_date || "";
+    const endDate = req.body.end_date || "";
 
-const qrId = newQr.rows[0].id;
+    const existing = await q(`
+      SELECT id
+      FROM qr_codes
+      WHERE space_id = $1
+        AND LOWER(TRIM(name)) = LOWER(TRIM($2))
+        AND COALESCE(live_date::text, '') = COALESCE($3::text, '')
+        AND COALESCE(end_date::text, '') = COALESCE($4::text, '')
+      LIMIT 1
+    `, [
+      spaceId,
+      qrName,
+      liveDate || null,
+      endDate || null
+    ]);
 
-res.send(successPage(
-  "QR Code Created Successfully",
-  "Your QR code has been created and is ready to track scans.",
-  "Create a campaign for this QR code.",
-  [
-    { label: "Create Campaign", href: "/admin/new-campaign" },
-    { label: "Download QR Code", href: "/qr/" + qrId + ".png", target: "_blank" },
-{ label: "Preview QR Destination", href: "/r/" + qrId, target: "_blank" },
-    { label: "Back to My Setup", href: "/my-setup" }
-  ]
-));
+    if (existing.rows[0]) {
+      const qrId = existing.rows[0].id;
+
+      return res.send(successPage(
+        "QR Code Already Exists",
+        "A QR code with the same location, name, live date, and end date already exists.",
+        "Use the existing QR code or assign a campaign to it.",
+        [
+          { label: "Assign Campaign", href: "/admin/assign" },
+          { label: "Download QR Code", href: "/qr/" + qrId + ".png", target: "_blank" },
+          { label: "Preview QR Destination", href: "/r/" + qrId, target: "_blank" },
+          { label: "Back to My Setup", href: "/my-setup" }
+        ]
+      ));
+    }
+
+    const newQr = await q(`
+      INSERT INTO qr_codes (
+        space_id,
+        name,
+        description,
+        annual_cost,
+        total_cost,
+        live_date,
+        end_date,
+        annual_impressions
+      )
+      VALUES ($1,$2,$3,$4,$5,NULLIF($6, '')::date,NULLIF($7, '')::date,$8)
+      RETURNING id
+    `, [
+      spaceId,
+      qrName,
+      description,
+      Number(req.body.annual_cost || req.body.total_cost || 800),
+      Number(req.body.total_cost || req.body.annual_cost || 800),
+      liveDate,
+      endDate,
+      Number(req.body.annual_impressions || 146000)
+    ]);
+
+    const qrId = newQr.rows[0].id;
+
+    res.send(successPage(
+      "QR Code Created Successfully",
+      "Your QR code has been created and is ready to track scans.",
+      "Create a campaign for this QR code.",
+      [
+        { label: "Create Campaign", href: "/admin/new-campaign" },
+        { label: "Download QR Code", href: "/qr/" + qrId + ".png", target: "_blank" },
+        { label: "Preview QR Destination", href: "/r/" + qrId, target: "_blank" },
+        { label: "Back to My Setup", href: "/my-setup" }
+      ]
+    ));
+
   } catch (err) {
     res.send("ERROR: " + err.message);
   }
