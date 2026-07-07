@@ -1035,6 +1035,25 @@ app.get("/db-test", async (req, res) => {
   const result = await q("SELECT NOW()");
   res.json(result.rows[0]);
 });
+app.get("/debug-duplicate-assignments", requireLogin, async (req, res) => {
+  try {
+    const result = await q(`
+      SELECT
+        qr_id,
+        campaign_id,
+        COUNT(*) AS active_rows
+      FROM qr_campaigns
+      WHERE COALESCE(is_active,true) = true
+      GROUP BY qr_id, campaign_id
+      HAVING COUNT(*) > 1
+      ORDER BY active_rows DESC;
+    `);
+
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
 app.get("/debug-qr-math/:qrId", requireLogin, async (req, res) => {
   try {
     const qrId = Number(req.params.qrId);
