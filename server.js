@@ -801,17 +801,15 @@ async function allocatedSpotCostForCampaign(campaignId, startDate, endDate) {
         GREATEST(
           0,
           (
-            LEAST(
-              COALESCE(qr.end_date::date, $3::date),
-              COALESCE(c.end_date::date, $3::date),
-              $3::date
-            )
+           LEAST(
+  COALESCE(qr.end_date::date, $3::date),
+  $3::date
+)
             -
-            GREATEST(
-              COALESCE(qr.live_date::date, DATE(aa.started_at), DATE(aa.assigned_at), $2::date),
-              COALESCE(c.start_date::date, DATE(aa.started_at), DATE(aa.assigned_at), $2::date),
-              $2::date
-            )
+GREATEST(
+  COALESCE(qr.live_date::date, DATE(aa.started_at), DATE(aa.assigned_at), $2::date),
+  $2::date
+)
             + 1
           )
         )
