@@ -8120,7 +8120,14 @@ const reportConversions = detailRows.rows.reduce((sum, row) => sum + Number(row.
 
 const reportRevenue = detailRows.rows.reduce((sum, row) => sum + Number(row.revenue || 0), 0);
 
-const reportEngagements = totalScans + offerClicks + mapsClicks;
+const reportEngagements = detailRows.rows.reduce(
+  (sum, row) =>
+    sum +
+    Number(row.scans || 0) +
+    Number(row.offer_clicks || 0) +
+    Number(row.maps_clicks || 0),
+  0
+);
 
 const reportCostPerEngagement =
   reportEngagements > 0 ? (reportCost / reportEngagements).toFixed(2) : "0.00";
