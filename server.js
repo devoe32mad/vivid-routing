@@ -1035,6 +1035,97 @@ app.get("/db-test", async (req, res) => {
   const result = await q("SELECT NOW()");
   res.json(result.rows[0]);
 });
+app.get("/debug-qr-math/:qrId", requireLogin, async (req, res) => {
+  try {
+    const qrId = Number(req.params.qrId);
+    const start = req.query.start || req.query.start_date || "";
+    const end = req.query.end || req.query.end_date || "";
+
+    const qr = await q(`
+      SELECT
+        qr.id,
+        qr.name,
+        qr.live_date,
+        qr.end_date,
+        qr.total_cost,
+        qr.annual_cost,
+        s.name AS location_name,
+        s.placement_cost
+      FROM qr_codes qr
+      LEFT JOIN spaces s ON s.id = qr.space_id
+      WHERE qr.id = $1
+    `, [qrId]);
+
+    const assignments = await q(`
+      SELECT
+        qc.id AS assignment_id,
+        qc.qr_id,
+        qc.campaign_id,
+        c.name AS campaign_name,
+        c.advertiser,
+        qc.is_active,
+        qc.assigned_at,
+        qc.started_at,
+        qc.ended_at,
+        c.start_date AS campaign_start_date,
+        c.end_date AS campaign_end_date
+      FROM qr_campaigns qc
+      LEFT JOIN campaigns c ON c.id = qc.campaign_id
+      WHERE qc.qr_id = $1
+      ORDER BY qc.id
+    `, [qrId]);
+
+    const events = await q(`
+      SELECT
+        e.type,
+        e.campaign_id,
+        c.name AS campaign_name,
+        COUNT(*)::int AS count,
+        COALESCE(SUM(e.value),0)::numeric(12,2) AS value
+      FROM events e
+      LEFT JOIN campaigns c ON c.id = e.campaign_id
+      WHERE e.qr_id = $1
+        AND ($2::text = '' OR e.created_at::date >= $2::date)
+        AND ($3::text = '' OR e.created_at::date <= $3::date)
+      GROUP BY e.type, e.campaign_id, c.name
+      ORDER BY e.type, e.campaign_id
+    `, [qrId, start, end]);
+
+    const qrCost = await allocatedSpotCostForQr(qrId, start, end);
+
+    const campaignCosts = [];
+    for (const a of assignments.rows) {
+      if (!a.campaign_id) continue;
+
+      const cost = await allocatedSpotCostForCampaign(
+        a.campaign_id,
+        start,
+        end
+      );
+
+      campaignCosts.push({
+        campaign_id: a.campaign_id,
+        campaign_name: a.campaign_name,
+        advertiser: a.advertiser,
+        allocated_campaign_cost: cost
+      });
+    }
+
+    res.json({
+      filter: { start, end },
+      qr: qr.rows[0],
+      qr_cost: qrCost,
+      assignments: assignments.rows,
+      events: events.rows,
+      campaign_costs: campaignCosts
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      error: err.message
+    });
+  }
+});
 app.get("/debug-conversions", async (req, res) => {
   const result = await q(`
     SELECT id, qr_id, campaign_id, type, value, created_at
