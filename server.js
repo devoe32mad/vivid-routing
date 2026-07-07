@@ -7958,7 +7958,7 @@ if (campaignId) {
   proratedCost = await allocatedSpotCostForCampaign(campaignId, startDate, endDate);
 }
 
-const totalEngagements = scans + offerClicks + mapsClicks;
+const totalEngagements = totalScans + offerClicks + mapsClicks;
 
 const costPerEngagement =
   totalEngagements > 0
