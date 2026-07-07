@@ -787,35 +787,26 @@ async function allocatedSpotCostForCampaign(campaignId, startDate, endDate) {
         (
           COALESCE(qr.total_cost, qr.annual_cost, s.placement_cost, 0)
           /
-          GREATEST(
-            1,
-            (
-              COALESCE(qr.end_date::date, qr.live_date::date, CURRENT_DATE)
-              -
-              COALESCE(qr.live_date::date, DATE(aa.started_at), DATE(aa.assigned_at), CURRENT_DATE)
-              + 1
-            )
-          )::numeric
+          GREATEST(1, COALESCE(qr.contract_days, 1))::numeric
         )
         *
         GREATEST(
           0,
           (
-           LEAST(
-  COALESCE(qr.end_date::date, $3::date),
-  $3::date
-)
+            LEAST(
+              COALESCE(qr.end_date::date, $3::date),
+              $3::date
+            )
             -
-GREATEST(
-  COALESCE(qr.live_date::date, DATE(aa.started_at), DATE(aa.assigned_at), $2::date),
-  $2::date
-)
+            GREATEST(
+              COALESCE(qr.live_date::date, DATE(aa.started_at), DATE(aa.assigned_at), $2::date),
+              $2::date
+            )
             + 1
           )
         )
       ), 0) AS allocated_cost
     FROM active_assignments aa
-    JOIN campaigns c ON c.id = aa.campaign_id
     JOIN qr_codes qr ON qr.id = aa.qr_id
     LEFT JOIN spaces s ON s.id = qr.space_id
   `, [campaignId, startDate, endDate]);
