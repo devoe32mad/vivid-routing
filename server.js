@@ -7213,103 +7213,72 @@ app.get("/export/report.csv", requireLogin, async (req, res) => {
 });
 app.get("/export/report.pdf", requireLogin, async (req, res) => {
   try {
-    const currentUser = req.session.user;
-    const userId = currentUser.role === "super_admin" ? 0 : currentUser.id;
+    const today = new Date().toISOString().slice(0, 10);
 
     const startDate =
       req.query.start_date ||
       req.query.startDate ||
       req.query.start ||
       req.query.from ||
-      "2000-01-01";
+      today;
 
     const endDate =
       req.query.end_date ||
       req.query.endDate ||
       req.query.end ||
       req.query.to ||
-      new Date().toISOString().slice(0, 10);
-const locationId = req.query.location_id || "";
-const qrId = req.query.qr_id || "";
-const campaignId = req.query.campaign_id || "";
-const status = (req.query.status || "all").toLowerCase();
-    const summary = await q(`
-      SELECT
-        COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
-        COUNT(*) FILTER (WHERE e.type = 'maps') AS maps_clicks,
-        COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
-   COUNT(*) FILTER (WHERE e.type = 'waze') AS waze_clicks,
-COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks,
-COUNT(*) FILTER (WHERE e.type = 'conversion') AS conversions,
-COALESCE(SUM(CASE WHEN e.type = 'conversion' THEN e.value ELSE 0 END), 0) AS conversion_value
-FROM events e
-      LEFT JOIN campaigns c ON c.id = e.campaign_id
-      WHERE e.created_at::date BETWEEN $1::date AND $2::date
-      AND ($3 = '' OR e.store_id::text = $3 OR e.qr_id IN (
-  SELECT qr.id FROM qr_codes qr WHERE qr.space_id::text = $3
-))
-AND ($4::text = '' OR e.qr_id::text = $4::text)
-AND ($5::text = '' OR e.campaign_id::text = $5::text)
-AND ($6 = 0 OR c.user_id = $6 OR e.qr_id IN (
-  SELECT qr.id
-  FROM qr_codes qr
-  JOIN spaces s ON s.id = qr.space_id
-  WHERE s.user_id = $6
-))
-    `, [startDate, endDate, locationId, qrId, campaignId, userId]);
+      today;
 
-    const campaigns = await q(`
-      SELECT
-       c.advertiser,
-c.name AS campaign_name,
-qc.name AS qr_name,
-s.name AS location_name,
-        COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
-        COUNT(*) FILTER (WHERE e.type = 'maps') AS maps_clicks,
-        COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
-        COUNT(*) FILTER (WHERE e.type = 'waze') AS waze_clicks,
-      COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks,
+    const locationId = req.query.location_id || "";
+    const qrId = req.query.qr_id || req.query.qrId || req.query.qr || "";
+    const campaignId =
+      req.query.campaign_id ||
+      req.query.campaignId ||
+      req.query.campaign ||
+      "";
 
-COALESCE(c.avg_customer_value, 50) AS avg_customer_value,
-COALESCE(c.conversion_rate, 10) AS conversion_rate
-      FROM events e
-LEFT JOIN campaigns c ON c.id = e.campaign_id
-LEFT JOIN qr_codes qc ON qc.id = e.qr_id
-LEFT JOIN spaces s ON s.id = qc.space_id
-      WHERE e.created_at::date BETWEEN $1::date AND $2::date
-      AND ($3 = '' OR e.store_id::text = $3 OR e.qr_id IN (
-  SELECT qr.id FROM qr_codes qr WHERE qr.space_id::text = $3
-))
-AND ($4::text = '' OR e.qr_id::text = $4::text)
-AND ($5::text = '' OR e.campaign_id::text = $5::text)
-AND ($6 = 0 OR c.user_id = $6 OR e.qr_id IN (
-  SELECT qr.id
-  FROM qr_codes qr
-  JOIN spaces s ON s.id = qr.space_id
-  WHERE s.user_id = $6
-))
-      GROUP BY
-  c.id,
-  c.name,
-  c.advertiser,
-  c.avg_customer_value,
-  c.conversion_rate,
-  qc.name,
-  s.name
-      ORDER BY intent_clicks DESC
-      LIMIT 10
-    `, [startDate, endDate, locationId, qrId, campaignId, userId]);
+    const status = (req.query.status || "all").toLowerCase();
 
-    const s = summary.rows[0] || {};
-    const scans = Number(s.scans || 0);
-    const maps = Number(s.maps_clicks || 0);
-    const offers = Number(s.offer_clicks || 0);
-    const waze = Number(s.waze_clicks || 0);
-    const intent = Number(s.intent_clicks || 0);
+    const reportRows = await buildExportReportRows(
+      req,
+      startDate,
+      endDate,
+      locationId,
+      qrId,
+      campaignId,
+      status
+    );
 
-   const estimatedCustomers = Number(s.conversions || 0);
-const estimatedRevenue = Number(s.conversion_value || 0);
-    const intentRate = scans > 0 ? ((intent / scans) * 100).toFixed(1) : "0.0";
+    const summary = reportRows.reduce((t, r) => {
+      t.scans += r.scans;
+      t.offerClicks += r.offerClicks;
+      t.mapClicks += r.mapClicks;
+      t.wazeClicks += r.wazeClicks;
+      t.intent += r.intent;
+      t.conversions += r.conversions;
+      t.revenue += r.revenue;
+      t.allocatedCost += r.allocatedCost;
+      return t;
+    }, {
+      scans: 0,
+      offerClicks: 0,
+      mapClicks: 0,
+      wazeClicks: 0,
+      intent: 0,
+      conversions: 0,
+      revenue: 0,
+      allocatedCost: 0
+    });
+
+    summary.cac =
+      summary.conversions > 0
+        ? summary.allocatedCost / summary.conversions
+        : 0;
+
+    summary.roi =
+      summary.allocatedCost > 0
+        ? ((summary.revenue - summary.allocatedCost) / summary.allocatedCost) * 100
+        : 0;
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -7330,47 +7299,38 @@ const estimatedRevenue = Number(s.conversion_value || 0);
     doc.moveDown();
 
     doc.fontSize(12);
-    doc.text(`Total Scans: ${scans}`);
-    doc.text(`Google Maps Clicks: ${maps}`);
-    doc.text(`Offer Clicks: ${offers}`);
-    doc.text(`Waze Clicks: ${waze}`);
-    doc.text(`Intent Clicks: ${intent}`);
-    doc.text(`Intent Rate: ${intentRate}%`);
-    doc.text(`Conversions: ${estimatedCustomers}`);
-    doc.text(`Revenue: $${estimatedRevenue.toLocaleString()}`);
+    doc.text(`Scans: ${summary.scans}`);
+    doc.text(`Offer Clicks: ${summary.offerClicks}`);
+    doc.text(`Map Clicks: ${summary.mapClicks}`);
+    doc.text(`Waze Clicks: ${summary.wazeClicks}`);
+    doc.text(`Total Intent: ${summary.intent}`);
+    doc.text(`Conversions: ${summary.conversions}`);
+    doc.text(`Revenue: ${money(summary.revenue)}`);
+    doc.text(`Allocated Cost: ${money(summary.allocatedCost)}`);
+    doc.text(`CAC: ${money(summary.cac)}`);
+    doc.text(`ROI: ${pct(summary.roi)}`);
 
     doc.moveDown(2);
-    doc.fontSize(16).text("Top Campaigns");
+    doc.fontSize(16).text("Campaign Results");
     doc.moveDown();
 
-    if (campaigns.rows.length === 0) {
+    if (reportRows.length === 0) {
       doc.fontSize(11).text("No campaign activity found for this date range.");
     } else {
-      campaigns.rows.forEach((c, i) => {
-        const campaignIntent = Number(c.intent_clicks || 0);
-        const conversionRate = Number(c.conversion_rate || 10);
-        const avgValue = Number(c.avg_customer_value || 50);
-        const customers = Math.round(campaignIntent * (conversionRate / 100));
-        const revenue = customers * avgValue;
-
-        doc.fontSize(12).text(
-  c.campaign_name
-    ? `${i + 1}. ${c.advertiser || "Unknown Advertiser"} — ${c.campaign_name}`
-    : `${i + 1}. No Campaign Assigned`
-);
-
-doc.fontSize(10).text(`QR: ${c.qr_name || "-"} | Location: ${c.location_name || "-"}`);
-
-doc.fontSize(10).text(
-          `Scans: ${c.scans || 0} | Maps: ${c.maps_clicks || 0} | Offers: ${c.offer_clicks || 0} | Waze: ${c.waze_clicks || 0} | Conversions: ${customers} | Revenue: $${revenue.toLocaleString()}`
-        );
+      reportRows.forEach((r, i) => {
+        doc.fontSize(11).text(`${i + 1}. ${r.advertiser || "Unknown Advertiser"} - ${r.campaignName || "Unnamed Campaign"}`);
+        doc.fontSize(9).text(`QR Codes: ${r.qrNames || "N/A"}`);
+        doc.text(`Locations: ${r.locationNames || "N/A"}`);
+        doc.text(`Status: ${r.status}`);
+        doc.text(`Scans: ${r.scans} | Offers: ${r.offerClicks} | Maps: ${r.mapClicks} | Waze: ${r.wazeClicks} | Intent: ${r.intent}`);
+        doc.text(`Conversions: ${r.conversions} | Revenue: ${money(r.revenue)} | Allocated Cost: ${money(r.allocatedCost)} | CAC: ${money(r.cac)} | ROI: ${pct(r.roi)}`);
         doc.moveDown();
       });
     }
 
     doc.moveDown();
     doc.fontSize(9).text(
-      "Vivid Spots helps advertisers measure physical-world engagement through QR routing, campaign analytics, and performance reporting.",
+      "Vivid Spots helps advertisers measure physical-world engagement through QR routing, campaign analytics, conversion tracking, and performance reporting.",
       { align: "center" }
     );
 
