@@ -3635,25 +3635,11 @@ app.get("/reports-location", requireLogin, async (req, res) => {
       let allocatedCost = 0;
 
       for (const qr of qrs.rows) {
-        const assignedCampaigns = await q(`
-          SELECT DISTINCT campaign_id
-          FROM qr_campaigns
-          WHERE qr_id = $1
-            AND COALESCE(is_active,true) = true
-        `, [qr.id]);
-
-      allocatedCost += await allocatedSpotCostForQr(
+   allocatedCost += await allocatedSpotCostForQr(
   qr.id,
   startDate,
   endDate
 );
-        } else {
-          allocatedCost += await allocatedSpotCostForQr(
-            qr.id,
-            startDate,
-            endDate
-          );
-        }
       }
 
       const m = metrics.rows[0] || {};
