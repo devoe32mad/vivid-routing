@@ -841,14 +841,13 @@ async function allocatedSpotCostForQr(qrId, startDate, endDate) {
           0,
           (
             LEAST(
-              COALESCE(qr.end_date::date, CURRENT_DATE),
-              COALESCE(NULLIF($3,'')::date, CURRENT_DATE),
-              CURRENT_DATE
+              COALESCE(qr.end_date::date, $3::date),
+              $3::date
             )
             -
             GREATEST(
-              COALESCE(qr.live_date::date, qr.created_at::date, CURRENT_DATE),
-              COALESCE(NULLIF($2,'')::date, COALESCE(qr.live_date::date, qr.created_at::date, CURRENT_DATE))
+              COALESCE(qr.live_date::date, qr.created_at::date, $2::date),
+              $2::date
             )
             + 1
           )
