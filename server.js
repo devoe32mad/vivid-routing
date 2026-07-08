@@ -3642,14 +3642,11 @@ app.get("/reports-location", requireLogin, async (req, res) => {
             AND COALESCE(is_active,true) = true
         `, [qr.id]);
 
-        if (assignedCampaigns.rows.length > 0) {
-          for (const ac of assignedCampaigns.rows) {
-            allocatedCost += await allocatedSpotCostForCampaign(
-              ac.campaign_id,
-              startDate,
-              endDate
-            );
-          }
+      allocatedCost += await allocatedSpotCostForQr(
+  qr.id,
+  startDate,
+  endDate
+);
         } else {
           allocatedCost += await allocatedSpotCostForQr(
             qr.id,
