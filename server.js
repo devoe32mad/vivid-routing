@@ -866,44 +866,7 @@ async function allocatedSpotCostForQr(qrId, startDate, endDate) {
 
   return Number(result.rows[0]?.allocated_cost || 0);
 }
-async function allocatedSpotCostForQr(qrId, startDate, endDate) {
-  const result = await q(`
-    SELECT
-      COALESCE(
-        (
-          COALESCE(qr.total_cost, qr.annual_cost, s.placement_cost, 0)
-          /
-          GREATEST(
-            1,
-            (
-              COALESCE(qr.end_date::date, CURRENT_DATE)
-              -
-              COALESCE(qr.live_date::date, qr.created_at::date, CURRENT_DATE)
-            )
-          )::numeric
-        )
-        *
-        GREATEST(
-          0,
-          (
-            $3::date
-            -
-            GREATEST(
-              COALESCE(qr.live_date::date, qr.created_at::date, $2::date),
-              $2::date
-            )
-          )
-          + 1
-        ),
-        0
-      ) AS allocated_cost
-    FROM qr_codes qr
-    LEFT JOIN spaces s ON s.id = qr.space_id
-    WHERE qr.id = $1
-  `, [qrId, startDate, endDate]);
 
-  return Number(result.rows[0]?.allocated_cost || 0);
-}
 
 async function pickBestStoreForCampaign(campaign) {
   const stores = await q(`
