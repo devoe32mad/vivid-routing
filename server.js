@@ -5351,25 +5351,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const daysDisplay = document.getElementById('campaignDaysValue');
 
   function updateDays() {
-if (!startInput.value || !endInput.value) {
-  daysDisplay.innerHTML =
-    '<div style="font-size:13px;color:#666;">Contract Length</div>' +
-    '<div style="font-size:28px;font-weight:700;color:#0b4f2f;">0 Days</div>';
-  return;
-}
+
+    if (!startInput.value || !endInput.value) {
+      daysDisplay.innerHTML = "0 Days";
+      return;
+    }
 
     const start = new Date(startInput.value);
     const end = new Date(endInput.value);
-    const days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
- 
-daysDisplay.innerHTML =
-  '<div style="font-size:13px;color:#666;">Contract Length</div>' +
-  '<div style="font-size:28px;font-weight:700;color:#0b4f2f;">' +
-  Math.max(days, 0) +
-  ' Days</div>';
+    const days =
+      Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
-updateDays();
+    daysDisplay.innerHTML = Math.max(days, 0) + " Days";
+  }
+
+  updateDays();
 
   startInput.addEventListener('change', updateDays);
   endInput.addEventListener('change', updateDays);
