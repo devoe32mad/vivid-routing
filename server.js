@@ -2038,12 +2038,7 @@ const cost =
 <td>${money(cost)}</td>
 <td>${money(cac)}</td>
 <td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td>
-<td>
-  <a class="btn" href="/admin/edit-campaign/${c.id}">
-    Edit Campaign
-  </a>
-</td>
-</tr>`;
+
 <td>
   <a class="btn" href="/admin/edit-campaign/${c.id}">
     Edit Campaign
