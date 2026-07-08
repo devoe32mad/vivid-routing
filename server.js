@@ -5339,15 +5339,16 @@ const assignedQrIds = new Set(assignedQrs.rows.map(r => String(r.qr_id)));
     Contract Length
   </div>
 
-  <div style="font-size:28px;font-weight:700;color:#0b4f2f;">
-    0 Days
-  </div>
+ <div id="campaignDaysValue"
+  style="font-size:28px;font-weight:700;color:#0b4f2f;">
+  0 Days
+</div>
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const startInput = document.querySelector('input[name="start_date"]');
   const endInput = document.querySelector('input[name="end_date"]');
-  const daysDisplay = document.getElementById('campaignDays');
+  const daysDisplay = document.getElementById('campaignDaysValue');
 
   function updateDays() {
 if (!startInput.value || !endInput.value) {
