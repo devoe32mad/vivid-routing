@@ -2023,7 +2023,33 @@ const cost =
       const intentRate = scans ? (intent / scans) * 100 : 0;
      
       if (!bestLocation || revenue > bestLocation.revenue) bestLocation = { name: row.location_name || row.location || "Location", revenue, roi };
-      locationTable += `<tr><td>${row.advertiser || ""}</td><td>${row.campaign_name || ""}</td><td>${row.location_name || ""}</td><td>${row.location || ""}</td><td>${scans}</td><td>${row.maps_clicks || 0}</td><td>${row.offer_clicks || 0}</td><td>${pct(intentRate)}</td><td>${customers}</td><td>${money(revenue)}</td><td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td></tr>`;
+      campaignTable += `<tr>
+<td>${c.advertiser || ""} (user ${c.user_id})</td>
+<td>${c.name || ""}</td>
+<td>${c.is_deal_of_day ? "🔥 Deal" : "Standard"}</td>
+<td>${scans}</td>
+<td>${row.maps_clicks || 0}</td>
+<td>${row.offer_clicks || 0}</td>
+<td>${row.waze_clicks || 0}</td>
+<td>${pct(intentRate)}</td>
+<td>${customers}</td>
+<td>${money(avgValue)}</td>
+<td>${money(revenue)}</td>
+<td>${money(cost)}</td>
+<td>${money(cac)}</td>
+<td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td>
+<td>
+  <a class="btn" href="/admin/edit-campaign/${c.id}">
+    Edit Campaign
+  </a>
+</td>
+</tr>`;
+<td>
+  <a class="btn" href="/admin/edit-campaign/${c.id}">
+    Edit Campaign
+  </a>
+</td>
+</tr>`;
     }
 
     let storeTable = "";
