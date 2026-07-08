@@ -5600,7 +5600,15 @@ updateDays();
   endInput.addEventListener('change', updateDays);
 });
 </script>
-</div><label><input type="checkbox" name="is_deal_of_day" style="width:auto" /> Deal of the Day</label><br><br><button class="btn" type="submit">Create Campaign</button></form></div>`));
+</div><label><input type="checkbox" name="is_deal_of_day" style="width:auto" /> Deal of the Day</label><br><br><button class="btn" id="createCampaignBtn" type="submit">Create Campaign</button>
+
+<script>
+document.querySelector("form").addEventListener("submit", function () {
+  const btn = document.getElementById("createCampaignBtn");
+  btn.disabled = true;
+  btn.innerText = "Creating...";
+});
+</script></form></div>`));
 });
 
 app.post("/admin/new-campaign", requireLogin, async (req, res) => {
