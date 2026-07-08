@@ -771,15 +771,16 @@ function safeDaysBetween(startDate, endDate) {
 
 async function allocatedSpotCostForCampaign(campaignId, startDate, endDate) {
   const result = await q(`
-    WITH active_assignments AS (
+    WITH assignment_windows AS (
       SELECT DISTINCT ON (qc.qr_id, qc.campaign_id)
         qc.qr_id,
         qc.campaign_id,
         qc.started_at,
-        qc.assigned_at
+        qc.assigned_at,
+        qc.ended_at,
+        qc.is_active
       FROM qr_campaigns qc
       WHERE qc.campaign_id = $1
-        AND COALESCE(qc.is_active, true) = true
       ORDER BY qc.qr_id, qc.campaign_id, qc.id DESC
     )
     SELECT
@@ -788,33 +789,34 @@ async function allocatedSpotCostForCampaign(campaignId, startDate, endDate) {
           COALESCE(qr.total_cost, qr.annual_cost, s.placement_cost, 0)
           /
           GREATEST(
-  1,
-  (
-    COALESCE(qr.end_date::date, CURRENT_DATE)
-    -
-    COALESCE(qr.live_date::date, CURRENT_DATE)
-  )
-)::numeric
+            1,
+            (
+              COALESCE(qr.end_date::date, CURRENT_DATE)
+              -
+              COALESCE(qr.live_date::date, CURRENT_DATE)
+            )
+          )::numeric
         )
         *
         GREATEST(
           0,
           (
             LEAST(
-              COALESCE(qr.end_date::date, $3::date),
-              $3::date
+              COALESCE(qr.end_date::date, CURRENT_DATE),
+              COALESCE(NULLIF($3,'')::date, CURRENT_DATE),
+              CURRENT_DATE,
+              COALESCE(aw.ended_at::date, CURRENT_DATE)
             )
             -
             GREATEST(
-              COALESCE(qr.live_date::date, DATE(aa.started_at), DATE(aa.assigned_at), $2::date),
-              $2::date
+              COALESCE(qr.live_date::date, DATE(aw.started_at), DATE(aw.assigned_at), CURRENT_DATE),
+              COALESCE(NULLIF($2,'')::date, COALESCE(qr.live_date::date, CURRENT_DATE))
             )
-            + 1
           )
         )
       ), 0) AS allocated_cost
-    FROM active_assignments aa
-    JOIN qr_codes qr ON qr.id = aa.qr_id
+    FROM assignment_windows aw
+    JOIN qr_codes qr ON qr.id = aw.qr_id
     LEFT JOIN spaces s ON s.id = qr.space_id
   `, [campaignId, startDate, endDate]);
 
