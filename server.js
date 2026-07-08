@@ -4761,9 +4761,11 @@ const archivedSchedules = await q(`
   FROM campaign_schedules cs
   LEFT JOIN qr_codes qr ON qr.id = cs.qr_id
   LEFT JOIN campaigns c ON c.id = cs.campaign_id
+  LEFT JOIN spaces s ON s.id = qr.space_id
   WHERE cs.is_active = false
+    AND s.user_id = $1
   ORDER BY cs.id DESC
-`);
+`, [req.session.user.id]);
 const archivedQrs = await q(
   `
   SELECT
@@ -4777,12 +4779,13 @@ const archivedQrs = await q(
   `,
   [req.session.user.id]
 );
-   const archivedLocations = await q(`
+const archivedLocations = await q(`
   SELECT *
   FROM spaces
   WHERE COALESCE(is_archived,false) = true
+    AND user_id = $1
   ORDER BY id DESC
-`); 
+`, [req.session.user.id]);
     res.send(page("Archive Center", `
 
 <div class="topbar">
