@@ -2456,6 +2456,30 @@ ${qr.is_imported ? "Imported" : "Native"}
 
     let campaignTable = "";
     for (const c of campaigns.rows) {
+      const campaignRelationships = relationships.rows.filter(
+  r => String(r.campaign_id) === String(c.id)
+);
+
+const campaignMarkets = [...new Set(
+  campaignRelationships.map(r => {
+    const loc = locations.rows.find(l => String(l.id) === String(r.location_id));
+    return loc ? loc.location : "";
+  }).filter(Boolean)
+)].join(", ");
+
+const campaignLocations = [...new Set(
+  campaignRelationships.map(r => {
+    const loc = locations.rows.find(l => String(l.id) === String(r.location_id));
+    return loc ? loc.name : "";
+  }).filter(Boolean)
+)].join(", ");
+
+const campaignQrs = [...new Set(
+  campaignRelationships.map(r => {
+    const qr = qrs.rows.find(q => String(q.qr_id || q.id) === String(r.qr_id));
+    return qr ? (qr.qr_name || qr.name) : "";
+  }).filter(Boolean)
+)].join(", ");
       campaignTable += `
         <tr>
           <td>${c.id}</td>
