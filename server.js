@@ -977,6 +977,23 @@ app.get("/db-test", async (req, res) => {
   const result = await q("SELECT NOW()");
   res.json(result.rows[0]);
 });
+app.get("/debug-cost-fields", requireLogin, async (req, res) => {
+  const rows = await q(`
+    SELECT
+      qr.id,
+      qr.name,
+      qr.live_date,
+      qr.end_date,
+      qr.annual_cost,
+      qr.total_cost,
+      s.placement_cost
+    FROM qr_codes qr
+    LEFT JOIN spaces s ON s.id = qr.space_id
+    ORDER BY qr.id
+  `);
+
+  res.json(rows.rows);
+});
 app.get("/debug-clean-duplicate-assignments", requireLogin, async (req, res) => {
   try {
 
