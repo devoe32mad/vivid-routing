@@ -772,16 +772,9 @@ function safeDaysBetween(startDate, endDate) {
 async function allocatedSpotCostForCampaign(campaignId, startDate, endDate) {
   const result = await q(`
     WITH assignment_windows AS (
-      SELECT DISTINCT ON (qc.qr_id, qc.campaign_id)
-        qc.qr_id,
-        qc.campaign_id,
-        qc.started_at,
-        qc.assigned_at,
-        qc.ended_at,
-        qc.is_active
+      SELECT *
       FROM qr_campaigns qc
       WHERE qc.campaign_id = $1
-      ORDER BY qc.qr_id, qc.campaign_id, qc.id DESC
     )
     SELECT
       COALESCE(SUM(
@@ -794,6 +787,7 @@ async function allocatedSpotCostForCampaign(campaignId, startDate, endDate) {
               COALESCE(qr.end_date::date, CURRENT_DATE)
               -
               COALESCE(qr.live_date::date, CURRENT_DATE)
+              + 1
             )
           )::numeric
         )
@@ -809,9 +803,11 @@ async function allocatedSpotCostForCampaign(campaignId, startDate, endDate) {
             )
             -
             GREATEST(
-              COALESCE(qr.live_date::date, DATE(aw.started_at), DATE(aw.assigned_at), CURRENT_DATE),
+              COALESCE(qr.live_date::date, CURRENT_DATE),
+              COALESCE(DATE(aw.started_at), DATE(aw.assigned_at), CURRENT_DATE),
               COALESCE(NULLIF($2,'')::date, COALESCE(qr.live_date::date, CURRENT_DATE))
             )
+            + 1
           )
         )
       ), 0) AS allocated_cost
