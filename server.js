@@ -866,35 +866,43 @@ async function allocatedSpotCostForQr(qrId, startDate, endDate) {
 
   return Number(result.rows[0]?.allocated_cost || 0);
 }
-async function activeCampaignForQr(qrId) {
-  const scheduled = await q(`
-    SELECT c.*, qr.id AS qr_id, qr.name AS qr_name, s.name AS space_name, s.location
-    FROM campaign_schedules cs
-    JOIN campaigns c ON c.id = cs.campaign_id
-    JOIN qr_codes qr ON qr.id = cs.qr_id
-    JOIN spaces s ON s.id = qr.space_id
-    WHERE cs.qr_id = $1
-      AND cs.is_active = true
-      AND (cs.day_of_week = EXTRACT(DOW FROM CURRENT_TIMESTAMP)::INT OR cs.day_of_week = 0)
-      AND CURRENT_TIME BETWEEN cs.start_time::time AND cs.end_time::time
-    ORDER BY cs.priority DESC, cs.created_at DESC
-    LIMIT 1
-  `, [qrId]);
+async function allocatedSpotCostForQr(qrId, startDate, endDate) {
+  const result = await q(`
+    SELECT
+      COALESCE(
+        (
+          COALESCE(qr.total_cost, qr.annual_cost, s.placement_cost, 0)
+          /
+          GREATEST(
+            1,
+            (
+              COALESCE(qr.end_date::date, CURRENT_DATE)
+              -
+              COALESCE(qr.live_date::date, qr.created_at::date, CURRENT_DATE)
+            )
+          )::numeric
+        )
+        *
+        GREATEST(
+          0,
+          (
+            $3::date
+            -
+            GREATEST(
+              COALESCE(qr.live_date::date, qr.created_at::date, $2::date),
+              $2::date
+            )
+          )
+          + 1
+        ),
+        0
+      ) AS allocated_cost
+    FROM qr_codes qr
+    LEFT JOIN spaces s ON s.id = qr.space_id
+    WHERE qr.id = $1
+  `, [qrId, startDate, endDate]);
 
-  if (scheduled.rows[0]) return scheduled.rows[0];
-
-  const fallback = await q(`
-    SELECT c.*, qr.id AS qr_id, qr.name AS qr_name, s.name AS space_name, s.location
-    FROM qr_campaigns qc
-    JOIN campaigns c ON c.id = qc.campaign_id
-    JOIN qr_codes qr ON qr.id = qc.qr_id
-    JOIN spaces s ON s.id = qr.space_id
-    WHERE qc.qr_id = $1 AND qc.is_active = true
-    ORDER BY qc.assigned_at DESC
-    LIMIT 1
-  `, [qrId]);
-
-  return fallback.rows[0] || null;
+  return Number(result.rows[0]?.allocated_cost || 0);
 }
 
 async function pickBestStoreForCampaign(campaign) {
@@ -3334,10 +3342,10 @@ app.get("/reports-qr", requireLogin, async (req, res) => {
       const revenue = Number(m.revenue || 0);
 
       const allocatedCost = await allocatedSpotCostForQr(
-        qr.qr_id,
-        startDate,
-        endDate
-      );
+  qr.qr_id,
+  startDate || today,
+  endDate || today
+);
 
       const customerValue = conversions > 0 ? revenue / conversions : 0;
       const roi =
