@@ -2485,35 +2485,10 @@ const campaignQrs = [...new Set(
           <td>${c.id}</td>
           <td>${c.advertiser || ""}</td>
           <td>${c.name || ""}</td>
-          <td>${
-locations.rows.find(l =>
-  relationships.rows.some(
-    r =>
-      String(r.campaign_id) === String(c.id) &&
-      String(r.location_id) === String(l.id)
-  )
-)?.location || ""
-}</td>
+<td>${campaignMarkets}</td>
 
-<td>${
-locations.rows.find(l =>
-  relationships.rows.some(
-    r =>
-      String(r.campaign_id) === String(c.id) &&
-      String(r.location_id) === String(l.id)
-  )
-)?.name || ""
-}</td>
-
-<td>${
-qrs.rows.find(q =>
-  relationships.rows.some(
-    r =>
-      String(r.campaign_id) === String(c.id) &&
-      String(r.qr_id) === String(q.id)
-  )
-)?.name || ""
-}</td>
+<td>${campaignLocations}</td>
+<td>${campaignQrs}</td>
 <td>${dateLabel(c.created_at)}</td>
 
 <td>${dateLabel(
