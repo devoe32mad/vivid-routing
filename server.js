@@ -5628,22 +5628,22 @@ app.post("/admin/new-campaign", requireLogin, async (req, res) => {
     const startDate = req.body.start_date || null;
     const endDate = req.body.end_date || null;
 
-    const existing = await q(`
-      SELECT id
-      FROM campaigns
-      WHERE user_id = $1
-        AND LOWER(TRIM(name)) = LOWER(TRIM($2))
-        AND LOWER(TRIM(advertiser)) = LOWER(TRIM($3))
-        AND COALESCE(start_date::text,'') = COALESCE($4::text,'')
-        AND COALESCE(end_date::text,'') = COALESCE($5::text,'')
-      LIMIT 1
-    `, [
-      userId,
-      name,
-      advertiser,
-      startDate,
-      endDate
-    ]);
+const existing = await q(`
+  SELECT id
+  FROM campaigns
+  WHERE user_id = $1
+    AND LOWER(TRIM(name)) = LOWER(TRIM($2))
+    AND LOWER(TRIM(advertiser)) = LOWER(TRIM($3))
+    AND COALESCE(start_date::date, NULL) IS NOT DISTINCT FROM $4::date
+    AND COALESCE(end_date::date, NULL) IS NOT DISTINCT FROM $5::date
+  LIMIT 1
+`, [
+  userId,
+  name,
+  advertiser,
+  startDate,
+  endDate
+]);
 
     if (existing.rows.length) {
       return res.send(successPage(
