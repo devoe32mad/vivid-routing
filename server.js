@@ -3583,203 +3583,111 @@ app.get("/reports-location", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
     const isSuperAdmin = currentUser.role === "super_admin";
-    const timeframe = req.query.timeframe || "30";
-const startDate = req.query.start_date || "";
-const endDate = req.query.end_date || "";
-    let dateSql = "";
 
-    if (startDate && endDate) {
-  dateSql = `AND e.created_at::date BETWEEN '${startDate}' AND '${endDate}'`;
-} else {
-  dateSql = `AND e.created_at >= NOW() - INTERVAL '30 days'`;
-}
-        
-const reportRows = await q(
-  isSuperAdmin
-    ? `
-      SELECT
-        s.name AS location_name,
-        s.location,
-(
-  SELECT COUNT(*)
-  FROM events ce
-  JOIN qr_codes qrx ON qrx.id = ce.qr_id
-  WHERE qrx.space_id = s.id
-    AND ce.type = 'conversion'
-) AS conversions,
+    const today = new Date().toISOString().slice(0, 10);
+    const startDate = req.query.start_date || today;
+    const endDate = req.query.end_date || today;
 
-(
-  SELECT COALESCE(SUM(ce.value), 0)
-  FROM events ce
-  JOIN qr_codes qrx ON qrx.id = ce.qr_id
-  WHERE qrx.space_id = s.id
-    AND ce.type = 'conversion'
-) AS conversion_value,
-        COUNT(e.id) FILTER (WHERE e.type='scan') AS scans,
-        COUNT(e.id) FILTER (WHERE e.type='offer') AS offers,
-        COUNT(e.id) FILTER (WHERE e.type='maps') AS maps,
-        COUNT(e.id) FILTER (WHERE e.type='waze') AS waze,
+    const locations = await q(
+      isSuperAdmin
+        ? `
+          SELECT id, name, location
+          FROM spaces
+          WHERE COALESCE(is_archived,false) = false
+          ORDER BY name
+        `
+        : `
+          SELECT id, name, location
+          FROM spaces
+          WHERE COALESCE(is_archived,false) = false
+            AND user_id = $1
+          ORDER BY name
+        `,
+      isSuperAdmin ? [] : [currentUser.id]
+    );
 
-        COALESCE(SUM(DISTINCT qr.annual_impressions), 0) AS impressions,
-        COUNT(DISTINCT qr.id) * 800 AS placement_cost
+    let table = "";
 
-      FROM spaces s
-      LEFT JOIN qr_codes qr
-        ON qr.space_id = s.id
-        AND COALESCE(qr.is_archived,false) = false
+    for (const loc of locations.rows) {
+      const metrics = await q(`
+        SELECT
+          COUNT(e.id) FILTER (WHERE e.type='scan') AS scans,
+          COUNT(e.id) FILTER (WHERE e.type='offer') AS offers,
+          COUNT(e.id) FILTER (WHERE e.type='maps') AS maps,
+          COUNT(e.id) FILTER (WHERE e.type='waze') AS waze,
+          COUNT(e.id) FILTER (WHERE e.type='conversion') AS conversions,
+          COALESCE(SUM(e.value) FILTER (WHERE e.type='conversion'),0) AS revenue
+        FROM qr_codes qr
+        LEFT JOIN events e
+          ON e.qr_id = qr.id
+         AND e.created_at::date BETWEEN $2::date AND $3::date
+        WHERE qr.space_id = $1
+          AND COALESCE(qr.is_archived,false) = false
+      `, [loc.id, startDate, endDate]);
 
-      LEFT JOIN events e
-        ON e.qr_id = qr.id
-        ${dateSql}
+      const qrs = await q(`
+        SELECT id
+        FROM qr_codes
+        WHERE space_id = $1
+          AND COALESCE(is_archived,false) = false
+      `, [loc.id]);
 
-      WHERE COALESCE(s.is_archived,false) = false
+      let allocatedCost = 0;
 
-      GROUP BY
-        s.id,
-        s.name,
-        s.location
+      for (const qr of qrs.rows) {
+        const assignedCampaigns = await q(`
+          SELECT DISTINCT campaign_id
+          FROM qr_campaigns
+          WHERE qr_id = $1
+            AND COALESCE(is_active,true) = true
+        `, [qr.id]);
 
-      ORDER BY scans DESC
-      `
-    : `
-      SELECT
-        s.name AS location_name,
-        s.location,
-(
-  SELECT COUNT(*)
-  FROM events ce
-  JOIN qr_codes qrx ON qrx.id = ce.qr_id
-  WHERE qrx.space_id = s.id
-    AND ce.type = 'conversion'
-) AS conversions,
+        if (assignedCampaigns.rows.length > 0) {
+          for (const ac of assignedCampaigns.rows) {
+            allocatedCost += await allocatedSpotCostForCampaign(
+              ac.campaign_id,
+              startDate,
+              endDate
+            );
+          }
+        } else {
+          allocatedCost += await allocatedSpotCostForQr(
+            qr.id,
+            startDate,
+            endDate
+          );
+        }
+      }
 
-(
-  SELECT COALESCE(SUM(ce.value), 0)
-  FROM events ce
-  JOIN qr_codes qrx ON qrx.id = ce.qr_id
-  WHERE qrx.space_id = s.id
-    AND ce.type = 'conversion'
-) AS conversion_value,
-        COUNT(e.id) FILTER (WHERE e.type='scan') AS scans,
-        COUNT(e.id) FILTER (WHERE e.type='offer') AS offers,
-        COUNT(e.id) FILTER (WHERE e.type='maps') AS maps,
-        COUNT(e.id) FILTER (WHERE e.type='waze') AS waze,
+      const m = metrics.rows[0] || {};
+      const scans = Number(m.scans || 0);
+      const offers = Number(m.offers || 0);
+      const maps = Number(m.maps || 0);
+      const waze = Number(m.waze || 0);
+      const intent = offers + maps + waze;
+      const conversions = Number(m.conversions || 0);
+      const revenue = Number(m.revenue || 0);
 
-        COALESCE(SUM(DISTINCT qr.annual_impressions), 0) AS impressions,
-        COUNT(DISTINCT qr.id) * 800 AS placement_cost
-
-      FROM spaces s
-      LEFT JOIN qr_codes qr
-        ON qr.space_id = s.id
-        AND COALESCE(qr.is_archived,false) = false
-
-      LEFT JOIN events e
-        ON e.qr_id = qr.id
-        ${dateSql}
-
-      WHERE s.user_id = $1
-        AND COALESCE(s.is_archived,false) = false
-
-      GROUP BY
-        s.id,
-        s.name,
-        s.location
-
-      ORDER BY scans DESC
-      `,
-  isSuperAdmin ? [] : [currentUser.id]
-);
-
-    let reportTable = "";
-
-    for (const r of reportRows.rows) {
-
-      const scans = Number(r.scans || 0);
-      const offers = Number(r.offers || 0);
-const maps = Number(r.maps || 0);
-const waze = Number(r.waze || 0);
-
-const intent =
-  offers + maps + waze;
-
-      const intentRate =
-        scans > 0
-          ? ((intent / scans) * 100).toFixed(1)
-          : 0;
-const conversions = Number(r.conversions || 0);
-
-const conversionValue =
-  Number(r.conversion_value || 0);
-      const customers = conversions;
-
-      const revenue =
-  conversions * conversionValue;
-
-      const cost =
-        Number(r.placement_cost || 800);
-
+      const customerValue = conversions > 0 ? revenue / conversions : 0;
       const roi =
-        cost > 0
-          ? (((revenue - cost) / cost) * 100).toFixed(1)
+        allocatedCost > 0
+          ? ((revenue - allocatedCost) / allocatedCost) * 100
           : 0;
 
-      const impressions =
-        Number(r.impressions || 0);
-
-      const cpm =
-        impressions > 0
-          ? ((cost / impressions) * 1000).toFixed(2)
-          : 0;
-
-      reportTable += `
+      table += `
         <tr>
-          <td>${r.location_name || ""}</td>
-
-          <td>${r.location || ""}</td>
-
-          <td style="text-align:center;">
-            ${impressions.toLocaleString()}
-          </td>
-
-          <td style="text-align:center;">
-            ${scans}
-          </td>
-
-          <td style="text-align:center;">
-  ${offers}
-</td>
-
-<td style="text-align:center;">
-  ${maps}
-</td>
-
-<td style="text-align:center;">
-  ${waze}
-</td>
-
-<td style="text-align:center;">
-  ${intent}
-</td>
-
-          <td style="text-align:center;">
-  ${conversions}
-</td>
-
-<td style="text-align:center;">
-  ${money(conversionValue)}
-</td>
-
-<td style="text-align:center;">
-  ${money(revenue)}
-</td>
-
-<td style="text-align:center;">
-  ${money(cost)}
-</td>
-
-          <td style="text-align:center;">
-            ${roi}%
-          </td>
+          <td>${loc.name || ""}</td>
+          <td>${loc.location || ""}</td>
+          <td>${scans}</td>
+          <td>${offers}</td>
+          <td>${maps}</td>
+          <td>${waze}</td>
+          <td>${intent}</td>
+          <td>${conversions}</td>
+          <td>${money(customerValue)}</td>
+          <td>${money(revenue)}</td>
+          <td>${money(allocatedCost)}</td>
+          <td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td>
         </tr>
       `;
     }
@@ -3791,82 +3699,53 @@ const conversionValue =
       </div>
 
       <div class="wrap">
-
-        
-
-         
-
-      <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-<a class="btn" href="/reports-location">
-    Location Reports
-  </a>
-  <a class="btn secondary" href="/reports">
-    Campaign Reports
-  </a>
-
-  <a class="btn secondary" href="/reports-qr">
-    QR Reports
-  </a>
-
-  
-
-</div>    
-
-         
-
+        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+          <a class="btn secondary" href="/reports-qr">QR Reports</a>
+          <a class="btn secondary" href="/reports">Campaign Reports</a>
+          <a class="btn" href="/reports-location">Location Reports</a>
+          <a class="btn gold" href="/admin/reports">Export Center</a>
         </div>
-<form method="GET" action="/reports-location" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0;">
-  <div>
-    <label>Start Date</label><br>
-    <input type="date" name="start_date" value="${startDate || ""}">
-  </div>
 
-  <div>
-    <label>End Date</label><br>
-    <input type="date" name="end_date" value="${endDate || ""}">
-  </div>
+        <form method="GET" action="/reports-location" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0;">
+          <div>
+            <label>Start Date</label><br>
+            <input type="date" name="start_date" value="${startDate}">
+          </div>
 
-  <button class="btn" type="submit">Apply Filter</button>
-</form>
+          <div>
+            <label>End Date</label><br>
+            <input type="date" name="end_date" value="${endDate}">
+          </div>
+
+          <button class="btn" type="submit">Apply Filter</button>
+        </form>
+
         <div class="card">
-
           <h2>Location Performance</h2>
-<div style="overflow-x:auto;width:100%;">
-  <table style="width:100%;min-width:1200px;">
+
           <table>
-</div>
             <tr>
-          <th>Location</th>
-<th>Market</th>
-<th>Impressions</th>
-<th>Scans</th>
-<th>Offers</th>
-<th>Maps</th>
-<th>Waze</th>
-<th>Total Intent</th>
-<th>Conversions</th>
-<th>Customer Value</th>
-<th>Revenue</th>
-<th>Allocated Cost</th>
-<th>ROI</th>
+              <th>Location</th>
+              <th>Market</th>
+              <th>Scans</th>
+              <th>Offers</th>
+              <th>Maps</th>
+              <th>Waze</th>
+              <th>Total Intent</th>
+              <th>Conversions</th>
+              <th>Customer Value</th>
+              <th>Revenue</th>
+              <th>Allocated Cost</th>
+              <th>ROI</th>
             </tr>
-
-            ${reportTable || `
-              <tr>
-                <td colspan="14">
-                  No location report data yet.
-                </td>
-              </tr>
-            `}
-
+            ${table || `<tr><td colspan="12">No location data yet.</td></tr>`}
           </table>
-
         </div>
-
       </div>
     `));
 
   } catch (err) {
+    console.error("LOCATION REPORT ERROR:", err);
     res.send("LOCATION REPORT ERROR: " + err.message);
   }
 });
