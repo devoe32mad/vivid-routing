@@ -2700,7 +2700,7 @@ margin-bottom:12px;
 font-size:13px;
 color:#4b5563;
 ">
-<b>Days in Market:</b> Number of days a location, QR code, campaign, schedule, or assignment has been active since activation.
+<b>Days in Market:</b> Tracks the active duration of each Vivid asset. Locations, QR codes, campaigns, schedules, and assignments are measured based on their applicable start and end dates.
 </div>
 
   
