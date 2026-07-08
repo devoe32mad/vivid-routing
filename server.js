@@ -2175,23 +2175,45 @@ const relationships = await q(`
   WHERE s.user_id = $1
     AND COALESCE(s.is_archived,false) = false
 `, [currentUser.id]);
-    const campaigns = await q(
-      isSuperAdmin
-        ? `
-          SELECT *
-          FROM campaigns
-          WHERE is_archived = false
-          ORDER BY id DESC
-        `
-        : `
-          SELECT *
-          FROM campaigns
-          WHERE is_archived = false
-          AND user_id = $1
-          ORDER BY id DESC
-        `,
-      isSuperAdmin ? [] : [currentUser.id]
-    );
+const campaigns = await q(
+  isSuperAdmin
+    ? `
+      SELECT
+        c.*,
+        STRING_AGG(DISTINCT qr.name, ', ' ORDER BY qr.name) AS qr_name,
+        STRING_AGG(DISTINCT s.location, ', ' ORDER BY s.location) AS market,
+        STRING_AGG(DISTINCT s.name, ', ' ORDER BY s.name) AS location_name,
+        MIN(qc.assigned_at) AS first_assigned
+      FROM campaigns c
+      LEFT JOIN qr_campaigns qc
+        ON qc.campaign_id = c.id
+       AND COALESCE(qc.is_active,true) = true
+      LEFT JOIN qr_codes qr ON qr.id = qc.qr_id
+      LEFT JOIN spaces s ON s.id = qr.space_id
+      WHERE COALESCE(c.is_archived,false) = false
+      GROUP BY c.id
+      ORDER BY c.id DESC
+    `
+    : `
+      SELECT
+        c.*,
+        STRING_AGG(DISTINCT qr.name, ', ' ORDER BY qr.name) AS qr_name,
+        STRING_AGG(DISTINCT s.location, ', ' ORDER BY s.location) AS market,
+        STRING_AGG(DISTINCT s.name, ', ' ORDER BY s.name) AS location_name,
+        MIN(qc.assigned_at) AS first_assigned
+      FROM campaigns c
+      LEFT JOIN qr_campaigns qc
+        ON qc.campaign_id = c.id
+       AND COALESCE(qc.is_active,true) = true
+      LEFT JOIN qr_codes qr ON qr.id = qc.qr_id
+      LEFT JOIN spaces s ON s.id = qr.space_id
+      WHERE COALESCE(c.is_archived,false) = false
+        AND c.user_id = $1
+      GROUP BY c.id
+      ORDER BY c.id DESC
+    `,
+  isSuperAdmin ? [] : [currentUser.id]
+);
 const archivedCampaigns = await q(
   isSuperAdmin
     ? `
