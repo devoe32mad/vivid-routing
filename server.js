@@ -4259,11 +4259,11 @@ app.get("/admin/organizations", requireLogin, async (req, res) => {
             COUNT(s.id) AS location_count
           FROM organizations o
           LEFT JOIN spaces s ON s.organization_id = o.id
-          WHERE o.customer_id = COALESCE($1::int, $2::int)
+          WHERE o.customer_id = $1
           GROUP BY o.id
           ORDER BY o.name
         `,
-      isSuperAdmin ? [] : [currentUser.customer_id, currentUser.id]
+      isSuperAdmin ? [] : [currentUser.id]
     );
 
     let rows = "";
