@@ -2027,7 +2027,7 @@ app.post("/login", async (req, res) => {
 
 });
 app.get("/org-login", (req, res) => {
-  res.send(page("Organization Login", `
+  res.send(orgPage("Organization Login", `
     <div class="topbar">
       <div class="brand">Vivid Organizations</div>
       <h1>Organization Portal</h1>
@@ -2048,7 +2048,7 @@ app.get("/org-login", (req, res) => {
   `));
 });
 app.get("/org-dashboard", (req, res) => {
-  res.send(page("Organization Dashboard", `
+  res.send(orgPage("Organization Dashboard", `
     <div class="topbar">
       <div class="brand">Vivid Organizations</div>
       <h1>Organization Dashboard</h1>
