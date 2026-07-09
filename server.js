@@ -4643,35 +4643,117 @@ app.post("/admin/edit-organization/:id", requireLogin, async (req, res) => {
     res.status(500).send("UPDATE ORGANIZATION ERROR: " + err.message);
   }
 });
-app.get("/admin/new-location", async (req, res) => {
-  res.send(page("Add Location", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add Location / Space</h1></div><div class="wrap"><form method="POST" action="/admin/new-location"><label>Name</label><input name="name" required /><label>Market</label><input name="location" placeholder="Naples, FL" /><label>Description</label><input name="description" /><button class="btn" type="submit">Create Location</button></form></div>`));
-});
-app.post("/admin/new-location", async (req, res) => {
-console.log("NEW LOCATION POST", new Date().toISOString(), req.body);
+app.get("/admin/new-location", requireLogin, async (req, res) => {
   try {
+    const currentUser = req.session.user;
+
+    const orgs = await q(`
+      SELECT
+        o.id,
+        o.name
+      FROM organization_users ou
+      JOIN organizations o
+        ON o.id = ou.organization_id
+      WHERE ou.user_id = $1
+        AND COALESCE(ou.is_active,true) = true
+        AND COALESCE(o.is_active,true) = true
+      ORDER BY o.name
+    `, [currentUser.id]);
+
+    let organizationField = "";
+
+    if (orgs.rows.length === 1) {
+      organizationField = `
+        <input type="hidden" name="organization_id" value="${orgs.rows[0].id}" />
+        <p><strong>Organization:</strong> ${orgs.rows[0].name}</p>
+      `;
+    } else {
+      organizationField = `
+        <label>Organization</label>
+        <select name="organization_id" required>
+          ${orgs.rows.map(o => `
+            <option value="${o.id}">${o.name}</option>
+          `).join("")}
+        </select>
+      `;
+    }
+
+    res.send(page("Add Location", `
+      <div class="topbar">
+        <div class="brand">Vivid Spots</div>
+        <h1>Add Location / Space</h1>
+      </div>
+
+      <div class="wrap">
+        <form method="POST" action="/admin/new-location">
+          ${organizationField}
+
+          <label>Name</label>
+          <input name="name" required />
+
+          <label>Market</label>
+          <input name="location" placeholder="Naples, FL" />
+
+          <label>Description</label>
+          <input name="description" />
+
+          <button class="btn" type="submit">Create Location</button>
+        </form>
+      </div>
+    `));
+
+  } catch (err) {
+    res.send("NEW LOCATION FORM ERROR: " + err.message);
+  }
+});
+app.post("/admin/new-location", requireLogin, async (req, res) => {
+  console.log("NEW LOCATION POST", new Date().toISOString(), req.body);
+
+  try {
+    const currentUser = req.session.user;
+    const organizationId = Number(req.body.organization_id);
+
+    const allowedOrg = await q(`
+      SELECT 1
+      FROM organization_users
+      WHERE organization_id = $1
+        AND user_id = $2
+        AND COALESCE(is_active,true) = true
+      LIMIT 1
+    `, [
+      organizationId,
+      currentUser.id
+    ]);
+
+    if (!allowedOrg.rows[0]) {
+      return res.status(403).send("You do not have access to this organization.");
+    }
+
     await q(`
       INSERT INTO spaces (
-  user_id,
-  name,
-  location
-)
-      VALUES ($1,$2,$3)
+        user_id,
+        organization_id,
+        name,
+        location
+      )
+      VALUES ($1,$2,$3,$4)
     `, [
-  req.session.user.id,
-  req.body.name,
-  req.body.location
-]
-      );
+      currentUser.id,
+      organizationId,
+      req.body.name,
+      req.body.location
+    ]);
 
     res.send(successPage(
-  "Location Created Successfully",
-  "Your location has been saved.",
-  "Create a QR code for this location.",
-  [
-    { label: "Create QR Code", href: "/admin/new-qr" },
-    { label: "Back to My Setup", href: "/my-setup" }
-  ]
-));
+      "Location Created Successfully",
+      "Your location has been saved.",
+      "Create a QR code for this location.",
+      [
+        { label: "Create QR Code", href: "/admin/new-qr" },
+        { label: "Back to My Setup", href: "/my-setup" }
+      ]
+    ));
+
   } catch (err) {
     res.send("ERROR: " + err.message);
   }
