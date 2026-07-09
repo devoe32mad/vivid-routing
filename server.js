@@ -302,6 +302,97 @@ function requireAdmin(req, res, next) {
 }
 async function initDb() {
   await q(`
+    CREATE TABLE IF NOT EXISTS organizations (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER,
+      name TEXT NOT NULL,
+      organization_type TEXT,
+      contact_name TEXT,
+      contact_email TEXT,
+      contact_phone TEXT,
+      website TEXT,
+      notes TEXT,
+      is_active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await q(`
+    CREATE TABLE IF NOT EXISTS advertisers (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER,
+      name TEXT NOT NULL,
+      contact_name TEXT,
+      contact_email TEXT,
+      contact_phone TEXT,
+      website TEXT,
+      notes TEXT,
+      is_active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await q(`
+    CREATE TABLE IF NOT EXISTS contracts (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER,
+      organization_id INTEGER,
+      advertiser_id INTEGER,
+      contract_name TEXT NOT NULL,
+      contract_type TEXT,
+      start_date DATE,
+      end_date DATE,
+      total_contract_value NUMERIC DEFAULT 0,
+      billing_frequency TEXT,
+      status TEXT DEFAULT 'active',
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await q(`
+    CREATE TABLE IF NOT EXISTS contract_items (
+      id SERIAL PRIMARY KEY,
+      contract_id INTEGER,
+      space_id INTEGER,
+      qr_code_id INTEGER,
+      campaign_id INTEGER,
+      item_description TEXT,
+      item_value NUMERIC DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await q(`
+    CREATE TABLE IF NOT EXISTS revenue_share_rules (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER,
+      organization_id INTEGER,
+      advertiser_id INTEGER,
+      contract_id INTEGER,
+      revenue_type TEXT DEFAULT 'placement',
+      vivid_percent NUMERIC DEFAULT 0,
+      organization_percent NUMERIC DEFAULT 100,
+      partner_percent NUMERIC DEFAULT 0,
+      notes TEXT,
+      is_active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await q(`
+    ALTER TABLE spaces
+    ADD COLUMN IF NOT EXISTS organization_id INTEGER
+  `);
+
+  await q(`
+    ALTER TABLE campaigns
+    ADD COLUMN IF NOT EXISTS advertiser_id INTEGER
+  `);
+  await q(`
   CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     name TEXT,
