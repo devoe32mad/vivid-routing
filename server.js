@@ -2208,6 +2208,33 @@ app.get("/org-users", async (req, res) => {
     </div>
   `));
 });
+app.get("/org-pricing", async (req, res) => {
+  res.send(orgPage("Organization Pricing", `
+    <div class="topbar">
+      <div class="brand">Vivid Organizations</div>
+      <h1>Pricing</h1>
+      <p class="subtitle">Manage local pricing, sponsorship rates, and placement values.</p>
+    </div>
+
+    <div class="wrap">
+
+      <div class="card">
+        <h2>Pricing</h2>
+
+        <p>
+          This page will manage organization pricing by location, placement,
+          contract type, and sponsorship opportunity.
+        </p>
+
+        <a class="btn secondary" href="/org-dashboard">
+          Back to Organization Dashboard
+        </a>
+
+      </div>
+
+    </div>
+  `));
+});
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
