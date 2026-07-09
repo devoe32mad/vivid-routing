@@ -528,7 +528,19 @@ await q(`
     email TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
-
+  // Organizations: create one default organization for each customer
+  await q(`
+    INSERT INTO organizations (customer_id, name)
+    SELECT
+      c.id,
+      COALESCE(NULLIF(c.name, ''), 'Default Organization')
+    FROM customers c
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM organizations o
+      WHERE o.customer_id = c.id
+    )
+  `);
 await q(`CREATE TABLE IF NOT EXISTS spaces (
   id SERIAL PRIMARY KEY,
   user_id INTEGER,
