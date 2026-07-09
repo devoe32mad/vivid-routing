@@ -1117,6 +1117,11 @@ const orgUsers = await q(`
   FROM organization_users
   ORDER BY id
 `);
+   const locationUsers = await q(`
+  SELECT *
+  FROM location_users
+  ORDER BY id
+`);
     const customers = await q(`
       SELECT id, name, email
       FROM customers
@@ -1132,6 +1137,7 @@ ORDER BY id
     res.json({
       sessionUser,
       organization_users: orgUsers.rows,
+        location_users: locationUsers.rows,
       organizations: orgs.rows,
       customers: customers.rows,
       users: users.rows
