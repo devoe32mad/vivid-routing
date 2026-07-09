@@ -2235,6 +2235,33 @@ app.get("/org-pricing", async (req, res) => {
     </div>
   `));
 });
+app.get("/org-revenue", async (req, res) => {
+  res.send(orgPage("Organization Revenue", `
+    <div class="topbar">
+      <div class="brand">Vivid Organizations</div>
+      <h1>Revenue</h1>
+      <p class="subtitle">Manage revenue, revenue sharing, and financial performance.</p>
+    </div>
+
+    <div class="wrap">
+
+      <div class="card">
+        <h2>Revenue</h2>
+
+        <p>
+          This page will manage organization revenue, revenue sharing,
+          financial summaries, and payment tracking.
+        </p>
+
+        <a class="btn secondary" href="/org-dashboard">
+          Back to Organization Dashboard
+        </a>
+
+      </div>
+
+    </div>
+  `));
+});
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
