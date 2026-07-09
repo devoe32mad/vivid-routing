@@ -2076,7 +2076,7 @@ app.post("/org-login", async (req, res) => {
     res.status(500).send("ORG LOGIN ERROR: " + err.message);
   }
 });
-app.get("/org-dashboard", (req, res) => {
+app.get("/org-dashboard", requireOrgLogin, (req, res) => {
   res.send(orgPage("Organization Dashboard", `
     <div class="topbar">
       <div class="brand">Vivid Organizations</div>
