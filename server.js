@@ -881,6 +881,17 @@ await q(`
   ALTER TABLE spaces
   ADD COLUMN IF NOT EXISTS user_id INT
   `);
+await q(`
+  ALTER TABLE spaces
+  ADD COLUMN IF NOT EXISTS organization_id INT
+`);
+  await q(`
+  UPDATE spaces s
+  SET organization_id = o.id
+  FROM organizations o
+  WHERE s.organization_id IS NULL
+    AND o.customer_id = s.user_id
+`);
   await q(`
   ALTER TABLE events
   ADD COLUMN IF NOT EXISTS value NUMERIC DEFAULT 0
