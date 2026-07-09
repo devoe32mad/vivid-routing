@@ -4431,7 +4431,7 @@ app.post("/admin/new-organization", requireLogin, async (req, res) => {
     const currentUser = req.session.user;
     const customerId = currentUser.customer_id || currentUser.id;
 
-    await q(`
+    const result = await q(`
       INSERT INTO organizations (
         customer_id,
         name,
@@ -4443,6 +4443,7 @@ app.post("/admin/new-organization", requireLogin, async (req, res) => {
         notes
       )
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+RETURNING id
     `, [
       customerId,
       req.body.name,
@@ -4453,7 +4454,17 @@ app.post("/admin/new-organization", requireLogin, async (req, res) => {
       req.body.website || "",
       req.body.notes || ""
     ]);
-
+await q(`
+  INSERT INTO organization_users (
+    organization_id,
+    user_id,
+    role
+  )
+  VALUES ($1, $2, 'owner')
+`, [
+  result.rows[0].id,
+  currentUser.id
+]);
     res.redirect("/admin/organizations");
 
   } catch (err) {
