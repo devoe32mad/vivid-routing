@@ -1097,7 +1097,11 @@ app.get("/debug-orgs", requireLogin, async (req, res) => {
       FROM organizations
       ORDER BY id
     `);
-
+const orgUsers = await q(`
+  SELECT *
+  FROM organization_users
+  ORDER BY id
+`);
     const customers = await q(`
       SELECT id, name, email
       FROM customers
@@ -1112,6 +1116,7 @@ ORDER BY id
 
     res.json({
       sessionUser,
+      organization_users: orgUsers.rows,
       organizations: orgs.rows,
       customers: customers.rows,
       users: users.rows
