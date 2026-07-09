@@ -2226,6 +2226,79 @@ app.get("/org-organizations", requireLogin, requireSuperAdmin, async (req, res) 
     res.send("ERROR: " + err.message);
   }
 });
+app.get("/org-organization/:id", async (req, res) => {
+  try {
+    const orgId = Number(req.params.id);
+
+    const orgResult = await q(`
+      SELECT *
+      FROM organizations
+      WHERE id = $1
+      LIMIT 1
+    `, [orgId]);
+
+    const org = orgResult.rows[0];
+
+    if (!org) {
+      return res.status(404).send("Organization not found");
+    }
+
+    const stats = await q(`
+      SELECT
+        COUNT(DISTINCT s.id) AS locations,
+        COUNT(DISTINCT ou.user_id) AS users,
+        COUNT(DISTINCT c.id) AS contracts
+      FROM organizations o
+      LEFT JOIN spaces s
+        ON s.organization_id = o.id
+       AND COALESCE(s.is_archived,false)=false
+      LEFT JOIN organization_users ou
+        ON ou.organization_id = o.id
+       AND COALESCE(ou.is_active,true)=true
+      LEFT JOIN contracts c
+        ON c.organization_id = o.id
+      WHERE o.id = $1
+    `, [orgId]);
+
+    const stat = stats.rows[0];
+
+    res.send(orgPage(org.name, `
+      <div class="topbar">
+        <div class="brand">Vivid Organizations</div>
+        <h1>${org.name}</h1>
+        <p class="subtitle">${org.organization_type || "Organization Dashboard"}</p>
+      </div>
+
+      <div class="wrap">
+
+        <div class="card">
+          <h2>Executive Summary</h2>
+          <p><strong>Locations:</strong> ${stat.locations}</p>
+          <p><strong>Users:</strong> ${stat.users}</p>
+          <p><strong>Contracts:</strong> ${stat.contracts}</p>
+        </div>
+
+        <div class="card">
+          <h2>Manage</h2>
+
+          <a class="btn" href="/org-locations">Locations</a>
+          <a class="btn" href="/org-users">Users</a>
+          <a class="btn" href="/org-contracts">Contracts</a>
+          <a class="btn" href="/org-pricing">Pricing</a>
+          <a class="btn" href="/org-revenue">Revenue</a>
+          <a class="btn" href="/org-permissions">Permissions</a>
+          <a class="btn" href="/org-settings">Settings</a>
+        </div>
+
+        <a class="btn secondary" href="/org-organizations">Back to Organizations</a>
+
+      </div>
+    `));
+
+  } catch (err) {
+    res.status(500).send("ORG DETAIL ERROR: " + err.message);
+  }
+});
 app.get("/org-contracts", async (req, res) => {
   res.send(orgPage("Organization Contracts", `
     <div class="topbar">
