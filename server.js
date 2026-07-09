@@ -4281,6 +4281,221 @@ app.get("/admin/organizations", requireLogin, async (req, res) => {
     res.status(500).send("ORGANIZATIONS ERROR: " + err.message);
   }
 });
+app.get("/admin/new-organization", requireLogin, async (req, res) => {
+  res.send(page("New Organization", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>New Organization</h1>
+      <p class="subtitle">Create the owner or host of locations.</p>
+    </div>
+
+    <div class="wrap">
+      <form method="POST" action="/admin/new-organization">
+
+        <label>Organization Name</label>
+        <input name="name" required />
+
+        <label>Type</label>
+        <input name="organization_type" placeholder="School, District, Gym, Hotel, Retail, Venue, etc." />
+
+        <label>Contact Name</label>
+        <input name="contact_name" />
+
+        <label>Contact Email</label>
+        <input name="contact_email" type="email" />
+
+        <label>Contact Phone</label>
+        <input name="contact_phone" />
+
+        <label>Website</label>
+        <input name="website" />
+
+        <label>Notes</label>
+        <input name="notes" />
+
+        <button class="btn" type="submit">Save Organization</button>
+        <a class="btn secondary" href="/admin/organizations">Cancel</a>
+
+      </form>
+    </div>
+  `));
+});
+app.post("/admin/new-organization", requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const customerId = currentUser.customer_id || currentUser.id;
+
+    await q(`
+      INSERT INTO organizations (
+        customer_id,
+        name,
+        organization_type,
+        contact_name,
+        contact_email,
+        contact_phone,
+        website,
+        notes
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+    `, [
+      customerId,
+      req.body.name,
+      req.body.organization_type || "",
+      req.body.contact_name || "",
+      req.body.contact_email || "",
+      req.body.contact_phone || "",
+      req.body.website || "",
+      req.body.notes || ""
+    ]);
+
+    res.redirect("/admin/organizations");
+
+  } catch (err) {
+    res.status(500).send("CREATE ORGANIZATION ERROR: " + err.message);
+  }
+});
+app.get("/admin/edit-organization/:id", requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+    const orgId = Number(req.params.id);
+
+    const result = await q(
+      isSuperAdmin
+        ? `SELECT * FROM organizations WHERE id = $1`
+        : `
+          SELECT *
+          FROM organizations
+          WHERE id = $1
+          AND customer_id = COALESCE($2, $3)
+        `,
+      isSuperAdmin ? [orgId] : [orgId, currentUser.customer_id, currentUser.id]
+    );
+
+    const org = result.rows[0];
+
+    if (!org) {
+      return res.status(404).send("Organization not found");
+    }
+
+    res.send(page("Edit Organization", `
+      <div class="topbar">
+        <div class="brand">Vivid Spots</div>
+        <h1>Edit Organization</h1>
+        <p class="subtitle">${org.name}</p>
+      </div>
+
+      <div class="wrap">
+        <form method="POST" action="/admin/edit-organization/${org.id}">
+
+          <label>Organization Name</label>
+          <input name="name" value="${org.name || ""}" required />
+
+          <label>Type</label>
+          <input name="organization_type" value="${org.organization_type || ""}" />
+
+          <label>Contact Name</label>
+          <input name="contact_name" value="${org.contact_name || ""}" />
+
+          <label>Contact Email</label>
+          <input name="contact_email" type="email" value="${org.contact_email || ""}" />
+
+          <label>Contact Phone</label>
+          <input name="contact_phone" value="${org.contact_phone || ""}" />
+
+          <label>Website</label>
+          <input name="website" value="${org.website || ""}" />
+
+          <label>Notes</label>
+          <input name="notes" value="${org.notes || ""}" />
+
+          <label>Status</label>
+          <select name="is_active">
+            <option value="true" ${org.is_active ? "selected" : ""}>Active</option>
+            <option value="false" ${!org.is_active ? "selected" : ""}>Archived</option>
+          </select>
+
+          <button class="btn" type="submit">Save Changes</button>
+          <a class="btn secondary" href="/admin/organizations">Cancel</a>
+
+        </form>
+      </div>
+    `));
+
+  } catch (err) {
+    res.status(500).send("EDIT ORGANIZATION ERROR: " + err.message);
+  }
+});
+app.post("/admin/edit-organization/:id", requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+    const orgId = Number(req.params.id);
+
+    await q(
+      isSuperAdmin
+        ? `
+          UPDATE organizations
+          SET
+            name = $1,
+            organization_type = $2,
+            contact_name = $3,
+            contact_email = $4,
+            contact_phone = $5,
+            website = $6,
+            notes = $7,
+            is_active = $8,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $9
+        `
+        : `
+          UPDATE organizations
+          SET
+            name = $1,
+            organization_type = $2,
+            contact_name = $3,
+            contact_email = $4,
+            contact_phone = $5,
+            website = $6,
+            notes = $7,
+            is_active = $8,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $9
+          AND customer_id = COALESCE($10, $11)
+        `,
+      isSuperAdmin
+        ? [
+            req.body.name,
+            req.body.organization_type || "",
+            req.body.contact_name || "",
+            req.body.contact_email || "",
+            req.body.contact_phone || "",
+            req.body.website || "",
+            req.body.notes || "",
+            req.body.is_active === "true",
+            orgId
+          ]
+        : [
+            req.body.name,
+            req.body.organization_type || "",
+            req.body.contact_name || "",
+            req.body.contact_email || "",
+            req.body.contact_phone || "",
+            req.body.website || "",
+            req.body.notes || "",
+            req.body.is_active === "true",
+            orgId,
+            currentUser.customer_id,
+            currentUser.id
+          ]
+    );
+
+    res.redirect("/admin/organizations");
+
+  } catch (err) {
+    res.status(500).send("UPDATE ORGANIZATION ERROR: " + err.message);
+  }
+});
 app.get("/admin/new-location", async (req, res) => {
   res.send(page("Add Location", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add Location / Space</h1></div><div class="wrap"><form method="POST" action="/admin/new-location"><label>Name</label><input name="name" required /><label>Market</label><input name="location" placeholder="Naples, FL" /><label>Description</label><input name="description" /><button class="btn" type="submit">Create Location</button></form></div>`));
 });
