@@ -2119,6 +2119,24 @@ app.get("/org-dashboard", requireOrgLogin, (req, res) => {
     </div>
   `));
 });
+app.get("/org-organizations", async (req, res) => {
+  res.send(orgPage("Organization Management", `
+    <div class="topbar">
+      <div class="brand">Vivid Organizations</div>
+      <h1>Organizations</h1>
+      <p class="subtitle">Manage organization structure, hierarchy, and access.</p>
+    </div>
+
+    <div class="wrap">
+      <div class="card">
+        <h2>Organization List</h2>
+        <p>This page will manage organization records, district/corporate hierarchy, and organization-level settings.</p>
+
+        <a class="btn secondary" href="/org-dashboard">Back to Organization Dashboard</a>
+      </div>
+    </div>
+  `));
+});
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
