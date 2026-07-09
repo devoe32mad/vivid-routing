@@ -541,7 +541,15 @@ await q(`
       WHERE o.customer_id = c.id
     )
   `);
-await q(`CREATE TABLE IF NOT EXISTS spaces (
+await q(`
+  UPDATE spaces s
+  SET organization_id = o.id
+  FROM organizations o
+  WHERE
+    s.organization_id IS NULL
+    AND s.user_id = o.customer_id
+`);
+  await q(`CREATE TABLE IF NOT EXISTS spaces (
   id SERIAL PRIMARY KEY,
   user_id INTEGER,
   name TEXT,
