@@ -1063,9 +1063,9 @@ app.get("/debug-orgs", requireLogin, async (req, res) => {
     `);
 
     const users = await q(`
-      SELECT id, name, email, role, customer_id
-      FROM users
-      ORDER BY id
+     SELECT *
+FROM users
+ORDER BY id
     `);
 
     res.json({
