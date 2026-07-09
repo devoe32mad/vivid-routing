@@ -317,7 +317,17 @@ async function initDb() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
-
+await q(`
+  CREATE TABLE IF NOT EXISTS organization_users (
+    id SERIAL PRIMARY KEY,
+    organization_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    role TEXT DEFAULT 'owner',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (organization_id, user_id)
+  )
+`);
   await q(`
     CREATE TABLE IF NOT EXISTS advertisers (
       id SERIAL PRIMARY KEY,
