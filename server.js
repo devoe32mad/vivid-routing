@@ -1114,6 +1114,28 @@ app.get("/db-test", async (req, res) => {
   const result = await q("SELECT NOW()");
   res.json(result.rows[0]);
 });
+app.get("/debug-my-spaces", requireLogin, async (req, res) => {
+  try {
+    const rows = await q(`
+      SELECT
+        id,
+        name,
+        location,
+        user_id,
+        organization_id,
+        is_archived,
+        created_at
+      FROM spaces
+      WHERE user_id = $1
+      ORDER BY id DESC
+      LIMIT 20
+    `, [req.session.user.id]);
+
+    res.json(rows.rows);
+  } catch (err) {
+    res.status(500).send("DEBUG MY SPACES ERROR: " + err.message);
+  }
+});
 app.get("/debug-orgs", requireLogin, async (req, res) => {
   try {
     const sessionUser = req.session.user;
