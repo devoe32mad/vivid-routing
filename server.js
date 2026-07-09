@@ -2001,6 +2001,63 @@ app.post("/login", async (req, res) => {
   }
 
 });
+app.get("/org-login", (req, res) => {
+  res.send(page("Organization Login", `
+    <div class="topbar">
+      <div class="brand">Vivid Organizations</div>
+      <h1>Organization Portal</h1>
+      <p class="subtitle">Access contracts, users, pricing, and organization-level reporting.</p>
+    </div>
+
+    <div class="wrap">
+      <form method="POST" action="/org-login">
+        <label>Email</label>
+        <input name="email" type="email" required />
+
+        <label>Password</label>
+        <input name="password" type="password" required />
+
+        <button class="btn" type="submit">Login to Organization Portal</button>
+      </form>
+    </div>
+  `));
+});
+app.get("/org-dashboard", (req, res) => {
+  res.send(page("Organization Dashboard", `
+    <div class="topbar">
+      <div class="brand">Vivid Organizations</div>
+      <h1>Organization Dashboard</h1>
+    </div>
+
+    <div class="wrap">
+
+      <div class="card">
+        <h2>Organizations</h2>
+        <p>Manage organizations and hierarchy.</p>
+        <a class="btn" href="/org-organizations">Open</a>
+      </div>
+
+      <div class="card">
+        <h2>Locations</h2>
+        <p>Manage organization locations.</p>
+        <a class="btn" href="/org-locations">Open</a>
+      </div>
+
+      <div class="card">
+        <h2>Users</h2>
+        <p>District, principals, ADs, managers.</p>
+        <a class="btn" href="/org-users">Open</a>
+      </div>
+
+      <div class="card">
+        <h2>Contracts</h2>
+        <p>Contract dates, pricing and renewals.</p>
+        <a class="btn" href="/org-contracts">Open</a>
+      </div>
+
+    </div>
+  `));
+});
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
