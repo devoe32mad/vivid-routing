@@ -4204,6 +4204,83 @@ app.post("/admin/edit-location/:spaceId", requireLogin, async (req, res) => {
     res.send("EDIT LOCATION ERROR: " + err.message);
   }
 });
+app.get("/admin/organizations", requireLogin, async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const isSuperAdmin = currentUser.role === "super_admin";
+
+    const orgs = await q(
+      isSuperAdmin
+        ? `
+          SELECT
+            o.*,
+            COUNT(s.id) AS location_count
+          FROM organizations o
+          LEFT JOIN spaces s ON s.organization_id = o.id
+          GROUP BY o.id
+          ORDER BY o.name
+        `
+        : `
+          SELECT
+            o.*,
+            COUNT(s.id) AS location_count
+          FROM organizations o
+          LEFT JOIN spaces s ON s.organization_id = o.id
+          WHERE o.customer_id = COALESCE($1, $2)
+          GROUP BY o.id
+          ORDER BY o.name
+        `,
+      isSuperAdmin ? [] : [currentUser.customer_id, currentUser.id]
+    );
+
+    let rows = "";
+
+    for (const org of orgs.rows) {
+      rows += `
+        <tr>
+          <td><a href="/admin/edit-organization/${org.id}">${org.name}</a></td>
+          <td>${org.organization_type || ""}</td>
+          <td>${org.location_count || 0}</td>
+          <td>${org.is_active ? "Active" : "Archived"}</td>
+          <td>
+            <a href="/admin/edit-organization/${org.id}">Edit</a>
+          </td>
+        </tr>
+      `;
+    }
+
+    res.send(page("Organizations", `
+      <div class="topbar">
+        <div class="brand">Vivid Spots</div>
+        <h1>Organizations</h1>
+        <p class="subtitle">Manage the companies, hosts, districts, venues, and groups that own locations.</p>
+      </div>
+
+      <div class="wrap">
+        <a class="btn" href="/admin/new-organization">+ New Organization</a>
+        <a class="btn secondary" href="/my-setup">Back to My Setup</a>
+
+        <table>
+          <tr>
+            <th>Organization</th>
+            <th>Type</th>
+            <th>Locations</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+          ${rows || `
+            <tr>
+              <td colspan="5">No organizations found.</td>
+            </tr>
+          `}
+        </table>
+      </div>
+    `));
+
+  } catch (err) {
+    res.status(500).send("ORGANIZATIONS ERROR: " + err.message);
+  }
+});
 app.get("/admin/new-location", async (req, res) => {
   res.send(page("Add Location", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add Location / Space</h1></div><div class="wrap"><form method="POST" action="/admin/new-location"><label>Name</label><input name="name" required /><label>Market</label><input name="location" placeholder="Naples, FL" /><label>Description</label><input name="description" /><button class="btn" type="submit">Create Location</button></form></div>`));
 });
