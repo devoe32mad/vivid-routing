@@ -2262,6 +2262,33 @@ app.get("/org-revenue", async (req, res) => {
     </div>
   `));
 });
+app.get("/org-permissions", async (req, res) => {
+  res.send(orgPage("Organization Permissions", `
+    <div class="topbar">
+      <div class="brand">Vivid Organizations</div>
+      <h1>Permissions</h1>
+      <p class="subtitle">Manage user roles, access levels, and organizational hierarchy.</p>
+    </div>
+
+    <div class="wrap">
+
+      <div class="card">
+        <h2>Permissions</h2>
+
+        <p>
+          This page will manage organization permissions, role assignments,
+          district, corporate, regional, location, and user access.
+        </p>
+
+        <a class="btn secondary" href="/org-dashboard">
+          Back to Organization Dashboard
+        </a>
+
+      </div>
+
+    </div>
+  `));
+});
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
