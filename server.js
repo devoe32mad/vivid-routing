@@ -2092,11 +2092,7 @@ app.get("/org-dashboard", requireOrgLogin, (req, res) => {
 
     <div class="wrap">
 
-      <div class="card">
-        <h2>Organizations</h2>
-        <p>Manage organizations and hierarchy.</p>
-        <a class="btn" href="/org-organizations">Open</a>
-      </div>
+     
 
       <div class="card">
         <h2>Locations</h2>
@@ -2119,7 +2115,7 @@ app.get("/org-dashboard", requireOrgLogin, (req, res) => {
     </div>
   `));
 });
-app.get("/org-organizations", async (req, res) => {
+app.get("/org-organizations", requireLogin, requireSuperAdmin, async (req, res) => {
   try {
 
     const orgs = await q(`
