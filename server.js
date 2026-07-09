@@ -564,6 +564,25 @@ await q(`
       WHERE o.customer_id = u.id
     )
 `);
+await q(`
+  INSERT INTO organization_users (
+    organization_id,
+    user_id,
+    role
+  )
+  SELECT
+    o.id,
+    o.customer_id,
+    'owner'
+  FROM organizations o
+  WHERE o.customer_id IS NOT NULL
+    AND NOT EXISTS (
+      SELECT 1
+      FROM organization_users ou
+      WHERE ou.organization_id = o.id
+        AND ou.user_id = o.customer_id
+    )
+`);
   await q(`
   UPDATE spaces s
   SET organization_id = o.id
