@@ -313,6 +313,13 @@ function requireSuperAdmin(req, res, next) {
 
   next();
 }
+function requireOrgLogin(req, res, next) {
+  if (!req.session.orgUser) {
+    return res.redirect("/org-login");
+  }
+
+  next();
+}
 function requireAdmin(req, res, next) {
 
   if (!req.session.user) {
