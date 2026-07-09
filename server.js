@@ -2120,22 +2120,85 @@ app.get("/org-dashboard", requireOrgLogin, (req, res) => {
   `));
 });
 app.get("/org-organizations", async (req, res) => {
-  res.send(orgPage("Organization Management", `
-    <div class="topbar">
-      <div class="brand">Vivid Organizations</div>
-      <h1>Organizations</h1>
-      <p class="subtitle">Manage organization structure, hierarchy, and access.</p>
-    </div>
+  try {
 
-    <div class="wrap">
-      <div class="card">
-        <h2>Organization List</h2>
-        <p>This page will manage organization records, district/corporate hierarchy, and organization-level settings.</p>
+    const orgs = await q(`
+      SELECT
+        o.id,
+        o.name,
+        COALESCE(o.organization_type,'') AS organization_type,
+        o.is_active,
+        COUNT(DISTINCT s.id) AS location_count,
+        COUNT(DISTINCT ou.user_id) AS user_count
+      FROM organizations o
+      LEFT JOIN spaces s
+        ON s.organization_id = o.id
+       AND COALESCE(s.is_archived,false)=false
+      LEFT JOIN organization_users ou
+        ON ou.organization_id = o.id
+       AND ou.is_active = true
+      GROUP BY
+        o.id,
+        o.name,
+        o.organization_type,
+        o.is_active
+      ORDER BY o.name
+    `);
 
-        <a class="btn secondary" href="/org-dashboard">Back to Organization Dashboard</a>
+    let rows = "";
+
+    for (const org of orgs.rows) {
+
+      rows += `
+      <tr>
+        <td>${org.name}</td>
+        <td>${org.organization_type || "-"}</td>
+        <td style="text-align:center">${org.location_count}</td>
+        <td style="text-align:center">${org.user_count}</td>
+        <td>${org.is_active ? "Active" : "Archived"}</td>
+        <td>
+          <a class="btn" href="/org-organization/${org.id}">
+            Open
+          </a>
+        </td>
+      </tr>`;
+    }
+
+    res.send(orgPage("Organizations", `
+      <div class="topbar">
+        <div class="brand">Vivid Organizations</div>
+        <h1>Organizations</h1>
+        <p class="subtitle">
+          Manage organizations and drill into their operations.
+        </p>
       </div>
-    </div>
-  `));
+
+      <div class="wrap">
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Organization</th>
+              <th>Type</th>
+              <th>Locations</th>
+              <th>Users</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${rows}
+          </tbody>
+
+        </table>
+
+      </div>
+    `));
+
+  } catch (err) {
+    res.send("ERROR: " + err.message);
+  }
 });
 app.get("/org-contracts", async (req, res) => {
   res.send(orgPage("Organization Contracts", `
