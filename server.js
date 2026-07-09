@@ -1141,7 +1141,37 @@ app.get("/init-db", async (req, res) => {
     res.status(500).send("INIT DB ERROR: " + err.message);
   }
 });
+app.get("/platform-admin", requireLogin, requireSuperAdmin, async (req, res) => {
+  res.send(page("Platform Admin", `
+    <div class="topbar">
+      <div class="brand">Vivid Spots</div>
+      <h1>Platform Admin</h1>
+      <p class="subtitle">Super Admin control center for Vivid platform management.</p>
+    </div>
 
+    <div class="wrap">
+
+      <div class="card">
+        <h2>Organizations</h2>
+        <p>Create, manage, archive, and review organizations.</p>
+        <a class="btn" href="/org-organizations">Open Organizations</a>
+      </div>
+
+      <div class="card">
+        <h2>Users</h2>
+        <p>Manage platform users and access.</p>
+        <a class="btn secondary" href="#">Coming Soon</a>
+      </div>
+
+      <div class="card">
+        <h2>Customers</h2>
+        <p>Manage customers and accounts.</p>
+        <a class="btn secondary" href="#">Coming Soon</a>
+      </div>
+
+    </div>
+  `));
+});
 app.get("/db-test", async (req, res) => {
   const result = await q("SELECT NOW()");
   res.json(result.rows[0]);
