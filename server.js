@@ -4226,7 +4226,7 @@ app.get("/admin/organizations", requireLogin, async (req, res) => {
             COUNT(s.id) AS location_count
           FROM organizations o
           LEFT JOIN spaces s ON s.organization_id = o.id
-          WHERE o.customer_id = COALESCE($1, $2)
+          WHERE o.customer_id = COALESCE($1::int, $2::int)
           GROUP BY o.id
           ORDER BY o.name
         `,
@@ -4367,7 +4367,7 @@ app.get("/admin/edit-organization/:id", requireLogin, async (req, res) => {
           SELECT *
           FROM organizations
           WHERE id = $1
-          AND customer_id = COALESCE($2, $3)
+          AND customer_id = COALESCE($2::int, $3::int)
         `,
       isSuperAdmin ? [orgId] : [orgId, currentUser.customer_id, currentUser.id]
     );
@@ -4461,7 +4461,7 @@ app.post("/admin/edit-organization/:id", requireLogin, async (req, res) => {
             is_active = $8,
             updated_at = CURRENT_TIMESTAMP
           WHERE id = $9
-          AND customer_id = COALESCE($10, $11)
+          AND customer_id = COALESCE($10::int, $11::int)
         `,
       isSuperAdmin
         ? [
