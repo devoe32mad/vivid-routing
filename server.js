@@ -2047,6 +2047,35 @@ app.get("/org-login", (req, res) => {
     </div>
   `));
 });
+app.post("/org-login", async (req, res) => {
+  try {
+    const user = await q(`
+      SELECT *
+      FROM users
+      WHERE email = $1
+        AND password = $2
+      LIMIT 1
+    `, [
+      req.body.email,
+      req.body.password
+    ]);
+
+    if (!user.rows[0]) {
+      return res.send("Invalid organization login. <a href='/org-login'>Try again</a>");
+    }
+
+    req.session.orgUser = {
+      id: user.rows[0].id,
+      email: user.rows[0].email,
+      role: user.rows[0].role
+    };
+
+    res.redirect("/org-dashboard");
+
+  } catch (err) {
+    res.status(500).send("ORG LOGIN ERROR: " + err.message);
+  }
+});
 app.get("/org-dashboard", (req, res) => {
   res.send(orgPage("Organization Dashboard", `
     <div class="topbar">
