@@ -1144,11 +1144,16 @@ const orgUsers = await q(`
 FROM users
 ORDER BY id
     `);
-
+const spaces = await q(`
+  SELECT id, name, user_id, organization_id
+  FROM spaces
+  ORDER BY id
+`);
     res.json({
       sessionUser,
       organization_users: orgUsers.rows,
         location_users: locationUsers.rows,
+      spaces: spaces.rows,
       organizations: orgs.rows,
       customers: customers.rows,
       users: users.rows
