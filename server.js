@@ -1046,6 +1046,39 @@ app.get("/db-test", async (req, res) => {
   const result = await q("SELECT NOW()");
   res.json(result.rows[0]);
 });
+app.get("/debug-orgs", requireLogin, async (req, res) => {
+  try {
+    const sessionUser = req.session.user;
+
+    const orgs = await q(`
+      SELECT id, customer_id, name, is_active
+      FROM organizations
+      ORDER BY id
+    `);
+
+    const customers = await q(`
+      SELECT id, name, email
+      FROM customers
+      ORDER BY id
+    `);
+
+    const users = await q(`
+      SELECT id, name, email, role, customer_id
+      FROM users
+      ORDER BY id
+    `);
+
+    res.json({
+      sessionUser,
+      organizations: orgs.rows,
+      customers: customers.rows,
+      users: users.rows
+    });
+
+  } catch (err) {
+    res.status(500).send("DEBUG ORGS ERROR: " + err.message);
+  }
+});
 app.get("/debug-cost-fields", requireLogin, async (req, res) => {
   const rows = await q(`
     SELECT
