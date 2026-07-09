@@ -328,6 +328,21 @@ await q(`
     UNIQUE (organization_id, user_id)
   )
 `);
+ await q(`
+  CREATE TABLE IF NOT EXISTS location_users (
+    id SERIAL PRIMARY KEY,
+    organization_id INTEGER NOT NULL,
+    space_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    role TEXT DEFAULT 'manager',
+    can_manage_contracts BOOLEAN DEFAULT true,
+    can_manage_pricing BOOLEAN DEFAULT true,
+    can_view_reports BOOLEAN DEFAULT true,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (space_id, user_id)
+  )
+`);
   await q(`
     CREATE TABLE IF NOT EXISTS advertisers (
       id SERIAL PRIMARY KEY,
