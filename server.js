@@ -2181,6 +2181,33 @@ app.get("/org-locations", async (req, res) => {
     </div>
   `));
 });
+app.get("/org-users", async (req, res) => {
+  res.send(orgPage("Organization Users", `
+    <div class="topbar">
+      <div class="brand">Vivid Organizations</div>
+      <h1>Users</h1>
+      <p class="subtitle">Manage organization users, hierarchy, and permissions.</p>
+    </div>
+
+    <div class="wrap">
+
+      <div class="card">
+        <h2>Organization Users</h2>
+
+        <p>
+          This page will manage district, corporate, principals, ADs,
+          GMs, facilities managers, finance users, and local managers.
+        </p>
+
+        <a class="btn secondary" href="/org-dashboard">
+          Back to Organization Dashboard
+        </a>
+
+      </div>
+
+    </div>
+  `));
+});
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
