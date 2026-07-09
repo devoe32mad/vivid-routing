@@ -542,6 +542,19 @@ await q(`
     )
   `);
 await q(`
+  INSERT INTO organizations (customer_id, name)
+  SELECT
+    u.id,
+    COALESCE(NULLIF(u.email, ''), 'Default Organization')
+  FROM users u
+  WHERE u.role = 'customer'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM organizations o
+      WHERE o.customer_id = u.id
+    )
+`);
+  await q(`
   UPDATE spaces s
   SET organization_id = o.id
   FROM organizations o
