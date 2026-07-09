@@ -2271,48 +2271,77 @@ app.get("/org-organization/:id", async (req, res) => {
 
       <div class="wrap">
 
-       <div class="cards">
-  <div class="card">
-    <h2>${stat.locations}</h2>
-    <p>Locations</p>
-  </div>
+<div class="card" style="margin-bottom:20px;">
+  <h2>Dashboard Filter</h2>
 
-  <div class="card">
-    <h2>${stat.users}</h2>
-    <p>Users</p>
-  </div>
+  <form style="display:flex;gap:15px;align-items:end;flex-wrap:wrap;">
 
-  <div class="card">
-    <h2>${stat.contracts}</h2>
-    <p>Active Contracts</p>
-  </div>
+    <div>
+      <label>From</label><br>
+      <input type="date" name="start_date">
+    </div>
 
-  <div class="card">
-    <h2>0</h2>
-    <p>Advertisers</p>
-  </div>
+    <div>
+      <label>To</label><br>
+      <input type="date" name="end_date">
+    </div>
 
-  <div class="card">
-    <h2>$0</h2>
-    <p>Annual Contract Value</p>
-  </div>
+    <div>
+      <button class="btn">Apply</button>
+    </div>
 
-  <div class="card">
-    <h2>$0</h2>
-    <p>Revenue Collected</p>
-  </div>
+  </form>
 
-  <div class="card">
-    <h2>0</h2>
-    <p>Contracts Expiring</p>
-  </div>
-
-  <div class="card">
-    <h2>0</h2>
-    <p>QR Activity</p>
-  </div>
 </div>
 
+<div style="
+display:grid;
+grid-template-columns:repeat(4,minmax(180px,1fr));
+gap:18px;
+margin-bottom:25px;
+">
+
+<div class="card" style="padding:22px;margin:0;text-align:center;">
+<h2 style="margin:0;font-size:36px;">${stat.locations}</h2>
+<p>Locations</p>
+</div>
+
+<div class="card" style="padding:22px;margin:0;text-align:center;">
+<h2 style="margin:0;font-size:36px;">${stat.users}</h2>
+<p>Users</p>
+</div>
+
+<div class="card" style="padding:22px;margin:0;text-align:center;">
+<h2 style="margin:0;font-size:36px;">${stat.contracts}</h2>
+<p>Active Contracts</p>
+</div>
+
+<div class="card" style="padding:22px;margin:0;text-align:center;">
+<h2 style="margin:0;font-size:36px;">0</h2>
+<p>Advertisers</p>
+</div>
+
+<div class="card" style="padding:22px;margin:0;text-align:center;">
+<h2 style="margin:0;font-size:36px;">$0</h2>
+<p>Annual Contract Value</p>
+</div>
+
+<div class="card" style="padding:22px;margin:0;text-align:center;">
+<h2 style="margin:0;font-size:36px;">$0</h2>
+<p>Revenue Collected</p>
+</div>
+
+<div class="card" style="padding:22px;margin:0;text-align:center;">
+<h2 style="margin:0;font-size:36px;">0</h2>
+<p>Contracts Expiring</p>
+</div>
+
+<div class="card" style="padding:22px;margin:0;text-align:center;">
+<h2 style="margin:0;font-size:36px;">0</h2>
+<p>QR Activity</p>
+</div>
+
+</div>
         <div class="card">
           <h2>Manage</h2>
 
