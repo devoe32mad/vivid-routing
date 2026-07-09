@@ -4429,8 +4429,22 @@ app.get("/admin/new-organization", requireLogin, async (req, res) => {
 app.post("/admin/new-organization", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
-    const customerId = currentUser.customer_id || currentUser.id;
+    const customerId = currentUser.id;
+const existingOrg = await q(`
+  SELECT id
+  FROM organizations
+  WHERE customer_id = $1
+    AND LOWER(name) = LOWER($2)
+    AND COALESCE(is_active,true) = true
+  LIMIT 1
+`, [
+  currentUser.id,
+  req.body.name
+]);
 
+if (existingOrg.rows[0]) {
+  return res.redirect("/admin/organizations");
+}
     const result = await q(`
       INSERT INTO organizations (
         customer_id,
