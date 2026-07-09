@@ -4712,7 +4712,23 @@ app.post("/admin/new-location", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
     const organizationId = Number(req.body.organization_id);
+const existingLocation = await q(`
+  SELECT id
+  FROM spaces
+  WHERE user_id = $1
+    AND organization_id = $2
+    AND LOWER(name) = LOWER($3)
+    AND COALESCE(is_archived,false) = false
+  LIMIT 1
+`, [
+  currentUser.id,
+  organizationId,
+  req.body.name
+]);
 
+if (existingLocation.rows[0]) {
+  return res.redirect(`/admin/new-qr?space_id=${existingLocation.rows[0].id}`);
+}
     const allowedOrg = await q(`
       SELECT 1
       FROM organization_users
