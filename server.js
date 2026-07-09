@@ -4300,16 +4300,21 @@ app.get("/admin/organizations", requireLogin, async (req, res) => {
           GROUP BY o.id
           ORDER BY o.name
         `
-        : `
-          SELECT
-            o.*,
-            COUNT(s.id) AS location_count
-          FROM organizations o
-          LEFT JOIN spaces s ON s.organization_id = o.id
-          WHERE o.customer_id = $1
-          GROUP BY o.id
-          ORDER BY o.name
-        `,
+          : `
+  SELECT
+    o.*,
+    COUNT(s.id) AS location_count
+  FROM organization_users ou
+  JOIN organizations o
+    ON o.id = ou.organization_id
+  LEFT JOIN spaces s
+    ON s.organization_id = o.id
+  WHERE ou.user_id = $1
+    AND COALESCE(ou.is_active, true) = true
+    AND COALESCE(o.is_active, true) = true
+  GROUP BY o.id
+  ORDER BY o.name
+`,    
       isSuperAdmin ? [] : [currentUser.id]
     );
 
