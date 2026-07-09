@@ -2289,6 +2289,33 @@ app.get("/org-permissions", async (req, res) => {
     </div>
   `));
 });
+app.get("/org-settings", async (req, res) => {
+  res.send(orgPage("Organization Settings", `
+    <div class="topbar">
+      <div class="brand">Vivid Organizations</div>
+      <h1>Settings</h1>
+      <p class="subtitle">Manage organization preferences, defaults, notifications, and system configuration.</p>
+    </div>
+
+    <div class="wrap">
+
+      <div class="card">
+        <h2>Organization Settings</h2>
+
+        <p>
+          This page will manage organization defaults, notifications,
+          branding, integrations, and organization-wide configuration.
+        </p>
+
+        <a class="btn secondary" href="/org-dashboard">
+          Back to Organization Dashboard
+        </a>
+
+      </div>
+
+    </div>
+  `));
+});
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
