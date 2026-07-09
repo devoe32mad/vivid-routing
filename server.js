@@ -1296,6 +1296,34 @@ WHERE id IN (7,12)
     campaigns: campaigns.rows
   });
 });
+async function activeCampaignForQr(qrId) {
+  const result = await q(`
+    SELECT
+      c.*,
+      qc.campaign_id,
+      qr.name AS qr_name,
+      s.name AS space_name
+    FROM qr_campaigns qc
+    JOIN campaigns c ON c.id = qc.campaign_id
+    JOIN qr_codes qr ON qr.id = qc.qr_id
+    LEFT JOIN spaces s ON s.id = qr.space_id
+    WHERE qc.qr_id = $1
+      AND COALESCE(qc.is_active, true) = true
+      AND COALESCE(c.is_archived, false) = false
+      AND (
+        c.start_date IS NULL
+        OR c.start_date <= CURRENT_DATE
+      )
+      AND (
+        c.end_date IS NULL
+        OR c.end_date >= CURRENT_DATE
+      )
+    ORDER BY qc.id DESC
+    LIMIT 1
+  `, [qrId]);
+
+  return result.rows[0] || null;
+}
 app.get("/r/:qrId", async (req, res) => {
   const qrId = Number(req.params.qrId);
   const vividClickId = crypto.randomUUID();
