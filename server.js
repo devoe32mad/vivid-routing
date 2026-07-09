@@ -2271,12 +2271,47 @@ app.get("/org-organization/:id", async (req, res) => {
 
       <div class="wrap">
 
-        <div class="card">
-          <h2>Executive Summary</h2>
-          <p><strong>Locations:</strong> ${stat.locations}</p>
-          <p><strong>Users:</strong> ${stat.users}</p>
-          <p><strong>Contracts:</strong> ${stat.contracts}</p>
-        </div>
+       <div class="cards">
+  <div class="card">
+    <h2>${stat.locations}</h2>
+    <p>Locations</p>
+  </div>
+
+  <div class="card">
+    <h2>${stat.users}</h2>
+    <p>Users</p>
+  </div>
+
+  <div class="card">
+    <h2>${stat.contracts}</h2>
+    <p>Active Contracts</p>
+  </div>
+
+  <div class="card">
+    <h2>0</h2>
+    <p>Advertisers</p>
+  </div>
+
+  <div class="card">
+    <h2>$0</h2>
+    <p>Annual Contract Value</p>
+  </div>
+
+  <div class="card">
+    <h2>$0</h2>
+    <p>Revenue Collected</p>
+  </div>
+
+  <div class="card">
+    <h2>0</h2>
+    <p>Contracts Expiring</p>
+  </div>
+
+  <div class="card">
+    <h2>0</h2>
+    <p>QR Activity</p>
+  </div>
+</div>
 
         <div class="card">
           <h2>Manage</h2>
