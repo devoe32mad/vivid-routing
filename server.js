@@ -4779,12 +4779,14 @@ app.get(
           "
         >
           <div style="
-            background:white;
-            border-radius:14px;
-            padding:15px;
-            box-shadow:0 5px 14px rgba(0,0,0,.07);
-            box-sizing:border-box;
-            height:100%;
+             background:white;
+  border-radius:14px;
+  padding:16px;
+  box-shadow:0 5px 14px rgba(0,0,0,.07);
+  box-sizing:border-box;
+  width:260px;
+  min-height:220px;
+  height:100%;
             transition:transform .15s ease, box-shadow .15s ease;
           "
           onmouseover="
@@ -5206,9 +5208,10 @@ app.get(
             </div>
 
             <div style="
-              display:grid;
-              grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-              gap:14px;
+             display:grid;
+grid-template-columns:repeat(auto-fill,260px);
+gap:18px;
+justify-content:flex-start;
             ">
 
               ${qrCards || `
