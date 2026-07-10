@@ -3725,14 +3725,7 @@ app.get(
                 </div>
               </div>
 
-              <div class="card" style="margin:0;">
-                <div style="font-size:12px;color:#65776b;">
-                  Annual Impressions
-                </div>
-                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
-                  ${totals.impressions.toLocaleString()}
-                </div>
-              </div>
+
 
               <div class="card" style="margin:0;">
                 <div style="font-size:12px;color:#65776b;">
