@@ -3033,7 +3033,7 @@ const locationCards = locations.map(location => `
 
             <div class="card" style="margin:0;">
               <div style="font-size:13px;color:#65776b;">
-                Conversion Value
+                Revenue Generated
               </div>
               <div style="font-size:30px;font-weight:bold;margin-top:7px;">
                 ${money(totals.conversionValue)}
