@@ -4009,11 +4009,13 @@ app.get(
     "
   >
     <div style="
-      background:white;
-      border-radius:14px;
-      padding:16px;
-      box-shadow:0 5px 14px rgba(0,0,0,.07);
-      box-sizing:border-box;
+   background:white;
+border-radius:14px;
+padding:16px;
+box-shadow:0 5px 14px rgba(0,0,0,.07);
+box-sizing:border-box;
+width:260px;
+min-height:220px;
     ">
 
           <div style="
