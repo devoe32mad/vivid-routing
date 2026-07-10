@@ -2526,6 +2526,14 @@ app.get(
           <td style="padding:14px;border-bottom:1px solid #e7eee7;text-align:center;">
             ${dateLabel(location.end_date, "Active")}
           </td>
+     <td style="padding:14px;border-bottom:1px solid #e7eee7;text-align:center;">
+  <a
+    class="btn"
+    href="/org-location/${location.id}?organization_id=${org.id}"
+  >
+    Open
+  </a>
+</td>
         </tr>
       `).join("");
 
@@ -2555,16 +2563,17 @@ app.get(
               border-collapse:collapse;
             ">
 
-              <thead>
-                <tr style="background:#eaf3e8;">
-                  <th style="padding:14px;text-align:left;">Location</th>
-                  <th style="padding:14px;">Market</th>
-                  <th style="padding:14px;">QR Codes</th>
-                  <th style="padding:14px;">Active Campaigns</th>
-                  <th style="padding:14px;">Live Date</th>
-                  <th style="padding:14px;">End Date</th>
-                </tr>
-              </thead>
+ <thead>
+  <tr style="background:#eaf3e8;">
+    <th style="padding:14px;text-align:left;">Location</th>
+    <th style="padding:14px;">Market</th>
+    <th style="padding:14px;">QR Codes</th>
+    <th style="padding:14px;">Active Campaigns</th>
+    <th style="padding:14px;">Live Date</th>
+    <th style="padding:14px;">End Date</th>
+    <th style="padding:14px;"></th>
+  </tr>
+</thead>
 
               <tbody>
                 ${locationRows || `
@@ -2598,6 +2607,220 @@ app.get(
     }
   }
 );
+app.get(
+  "/org-location/:locationId",
+  requireLogin,
+  requireSuperAdmin,
+  async (req, res) => {
+
+    try {
+
+      const organizationId = Number(req.query.organization_id);
+      const locationId = Number(req.params.locationId);
+
+      const organizationResult = await q(`
+        SELECT
+          id,
+          name
+        FROM organizations
+        WHERE id = $1
+        LIMIT 1
+      `, [organizationId]);
+
+      const organization = organizationResult.rows[0];
+
+      if (!organization) {
+        return res.status(404).send("Organization not found.");
+      }
+
+      const locationResult = await q(`
+        SELECT
+          id,
+          name,
+          location,
+          live_date,
+          end_date,
+          annual_impressions,
+          placement_cost
+        FROM spaces
+        WHERE
+          id = $1
+          AND organization_id = $2
+          AND COALESCE(is_archived,false)=false
+        LIMIT 1
+      `, [locationId, organizationId]);
+
+      const location = locationResult.rows[0];
+
+      if (!location) {
+        return res.status(404).send("Location not found.");
+      }
+
+      const qrResult = await q(`
+        SELECT
+          qr.id,
+          qr.name,
+          qr.is_imported,
+          qr.live_date,
+          qr.end_date,
+
+          COUNT(
+            DISTINCT CASE
+              WHEN COALESCE(qc.is_active,true)=true
+              THEN qc.campaign_id
+            END
+          ) AS campaign_count
+
+        FROM qr_codes qr
+
+        LEFT JOIN qr_campaigns qc
+          ON qc.qr_id = qr.id
+
+        WHERE
+          qr.space_id = $1
+          AND COALESCE(qr.is_archived,false)=false
+
+        GROUP BY
+          qr.id,
+          qr.name,
+          qr.is_imported,
+          qr.live_date,
+          qr.end_date
+
+        ORDER BY
+          qr.name
+      `,[locationId]);
+
+      const qrRows = qrResult.rows.map(qr => `
+        <tr>
+
+          <td>${qr.name}</td>
+
+          <td style="text-align:center;">
+            ${qr.is_imported ? "Imported" : "Vivid"}
+          </td>
+
+          <td style="text-align:center;">
+            ${qr.campaign_count}
+          </td>
+
+          <td style="text-align:center;">
+            ${dateLabel(qr.live_date)}
+          </td>
+
+          <td style="text-align:center;">
+            ${dateLabel(qr.end_date,"Active")}
+          </td>
+
+        </tr>
+      `).join("");
+
+      res.send(orgPage(
+        "Organization Location",
+
+        `
+<div class="topbar">
+
+<div class="brand">
+Vivid Organizations
+</div>
+
+<h1>${location.name}</h1>
+
+<p class="subtitle">
+${organization.name}
+</p>
+
+</div>
+
+<div class="wrap">
+
+<div class="card">
+
+<h2 style="margin-top:0;">
+Location Overview
+</h2>
+
+<p><b>Market:</b> ${location.location || "-"}</p>
+
+<p><b>Annual Impressions:</b>
+${Number(location.annual_impressions || 0).toLocaleString()}
+</p>
+
+<p><b>Placement Cost:</b>
+${money(location.placement_cost)}
+</p>
+
+<p><b>Live Date:</b>
+${dateLabel(location.live_date)}
+</p>
+
+<p><b>End Date:</b>
+${dateLabel(location.end_date,"Active")}
+</p>
+
+</div>
+
+<h2>QR Codes</h2>
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>QR Code</th>
+
+<th>Type</th>
+
+<th>Campaigns</th>
+
+<th>Live Date</th>
+
+<th>End Date</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+${
+qrRows || `
+<tr>
+<td colspan="5">
+No active QR Codes assigned to this location.
+</td>
+</tr>
+`
+}
+
+</tbody>
+
+</table>
+
+<a
+class="btn secondary"
+href="/org-locations?organization_id=${organization.id}">
+Back to Locations
+</a>
+
+</div>
+
+`
+      ));
+
+    }
+
+    catch(err){
+
+      res.send(
+        "ORG LOCATION ERROR: " + err.message
+      );
+
+    }
+
+});
 app.get("/org-users", async (req, res) => {
   res.send(orgPage("Organization Users", `
     <div class="topbar">
