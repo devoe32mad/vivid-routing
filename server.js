@@ -2345,7 +2345,12 @@ margin-bottom:25px;
         <div class="card">
           <h2>Manage</h2>
 
-          <a class="btn" href="/org-locations">Locations</a>
+          <a
+  class="btn"
+  href="/org-locations?organization_id=${org.id}"
+>
+  Locations
+</a>
           <a class="btn" href="/org-users">Users</a>
           <a class="btn" href="/org-contracts">Contracts</a>
           <a class="btn" href="/org-pricing">Pricing</a>
@@ -2381,32 +2386,178 @@ app.get("/org-contracts", async (req, res) => {
     </div>
   `));
 });
-app.get("/org-locations", async (req, res) => {
-  res.send(orgPage("Organization Locations", `
-    <div class="topbar">
-      <div class="brand">Vivid Organizations</div>
-      <h1>Locations</h1>
-      <p class="subtitle">Manage organization locations and local management.</p>
-    </div>
+app.get(
+  "/org-locations",
+  requireLogin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const orgId = Number(req.query.organization_id);
 
-    <div class="wrap">
+      if (!Number.isInteger(orgId) || orgId <= 0) {
+        return res.status(400).send("Organization is required.");
+      }
 
-      <div class="card">
-        <h2>Locations</h2>
+      const orgResult = await q(`
+        SELECT
+          id,
+          name
+        FROM organizations
+        WHERE id = $1
+          AND COALESCE(is_active, true) = true
+        LIMIT 1
+      `, [orgId]);
 
-        <p>
-          This page will manage all locations that belong to an organization.
-        </p>
+      const org = orgResult.rows[0];
 
-        <a class="btn secondary" href="/org-dashboard">
-          Back to Organization Dashboard
-        </a>
+      if (!org) {
+        return res.status(404).send("Organization not found.");
+      }
 
-      </div>
+      /*
+        The Organization Portal does not create or duplicate locations.
 
-    </div>
-  `));
-});
+        spaces, qr_codes and qr_campaigns are existing Vivid tables.
+        organization_id is used only to determine which Vivid locations
+        belong to this organization.
+      */
+      const locationsResult = await q(`
+        SELECT
+          s.id,
+          s.name,
+          s.location,
+          s.live_date,
+          s.end_date,
+
+          COUNT(DISTINCT qr.id)::int AS qr_count,
+
+          COUNT(
+            DISTINCT CASE
+              WHEN COALESCE(qc.is_active, true) = true
+              THEN qc.campaign_id
+            END
+          )::int AS active_campaign_count
+
+        FROM spaces s
+
+        LEFT JOIN qr_codes qr
+          ON qr.space_id = s.id
+         AND COALESCE(qr.is_archived, false) = false
+
+        LEFT JOIN qr_campaigns qc
+          ON qc.qr_id = qr.id
+
+        WHERE s.organization_id = $1
+          AND COALESCE(s.is_archived, false) = false
+
+        GROUP BY
+          s.id,
+          s.name,
+          s.location,
+          s.live_date,
+          s.end_date
+
+        ORDER BY
+          s.name
+      `, [orgId]);
+
+      const locationRows = locationsResult.rows.map(location => `
+        <tr>
+          <td style="padding:14px;border-bottom:1px solid #e7eee7;text-align:left;">
+            <strong>${location.name || "Unnamed Location"}</strong>
+          </td>
+
+          <td style="padding:14px;border-bottom:1px solid #e7eee7;">
+            ${location.location || "-"}
+          </td>
+
+          <td style="padding:14px;border-bottom:1px solid #e7eee7;text-align:center;">
+            ${location.qr_count}
+          </td>
+
+          <td style="padding:14px;border-bottom:1px solid #e7eee7;text-align:center;">
+            ${location.active_campaign_count}
+          </td>
+
+          <td style="padding:14px;border-bottom:1px solid #e7eee7;text-align:center;">
+            ${dateLabel(location.live_date)}
+          </td>
+
+          <td style="padding:14px;border-bottom:1px solid #e7eee7;text-align:center;">
+            ${dateLabel(location.end_date, "Active")}
+          </td>
+        </tr>
+      `).join("");
+
+      res.send(orgPage("Organization Locations", `
+        <div class="topbar">
+          <div class="brand">Vivid Organizations</div>
+
+          <h1>${org.name} Locations</h1>
+
+          <p class="subtitle">
+            Locations, QR Codes and active campaigns pulled directly from Vivid.
+          </p>
+        </div>
+
+        <div class="wrap">
+
+          <div style="
+            background:white;
+            border-radius:18px;
+            overflow:hidden;
+            box-shadow:0 8px 22px rgba(0,0,0,.08);
+            margin-bottom:24px;
+          ">
+
+            <table style="
+              width:100%;
+              border-collapse:collapse;
+            ">
+
+              <thead>
+                <tr style="background:#eaf3e8;">
+                  <th style="padding:14px;text-align:left;">Location</th>
+                  <th style="padding:14px;">Market</th>
+                  <th style="padding:14px;">QR Codes</th>
+                  <th style="padding:14px;">Active Campaigns</th>
+                  <th style="padding:14px;">Live Date</th>
+                  <th style="padding:14px;">End Date</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                ${locationRows || `
+                  <tr>
+                    <td colspan="6" style="padding:30px;text-align:center;">
+                      No active Vivid locations are connected to this organization.
+                    </td>
+                  </tr>
+                `}
+              </tbody>
+
+            </table>
+          </div>
+
+          <a
+            class="btn secondary"
+            href="/org-organization/${org.id}"
+          >
+            Back to ${org.name} Dashboard
+          </a>
+
+        </div>
+      `));
+
+    } catch (err) {
+      console.error("ORG LOCATIONS ERROR:", err);
+
+      res.status(500).send(
+        "ORG LOCATIONS ERROR: " + err.message
+      );
+    }
+  }
+);
 app.get("/org-users", async (req, res) => {
   res.send(orgPage("Organization Users", `
     <div class="topbar">
