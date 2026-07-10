@@ -3057,10 +3057,32 @@ app.get(
   "/org-locations",
   async (req, res) => {
     try {
-      const orgId = Number(req.query.organization_id);
+      let orgId = null;
+
+      /*
+        Organization users always use the organization stored
+        in their Organization Portal session.
+      */
+      if (req.session.orgUser?.organization_id) {
+        orgId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      /*
+        Super Admin may select an organization through the URL.
+      */
+      if (
+        !orgId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        orgId = Number(
+          req.query.organization_id
+        );
+      }
 
       if (!Number.isInteger(orgId) || orgId <= 0) {
-        return res.status(400).send("Organization is required.");
+        return res.redirect("/org-login");
       }
 
       const orgResult = await q(`
