@@ -3802,6 +3802,635 @@ const qrCards = qrPlacements.map(qr => `
     }
   }
 );
+app.get(
+  "/org-qr/:qrId",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Organization Portal users use their session organization.
+      */
+      if (req.session.orgUser?.organization_id) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      /*
+        Super Admin selects an organization through the URL.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      const qrId = Number(req.params.qrId);
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !Number.isInteger(qrId) ||
+        qrId <= 0
+      ) {
+        return res.status(403).send("Access denied");
+      }
+
+      /*
+        Confirm the QR belongs to a Vivid location connected
+        to the organization being viewed.
+      */
+      const qrResult = await q(`
+        SELECT
+          qr.id,
+          qr.name,
+          qr.description,
+          qr.is_imported,
+          qr.is_active,
+          qr.live_date,
+          qr.end_date,
+          qr.created_at,
+
+          COALESCE(
+            qr.total_cost,
+            qr.annual_cost,
+            0
+          )::numeric AS placement_value,
+
+          COALESCE(
+            qr.annual_impressions,
+            0
+          )::numeric AS annual_impressions,
+
+          s.id AS location_id,
+          s.name AS location_name,
+          s.location AS market,
+
+          o.id AS organization_id,
+          o.name AS organization_name
+
+        FROM qr_codes qr
+
+        JOIN spaces s
+          ON s.id = qr.space_id
+         AND COALESCE(s.is_archived, false) = false
+
+        JOIN organizations o
+          ON o.id = s.organization_id
+         AND COALESCE(o.is_active, true) = true
+
+        WHERE qr.id = $1
+          AND o.id = $2
+          AND COALESCE(qr.is_archived, false) = false
+
+        LIMIT 1
+      `, [qrId, organizationId]);
+
+      const qr = qrResult.rows[0];
+
+      if (!qr) {
+        return res.status(404).send(
+          "QR placement not found for this organization."
+        );
+      }
+
+      /*
+        Pull campaigns directly from Vivid.
+      */
+      const campaignResult = await q(`
+        SELECT
+          c.id,
+          c.name,
+          c.advertiser,
+          c.start_date,
+          c.end_date,
+          c.campaign_url,
+          c.avg_customer_value,
+
+          qc.is_active,
+          qc.assigned_at,
+          qc.started_at,
+          qc.ended_at
+
+        FROM qr_campaigns qc
+
+        JOIN campaigns c
+          ON c.id = qc.campaign_id
+
+        WHERE qc.qr_id = $1
+          AND COALESCE(c.is_archived, false) = false
+
+        ORDER BY
+          COALESCE(qc.started_at, qc.assigned_at) DESC,
+          qc.id DESC
+      `, [qrId]);
+
+      const campaigns = campaignResult.rows;
+
+      const activeCampaigns = campaigns.filter(
+        campaign => campaign.is_active !== false
+      );
+
+      /*
+        Pull event totals directly from Vivid.
+      */
+      const eventResult = await q(`
+        SELECT
+          COUNT(*) FILTER (
+            WHERE type = 'scan'
+          )::int AS scans,
+
+          COUNT(*) FILTER (
+            WHERE type = 'offer'
+          )::int AS offer_clicks,
+
+          COUNT(*) FILTER (
+            WHERE type = 'maps'
+          )::int AS maps_clicks,
+
+          COUNT(*) FILTER (
+            WHERE type = 'waze'
+          )::int AS waze_clicks,
+
+          COUNT(*) FILTER (
+            WHERE type IN ('offer', 'maps', 'waze')
+          )::int AS intent,
+
+          COUNT(*) FILTER (
+            WHERE type = 'conversion'
+          )::int AS conversions,
+
+          COALESCE(
+            SUM(value) FILTER (
+              WHERE type = 'conversion'
+            ),
+            0
+          )::numeric AS revenue_generated
+
+        FROM events
+        WHERE qr_id = $1
+      `, [qrId]);
+
+      const metrics = eventResult.rows[0] || {
+        scans: 0,
+        offer_clicks: 0,
+        maps_clicks: 0,
+        waze_clicks: 0,
+        intent: 0,
+        conversions: 0,
+        revenue_generated: 0
+      };
+
+      /*
+        Build active campaign and advertiser names from Vivid.
+      */
+      const advertiserNames = [
+        ...new Set(
+          activeCampaigns
+            .map(campaign =>
+              String(campaign.advertiser || "").trim()
+            )
+            .filter(Boolean)
+        )
+      ];
+
+      const campaignCards = campaigns.map(campaign => `
+        <div style="
+          background:white;
+          border-radius:14px;
+          padding:16px;
+          box-shadow:0 5px 14px rgba(0,0,0,.07);
+          box-sizing:border-box;
+        ">
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:12px;
+            margin-bottom:12px;
+          ">
+
+            <div>
+              <div style="
+                font-size:17px;
+                font-weight:bold;
+                line-height:1.25;
+              ">
+                ${campaign.name || "Unnamed Campaign"}
+              </div>
+
+              <div style="
+                color:#65776b;
+                font-size:12px;
+                margin-top:3px;
+              ">
+                ${campaign.advertiser || "Advertiser not set"}
+              </div>
+            </div>
+
+            <span style="
+              background:${campaign.is_active !== false ? "#eaf3e8" : "#f3e8e8"};
+              color:${campaign.is_active !== false ? "#176b3a" : "#8a1f1f"};
+              padding:6px 9px;
+              border-radius:999px;
+              font-size:10px;
+              font-weight:bold;
+              white-space:nowrap;
+            ">
+              ${campaign.is_active !== false ? "Active" : "Inactive"}
+            </span>
+
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:10px;
+          ">
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Start Date
+              </div>
+              <div style="font-size:13px;font-weight:bold;">
+                ${dateLabel(
+                  campaign.start_date ||
+                  campaign.started_at ||
+                  campaign.assigned_at
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                End Date
+              </div>
+              <div style="font-size:13px;font-weight:bold;">
+                ${dateLabel(
+                  campaign.end_date ||
+                  campaign.ended_at,
+                  "Active"
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Customer Value
+              </div>
+              <div style="font-size:13px;font-weight:bold;">
+                ${money(campaign.avg_customer_value)}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Campaign ID
+              </div>
+              <div style="font-size:13px;font-weight:bold;">
+                ${campaign.id}
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      `).join("");
+
+      res.send(orgPage(
+        "QR Placement Detail",
+        `
+          <div class="topbar">
+            <div class="brand">
+              Vivid Organizations
+            </div>
+
+            <h1>${qr.name || "QR Placement"}</h1>
+
+            <p class="subtitle">
+              ${qr.location_name} · ${qr.organization_name}
+            </p>
+          </div>
+
+          <div class="wrap">
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:16px;
+              flex-wrap:wrap;
+              margin-bottom:20px;
+            ">
+
+              <div>
+                <h2 style="margin:0 0 5px;">
+                  QR Placement Overview
+                </h2>
+
+                <div style="color:#65776b;">
+                  Detailed performance pulled directly from Vivid.
+                </div>
+              </div>
+
+              <a
+                class="btn secondary"
+                href="/org-location/${qr.location_id}?organization_id=${qr.organization_id}"
+              >
+                Back to ${qr.location_name}
+              </a>
+
+            </div>
+
+            <!-- Executive KPI cards -->
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(175px,1fr));
+              gap:12px;
+              margin-bottom:30px;
+            ">
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Placement Value
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${money(qr.placement_value)}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Active Campaigns
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${activeCampaigns.length.toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Scans
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.scans || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Revenue Generated
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${money(metrics.revenue_generated)}
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Placement information -->
+
+            <h2 style="margin-bottom:14px;">
+              Placement Information
+            </h2>
+
+            <div class="card" style="margin:0 0 30px;">
+
+              <div style="
+                display:grid;
+                grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+                gap:18px;
+              ">
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Location
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${qr.location_name}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Market
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${qr.market || "-"}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    QR Type
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${qr.is_imported ? "Imported QR" : "Vivid QR"}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Status
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${qr.is_active ? "Active" : "Inactive"}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Live Date
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${dateLabel(qr.live_date)}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    End Date
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${dateLabel(qr.end_date, "Active")}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Advertiser
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${advertiserNames.join(", ") || "Not assigned"}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Annual Impressions
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${Number(qr.annual_impressions || 0).toLocaleString()}
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            <!-- Performance -->
+
+            <h2 style="margin-bottom:14px;">
+              Performance Detail
+            </h2>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+              gap:12px;
+              margin-bottom:30px;
+            ">
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Scans
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.scans || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Offer Clicks
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.offer_clicks || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Maps Clicks
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.maps_clicks || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Waze Clicks
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.waze_clicks || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Intent
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.intent || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Conversions
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.conversions || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Revenue Generated
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${money(metrics.revenue_generated)}
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Campaigns -->
+
+            <div style="margin-bottom:14px;">
+              <h2 style="margin:0 0 5px;">
+                Campaigns
+              </h2>
+
+              <div style="color:#65776b;">
+                Campaign relationships and dates pulled directly from Vivid.
+              </div>
+            </div>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(270px,1fr));
+              gap:14px;
+            ">
+
+              ${campaignCards || `
+                <div
+                  class="card"
+                  style="
+                    grid-column:1/-1;
+                    text-align:center;
+                    margin:0;
+                  "
+                >
+                  <h3>No campaigns assigned</h3>
+
+                  <p>
+                    No Vivid campaigns are currently connected to this QR placement.
+                  </p>
+                </div>
+              `}
+
+            </div>
+
+          </div>
+        `
+      ));
+
+    } catch (err) {
+      console.error("ORG QR ERROR:", err);
+
+      res.status(500).send(
+        "ORG QR ERROR: " + err.message
+      );
+    }
+  }
+);
 app.get("/org-users", async (req, res) => {
   res.send(orgPage("Organization Users", `
     <div class="topbar">
