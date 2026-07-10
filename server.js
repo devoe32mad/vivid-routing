@@ -2286,148 +2286,615 @@ app.get("/org-organizations", requireLogin, requireSuperAdmin, async (req, res) 
     res.send("ERROR: " + err.message);
   }
 });
-app.get("/org-organization/:id", async (req, res) => {
-  try {
-    const orgId = Number(req.params.id);
+app.get(
+  "/org-organization/:id",
+  requireLogin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const orgId = Number(req.params.id);
 
-    const orgResult = await q(`
-      SELECT *
-      FROM organizations
-      WHERE id = $1
-      LIMIT 1
-    `, [orgId]);
+      if (!Number.isInteger(orgId) || orgId <= 0) {
+        return res.status(400).send("Valid organization is required.");
+      }
 
-    const org = orgResult.rows[0];
+      const orgResult = await q(`
+        SELECT
+          id,
+          name,
+          organization_type,
+          is_active
+        FROM organizations
+        WHERE id = $1
+        LIMIT 1
+      `, [orgId]);
 
-    if (!org) {
-      return res.status(404).send("Organization not found");
-    }
+      const org = orgResult.rows[0];
 
-    const stats = await q(`
-      SELECT
-        COUNT(DISTINCT s.id) AS locations,
-        COUNT(DISTINCT ou.user_id) AS users,
-        COUNT(DISTINCT c.id) AS contracts
-      FROM organizations o
-      LEFT JOIN spaces s
-        ON s.organization_id = o.id
-       AND COALESCE(s.is_archived,false)=false
-      LEFT JOIN organization_users ou
-        ON ou.organization_id = o.id
-       AND COALESCE(ou.is_active,true)=true
-      LEFT JOIN contracts c
-        ON c.organization_id = o.id
-      WHERE o.id = $1
-    `, [orgId]);
+      if (!org) {
+        return res.status(404).send("Organization not found.");
+      }
 
-    const stat = stats.rows[0];
+      /*
+        Organization Portal management view.
 
-    res.send(orgPage(org.name, `
-      <div class="topbar">
-        <div class="brand">Vivid Organizations</div>
-        <h1>${org.name}</h1>
-        <p class="subtitle">${org.organization_type || "Organization Dashboard"}</p>
-      </div>
+        All operational data below comes directly from Vivid:
+        spaces → qr_codes → qr_campaigns → campaigns → events
 
-      <div class="wrap">
+        No KPI values are stored in the Organization database.
+      */
+      const locationResult = await q(`
+        WITH active_locations AS (
+          SELECT
+            s.id,
+            s.name,
+            s.location
+          FROM spaces s
+          WHERE s.organization_id = $1
+            AND COALESCE(s.is_archived, false) = false
+        ),
 
-<div class="card" style="margin-bottom:20px;">
-  <h2>Dashboard Filter</h2>
+        active_qrs AS (
+          SELECT
+            qr.id,
+            qr.space_id,
+            COALESCE(qr.total_cost, qr.annual_cost, 0)::numeric
+              AS placement_value,
+            COALESCE(qr.annual_impressions, 0)::numeric
+              AS impressions
+          FROM qr_codes qr
+          JOIN active_locations al
+            ON al.id = qr.space_id
+          WHERE COALESCE(qr.is_archived, false) = false
+            AND COALESCE(qr.is_active, true) = true
+        ),
 
-  <form style="display:flex;gap:15px;align-items:end;flex-wrap:wrap;">
+        qr_campaign_metrics AS (
+          SELECT
+            aq.id AS qr_id,
 
-    <div>
-      <label>From</label><br>
-      <input type="date" name="start_date">
-    </div>
+            COUNT(
+              DISTINCT CASE
+                WHEN COALESCE(qc.is_active, true) = true
+                 AND COALESCE(c.is_archived, false) = false
+                THEN c.id
+              END
+            )::int AS active_campaigns,
 
-    <div>
-      <label>To</label><br>
-      <input type="date" name="end_date">
-    </div>
+            COUNT(
+              DISTINCT CASE
+                WHEN COALESCE(qc.is_active, true) = true
+                 AND COALESCE(c.is_archived, false) = false
+                 AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL
+                THEN LOWER(TRIM(c.advertiser))
+              END
+            )::int AS advertisers
 
-    <div>
-      <button class="btn">Apply</button>
-    </div>
+          FROM active_qrs aq
 
-  </form>
+          LEFT JOIN qr_campaigns qc
+            ON qc.qr_id = aq.id
 
-</div>
+          LEFT JOIN campaigns c
+            ON c.id = qc.campaign_id
 
-<div style="
-display:grid;
-grid-template-columns:repeat(4,minmax(180px,1fr));
-gap:18px;
-margin-bottom:25px;
-">
+          GROUP BY aq.id
+        ),
 
-<div class="card" style="padding:22px;margin:0;text-align:center;">
-<h2 style="margin:0;font-size:36px;">${stat.locations}</h2>
-<p>Locations</p>
-</div>
+        qr_event_metrics AS (
+          SELECT
+            aq.id AS qr_id,
 
-<div class="card" style="padding:22px;margin:0;text-align:center;">
-<h2 style="margin:0;font-size:36px;">${stat.users}</h2>
-<p>Users</p>
-</div>
+            COUNT(e.id) FILTER (
+              WHERE e.type = 'scan'
+            )::int AS scans,
 
-<div class="card" style="padding:22px;margin:0;text-align:center;">
-<h2 style="margin:0;font-size:36px;">${stat.contracts}</h2>
-<p>Active Contracts</p>
-</div>
+            COUNT(e.id) FILTER (
+              WHERE e.type IN ('offer', 'maps', 'waze')
+            )::int AS intent,
 
-<div class="card" style="padding:22px;margin:0;text-align:center;">
-<h2 style="margin:0;font-size:36px;">0</h2>
-<p>Advertisers</p>
-</div>
+            COUNT(e.id) FILTER (
+              WHERE e.type = 'conversion'
+            )::int AS conversions,
 
-<div class="card" style="padding:22px;margin:0;text-align:center;">
-<h2 style="margin:0;font-size:36px;">$0</h2>
-<p>Annual Contract Value</p>
-</div>
+            COALESCE(
+              SUM(e.value) FILTER (
+                WHERE e.type = 'conversion'
+              ),
+              0
+            )::numeric AS conversion_value
 
-<div class="card" style="padding:22px;margin:0;text-align:center;">
-<h2 style="margin:0;font-size:36px;">$0</h2>
-<p>Revenue Collected</p>
-</div>
+          FROM active_qrs aq
 
-<div class="card" style="padding:22px;margin:0;text-align:center;">
-<h2 style="margin:0;font-size:36px;">0</h2>
-<p>Contracts Expiring</p>
-</div>
+          LEFT JOIN events e
+            ON e.qr_id = aq.id
 
-<div class="card" style="padding:22px;margin:0;text-align:center;">
-<h2 style="margin:0;font-size:36px;">0</h2>
-<p>QR Activity</p>
-</div>
+          GROUP BY aq.id
+        ),
 
-</div>
-        <div class="card">
-          <h2>Manage</h2>
+        qr_metrics AS (
+          SELECT
+            aq.id AS qr_id,
+            aq.space_id,
+            aq.placement_value,
+            aq.impressions,
 
-          <a
-  class="btn"
-  href="/org-locations?organization_id=${org.id}"
->
-  Locations
-</a>
-          <a class="btn" href="/org-users">Users</a>
-          <a class="btn" href="/org-contracts">Contracts</a>
-          <a class="btn" href="/org-pricing">Pricing</a>
-          <a class="btn" href="/org-revenue">Revenue</a>
-          <a class="btn" href="/org-permissions">Permissions</a>
-          <a class="btn" href="/org-settings">Settings</a>
+            COALESCE(qcm.active_campaigns, 0)::int
+              AS active_campaigns,
+
+            COALESCE(qcm.advertisers, 0)::int
+              AS advertisers,
+
+            COALESCE(qem.scans, 0)::int
+              AS scans,
+
+            COALESCE(qem.intent, 0)::int
+              AS intent,
+
+            COALESCE(qem.conversions, 0)::int
+              AS conversions,
+
+            COALESCE(qem.conversion_value, 0)::numeric
+              AS conversion_value
+
+          FROM active_qrs aq
+
+          LEFT JOIN qr_campaign_metrics qcm
+            ON qcm.qr_id = aq.id
+
+          LEFT JOIN qr_event_metrics qem
+            ON qem.qr_id = aq.id
+        )
+
+        SELECT
+          al.id,
+          al.name,
+          al.location,
+
+          COUNT(DISTINCT qm.qr_id)::int
+            AS qr_placements,
+
+          COALESCE(
+            SUM(qm.placement_value),
+            0
+          )::numeric AS placement_value,
+
+          COALESCE(
+            SUM(qm.impressions),
+            0
+          )::numeric AS impressions,
+
+          COALESCE(
+            SUM(qm.active_campaigns),
+            0
+          )::int AS active_campaigns,
+
+          COALESCE(
+            SUM(qm.scans),
+            0
+          )::int AS scans,
+
+          COALESCE(
+            SUM(qm.intent),
+            0
+          )::int AS intent,
+
+          COALESCE(
+            SUM(qm.conversions),
+            0
+          )::int AS conversions,
+
+          COALESCE(
+            SUM(qm.conversion_value),
+            0
+          )::numeric AS conversion_value
+
+        FROM active_locations al
+
+        LEFT JOIN qr_metrics qm
+          ON qm.space_id = al.id
+
+        GROUP BY
+          al.id,
+          al.name,
+          al.location
+
+        ORDER BY al.name
+      `, [orgId]);
+
+      /*
+        Count advertisers once across the entire organization.
+        Advertisers are derived from Vivid Campaign records.
+      */
+      const advertiserResult = await q(`
+        SELECT
+          COUNT(
+            DISTINCT LOWER(TRIM(c.advertiser))
+          )::int AS advertisers
+        FROM spaces s
+        JOIN qr_codes qr
+          ON qr.space_id = s.id
+         AND COALESCE(qr.is_archived, false) = false
+         AND COALESCE(qr.is_active, true) = true
+        JOIN qr_campaigns qc
+          ON qc.qr_id = qr.id
+         AND COALESCE(qc.is_active, true) = true
+        JOIN campaigns c
+          ON c.id = qc.campaign_id
+         AND COALESCE(c.is_archived, false) = false
+        WHERE s.organization_id = $1
+          AND COALESCE(s.is_archived, false) = false
+          AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL
+      `, [orgId]);
+
+      /*
+        Contracts belong to the Organization management layer.
+      */
+      const contractResult = await q(`
+        SELECT
+          COUNT(*) FILTER (
+            WHERE LOWER(COALESCE(status, 'active')) = 'active'
+          )::int AS active_contracts,
+
+          COUNT(*)::int AS total_contracts
+
+        FROM contracts
+        WHERE organization_id = $1
+      `, [orgId]);
+
+      const locations = locationResult.rows;
+
+      const totals = locations.reduce(
+        (summary, location) => {
+          summary.qrPlacements += Number(location.qr_placements || 0);
+          summary.placementValue += Number(location.placement_value || 0);
+          summary.impressions += Number(location.impressions || 0);
+          summary.activeCampaigns += Number(location.active_campaigns || 0);
+          summary.scans += Number(location.scans || 0);
+          summary.intent += Number(location.intent || 0);
+          summary.conversions += Number(location.conversions || 0);
+          summary.conversionValue += Number(location.conversion_value || 0);
+
+          return summary;
+        },
+        {
+          qrPlacements: 0,
+          placementValue: 0,
+          impressions: 0,
+          activeCampaigns: 0,
+          scans: 0,
+          intent: 0,
+          conversions: 0,
+          conversionValue: 0
+        }
+      );
+
+      const advertiserCount =
+        Number(advertiserResult.rows[0]?.advertisers || 0);
+
+      const activeContracts =
+        Number(contractResult.rows[0]?.active_contracts || 0);
+
+      const locationCards = locations.map(location => `
+        <div style="
+          background:white;
+          border-radius:18px;
+          padding:22px;
+          box-shadow:0 8px 22px rgba(0,0,0,.08);
+          display:flex;
+          flex-direction:column;
+          justify-content:space-between;
+          min-height:315px;
+        ">
+
+          <div>
+            <div style="
+              font-size:21px;
+              font-weight:bold;
+              margin-bottom:5px;
+            ">
+              ${location.name || "Unnamed Location"}
+            </div>
+
+            <div style="
+              color:#65776b;
+              font-size:14px;
+              margin-bottom:20px;
+            ">
+              ${location.location || "Market not set"}
+            </div>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(2,minmax(0,1fr));
+              gap:13px;
+            ">
+
+              <div>
+                <div style="font-size:12px;color:#65776b;">
+                  QR Placements
+                </div>
+                <div style="font-size:21px;font-weight:bold;">
+                  ${Number(location.qr_placements || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:12px;color:#65776b;">
+                  Placement Value
+                </div>
+                <div style="font-size:21px;font-weight:bold;">
+                  ${money(location.placement_value)}
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:12px;color:#65776b;">
+                  Impressions
+                </div>
+                <div style="font-size:21px;font-weight:bold;">
+                  ${Number(location.impressions || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:12px;color:#65776b;">
+                  Campaigns
+                </div>
+                <div style="font-size:21px;font-weight:bold;">
+                  ${Number(location.active_campaigns || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:12px;color:#65776b;">
+                  Scans
+                </div>
+                <div style="font-size:21px;font-weight:bold;">
+                  ${Number(location.scans || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:12px;color:#65776b;">
+                  Intent
+                </div>
+                <div style="font-size:21px;font-weight:bold;">
+                  ${Number(location.intent || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:12px;color:#65776b;">
+                  Conversions
+                </div>
+                <div style="font-size:21px;font-weight:bold;">
+                  ${Number(location.conversions || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:12px;color:#65776b;">
+                  Conversion Value
+                </div>
+                <div style="font-size:21px;font-weight:bold;">
+                  ${money(location.conversion_value)}
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div style="margin-top:22px;">
+            <a
+              class="btn"
+              href="/org-location/${location.id}?organization_id=${org.id}"
+            >
+              Open Location
+            </a>
+          </div>
+
+        </div>
+      `).join("");
+
+      res.send(orgPage("Organization Executive Dashboard", `
+        <div class="topbar">
+          <div class="brand">Vivid Organizations</div>
+
+          <h1>${org.name}</h1>
+
+          <p class="subtitle">
+            Organization Executive Dashboard
+          </p>
         </div>
 
-        <a class="btn secondary" href="/org-organizations">Back to Organizations</a>
+        <div class="wrap">
 
-      </div>
-    `));
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:18px;
+            flex-wrap:wrap;
+            margin-bottom:18px;
+          ">
+            <div>
+              <h2 style="margin:0 0 5px;">
+                Executive Overview
+              </h2>
 
-  } catch (err) {
-    res.status(500).send("ORG DETAIL ERROR: " + err.message);
+              <div style="color:#65776b;">
+                Organization performance aggregated directly from Vivid.
+              </div>
+            </div>
+
+            <a
+              class="btn secondary"
+              href="/org-organizations"
+            >
+              Back to Organizations
+            </a>
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(185px,1fr));
+            gap:15px;
+            margin:22px 0 34px;
+          ">
+
+            <a
+              href="/org-locations?organization_id=${org.id}"
+              style="text-decoration:none;color:inherit;"
+            >
+              <div class="card" style="margin:0;height:100%;">
+                <div style="font-size:13px;color:#65776b;">
+                  Locations
+                </div>
+                <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+                  ${locations.length.toLocaleString()}
+                </div>
+              </div>
+            </a>
+
+            <div class="card" style="margin:0;">
+              <div style="font-size:13px;color:#65776b;">
+                QR Placements
+              </div>
+              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+                ${totals.qrPlacements.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="font-size:13px;color:#65776b;">
+                Advertisers
+              </div>
+              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+                ${advertiserCount.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="font-size:13px;color:#65776b;">
+                Active Contracts
+              </div>
+              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+                ${activeContracts.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="font-size:13px;color:#65776b;">
+                Placement Value
+              </div>
+              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+                ${money(totals.placementValue)}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="font-size:13px;color:#65776b;">
+                Annual Impressions
+              </div>
+              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+                ${totals.impressions.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="font-size:13px;color:#65776b;">
+                Active Campaigns
+              </div>
+              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+                ${totals.activeCampaigns.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="font-size:13px;color:#65776b;">
+                Scans
+              </div>
+              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+                ${totals.scans.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="font-size:13px;color:#65776b;">
+                Intent
+              </div>
+              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+                ${totals.intent.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="font-size:13px;color:#65776b;">
+                Conversions
+              </div>
+              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+                ${totals.conversions.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="font-size:13px;color:#65776b;">
+                Conversion Value
+              </div>
+              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+                ${money(totals.conversionValue)}
+              </div>
+            </div>
+
+          </div>
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:end;
+            gap:18px;
+            flex-wrap:wrap;
+            margin-bottom:15px;
+          ">
+            <div>
+              <h2 style="margin:0 0 5px;">
+                Locations
+              </h2>
+
+              <div style="color:#65776b;">
+                Select a location to view its QR placements and performance.
+              </div>
+            </div>
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(310px,1fr));
+            gap:18px;
+          ">
+            ${locationCards || `
+              <div class="card" style="grid-column:1/-1;text-align:center;">
+                <h3>No active locations</h3>
+                <p>
+                  No active Vivid locations are currently connected to this organization.
+                </p>
+              </div>
+            `}
+          </div>
+
+        </div>
+      `));
+
+    } catch (err) {
+      console.error("ORG EXECUTIVE DASHBOARD ERROR:", err);
+
+      res.status(500).send(
+        "ORG EXECUTIVE DASHBOARD ERROR: " + err.message
+      );
+    }
   }
-});
+);
 app.get("/org-contracts", async (req, res) => {
   res.send(orgPage("Organization Contracts", `
     <div class="topbar">
