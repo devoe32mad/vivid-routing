@@ -3564,77 +3564,59 @@ app.get(
           ">
             ${qr.is_active ? "Active Placement" : "Inactive Placement"}
           </div>
+<div style="
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
+  gap:12px;
+  margin-bottom:30px;
+">
 
-          <div style="
-            display:grid;
-            grid-template-columns:repeat(2,minmax(0,1fr));
-            gap:10px 8px;
-          ">
+  <div class="card" style="margin:0;">
+    <div style="font-size:12px;color:#65776b;">
+      QR Placements
+    </div>
+    <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+      ${qrPlacements.length.toLocaleString()}
+    </div>
+  </div>
 
-            <div>
-              <div style="font-size:10px;color:#65776b;">
-                Placement Value
-              </div>
-              <div style="font-size:16px;font-weight:bold;">
-                ${money(qr.placement_value)}
-              </div>
-            </div>
+  <div class="card" style="margin:0;">
+    <div style="font-size:12px;color:#65776b;">
+      Placement Value
+    </div>
+    <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+      ${money(totals.placementValue)}
+    </div>
+  </div>
 
-            <div>
-              <div style="font-size:10px;color:#65776b;">
-                Impressions
-              </div>
-              <div style="font-size:16px;font-weight:bold;">
-                ${Number(qr.impressions || 0).toLocaleString()}
-              </div>
-            </div>
+  <div class="card" style="margin:0;">
+    <div style="font-size:12px;color:#65776b;">
+      Active Campaigns
+    </div>
+    <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+      ${totals.activeCampaigns.toLocaleString()}
+    </div>
+  </div>
 
-            <div>
-              <div style="font-size:10px;color:#65776b;">
-                Campaigns
-              </div>
-              <div style="font-size:16px;font-weight:bold;">
-                ${Number(qr.active_campaigns || 0).toLocaleString()}
-              </div>
-            </div>
+  <div class="card" style="margin:0;">
+    <div style="font-size:12px;color:#65776b;">
+      Scans
+    </div>
+    <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+      ${totals.scans.toLocaleString()}
+    </div>
+  </div>
 
-            <div>
-              <div style="font-size:10px;color:#65776b;">
-                Scans
-              </div>
-              <div style="font-size:16px;font-weight:bold;">
-                ${Number(qr.scans || 0).toLocaleString()}
-              </div>
-            </div>
+  <div class="card" style="margin:0;">
+    <div style="font-size:12px;color:#65776b;">
+      Revenue Generated
+    </div>
+    <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+      ${money(totals.conversionValue)}
+    </div>
+  </div>
 
-            <div>
-              <div style="font-size:10px;color:#65776b;">
-                Intent
-              </div>
-              <div style="font-size:16px;font-weight:bold;">
-                ${Number(qr.intent || 0).toLocaleString()}
-              </div>
-            </div>
-
-            <div>
-              <div style="font-size:10px;color:#65776b;">
-                Conversions
-              </div>
-              <div style="font-size:16px;font-weight:bold;">
-                ${Number(qr.conversions || 0).toLocaleString()}
-              </div>
-            </div>
-
-            <div>
-              <div style="font-size:10px;color:#65776b;">
-                Conversion Value
-              </div>
-              <div style="font-size:16px;font-weight:bold;">
-                ${money(qr.conversion_value)}
-              </div>
-            </div>
-
-            <div>
+</div>
               <div style="font-size:10px;color:#65776b;">
                 Live Date
               </div>
