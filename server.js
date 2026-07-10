@@ -2299,11 +2299,23 @@ app.post("/org-login", async (req, res) => {
       organization_role: user.organization_role
     };
 
-    /*
-      District / organization administrators land on their
-      organization-wide Locations dashboard.
-    */
-    return res.redirect("/org-locations");
+  /*
+  Organization-level admins land on their
+  Organization Executive Dashboard.
+*/
+if (
+  ["owner", "organization_admin", "district_admin"].includes(
+    String(user.organization_role || "").toLowerCase()
+  )
+) {
+  return res.redirect(
+    `/org-organization/${user.organization_id}`
+  );
+}
+
+return res.status(403).send(
+  "This Organization Portal role does not have a valid landing page yet."
+);
 
   } catch (err) {
     console.error("ORG LOGIN ERROR:", err);
@@ -2428,12 +2440,24 @@ app.get("/org-organizations", requireLogin, requireSuperAdmin, async (req, res) 
 });
 app.get(
   "/org-organization/:id",
-  requireLogin,
-  requireSuperAdmin,
   async (req, res) => {
     try {
       const orgId = Number(req.params.id);
+const isSuperAdmin =
+  req.session.user?.role === "super_admin";
 
+const isOrganizationAdmin =
+  req.session.orgUser &&
+  Number(req.session.orgUser.organization_id) === orgId &&
+  ["owner", "organization_admin", "district_admin"].includes(
+    String(
+      req.session.orgUser.organization_role || ""
+    ).toLowerCase()
+  );
+
+if (!isSuperAdmin && !isOrganizationAdmin) {
+  return res.status(403).send("Access denied");
+}
       if (!Number.isInteger(orgId) || orgId <= 0) {
         return res.status(400).send("Valid organization is required.");
       }
