@@ -3286,242 +3286,541 @@ app.get(
 );
 app.get(
   "/org-location/:locationId",
-
   async (req, res) => {
-
     try {
-let organizationId = null;
+      let organizationId = null;
 
-if (req.session.orgUser?.organization_id) {
-  organizationId = Number(
-    req.session.orgUser.organization_id
-  );
-}
+      /*
+        Organization Portal users use the organization
+        stored in their login session.
+      */
+      if (req.session.orgUser?.organization_id) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
 
-if (
-  !organizationId &&
-  req.session.user?.role === "super_admin"
-) {
-  organizationId = Number(
-    req.query.organization_id
-  );
-}
+      /*
+        Super Admin can select an organization through
+        the URL while viewing organizations.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
 
-const locationId = Number(req.params.locationId);
+      const locationId = Number(req.params.locationId);
 
-if (
-  !Number.isInteger(organizationId) ||
-  organizationId <= 0 ||
-  !Number.isInteger(locationId) ||
-  locationId <= 0
-) {
-  return res.status(403).send("Access denied");
-}
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !Number.isInteger(locationId) ||
+        locationId <= 0
+      ) {
+        return res.status(403).send("Access denied");
+      }
 
-
+      /*
+        Confirm the organization exists.
+      */
       const organizationResult = await q(`
         SELECT
           id,
           name
         FROM organizations
         WHERE id = $1
+          AND COALESCE(is_active, true) = true
         LIMIT 1
       `, [organizationId]);
 
       const organization = organizationResult.rows[0];
 
       if (!organization) {
-        return res.status(404).send("Organization not found.");
+        return res.status(404).send(
+          "Organization not found."
+        );
       }
 
+      /*
+        Read the location directly from Vivid.
+
+        The organization_id relationship ensures that
+        Organization users cannot open another
+        organization's location.
+      */
       const locationResult = await q(`
         SELECT
           id,
           name,
-          location,
-          live_date,
-          end_date,
-          annual_impressions,
-          placement_cost
+          location
         FROM spaces
-        WHERE
-          id = $1
+        WHERE id = $1
           AND organization_id = $2
-          AND COALESCE(is_archived,false)=false
+          AND COALESCE(is_archived, false) = false
         LIMIT 1
       `, [locationId, organizationId]);
 
       const location = locationResult.rows[0];
 
       if (!location) {
-        return res.status(404).send("Location not found.");
+        return res.status(404).send(
+          "Location not found for this organization."
+        );
       }
 
+      /*
+        Read QR placement and performance data directly
+        from existing Vivid tables.
+
+        No Organization KPI data is stored separately.
+      */
       const qrResult = await q(`
         SELECT
           qr.id,
           qr.name,
+          qr.description,
           qr.is_imported,
+          qr.is_active,
           qr.live_date,
           qr.end_date,
 
-          COUNT(
-            DISTINCT CASE
-              WHEN COALESCE(qc.is_active,true)=true
-              THEN qc.campaign_id
-            END
-          ) AS campaign_count
+          COALESCE(
+            qr.total_cost,
+            qr.annual_cost,
+            0
+          )::numeric AS placement_value,
+
+          COALESCE(
+            qr.annual_impressions,
+            0
+          )::numeric AS impressions,
+
+          (
+            SELECT COUNT(DISTINCT qc.campaign_id)::int
+            FROM qr_campaigns qc
+            LEFT JOIN campaigns c
+              ON c.id = qc.campaign_id
+            WHERE qc.qr_id = qr.id
+              AND COALESCE(qc.is_active, true) = true
+              AND COALESCE(c.is_archived, false) = false
+          ) AS active_campaigns,
+
+          (
+            SELECT COUNT(e.id)::int
+            FROM events e
+            WHERE e.qr_id = qr.id
+              AND e.type = 'scan'
+          ) AS scans,
+
+          (
+            SELECT COUNT(e.id)::int
+            FROM events e
+            WHERE e.qr_id = qr.id
+              AND e.type IN ('offer', 'maps', 'waze')
+          ) AS intent,
+
+          (
+            SELECT COUNT(e.id)::int
+            FROM events e
+            WHERE e.qr_id = qr.id
+              AND e.type = 'conversion'
+          ) AS conversions,
+
+          (
+            SELECT COALESCE(SUM(e.value), 0)::numeric
+            FROM events e
+            WHERE e.qr_id = qr.id
+              AND e.type = 'conversion'
+          ) AS conversion_value
 
         FROM qr_codes qr
 
-        LEFT JOIN qr_campaigns qc
-          ON qc.qr_id = qr.id
+        WHERE qr.space_id = $1
+          AND COALESCE(qr.is_archived, false) = false
+          AND COALESCE(qr.is_active, true) = true
 
-        WHERE
-          qr.space_id = $1
-          AND COALESCE(qr.is_archived,false)=false
+        ORDER BY qr.name
+      `, [locationId]);
 
-        GROUP BY
-          qr.id,
-          qr.name,
-          qr.is_imported,
-          qr.live_date,
-          qr.end_date
+      const qrPlacements = qrResult.rows;
 
-        ORDER BY
-          qr.name
-      `,[locationId]);
+      /*
+        Location totals are a live roll-up of Vivid QR data.
+      */
+      const totals = qrPlacements.reduce(
+        (summary, qr) => {
+          summary.placementValue += Number(
+            qr.placement_value || 0
+          );
 
-      const qrRows = qrResult.rows.map(qr => `
-        <tr>
+          summary.impressions += Number(
+            qr.impressions || 0
+          );
 
-          <td>${qr.name}</td>
+          summary.activeCampaigns += Number(
+            qr.active_campaigns || 0
+          );
 
-          <td style="text-align:center;">
-            ${qr.is_imported ? "Imported" : "Vivid"}
-          </td>
+          summary.scans += Number(
+            qr.scans || 0
+          );
 
-          <td style="text-align:center;">
-            ${qr.campaign_count}
-          </td>
+          summary.intent += Number(
+            qr.intent || 0
+          );
 
-          <td style="text-align:center;">
-            ${dateLabel(qr.live_date)}
-          </td>
+          summary.conversions += Number(
+            qr.conversions || 0
+          );
 
-          <td style="text-align:center;">
-            ${dateLabel(qr.end_date,"Active")}
-          </td>
+          summary.conversionValue += Number(
+            qr.conversion_value || 0
+          );
 
-        </tr>
+          return summary;
+        },
+        {
+          placementValue: 0,
+          impressions: 0,
+          activeCampaigns: 0,
+          scans: 0,
+          intent: 0,
+          conversions: 0,
+          conversionValue: 0
+        }
+      );
+
+      const qrCards = qrPlacements.map(qr => `
+        <div style="
+          background:white;
+          border-radius:14px;
+          padding:15px;
+          box-shadow:0 5px 14px rgba(0,0,0,.07);
+          box-sizing:border-box;
+        ">
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:start;
+            gap:10px;
+            margin-bottom:5px;
+          ">
+
+            <div style="
+              font-size:16px;
+              line-height:1.2;
+              font-weight:bold;
+            ">
+              ${qr.name || "Unnamed QR Placement"}
+            </div>
+
+            <span style="
+              background:#eaf3e8;
+              padding:5px 8px;
+              border-radius:999px;
+              font-size:10px;
+              white-space:nowrap;
+            ">
+              ${qr.is_imported ? "Imported" : "Vivid"}
+            </span>
+
+          </div>
+
+          <div style="
+            color:#65776b;
+            font-size:11px;
+            margin-bottom:12px;
+          ">
+            ${qr.is_active ? "Active Placement" : "Inactive Placement"}
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:10px 8px;
+          ">
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Placement Value
+              </div>
+              <div style="font-size:16px;font-weight:bold;">
+                ${money(qr.placement_value)}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Impressions
+              </div>
+              <div style="font-size:16px;font-weight:bold;">
+                ${Number(qr.impressions || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Campaigns
+              </div>
+              <div style="font-size:16px;font-weight:bold;">
+                ${Number(qr.active_campaigns || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Scans
+              </div>
+              <div style="font-size:16px;font-weight:bold;">
+                ${Number(qr.scans || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Intent
+              </div>
+              <div style="font-size:16px;font-weight:bold;">
+                ${Number(qr.intent || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Conversions
+              </div>
+              <div style="font-size:16px;font-weight:bold;">
+                ${Number(qr.conversions || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Conversion Value
+              </div>
+              <div style="font-size:16px;font-weight:bold;">
+                ${money(qr.conversion_value)}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Live Date
+              </div>
+              <div style="font-size:13px;font-weight:bold;">
+                ${dateLabel(qr.live_date)}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                End Date
+              </div>
+              <div style="font-size:13px;font-weight:bold;">
+                ${dateLabel(qr.end_date, "Active")}
+              </div>
+            </div>
+
+          </div>
+
+          <div style="
+            margin-top:12px;
+            padding-top:9px;
+            border-top:1px solid #e7eee7;
+            color:#176b3a;
+            font-size:12px;
+            font-weight:bold;
+          ">
+            QR performance details →
+          </div>
+
+        </div>
       `).join("");
+
+      const backHref =
+        req.session.user?.role === "super_admin"
+          ? `/org-organization/${organization.id}`
+          : `/org-organization/${organization.id}`;
 
       res.send(orgPage(
         "Organization Location",
-
         `
-<div class="topbar">
+          <div class="topbar">
+            <div class="brand">
+              Vivid Organizations
+            </div>
 
-<div class="brand">
-Vivid Organizations
-</div>
+            <h1>${location.name}</h1>
 
-<h1>${location.name}</h1>
+            <p class="subtitle">
+              ${location.location || "Location"} · ${organization.name}
+            </p>
+          </div>
 
-<p class="subtitle">
-${organization.name}
-</p>
+          <div class="wrap">
 
-</div>
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:16px;
+              flex-wrap:wrap;
+              margin-bottom:18px;
+            ">
 
-<div class="wrap">
+              <div>
+                <h2 style="margin:0 0 5px;">
+                  Location Overview
+                </h2>
 
-<div class="card">
+                <div style="color:#65776b;">
+                  Performance aggregated directly from Vivid QR placements.
+                </div>
+              </div>
 
-<h2 style="margin-top:0;">
-Location Overview
-</h2>
+              <a
+                class="btn secondary"
+                href="${backHref}"
+              >
+                Back to ${organization.name}
+              </a>
 
-<p><b>Market:</b> ${location.location || "-"}</p>
+            </div>
 
-<p><b>Annual Impressions:</b>
-${Number(location.annual_impressions || 0).toLocaleString()}
-</p>
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
+              gap:12px;
+              margin-bottom:30px;
+            ">
 
-<p><b>Placement Cost:</b>
-${money(location.placement_cost)}
-</p>
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  QR Placements
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${qrPlacements.length.toLocaleString()}
+                </div>
+              </div>
 
-<p><b>Live Date:</b>
-${dateLabel(location.live_date)}
-</p>
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Placement Value
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${money(totals.placementValue)}
+                </div>
+              </div>
 
-<p><b>End Date:</b>
-${dateLabel(location.end_date,"Active")}
-</p>
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Annual Impressions
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${totals.impressions.toLocaleString()}
+                </div>
+              </div>
 
-</div>
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Active Campaigns
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${totals.activeCampaigns.toLocaleString()}
+                </div>
+              </div>
 
-<h2>QR Codes</h2>
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Scans
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${totals.scans.toLocaleString()}
+                </div>
+              </div>
 
-<table>
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Intent
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${totals.intent.toLocaleString()}
+                </div>
+              </div>
 
-<thead>
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Conversions
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${totals.conversions.toLocaleString()}
+                </div>
+              </div>
 
-<tr>
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Conversion Value
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${money(totals.conversionValue)}
+                </div>
+              </div>
 
-<th>QR Code</th>
+            </div>
 
-<th>Type</th>
+            <div style="margin-bottom:15px;">
+              <h2 style="margin:0 0 5px;">
+                QR Placements
+              </h2>
 
-<th>Campaigns</th>
+              <div style="color:#65776b;">
+                Each card represents an active Vivid QR placement at this location.
+              </div>
+            </div>
 
-<th>Live Date</th>
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(235px,1fr));
+              gap:14px;
+            ">
 
-<th>End Date</th>
+              ${qrCards || `
+                <div
+                  class="card"
+                  style="
+                    grid-column:1/-1;
+                    text-align:center;
+                    margin:0;
+                  "
+                >
+                  <h3>No active QR placements</h3>
 
-</tr>
+                  <p>
+                    No active Vivid QR placements are currently connected to this location.
+                  </p>
+                </div>
+              `}
 
-</thead>
+            </div>
 
-<tbody>
-
-${
-qrRows || `
-<tr>
-<td colspan="5">
-No active QR Codes assigned to this location.
-</td>
-</tr>
-`
-}
-
-</tbody>
-
-</table>
-
-<a
-class="btn secondary"
-href="/org-locations?organization_id=${organization.id}">
-Back to Locations
-</a>
-
-</div>
-
-`
+          </div>
+        `
       ));
 
-    }
+    } catch (err) {
+      console.error("ORG LOCATION ERROR:", err);
 
-    catch(err){
-
-      res.send(
+      res.status(500).send(
         "ORG LOCATION ERROR: " + err.message
       );
-
     }
-
-});
+  }
+);
 app.get("/org-users", async (req, res) => {
   res.send(orgPage("Organization Users", `
     <div class="topbar">
