@@ -3532,13 +3532,13 @@ const qrCards = qrPlacements.map(qr => `
     "
   >
     <div style="
-      background:white;
-      border-radius:12px;
-      padding:14px;
-      box-shadow:0 4px 12px rgba(0,0,0,.07);
-      box-sizing:border-box;
-      height:100%;
-      min-height:205px;
+    background:white;
+border-radius:14px;
+padding:16px;
+box-shadow:0 5px 14px rgba(0,0,0,.07);
+box-sizing:border-box;
+width:260px;
+min-height:220px;
       transition:transform .15s ease, box-shadow .15s ease;
     "
     onmouseover="
