@@ -2773,13 +2773,13 @@ const locationCards = locations.map(location => `
     "
   >
     <div style="
-      background:white;
-      border-radius:12px;
-      padding:12px;
-      box-shadow:0 4px 12px rgba(0,0,0,.07);
-      box-sizing:border-box;
-      height:100%;
-      min-height:185px;
+    background:white;
+border-radius:14px;
+padding:16px;
+box-shadow:0 5px 14px rgba(0,0,0,.07);
+box-sizing:border-box;
+width:260px;
+min-height:220px;
       transition:transform .15s ease, box-shadow .15s ease;
     "
     onmouseover="
@@ -3064,9 +3064,10 @@ const locationCards = locations.map(location => `
          <div
   class="org-location-grid"
   style="
-    display:grid;
-    grid-template-columns:repeat(5,minmax(0,1fr));
-    gap:10px;
+   display:grid;
+grid-template-columns:repeat(auto-fill,260px);
+gap:18px;
+justify-content:flex-start;
   "
 >
             ${locationCards || `
