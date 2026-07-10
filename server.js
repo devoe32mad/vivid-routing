@@ -1360,6 +1360,95 @@ app.get("/debug-duplicate-assignments", requireLogin, async (req, res) => {
     res.status(500).send(err.message);
   }
 });
+app.get(
+  "/debug-fix-ccps-admin-membership",
+  requireLogin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const userResult = await q(`
+        SELECT id, email
+        FROM users
+        WHERE LOWER(email) = LOWER($1)
+        LIMIT 1
+      `, ["testtest@test.com"]);
+
+      const user = userResult.rows[0];
+
+      if (!user) {
+        return res.status(404).send("CCPS test user not found.");
+      }
+
+      const ccpsResult = await q(`
+        SELECT id, name
+        FROM organizations
+        WHERE id = 13
+          AND name = 'CCPS'
+          AND COALESCE(is_active, true) = true
+        LIMIT 1
+      `);
+
+      const ccps = ccpsResult.rows[0];
+
+      if (!ccps) {
+        return res.status(404).send("Active CCPS organization 13 not found.");
+      }
+
+      /*
+        Keep CCPS membership active.
+      */
+      await q(`
+        UPDATE organization_users
+        SET is_active = true,
+            role = 'owner'
+        WHERE user_id = $1
+          AND organization_id = $2
+      `, [user.id, ccps.id]);
+
+      /*
+        Deactivate this test user's memberships in every other organization.
+        No organization or Vivid operational data is deleted.
+      */
+      await q(`
+        UPDATE organization_users
+        SET is_active = false
+        WHERE user_id = $1
+          AND organization_id <> $2
+      `, [user.id, ccps.id]);
+
+      const memberships = await q(`
+        SELECT
+          ou.organization_id,
+          o.name,
+          ou.role,
+          ou.is_active
+        FROM organization_users ou
+        JOIN organizations o
+          ON o.id = ou.organization_id
+        WHERE ou.user_id = $1
+        ORDER BY ou.organization_id
+      `, [user.id]);
+
+      res.json({
+        message: "CCPS district-admin membership corrected.",
+        user: {
+          id: user.id,
+          email: user.email
+        },
+        active_organization: {
+          id: ccps.id,
+          name: ccps.name
+        },
+        memberships: memberships.rows
+      });
+
+    } catch (err) {
+      res.status(500).send(
+        "CCPS MEMBERSHIP FIX ERROR: " + err.message
+      );
+    }
+  }
+);
 app.get("/debug-qr-math/:qrId", requireLogin, async (req, res) => {
   try {
     const qrId = Number(req.params.qrId);
