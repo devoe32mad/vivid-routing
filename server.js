@@ -3998,14 +3998,22 @@ app.get(
         )
       ];
 
-      const campaignCards = campaigns.map(campaign => `
-        <div style="
-          background:white;
-          border-radius:14px;
-          padding:16px;
-          box-shadow:0 5px 14px rgba(0,0,0,.07);
-          box-sizing:border-box;
-        ">
+ const campaignCards = campaigns.map(campaign => `
+  <a
+    href="/org-campaign/${campaign.id}?organization_id=${organizationId}&qr_id=${qr.id}"
+    style="
+      text-decoration:none;
+      color:inherit;
+      display:block;
+    "
+  >
+    <div style="
+      background:white;
+      border-radius:14px;
+      padding:16px;
+      box-shadow:0 5px 14px rgba(0,0,0,.07);
+      box-sizing:border-box;
+    ">
 
           <div style="
             display:flex;
@@ -4088,19 +4096,31 @@ app.get(
               </div>
             </div>
 
-            <div>
-              <div style="font-size:10px;color:#65776b;">
-                Campaign ID
-              </div>
-              <div style="font-size:13px;font-weight:bold;">
-                ${campaign.id}
-              </div>
-            </div>
+        <div>
+  <div style="font-size:10px;color:#65776b;">
+    Campaign ID
+  </div>
+  <div style="font-size:13px;font-weight:bold;">
+    ${campaign.id}
+  </div>
+</div>
 
-          </div>
+</div>
 
-        </div>
-      `).join("");
+<div style="
+  margin-top:12px;
+  padding-top:8px;
+  border-top:1px solid #e7eee7;
+  color:#176b3a;
+  font-size:12px;
+  font-weight:bold;
+">
+  Open Campaign →
+</div>
+
+</div>
+</a>
+`).join("");
 
       res.send(orgPage(
         "QR Placement Detail",
