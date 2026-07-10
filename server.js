@@ -6677,15 +6677,22 @@ app.get("/admin/restore-qr/:qrId", requireLogin, async (req, res) => {
 });
 app.get("/admin/restore-location/:locationId", requireLogin, async (req, res) => {
   try {
+
     await q(`
       UPDATE spaces
-      SET is_archived = false
+      SET
+        is_archived = false,
+        archived_at = NULL,
+        end_date = NULL
       WHERE id = $1
     `, [req.params.locationId]);
 
     res.redirect("/admin/archived-campaigns");
+
   } catch (err) {
+
     res.send("RESTORE LOCATION ERROR: " + err.message);
+
   }
 });
 app.get("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
