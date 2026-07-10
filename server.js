@@ -3317,8 +3317,7 @@ if (
 ) {
   return res.status(403).send("Access denied");
 }
-      const organizationId = Number(req.query.organization_id);
-      const locationId = Number(req.params.locationId);
+
 
       const organizationResult = await q(`
         SELECT
