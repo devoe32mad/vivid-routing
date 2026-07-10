@@ -1176,6 +1176,26 @@ app.get("/db-test", async (req, res) => {
   const result = await q("SELECT NOW()");
   res.json(result.rows[0]);
 });
+app.get("/debug-clear-location-end-date/:locationId", requireLogin, requireSuperAdmin, async (req, res) => {
+  try {
+    const locationId = Number(req.params.locationId);
+
+    await q(`
+      UPDATE spaces
+      SET
+        end_date = NULL,
+        archived_at = NULL
+      WHERE id = $1
+        AND COALESCE(is_archived, false) = false
+    `, [locationId]);
+
+    res.send("Active location end date cleared.");
+  } catch (err) {
+    res.status(500).send(
+      "CLEAR LOCATION END DATE ERROR: " + err.message
+    );
+  }
+});
 app.get("/debug-my-spaces", requireLogin, async (req, res) => {
   try {
     const rows = await q(`
