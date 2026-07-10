@@ -4431,6 +4431,795 @@ app.get(
     }
   }
 );
+app.get(
+  "/org-campaign/:campaignId",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Organization Portal users use their
+        organization stored in the login session.
+      */
+      if (req.session.orgUser?.organization_id) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      /*
+        Super Admin selects an organization through
+        the organization_id URL parameter.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      const campaignId = Number(req.params.campaignId);
+      const requestedQrId = Number(req.query.qr_id);
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !Number.isInteger(campaignId) ||
+        campaignId <= 0
+      ) {
+        return res.status(403).send("Access denied");
+      }
+
+      /*
+        Confirm the organization exists.
+      */
+      const organizationResult = await q(`
+        SELECT
+          id,
+          name
+        FROM organizations
+        WHERE id = $1
+          AND COALESCE(is_active, true) = true
+        LIMIT 1
+      `, [organizationId]);
+
+      const organization = organizationResult.rows[0];
+
+      if (!organization) {
+        return res.status(404).send(
+          "Organization not found."
+        );
+      }
+
+      /*
+        Confirm the Campaign is connected to at least
+        one Vivid QR placement inside this organization.
+      */
+      const campaignResult = await q(`
+        SELECT
+          c.id,
+          c.name,
+          c.advertiser,
+          c.campaign_url,
+          c.conversion_url,
+          c.avg_customer_value,
+          c.campaign_cost,
+          c.start_date,
+          c.end_date,
+          c.live_date,
+          c.created_at,
+          c.is_deal_of_day,
+          c.is_archived,
+
+          CASE
+            WHEN COALESCE(c.is_archived, false) = true
+              THEN 'Archived'
+
+            WHEN c.start_date IS NOT NULL
+             AND c.start_date > CURRENT_DATE
+              THEN 'Scheduled'
+
+            WHEN c.end_date IS NOT NULL
+             AND c.end_date < CURRENT_DATE
+              THEN 'Completed'
+
+            ELSE 'Active'
+          END AS campaign_status
+
+        FROM campaigns c
+
+        WHERE c.id = $1
+
+          AND EXISTS (
+            SELECT 1
+
+            FROM qr_campaigns qc
+
+            JOIN qr_codes qr
+              ON qr.id = qc.qr_id
+             AND COALESCE(qr.is_archived, false) = false
+
+            JOIN spaces s
+              ON s.id = qr.space_id
+             AND COALESCE(s.is_archived, false) = false
+
+            WHERE qc.campaign_id = c.id
+              AND s.organization_id = $2
+          )
+
+        LIMIT 1
+      `, [campaignId, organizationId]);
+
+      const campaign = campaignResult.rows[0];
+
+      if (!campaign) {
+        return res.status(404).send(
+          "Campaign not found for this organization."
+        );
+      }
+
+      /*
+        Campaign performance comes directly from Vivid
+        events tied to the organization's QR placements.
+      */
+      const metricsResult = await q(`
+        SELECT
+          COUNT(e.id) FILTER (
+            WHERE e.type = 'scan'
+          )::int AS scans,
+
+          COUNT(e.id) FILTER (
+            WHERE e.type = 'offer'
+          )::int AS offer_clicks,
+
+          COUNT(e.id) FILTER (
+            WHERE e.type = 'maps'
+          )::int AS maps_clicks,
+
+          COUNT(e.id) FILTER (
+            WHERE e.type = 'waze'
+          )::int AS waze_clicks,
+
+          COUNT(e.id) FILTER (
+            WHERE e.type IN ('offer', 'maps', 'waze')
+          )::int AS intent,
+
+          COUNT(e.id) FILTER (
+            WHERE e.type = 'conversion'
+          )::int AS conversions,
+
+          COALESCE(
+            SUM(e.value) FILTER (
+              WHERE e.type = 'conversion'
+            ),
+            0
+          )::numeric AS revenue_generated
+
+        FROM events e
+
+        JOIN qr_codes qr
+          ON qr.id = e.qr_id
+
+        JOIN spaces s
+          ON s.id = qr.space_id
+
+        WHERE e.campaign_id = $1
+          AND s.organization_id = $2
+      `, [campaignId, organizationId]);
+
+      const metrics = metricsResult.rows[0] || {
+        scans: 0,
+        offer_clicks: 0,
+        maps_clicks: 0,
+        waze_clicks: 0,
+        intent: 0,
+        conversions: 0,
+        revenue_generated: 0
+      };
+
+      /*
+        Pull every Organization QR placement connected
+        to this Campaign.
+      */
+      const qrResult = await q(`
+        SELECT
+          qr.id,
+          qr.name,
+          qr.is_active,
+          qr.is_imported,
+          qr.live_date,
+          qr.end_date,
+
+          s.id AS location_id,
+          s.name AS location_name,
+          s.location AS market,
+
+          COALESCE(
+            qr.total_cost,
+            qr.annual_cost,
+            0
+          )::numeric AS placement_value,
+
+          COUNT(e.id) FILTER (
+            WHERE e.type = 'scan'
+          )::int AS scans,
+
+          COALESCE(
+            SUM(e.value) FILTER (
+              WHERE e.type = 'conversion'
+            ),
+            0
+          )::numeric AS revenue_generated,
+
+          BOOL_OR(
+            COALESCE(qc.is_active, true)
+          ) AS assignment_active,
+
+          MIN(
+            COALESCE(qc.started_at, qc.assigned_at)
+          ) AS assignment_start,
+
+          MAX(qc.ended_at) AS assignment_end
+
+        FROM qr_campaigns qc
+
+        JOIN qr_codes qr
+          ON qr.id = qc.qr_id
+         AND COALESCE(qr.is_archived, false) = false
+
+        JOIN spaces s
+          ON s.id = qr.space_id
+         AND COALESCE(s.is_archived, false) = false
+
+        LEFT JOIN events e
+          ON e.qr_id = qr.id
+         AND e.campaign_id = qc.campaign_id
+
+        WHERE qc.campaign_id = $1
+          AND s.organization_id = $2
+
+        GROUP BY
+          qr.id,
+          qr.name,
+          qr.is_active,
+          qr.is_imported,
+          qr.live_date,
+          qr.end_date,
+          qr.total_cost,
+          qr.annual_cost,
+          s.id,
+          s.name,
+          s.location
+
+        ORDER BY
+          s.name,
+          qr.name
+      `, [campaignId, organizationId]);
+
+      const qrPlacements = qrResult.rows;
+
+      /*
+        Use campaign_cost exactly as stored in Vivid.
+
+        The Organization Portal does not recreate
+        Vivid's allocation engine.
+      */
+      const campaignCost =
+        Number(campaign.campaign_cost || 0);
+
+      const revenueGenerated =
+        Number(metrics.revenue_generated || 0);
+
+      const conversions =
+        Number(metrics.conversions || 0);
+
+      const roi =
+        campaignCost > 0
+          ? (
+              (
+                revenueGenerated - campaignCost
+              ) / campaignCost
+            ) * 100
+          : 0;
+
+      const cac =
+        conversions > 0
+          ? campaignCost / conversions
+          : 0;
+
+      /*
+        Validate the originating QR for the Back button.
+      */
+      const originatingQr =
+        qrPlacements.find(
+          qr => Number(qr.id) === requestedQrId
+        ) || qrPlacements[0] || null;
+
+      const backHref = originatingQr
+        ? `/org-qr/${originatingQr.id}?organization_id=${organizationId}`
+        : `/org-organization/${organizationId}`;
+
+      const backLabel = originatingQr
+        ? `Back to ${originatingQr.name}`
+        : `Back to ${organization.name}`;
+
+      const qrCards = qrPlacements.map(qr => `
+        <a
+          href="/org-qr/${qr.id}?organization_id=${organizationId}"
+          style="
+            text-decoration:none;
+            color:inherit;
+            display:block;
+            min-width:0;
+          "
+        >
+          <div style="
+            background:white;
+            border-radius:14px;
+            padding:15px;
+            box-shadow:0 5px 14px rgba(0,0,0,.07);
+            box-sizing:border-box;
+            height:100%;
+            transition:transform .15s ease, box-shadow .15s ease;
+          "
+          onmouseover="
+            this.style.transform='translateY(-2px)';
+            this.style.boxShadow='0 8px 20px rgba(0,0,0,.11)';
+          "
+          onmouseout="
+            this.style.transform='translateY(0)';
+            this.style.boxShadow='0 5px 14px rgba(0,0,0,.07)';
+          ">
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              align-items:flex-start;
+              gap:10px;
+              margin-bottom:4px;
+            ">
+
+              <div style="
+                font-size:16px;
+                line-height:1.2;
+                font-weight:bold;
+              ">
+                ${qr.name || "Unnamed QR Placement"}
+              </div>
+
+              <span style="
+                background:${qr.assignment_active ? "#eaf3e8" : "#f3e8e8"};
+                color:${qr.assignment_active ? "#176b3a" : "#8a1f1f"};
+                padding:5px 8px;
+                border-radius:999px;
+                font-size:10px;
+                font-weight:bold;
+                white-space:nowrap;
+              ">
+                ${qr.assignment_active ? "Active" : "Inactive"}
+              </span>
+
+            </div>
+
+            <div style="
+              color:#65776b;
+              font-size:11px;
+              margin-bottom:12px;
+            ">
+              ${qr.location_name}
+              ${qr.market ? ` · ${qr.market}` : ""}
+            </div>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(2,minmax(0,1fr));
+              gap:10px 8px;
+            ">
+
+              <div>
+                <div style="font-size:10px;color:#65776b;">
+                  Placement Value
+                </div>
+
+                <div style="font-size:16px;font-weight:bold;">
+                  ${money(qr.placement_value)}
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:10px;color:#65776b;">
+                  Scans
+                </div>
+
+                <div style="font-size:16px;font-weight:bold;">
+                  ${Number(qr.scans || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div style="grid-column:1/-1;">
+                <div style="font-size:10px;color:#65776b;">
+                  Revenue Generated
+                </div>
+
+                <div style="font-size:16px;font-weight:bold;">
+                  ${money(qr.revenue_generated)}
+                </div>
+              </div>
+
+            </div>
+
+            <div style="
+              margin-top:12px;
+              padding-top:9px;
+              border-top:1px solid #e7eee7;
+              color:#176b3a;
+              font-size:12px;
+              font-weight:bold;
+            ">
+              Open QR →
+            </div>
+
+          </div>
+        </a>
+      `).join("");
+
+      res.send(orgPage(
+        "Campaign Detail",
+        `
+          <div class="topbar">
+            <div class="brand">
+              Vivid Organizations
+            </div>
+
+            <h1>${campaign.name || "Campaign"}</h1>
+
+            <p class="subtitle">
+              ${campaign.advertiser || "Advertiser not set"}
+              · ${organization.name}
+            </p>
+          </div>
+
+          <div class="wrap">
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:16px;
+              flex-wrap:wrap;
+              margin-bottom:20px;
+            ">
+
+              <div>
+                <h2 style="margin:0 0 5px;">
+                  Campaign Overview
+                </h2>
+
+                <div style="color:#65776b;">
+                  Campaign performance pulled directly from Vivid.
+                </div>
+              </div>
+
+              <a
+                class="btn secondary"
+                href="${backHref}"
+              >
+                ${backLabel}
+              </a>
+
+            </div>
+
+            <!-- Executive Overview -->
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(175px,1fr));
+              gap:12px;
+              margin-bottom:30px;
+            ">
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Campaign Cost
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${money(campaignCost)}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Scans
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.scans || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Revenue Generated
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${money(revenueGenerated)}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  ROI
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${pct(roi)}
+                </div>
+              </div>
+
+            </div>
+
+            <!-- General Information -->
+
+            <h2 style="margin-bottom:14px;">
+              General Information
+            </h2>
+
+            <div class="card" style="margin:0 0 30px;">
+
+              <div style="
+                display:grid;
+                grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+                gap:18px;
+              ">
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Advertiser
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${campaign.advertiser || "Not set"}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Status
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${campaign.campaign_status}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Start Date
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${dateLabel(
+                      campaign.start_date ||
+                      campaign.live_date ||
+                      campaign.created_at
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    End Date
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${dateLabel(campaign.end_date, "Active")}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Average Customer Value
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${money(campaign.avg_customer_value)}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Deal of the Day
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${campaign.is_deal_of_day ? "Yes" : "No"}
+                  </div>
+                </div>
+
+                <div style="grid-column:1/-1;">
+                  <div style="font-size:11px;color:#65776b;">
+                    Destination URL
+                  </div>
+
+                  <div style="
+                    font-size:14px;
+                    font-weight:bold;
+                    margin-top:4px;
+                    overflow-wrap:anywhere;
+                  ">
+                    ${
+                      campaign.campaign_url
+                        ? `<a href="${campaign.campaign_url}" target="_blank">
+                            ${campaign.campaign_url}
+                           </a>`
+                        : "Not set"
+                    }
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            <!-- Performance Analytics -->
+
+            <h2 style="margin-bottom:14px;">
+              Performance Analytics
+            </h2>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+              gap:12px;
+              margin-bottom:30px;
+            ">
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Scans
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.scans || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Offer Clicks
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.offer_clicks || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Maps Clicks
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.maps_clicks || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Waze Clicks
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.waze_clicks || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Intent
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.intent || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Conversions
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${conversions.toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Revenue Generated
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${money(revenueGenerated)}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  ROI
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${pct(roi)}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  CAC
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${money(cac)}
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Related QR Placements -->
+
+            <div style="margin-bottom:14px;">
+              <h2 style="margin:0 0 5px;">
+                QR Placements
+              </h2>
+
+              <div style="color:#65776b;">
+                Organization QR placements connected to this campaign.
+              </div>
+            </div>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+              gap:14px;
+            ">
+
+              ${qrCards || `
+                <div
+                  class="card"
+                  style="
+                    grid-column:1/-1;
+                    text-align:center;
+                    margin:0;
+                  "
+                >
+                  <h3>No QR placements</h3>
+
+                  <p>
+                    No active Organization QR placements are connected to this campaign.
+                  </p>
+                </div>
+              `}
+
+            </div>
+
+          </div>
+        `
+      ));
+
+    } catch (err) {
+      console.error("ORG CAMPAIGN ERROR:", err);
+
+      res.status(500).send(
+        "ORG CAMPAIGN ERROR: " + err.message
+      );
+    }
+  }
+);
 app.get("/org-users", async (req, res) => {
   res.send(orgPage("Organization Users", `
     <div class="topbar">
