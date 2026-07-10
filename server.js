@@ -2892,12 +2892,18 @@ if (!isSuperAdmin && !isOrganizationAdmin) {
               </div>
             </div>
 
-            <a
-              class="btn secondary"
-              href="/org-organizations"
-            >
-              Back to Organizations
-            </a>
+           ${
+  req.session.user?.role === "super_admin"
+    ? `
+      <a
+        class="btn secondary"
+        href="/org-organizations"
+      >
+        Back to Organizations
+      </a>
+    `
+    : ""
+}
           </div>
 
           <div style="
@@ -3280,12 +3286,37 @@ app.get(
 );
 app.get(
   "/org-location/:locationId",
-  requireLogin,
-  requireSuperAdmin,
+
   async (req, res) => {
 
     try {
+let organizationId = null;
 
+if (req.session.orgUser?.organization_id) {
+  organizationId = Number(
+    req.session.orgUser.organization_id
+  );
+}
+
+if (
+  !organizationId &&
+  req.session.user?.role === "super_admin"
+) {
+  organizationId = Number(
+    req.query.organization_id
+  );
+}
+
+const locationId = Number(req.params.locationId);
+
+if (
+  !Number.isInteger(organizationId) ||
+  organizationId <= 0 ||
+  !Number.isInteger(locationId) ||
+  locationId <= 0
+) {
+  return res.status(403).send("Access denied");
+}
       const organizationId = Number(req.query.organization_id);
       const locationId = Number(req.params.locationId);
 
