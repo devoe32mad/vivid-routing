@@ -1431,6 +1431,46 @@ app.get("/debug-qr-math/:qrId", requireLogin, async (req, res) => {
     });
   }
 });
+app.get("/debug-org-location-link/:orgId", requireLogin, async (req, res) => {
+  try {
+    const orgId = Number(req.params.orgId);
+
+    const organization = await q(`
+      SELECT
+        id,
+        name,
+        is_active
+      FROM organizations
+      WHERE id = $1
+      LIMIT 1
+    `, [orgId]);
+
+    const spaces = await q(`
+      SELECT
+        id,
+        name,
+        location,
+        user_id,
+        organization_id,
+        is_archived,
+        live_date,
+        end_date
+      FROM spaces
+      WHERE organization_id = $1
+      ORDER BY id
+    `, [orgId]);
+
+    res.json({
+      organization: organization.rows[0] || null,
+      spaces: spaces.rows
+    });
+
+  } catch (err) {
+    res.status(500).send(
+      "DEBUG ORG LOCATION LINK ERROR: " + err.message
+    );
+  }
+});
 app.get("/debug-conversions", async (req, res) => {
   const result = await q(`
     SELECT id, qr_id, campaign_id, type, value, created_at
