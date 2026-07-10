@@ -3745,27 +3745,13 @@ app.get(
                 </div>
               </div>
 
-              <div class="card" style="margin:0;">
-                <div style="font-size:12px;color:#65776b;">
-                  Intent
-                </div>
-                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
-                  ${totals.intent.toLocaleString()}
-                </div>
-              </div>
+            
+
+              
 
               <div class="card" style="margin:0;">
                 <div style="font-size:12px;color:#65776b;">
-                  Conversions
-                </div>
-                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
-                  ${totals.conversions.toLocaleString()}
-                </div>
-              </div>
-
-              <div class="card" style="margin:0;">
-                <div style="font-size:12px;color:#65776b;">
-                  Conversion Value
+                  Revenue Generated
                 </div>
                 <div style="font-size:27px;font-weight:bold;margin-top:6px;">
                   ${money(totals.conversionValue)}
