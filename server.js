@@ -2146,31 +2146,82 @@ app.get("/org-login", (req, res) => {
 });
 app.post("/org-login", async (req, res) => {
   try {
-    const user = await q(`
-      SELECT *
-      FROM users
-      WHERE email = $1
-        AND password = $2
-      LIMIT 1
+    const result = await q(`
+      SELECT
+        u.id AS user_id,
+        u.email,
+        u.role AS platform_role,
+
+        o.id AS organization_id,
+        o.name AS organization_name,
+
+        ou.role AS organization_role
+
+      FROM users u
+
+      JOIN organization_users ou
+        ON ou.user_id = u.id
+       AND COALESCE(ou.is_active, true) = true
+
+      JOIN organizations o
+        ON o.id = ou.organization_id
+       AND COALESCE(o.is_active, true) = true
+
+      WHERE LOWER(u.email) = LOWER($1)
+        AND u.password = $2
+
+      ORDER BY o.id
     `, [
       req.body.email,
       req.body.password
     ]);
 
-    if (!user.rows[0]) {
-      return res.send("Invalid organization login. <a href='/org-login'>Try again</a>");
+    if (result.rows.length === 0) {
+      return res.send(`
+        Invalid Organization Portal login or no active organization access.
+        <br><br>
+        <a href="/org-login">Try Again</a>
+      `);
     }
 
+    /*
+      A user should have one active organization for automatic login.
+
+      We are intentionally not guessing when duplicate organization
+      memberships exist.
+    */
+    if (result.rows.length > 1) {
+      return res.status(409).send(`
+        This user is connected to more than one active organization.
+        The organization memberships must be corrected before login.
+        <br><br>
+        <a href="/org-login">Back to Organization Login</a>
+      `);
+    }
+
+    const user = result.rows[0];
+
     req.session.orgUser = {
-      id: user.rows[0].id,
-      email: user.rows[0].email,
-      role: user.rows[0].role
+      id: user.user_id,
+      email: user.email,
+
+      organization_id: user.organization_id,
+      organization_name: user.organization_name,
+      organization_role: user.organization_role
     };
 
-    res.redirect("/org-dashboard");
+    /*
+      District / organization administrators land on their
+      organization-wide Locations dashboard.
+    */
+    return res.redirect("/org-locations");
 
   } catch (err) {
-    res.status(500).send("ORG LOGIN ERROR: " + err.message);
+    console.error("ORG LOGIN ERROR:", err);
+
+    return res.status(500).send(
+      "ORG LOGIN ERROR: " + err.message
+    );
   }
 });
 app.get("/org-dashboard", requireOrgLogin, (req, res) => {
@@ -2915,8 +2966,6 @@ app.get("/org-contracts", async (req, res) => {
 });
 app.get(
   "/org-locations",
-  requireLogin,
-  requireSuperAdmin,
   async (req, res) => {
     try {
       const orgId = Number(req.query.organization_id);
