@@ -3520,136 +3520,130 @@ app.get(
         }
       );
 
-      const qrCards = qrPlacements.map(qr => `
+const qrCards = qrPlacements.map(qr => `
+  <a
+    href="/org-qr/${qr.id}?organization_id=${organization.id}&location_id=${location.id}"
+    style="
+      text-decoration:none;
+      color:inherit;
+      display:block;
+      min-width:0;
+    "
+  >
+    <div style="
+      background:white;
+      border-radius:12px;
+      padding:14px;
+      box-shadow:0 4px 12px rgba(0,0,0,.07);
+      box-sizing:border-box;
+      height:100%;
+      min-height:205px;
+      transition:transform .15s ease, box-shadow .15s ease;
+    "
+    onmouseover="
+      this.style.transform='translateY(-2px)';
+      this.style.boxShadow='0 7px 18px rgba(0,0,0,.11)';
+    "
+    onmouseout="
+      this.style.transform='translateY(0)';
+      this.style.boxShadow='0 4px 12px rgba(0,0,0,.07)';
+    ">
+
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        gap:10px;
+        margin-bottom:5px;
+      ">
+
         <div style="
-          background:white;
-          border-radius:14px;
-          padding:15px;
-          box-shadow:0 5px 14px rgba(0,0,0,.07);
-          box-sizing:border-box;
+          font-size:15px;
+          line-height:1.2;
+          font-weight:bold;
         ">
-
-          <div style="
-            display:flex;
-            justify-content:space-between;
-            align-items:start;
-            gap:10px;
-            margin-bottom:5px;
-          ">
-
-            <div style="
-              font-size:16px;
-              line-height:1.2;
-              font-weight:bold;
-            ">
-              ${qr.name || "Unnamed QR Placement"}
-            </div>
-
-            <span style="
-              background:#eaf3e8;
-              padding:5px 8px;
-              border-radius:999px;
-              font-size:10px;
-              white-space:nowrap;
-            ">
-              ${qr.is_imported ? "Imported" : "Vivid"}
-            </span>
-
-          </div>
-
-          <div style="
-            color:#65776b;
-            font-size:11px;
-            margin-bottom:12px;
-          ">
-            ${qr.is_active ? "Active Placement" : "Inactive Placement"}
-          </div>
-<div style="
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
-  gap:12px;
-  margin-bottom:30px;
-">
-
-  <div class="card" style="margin:0;">
-    <div style="font-size:12px;color:#65776b;">
-      QR Placements
-    </div>
-    <div style="font-size:27px;font-weight:bold;margin-top:6px;">
-      ${qrPlacements.length.toLocaleString()}
-    </div>
-  </div>
-
-  <div class="card" style="margin:0;">
-    <div style="font-size:12px;color:#65776b;">
-      Placement Value
-    </div>
-    <div style="font-size:27px;font-weight:bold;margin-top:6px;">
-      ${money(totals.placementValue)}
-    </div>
-  </div>
-
-  <div class="card" style="margin:0;">
-    <div style="font-size:12px;color:#65776b;">
-      Active Campaigns
-    </div>
-    <div style="font-size:27px;font-weight:bold;margin-top:6px;">
-      ${totals.activeCampaigns.toLocaleString()}
-    </div>
-  </div>
-
-  <div class="card" style="margin:0;">
-    <div style="font-size:12px;color:#65776b;">
-      Scans
-    </div>
-    <div style="font-size:27px;font-weight:bold;margin-top:6px;">
-      ${totals.scans.toLocaleString()}
-    </div>
-  </div>
-
-  <div class="card" style="margin:0;">
-    <div style="font-size:12px;color:#65776b;">
-      Revenue Generated
-    </div>
-    <div style="font-size:27px;font-weight:bold;margin-top:6px;">
-      ${money(totals.conversionValue)}
-    </div>
-  </div>
-
-</div>
-              <div style="font-size:10px;color:#65776b;">
-                Live Date
-              </div>
-              <div style="font-size:13px;font-weight:bold;">
-                ${dateLabel(qr.live_date)}
-              </div>
-            </div>
-
-            <div>
-              <div style="font-size:10px;color:#65776b;">
-                End Date
-              </div>
-              <div style="font-size:13px;font-weight:bold;">
-                ${dateLabel(qr.end_date, "Active")}
-              </div>
-            </div>
-
-          </div>
-
-          <div style="
-            margin-top:12px;
-            padding-top:9px;
-            border-top:1px solid #e7eee7;
-            color:#176b3a;
-            font-size:12px;
-            font-weight:bold;
-          ">
-            QR performance details →
-          </div>
-
+          ${qr.name || "Unnamed QR Placement"}
         </div>
-      `).join("");
 
+        <span style="
+          background:${qr.is_active ? "#eaf3e8" : "#f3e8e8"};
+          color:${qr.is_active ? "#176b3a" : "#8a1f1f"};
+          padding:5px 8px;
+          border-radius:999px;
+          font-size:10px;
+          white-space:nowrap;
+        ">
+          ${qr.is_active ? "Active" : "Inactive"}
+        </span>
+
+      </div>
+
+      <div style="
+        color:#65776b;
+        font-size:11px;
+        margin-bottom:12px;
+      ">
+        ${qr.is_imported ? "Imported QR" : "Vivid QR"}
+      </div>
+
+      <div style="
+        display:grid;
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:10px 8px;
+      ">
+
+        <div>
+          <div style="font-size:10px;color:#65776b;">
+            Placement Value
+          </div>
+          <div style="font-size:16px;font-weight:bold;">
+            ${money(qr.placement_value)}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:10px;color:#65776b;">
+            Active Campaigns
+          </div>
+          <div style="font-size:16px;font-weight:bold;">
+            ${Number(qr.active_campaigns || 0).toLocaleString()}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:10px;color:#65776b;">
+            Scans
+          </div>
+          <div style="font-size:16px;font-weight:bold;">
+            ${Number(qr.scans || 0).toLocaleString()}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:10px;color:#65776b;">
+            Revenue Generated
+          </div>
+          <div style="font-size:16px;font-weight:bold;">
+            ${money(qr.conversion_value)}
+          </div>
+        </div>
+
+      </div>
+
+      <div style="
+        margin-top:12px;
+        padding-top:9px;
+        border-top:1px solid #e7eee7;
+        font-size:11px;
+        font-weight:bold;
+        color:#176b3a;
+      ">
+        Open QR →
+      </div>
+
+    </div>
+  </a>
+`).join("");
       const backHref =
         req.session.user?.role === "super_admin"
           ? `/org-organization/${organization.id}`
