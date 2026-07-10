@@ -2812,69 +2812,63 @@ const locationCards = locations.map(location => `
         ${location.location || "Market not set"}
       </div>
 
-      <div style="
-        display:grid;
-        grid-template-columns:repeat(2,minmax(0,1fr));
-        gap:8px 6px;
-      ">
+  <div style="
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px 8px;
+">
 
-        <div>
-          <div style="font-size:9px;color:#65776b;">QR Placements</div>
-          <div style="font-size:15px;font-weight:bold;">
-            ${Number(location.qr_placements || 0).toLocaleString()}
-          </div>
-        </div>
+  <div>
+    <div style="font-size:10px;color:#65776b;">
+      QR Placements
+    </div>
 
-        <div>
-          <div style="font-size:9px;color:#65776b;">Placement Value</div>
-          <div style="font-size:15px;font-weight:bold;">
-            ${money(location.placement_value)}
-          </div>
-        </div>
+    <div style="font-size:16px;font-weight:bold;">
+      ${Number(location.qr_placements || 0).toLocaleString()}
+    </div>
+  </div>
 
-        <div>
-          <div style="font-size:9px;color:#65776b;">Impressions</div>
-          <div style="font-size:15px;font-weight:bold;">
-            ${Number(location.impressions || 0).toLocaleString()}
-          </div>
-        </div>
+  <div>
+    <div style="font-size:10px;color:#65776b;">
+      Placement Value
+    </div>
 
-        <div>
-          <div style="font-size:9px;color:#65776b;">Campaigns</div>
-          <div style="font-size:15px;font-weight:bold;">
-            ${Number(location.active_campaigns || 0).toLocaleString()}
-          </div>
-        </div>
+    <div style="font-size:16px;font-weight:bold;">
+      ${money(location.placement_value)}
+    </div>
+  </div>
 
-        <div>
-          <div style="font-size:9px;color:#65776b;">Scans</div>
-          <div style="font-size:15px;font-weight:bold;">
-            ${Number(location.scans || 0).toLocaleString()}
-          </div>
-        </div>
+  <div>
+    <div style="font-size:10px;color:#65776b;">
+      Campaigns
+    </div>
 
-        <div>
-          <div style="font-size:9px;color:#65776b;">Intent</div>
-          <div style="font-size:15px;font-weight:bold;">
-            ${Number(location.intent || 0).toLocaleString()}
-          </div>
-        </div>
+    <div style="font-size:16px;font-weight:bold;">
+      ${Number(location.active_campaigns || 0).toLocaleString()}
+    </div>
+  </div>
 
-        <div>
-          <div style="font-size:9px;color:#65776b;">Conversions</div>
-          <div style="font-size:15px;font-weight:bold;">
-            ${Number(location.conversions || 0).toLocaleString()}
-          </div>
-        </div>
+  <div>
+    <div style="font-size:10px;color:#65776b;">
+      Scans
+    </div>
 
-        <div>
-          <div style="font-size:9px;color:#65776b;">Conversion Value</div>
-          <div style="font-size:15px;font-weight:bold;">
-            ${money(location.conversion_value)}
-          </div>
-        </div>
+    <div style="font-size:16px;font-weight:bold;">
+      ${Number(location.scans || 0).toLocaleString()}
+    </div>
+  </div>
 
-      </div>
+  <div style="grid-column:1/-1;">
+    <div style="font-size:10px;color:#65776b;">
+      Revenue Generated
+    </div>
+
+    <div style="font-size:16px;font-weight:bold;">
+      ${money(location.conversion_value)}
+    </div>
+  </div>
+
+</div>
 
       <div style="
         margin-top:10px;
