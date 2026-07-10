@@ -224,6 +224,29 @@ function orgPage(title, body) {
     .card{background:white;border-radius:18px;padding:18px;box-shadow:0 8px 22px rgba(0,0,0,.08);margin:14px 0}
     input,select{width:100%;padding:11px;border-radius:10px;border:1px solid #cfdacf;margin:6px 0 14px;font-size:15px;box-sizing:border-box}
     a{color:#176b3a;font-weight:bold}
+ @media(max-width:1250px){
+  .org-location-grid{
+    grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+  }
+}
+
+@media(max-width:980px){
+  .org-location-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  }
+}
+
+@media(max-width:720px){
+  .org-location-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  }
+}
+
+@media(max-width:480px){
+  .org-location-grid{
+    grid-template-columns:1fr !important;
+  }
+}
   </style>
 </head>
 <body>
