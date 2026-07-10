@@ -7014,17 +7014,19 @@ app.get("/admin/new-qr", async (req, res) => {
   isSuperAdmin
     ? `
       SELECT *
-      FROM spaces
-      ORDER BY id
-    `
-    : `
-      SELECT *
-      FROM spaces
-      WHERE user_id = $1
-      ORDER BY id
-    `,
-  isSuperAdmin ? [] : [req.session.user.id]
-);;
+  FROM spaces
+WHERE COALESCE(is_archived, false) = false
+ORDER BY id
+`
+: `
+  SELECT *
+  FROM spaces
+  WHERE user_id = $1
+    AND COALESCE(is_archived, false) = false
+  ORDER BY id
+`,
+isSuperAdmin ? [] : [req.session.user.id]
+);
 res.send(page("Add QR", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add QR Code</h1></div><div class="wrap"><form method="POST" action="/admin/new-qr"><label>Select Location</label><select name="space_id">${spaces.rows.map(s => `<option value="${s.id}">${s.name} (${s.location})</option>`).join("")}</select><label>QR Name</label><input name="name" placeholder="Car Line QR" /><label>Description</label><input name="description" /><label>QR Cost ($)</label>
 <input type="number" name="annual_cost" value="800" />
 
