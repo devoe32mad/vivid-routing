@@ -2739,128 +2739,134 @@ if (!isSuperAdmin && !isOrganizationAdmin) {
       const activeContracts =
         Number(contractResult.rows[0]?.active_contracts || 0);
 
-      const locationCards = locations.map(location => `
-        <div style="
-          background:white;
-          border-radius:18px;
-          padding:22px;
-          box-shadow:0 8px 22px rgba(0,0,0,.08);
-          display:flex;
-          flex-direction:column;
-          justify-content:space-between;
-          min-height:315px;
-        ">
+const locationCards = locations.map(location => `
+  <a
+    href="/org-location/${location.id}?organization_id=${org.id}"
+    style="
+      text-decoration:none;
+      color:inherit;
+      display:block;
+      min-width:0;
+    "
+  >
+    <div style="
+      background:white;
+      border-radius:12px;
+      padding:12px;
+      box-shadow:0 4px 12px rgba(0,0,0,.07);
+      box-sizing:border-box;
+      height:100%;
+      min-height:185px;
+      transition:transform .15s ease, box-shadow .15s ease;
+    "
+    onmouseover="
+      this.style.transform='translateY(-2px)';
+      this.style.boxShadow='0 7px 18px rgba(0,0,0,.11)';
+    "
+    onmouseout="
+      this.style.transform='translateY(0)';
+      this.style.boxShadow='0 4px 12px rgba(0,0,0,.07)';
+    ">
 
-          <div>
-            <div style="
-              font-size:21px;
-              font-weight:bold;
-              margin-bottom:5px;
-            ">
-              ${location.name || "Unnamed Location"}
-            </div>
+      <div style="
+        font-size:15px;
+        line-height:1.2;
+        font-weight:bold;
+        min-height:36px;
+        margin-bottom:3px;
+      ">
+        ${location.name || "Unnamed Location"}
+      </div>
 
-            <div style="
-              color:#65776b;
-              font-size:14px;
-              margin-bottom:20px;
-            ">
-              ${location.location || "Market not set"}
-            </div>
+      <div style="
+        color:#65776b;
+        font-size:11px;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        margin-bottom:10px;
+      ">
+        ${location.location || "Market not set"}
+      </div>
 
-            <div style="
-              display:grid;
-              grid-template-columns:repeat(2,minmax(0,1fr));
-              gap:13px;
-            ">
+      <div style="
+        display:grid;
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:8px 6px;
+      ">
 
-              <div>
-                <div style="font-size:12px;color:#65776b;">
-                  QR Placements
-                </div>
-                <div style="font-size:21px;font-weight:bold;">
-                  ${Number(location.qr_placements || 0).toLocaleString()}
-                </div>
-              </div>
-
-              <div>
-                <div style="font-size:12px;color:#65776b;">
-                  Placement Value
-                </div>
-                <div style="font-size:21px;font-weight:bold;">
-                  ${money(location.placement_value)}
-                </div>
-              </div>
-
-              <div>
-                <div style="font-size:12px;color:#65776b;">
-                  Impressions
-                </div>
-                <div style="font-size:21px;font-weight:bold;">
-                  ${Number(location.impressions || 0).toLocaleString()}
-                </div>
-              </div>
-
-              <div>
-                <div style="font-size:12px;color:#65776b;">
-                  Campaigns
-                </div>
-                <div style="font-size:21px;font-weight:bold;">
-                  ${Number(location.active_campaigns || 0).toLocaleString()}
-                </div>
-              </div>
-
-              <div>
-                <div style="font-size:12px;color:#65776b;">
-                  Scans
-                </div>
-                <div style="font-size:21px;font-weight:bold;">
-                  ${Number(location.scans || 0).toLocaleString()}
-                </div>
-              </div>
-
-              <div>
-                <div style="font-size:12px;color:#65776b;">
-                  Intent
-                </div>
-                <div style="font-size:21px;font-weight:bold;">
-                  ${Number(location.intent || 0).toLocaleString()}
-                </div>
-              </div>
-
-              <div>
-                <div style="font-size:12px;color:#65776b;">
-                  Conversions
-                </div>
-                <div style="font-size:21px;font-weight:bold;">
-                  ${Number(location.conversions || 0).toLocaleString()}
-                </div>
-              </div>
-
-              <div>
-                <div style="font-size:12px;color:#65776b;">
-                  Conversion Value
-                </div>
-                <div style="font-size:21px;font-weight:bold;">
-                  ${money(location.conversion_value)}
-                </div>
-              </div>
-
-            </div>
+        <div>
+          <div style="font-size:9px;color:#65776b;">QR Placements</div>
+          <div style="font-size:15px;font-weight:bold;">
+            ${Number(location.qr_placements || 0).toLocaleString()}
           </div>
-
-          <div style="margin-top:22px;">
-            <a
-              class="btn"
-              href="/org-location/${location.id}?organization_id=${org.id}"
-            >
-              Open Location
-            </a>
-          </div>
-
         </div>
-      `).join("");
 
+        <div>
+          <div style="font-size:9px;color:#65776b;">Placement Value</div>
+          <div style="font-size:15px;font-weight:bold;">
+            ${money(location.placement_value)}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:9px;color:#65776b;">Impressions</div>
+          <div style="font-size:15px;font-weight:bold;">
+            ${Number(location.impressions || 0).toLocaleString()}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:9px;color:#65776b;">Campaigns</div>
+          <div style="font-size:15px;font-weight:bold;">
+            ${Number(location.active_campaigns || 0).toLocaleString()}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:9px;color:#65776b;">Scans</div>
+          <div style="font-size:15px;font-weight:bold;">
+            ${Number(location.scans || 0).toLocaleString()}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:9px;color:#65776b;">Intent</div>
+          <div style="font-size:15px;font-weight:bold;">
+            ${Number(location.intent || 0).toLocaleString()}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:9px;color:#65776b;">Conversions</div>
+          <div style="font-size:15px;font-weight:bold;">
+            ${Number(location.conversions || 0).toLocaleString()}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:9px;color:#65776b;">Conversion Value</div>
+          <div style="font-size:15px;font-weight:bold;">
+            ${money(location.conversion_value)}
+          </div>
+        </div>
+
+      </div>
+
+      <div style="
+        margin-top:10px;
+        padding-top:8px;
+        border-top:1px solid #e7eee7;
+        font-size:11px;
+        font-weight:bold;
+        color:#176b3a;
+      ">
+        Open Location →
+      </div>
+
+    </div>
+  </a>
+`).join("");
       res.send(orgPage("Organization Executive Dashboard", `
         <div class="topbar">
           <div class="brand">Vivid Organizations</div>
@@ -3038,11 +3044,14 @@ if (!isSuperAdmin && !isOrganizationAdmin) {
             </div>
           </div>
 
-          <div style="
-            display:grid;
-            grid-template-columns:repeat(auto-fit,minmax(310px,1fr));
-            gap:18px;
-          ">
+         <div
+  class="org-location-grid"
+  style="
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:10px;
+  "
+>
             ${locationCards || `
               <div class="card" style="grid-column:1/-1;text-align:center;">
                 <h3>No active locations</h3>
