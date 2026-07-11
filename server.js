@@ -5371,16 +5371,20 @@ app.get(
           SELECT
             LOWER(TRIM(c.advertiser)) AS advertiser_key,
 
-            COUNT(e.id) FILTER (
-              WHERE e.type = 'scan'
-            )::int AS scans,
+       COUNT(e.id) FILTER (
+  WHERE e.type = 'scan'
+)::int AS scans,
 
-            COALESCE(
-              SUM(e.value) FILTER (
-                WHERE e.type = 'conversion'
-              ),
-              0
-            )::numeric AS revenue_generated
+COUNT(e.id) FILTER (
+  WHERE e.type = 'conversion'
+)::int AS conversions,
+
+COALESCE(
+  SUM(e.value) FILTER (
+    WHERE e.type = 'conversion'
+  ),
+  0
+)::numeric AS revenue_generated
 
           FROM campaigns c
 
@@ -5401,12 +5405,14 @@ app.get(
           ar.qr_placements,
           ar.active_campaigns,
 
-          COALESCE(ae.scans, 0)::int
-            AS scans,
+COALESCE(ae.scans, 0)::int
+  AS scans,
 
-          COALESCE(ae.revenue_generated, 0)::numeric
-            AS revenue_generated
+COALESCE(ae.conversions, 0)::int
+  AS conversions,
 
+COALESCE(ae.revenue_generated, 0)::numeric
+  AS revenue_generated
         FROM advertiser_relationships ar
 
         LEFT JOIN advertiser_events ae
