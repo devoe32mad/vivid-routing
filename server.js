@@ -2959,14 +2959,24 @@ min-height:220px;
               </div>
             </div>
 
-            <div class="card" style="margin:0;">
-              <div style="font-size:13px;color:#65776b;">
-                Advertisers
-              </div>
-              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
-                ${advertiserCount.toLocaleString()}
-              </div>
-            </div>
+            <a
+  href="/org-advertisers?organization_id=${org.id}"
+  style="
+    text-decoration:none;
+    color:inherit;
+    display:block;
+  "
+>
+  <div class="card" style="margin:0;">
+    <div style="font-size:13px;color:#65776b;">
+      Advertisers
+    </div>
+
+    <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+      ${advertiserCount.toLocaleString()}
+    </div>
+  </div>
+</a>
 
             <div class="card" style="margin:0;">
               <div style="font-size:13px;color:#65776b;">
