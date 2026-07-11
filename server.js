@@ -5456,7 +5456,15 @@ summary.conversions += Number(
       );
 
       const advertiserCards = advertisers.map(advertiser => `
-        <div style="
+  <a
+    href="/org-advertiser/${encodeURIComponent(advertiser.advertiser_key)}?organization_id=${organizationId}"
+    style="
+      text-decoration:none;
+      color:inherit;
+      display:block;
+    "
+  >
+    <div style="
           background:white;
           border-radius:14px;
           padding:16px;
@@ -5545,7 +5553,8 @@ summary.conversions += Number(
           </div>
 
         </div>
-      `).join("");
+</a>
+`).join("");
 
       res.send(orgPage(
         "Organization Advertisers",
