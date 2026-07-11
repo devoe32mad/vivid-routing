@@ -5549,7 +5549,7 @@ summary.conversions += Number(
             color:#65776b;
             font-size:11px;
           ">
-            Advertiser detail coming next
+            Open Advertiser →
           </div>
 
         </div>
