@@ -5844,6 +5844,599 @@ app.get("/org-settings", async (req, res) => {
     </div>
   `));
 });
+app.get(
+  "/org-advertiser/:advertiserKey",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      if (req.session.orgUser?.organization_id) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      ).trim().toLowerCase();
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !advertiserKey
+      ) {
+        return res.status(403).send("Access denied");
+      }
+
+      const organizationResult = await q(`
+        SELECT id, name
+        FROM organizations
+        WHERE id = $1
+          AND COALESCE(is_active, true) = true
+        LIMIT 1
+      `, [organizationId]);
+
+      const organization = organizationResult.rows[0];
+
+      if (!organization) {
+        return res.status(404).send(
+          "Organization not found."
+        );
+      }
+
+      /*
+        Confirm the advertiser exists inside this organization.
+      */
+      const advertiserResult = await q(`
+        SELECT
+          MIN(TRIM(c.advertiser)) AS advertiser_name,
+
+          COUNT(DISTINCT s.id)::int AS locations,
+
+          COUNT(DISTINCT qr.id)::int AS qr_placements,
+
+          COUNT(
+            DISTINCT CASE
+              WHEN COALESCE(qc.is_active, true) = true
+              THEN c.id
+            END
+          )::int AS active_campaigns
+
+        FROM campaigns c
+
+        JOIN qr_campaigns qc
+          ON qc.campaign_id = c.id
+
+        JOIN qr_codes qr
+          ON qr.id = qc.qr_id
+         AND COALESCE(qr.is_archived, false) = false
+
+        JOIN spaces s
+          ON s.id = qr.space_id
+         AND COALESCE(s.is_archived, false) = false
+
+        WHERE s.organization_id = $1
+          AND LOWER(TRIM(c.advertiser)) = $2
+          AND COALESCE(c.is_archived, false) = false
+      `, [organizationId, advertiserKey]);
+
+      const advertiser = advertiserResult.rows[0];
+
+      if (!advertiser?.advertiser_name) {
+        return res.status(404).send(
+          "Advertiser not found for this organization."
+        );
+      }
+
+      /*
+        Full advertiser analytics from Vivid events.
+      */
+      const metricsResult = await q(`
+        SELECT
+          COUNT(e.id) FILTER (
+            WHERE e.type = 'scan'
+          )::int AS scans,
+
+          COUNT(e.id) FILTER (
+            WHERE e.type = 'offer'
+          )::int AS offer_clicks,
+
+          COUNT(e.id) FILTER (
+            WHERE e.type = 'maps'
+          )::int AS maps_clicks,
+
+          COUNT(e.id) FILTER (
+            WHERE e.type = 'waze'
+          )::int AS waze_clicks,
+
+          COUNT(e.id) FILTER (
+            WHERE e.type IN ('offer', 'maps', 'waze')
+          )::int AS intent,
+
+          COUNT(e.id) FILTER (
+            WHERE e.type = 'conversion'
+          )::int AS conversions,
+
+          COALESCE(
+            SUM(e.value) FILTER (
+              WHERE e.type = 'conversion'
+            ),
+            0
+          )::numeric AS revenue_generated
+
+        FROM events e
+
+        JOIN campaigns c
+          ON c.id = e.campaign_id
+
+        JOIN qr_codes qr
+          ON qr.id = e.qr_id
+
+        JOIN spaces s
+          ON s.id = qr.space_id
+
+        WHERE s.organization_id = $1
+          AND LOWER(TRIM(c.advertiser)) = $2
+      `, [organizationId, advertiserKey]);
+
+      const metrics = metricsResult.rows[0] || {};
+
+      /*
+        Related locations.
+      */
+      const locationResult = await q(`
+        SELECT
+          s.id,
+          s.name,
+          s.location,
+
+          COUNT(DISTINCT qr.id)::int AS qr_placements,
+
+          COUNT(DISTINCT c.id)::int AS campaigns
+
+        FROM campaigns c
+
+        JOIN qr_campaigns qc
+          ON qc.campaign_id = c.id
+
+        JOIN qr_codes qr
+          ON qr.id = qc.qr_id
+         AND COALESCE(qr.is_archived, false) = false
+
+        JOIN spaces s
+          ON s.id = qr.space_id
+         AND COALESCE(s.is_archived, false) = false
+
+        WHERE s.organization_id = $1
+          AND LOWER(TRIM(c.advertiser)) = $2
+          AND COALESCE(c.is_archived, false) = false
+
+        GROUP BY
+          s.id,
+          s.name,
+          s.location
+
+        ORDER BY s.name
+      `, [organizationId, advertiserKey]);
+
+      /*
+        Related campaigns.
+      */
+      const campaignResult = await q(`
+        SELECT DISTINCT
+          c.id,
+          c.name,
+          c.start_date,
+          c.end_date,
+          c.avg_customer_value,
+
+          CASE
+            WHEN COALESCE(c.is_archived, false) = true
+              THEN 'Archived'
+            WHEN c.start_date IS NOT NULL
+             AND c.start_date > CURRENT_DATE
+              THEN 'Scheduled'
+            WHEN c.end_date IS NOT NULL
+             AND c.end_date < CURRENT_DATE
+              THEN 'Completed'
+            ELSE 'Active'
+          END AS status
+
+        FROM campaigns c
+
+        JOIN qr_campaigns qc
+          ON qc.campaign_id = c.id
+
+        JOIN qr_codes qr
+          ON qr.id = qc.qr_id
+
+        JOIN spaces s
+          ON s.id = qr.space_id
+
+        WHERE s.organization_id = $1
+          AND LOWER(TRIM(c.advertiser)) = $2
+          AND COALESCE(c.is_archived, false) = false
+
+        ORDER BY c.name
+      `, [organizationId, advertiserKey]);
+
+      /*
+        Related QR placements.
+      */
+      const qrResult = await q(`
+        SELECT DISTINCT
+          qr.id,
+          qr.name,
+          qr.is_active,
+
+          s.id AS location_id,
+          s.name AS location_name,
+
+          COALESCE(
+            qr.total_cost,
+            qr.annual_cost,
+            0
+          )::numeric AS placement_value
+
+        FROM campaigns c
+
+        JOIN qr_campaigns qc
+          ON qc.campaign_id = c.id
+
+        JOIN qr_codes qr
+          ON qr.id = qc.qr_id
+         AND COALESCE(qr.is_archived, false) = false
+
+        JOIN spaces s
+          ON s.id = qr.space_id
+         AND COALESCE(s.is_archived, false) = false
+
+        WHERE s.organization_id = $1
+          AND LOWER(TRIM(c.advertiser)) = $2
+
+        ORDER BY
+          s.name,
+          qr.name
+      `, [organizationId, advertiserKey]);
+
+      const locationCards = locationResult.rows.map(location => `
+        <a
+          href="/org-location/${location.id}?organization_id=${organizationId}"
+          style="text-decoration:none;color:inherit;display:block;"
+        >
+          <div style="
+            background:white;
+            border-radius:14px;
+            padding:16px;
+            box-shadow:0 5px 14px rgba(0,0,0,.07);
+            box-sizing:border-box;
+            width:260px;
+            min-height:220px;
+          ">
+            <div style="font-size:16px;font-weight:bold;">
+              ${location.name}
+            </div>
+
+            <div style="font-size:11px;color:#65776b;margin:5px 0 18px;">
+              ${location.location || "Market not set"}
+            </div>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(2,minmax(0,1fr));
+              gap:10px;
+            ">
+              <div>
+                <div style="font-size:10px;color:#65776b;">
+                  QR Placements
+                </div>
+                <div style="font-size:16px;font-weight:bold;">
+                  ${Number(location.qr_placements || 0)}
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:10px;color:#65776b;">
+                  Campaigns
+                </div>
+                <div style="font-size:16px;font-weight:bold;">
+                  ${Number(location.campaigns || 0)}
+                </div>
+              </div>
+            </div>
+
+            <div style="
+              margin-top:15px;
+              padding-top:9px;
+              border-top:1px solid #e7eee7;
+              color:#176b3a;
+              font-size:11px;
+              font-weight:bold;
+            ">
+              Open Location →
+            </div>
+          </div>
+        </a>
+      `).join("");
+
+      const qrCards = qrResult.rows.map(qr => `
+        <a
+          href="/org-qr/${qr.id}?organization_id=${organizationId}"
+          style="text-decoration:none;color:inherit;display:block;"
+        >
+          <div style="
+            background:white;
+            border-radius:14px;
+            padding:16px;
+            box-shadow:0 5px 14px rgba(0,0,0,.07);
+            box-sizing:border-box;
+            width:260px;
+            min-height:220px;
+          ">
+            <div style="font-size:16px;font-weight:bold;">
+              ${qr.name || "Unnamed QR Placement"}
+            </div>
+
+            <div style="font-size:11px;color:#65776b;margin:5px 0 18px;">
+              ${qr.location_name}
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Placement Value
+              </div>
+              <div style="font-size:16px;font-weight:bold;">
+                ${money(qr.placement_value)}
+              </div>
+            </div>
+
+            <div style="
+              margin-top:15px;
+              padding-top:9px;
+              border-top:1px solid #e7eee7;
+              color:#176b3a;
+              font-size:11px;
+              font-weight:bold;
+            ">
+              Open QR →
+            </div>
+          </div>
+        </a>
+      `).join("");
+
+      const campaignCards = campaignResult.rows.map(campaign => `
+        <a
+          href="/org-campaign/${campaign.id}?organization_id=${organizationId}"
+          style="text-decoration:none;color:inherit;display:block;"
+        >
+          <div style="
+            background:white;
+            border-radius:14px;
+            padding:16px;
+            box-shadow:0 5px 14px rgba(0,0,0,.07);
+            box-sizing:border-box;
+            width:260px;
+            min-height:220px;
+          ">
+            <div style="font-size:16px;font-weight:bold;">
+              ${campaign.name || "Unnamed Campaign"}
+            </div>
+
+            <div style="font-size:11px;color:#65776b;margin:5px 0 18px;">
+              ${campaign.status}
+            </div>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(2,minmax(0,1fr));
+              gap:10px;
+            ">
+              <div>
+                <div style="font-size:10px;color:#65776b;">
+                  Start Date
+                </div>
+                <div style="font-size:13px;font-weight:bold;">
+                  ${dateLabel(campaign.start_date)}
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:10px;color:#65776b;">
+                  End Date
+                </div>
+                <div style="font-size:13px;font-weight:bold;">
+                  ${dateLabel(campaign.end_date, "Active")}
+                </div>
+              </div>
+            </div>
+
+            <div style="
+              margin-top:15px;
+              padding-top:9px;
+              border-top:1px solid #e7eee7;
+              color:#176b3a;
+              font-size:11px;
+              font-weight:bold;
+            ">
+              Open Campaign →
+            </div>
+          </div>
+        </a>
+      `).join("");
+
+      res.send(orgPage(
+        "Organization Advertiser",
+        `
+          <div class="topbar">
+            <div class="brand">Vivid Organizations</div>
+
+            <h1>${advertiser.advertiser_name}</h1>
+
+            <p class="subtitle">
+              ${organization.name} Advertiser Performance
+            </p>
+          </div>
+
+          <div class="wrap">
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:16px;
+              flex-wrap:wrap;
+              margin-bottom:20px;
+            ">
+              <div>
+                <h2 style="margin:0 0 5px;">
+                  Advertiser Overview
+                </h2>
+
+                <div style="color:#65776b;">
+                  Organization-wide performance pulled directly from Vivid.
+                </div>
+              </div>
+
+              <a
+                class="btn secondary"
+                href="/org-advertisers?organization_id=${organizationId}"
+              >
+                Back to Advertisers
+              </a>
+            </div>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
+              gap:12px;
+              margin-bottom:30px;
+            ">
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">Locations</div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${Number(advertiser.locations || 0)}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">QR Placements</div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${Number(advertiser.qr_placements || 0)}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">Active Campaigns</div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${Number(advertiser.active_campaigns || 0)}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">Scans</div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.scans || 0)}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">Conversions</div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.conversions || 0)}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Revenue Generated
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${money(metrics.revenue_generated)}
+                </div>
+              </div>
+            </div>
+
+            <h2>Performance Analytics</h2>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+              gap:12px;
+              margin-bottom:30px;
+            ">
+              ${[
+                ["Scans", metrics.scans],
+                ["Offer Clicks", metrics.offer_clicks],
+                ["Maps Clicks", metrics.maps_clicks],
+                ["Waze Clicks", metrics.waze_clicks],
+                ["Intent", metrics.intent],
+                ["Conversions", metrics.conversions],
+                ["Revenue Generated", money(metrics.revenue_generated)]
+              ].map(([label, value]) => `
+                <div class="card" style="margin:0;">
+                  <div style="font-size:11px;color:#65776b;">
+                    ${label}
+                  </div>
+                  <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                    ${typeof value === "number"
+                      ? value.toLocaleString()
+                      : value || 0}
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+
+            <h2>Locations</h2>
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fill,260px);
+              gap:18px;
+              margin-bottom:30px;
+            ">
+              ${locationCards}
+            </div>
+
+            <h2>QR Placements</h2>
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fill,260px);
+              gap:18px;
+              margin-bottom:30px;
+            ">
+              ${qrCards}
+            </div>
+
+            <h2>Campaigns</h2>
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fill,260px);
+              gap:18px;
+            ">
+              ${campaignCards}
+            </div>
+
+          </div>
+        `
+      ));
+
+    } catch (err) {
+      console.error("ORG ADVERTISER ERROR:", err);
+
+      res.status(500).send(
+        "ORG ADVERTISER ERROR: " + err.message
+      );
+    }
+  }
+);
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
