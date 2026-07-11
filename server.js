@@ -5437,7 +5437,9 @@ COALESCE(ae.revenue_generated, 0)::numeric
           summary.scans += Number(
             advertiser.scans || 0
           );
-
+summary.conversions += Number(
+  advertiser.conversions || 0
+);
           summary.revenueGenerated += Number(
             advertiser.revenue_generated || 0
           );
@@ -5448,7 +5450,8 @@ COALESCE(ae.revenue_generated, 0)::numeric
           activeCampaigns: 0,
           qrPlacements: 0,
           scans: 0,
-          revenueGenerated: 0
+        conversions: 0,
+        revenueGenerated: 0
         }
       );
 
