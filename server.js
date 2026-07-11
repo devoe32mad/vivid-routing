@@ -5246,6 +5246,451 @@ justify-content:flex-start;
     }
   }
 );
+app.get(
+  "/org-advertisers",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Organization Portal users use the organization
+        stored in their login session.
+      */
+      if (req.session.orgUser?.organization_id) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      /*
+        Super Admin may select an organization through
+        the organization_id query parameter.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res.status(403).send("Access denied");
+      }
+
+      const organizationResult = await q(`
+        SELECT
+          id,
+          name
+        FROM organizations
+        WHERE id = $1
+          AND COALESCE(is_active, true) = true
+        LIMIT 1
+      `, [organizationId]);
+
+      const organization = organizationResult.rows[0];
+
+      if (!organization) {
+        return res.status(404).send(
+          "Organization not found."
+        );
+      }
+
+      /*
+        Advertisers are derived directly from Vivid campaigns.
+
+        Event metrics are aggregated separately so QR/campaign
+        joins do not duplicate scan or revenue totals.
+      */
+      const advertiserResult = await q(`
+        WITH organization_campaigns AS (
+          SELECT DISTINCT
+            c.id AS campaign_id,
+            TRIM(c.advertiser) AS advertiser_name
+          FROM campaigns c
+
+          JOIN qr_campaigns qc
+            ON qc.campaign_id = c.id
+
+          JOIN qr_codes qr
+            ON qr.id = qc.qr_id
+           AND COALESCE(qr.is_archived, false) = false
+
+          JOIN spaces s
+            ON s.id = qr.space_id
+           AND COALESCE(s.is_archived, false) = false
+
+          WHERE s.organization_id = $1
+            AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL
+            AND COALESCE(c.is_archived, false) = false
+        ),
+
+        advertiser_relationships AS (
+          SELECT
+            LOWER(TRIM(c.advertiser)) AS advertiser_key,
+            TRIM(c.advertiser) AS advertiser_name,
+
+            COUNT(DISTINCT s.id)::int AS locations,
+
+            COUNT(DISTINCT qr.id)::int AS qr_placements,
+
+            COUNT(
+              DISTINCT CASE
+                WHEN COALESCE(qc.is_active, true) = true
+                THEN c.id
+              END
+            )::int AS active_campaigns
+
+          FROM campaigns c
+
+          JOIN qr_campaigns qc
+            ON qc.campaign_id = c.id
+
+          JOIN qr_codes qr
+            ON qr.id = qc.qr_id
+           AND COALESCE(qr.is_archived, false) = false
+
+          JOIN spaces s
+            ON s.id = qr.space_id
+           AND COALESCE(s.is_archived, false) = false
+
+          WHERE s.organization_id = $1
+            AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL
+            AND COALESCE(c.is_archived, false) = false
+
+          GROUP BY
+            LOWER(TRIM(c.advertiser)),
+            TRIM(c.advertiser)
+        ),
+
+        advertiser_events AS (
+          SELECT
+            LOWER(TRIM(c.advertiser)) AS advertiser_key,
+
+            COUNT(e.id) FILTER (
+              WHERE e.type = 'scan'
+            )::int AS scans,
+
+            COALESCE(
+              SUM(e.value) FILTER (
+                WHERE e.type = 'conversion'
+              ),
+              0
+            )::numeric AS revenue_generated
+
+          FROM campaigns c
+
+          JOIN organization_campaigns oc
+            ON oc.campaign_id = c.id
+
+          LEFT JOIN events e
+            ON e.campaign_id = c.id
+
+          GROUP BY
+            LOWER(TRIM(c.advertiser))
+        )
+
+        SELECT
+          ar.advertiser_key,
+          ar.advertiser_name,
+          ar.locations,
+          ar.qr_placements,
+          ar.active_campaigns,
+
+          COALESCE(ae.scans, 0)::int
+            AS scans,
+
+          COALESCE(ae.revenue_generated, 0)::numeric
+            AS revenue_generated
+
+        FROM advertiser_relationships ar
+
+        LEFT JOIN advertiser_events ae
+          ON ae.advertiser_key = ar.advertiser_key
+
+        ORDER BY
+          ar.advertiser_name
+      `, [organizationId]);
+
+      const advertisers = advertiserResult.rows;
+
+      const totals = advertisers.reduce(
+        (summary, advertiser) => {
+          summary.activeCampaigns += Number(
+            advertiser.active_campaigns || 0
+          );
+
+          summary.qrPlacements += Number(
+            advertiser.qr_placements || 0
+          );
+
+          summary.scans += Number(
+            advertiser.scans || 0
+          );
+
+          summary.revenueGenerated += Number(
+            advertiser.revenue_generated || 0
+          );
+
+          return summary;
+        },
+        {
+          activeCampaigns: 0,
+          qrPlacements: 0,
+          scans: 0,
+          revenueGenerated: 0
+        }
+      );
+
+      const advertiserCards = advertisers.map(advertiser => `
+        <div style="
+          background:white;
+          border-radius:14px;
+          padding:16px;
+          box-shadow:0 5px 14px rgba(0,0,0,.07);
+          box-sizing:border-box;
+          width:260px;
+          min-height:220px;
+        ">
+
+          <div style="
+            font-size:16px;
+            line-height:1.2;
+            font-weight:bold;
+            min-height:38px;
+            margin-bottom:12px;
+          ">
+            ${advertiser.advertiser_name}
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:10px 8px;
+          ">
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Locations
+              </div>
+
+              <div style="font-size:16px;font-weight:bold;">
+                ${Number(advertiser.locations || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                QR Placements
+              </div>
+
+              <div style="font-size:16px;font-weight:bold;">
+                ${Number(advertiser.qr_placements || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Active Campaigns
+              </div>
+
+              <div style="font-size:16px;font-weight:bold;">
+                ${Number(advertiser.active_campaigns || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Scans
+              </div>
+
+              <div style="font-size:16px;font-weight:bold;">
+                ${Number(advertiser.scans || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div style="grid-column:1/-1;">
+              <div style="font-size:10px;color:#65776b;">
+                Revenue Generated
+              </div>
+
+              <div style="font-size:16px;font-weight:bold;">
+                ${money(advertiser.revenue_generated)}
+              </div>
+            </div>
+
+          </div>
+
+          <div style="
+            margin-top:13px;
+            padding-top:9px;
+            border-top:1px solid #e7eee7;
+            color:#65776b;
+            font-size:11px;
+          ">
+            Advertiser detail coming next
+          </div>
+
+        </div>
+      `).join("");
+
+      res.send(orgPage(
+        "Organization Advertisers",
+        `
+          <div class="topbar">
+            <div class="brand">
+              Vivid Organizations
+            </div>
+
+            <h1>${organization.name} Advertisers</h1>
+
+            <p class="subtitle">
+              Organization advertiser activity pulled directly from Vivid.
+            </p>
+          </div>
+
+          <div class="wrap">
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:16px;
+              flex-wrap:wrap;
+              margin-bottom:20px;
+            ">
+
+              <div>
+                <h2 style="margin:0 0 5px;">
+                  Advertiser Overview
+                </h2>
+
+                <div style="color:#65776b;">
+                  Advertiser relationships and performance across ${organization.name}.
+                </div>
+              </div>
+
+              <a
+                class="btn secondary"
+                href="/org-organization/${organization.id}"
+              >
+                Back to ${organization.name}
+              </a>
+
+            </div>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(175px,1fr));
+              gap:12px;
+              margin-bottom:30px;
+            ">
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Advertisers
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${advertisers.length.toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Active Campaigns
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${totals.activeCampaigns.toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  QR Placements
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${totals.qrPlacements.toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Scans
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${totals.scans.toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Revenue Generated
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${money(totals.revenueGenerated)}
+                </div>
+              </div>
+
+            </div>
+
+            <div style="margin-bottom:14px;">
+              <h2 style="margin:0 0 5px;">
+                Advertisers
+              </h2>
+
+              <div style="color:#65776b;">
+                Advertisers connected to Vivid campaigns inside this organization.
+              </div>
+            </div>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fill,260px);
+              gap:18px;
+              justify-content:flex-start;
+            ">
+
+              ${advertiserCards || `
+                <div
+                  class="card"
+                  style="
+                    grid-column:1/-1;
+                    text-align:center;
+                    margin:0;
+                  "
+                >
+                  <h3>No advertisers found</h3>
+
+                  <p>
+                    No Vivid advertisers are currently connected to this organization.
+                  </p>
+                </div>
+              `}
+
+            </div>
+
+          </div>
+        `
+      ));
+
+    } catch (err) {
+      console.error("ORG ADVERTISERS ERROR:", err);
+
+      res.status(500).send(
+        "ORG ADVERTISERS ERROR: " + err.message
+      );
+    }
+  }
+);
 app.get("/org-users", async (req, res) => {
   res.send(orgPage("Organization Users", `
     <div class="topbar">
