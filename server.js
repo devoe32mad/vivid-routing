@@ -5170,7 +5170,33 @@ if (
           "Campaign not found for this organization."
         );
       }
+/*
+  Determine whether the campaign overlaps
+  the selected reporting period.
+*/
+const campaignStartDate = campaign.start_date
+  ? new Date(campaign.start_date).toISOString().slice(0, 10)
+  : campaign.live_date
+    ? new Date(campaign.live_date).toISOString().slice(0, 10)
+    : campaign.created_at
+      ? new Date(campaign.created_at).toISOString().slice(0, 10)
+      : "";
 
+const campaignEndDate = campaign.end_date
+  ? new Date(campaign.end_date).toISOString().slice(0, 10)
+  : "";
+
+const campaignInSelectedRange =
+  !(
+    toDate &&
+    campaignStartDate &&
+    campaignStartDate > toDate
+  ) &&
+  !(
+    fromDate &&
+    campaignEndDate &&
+    campaignEndDate < fromDate
+  );
       /*
         Campaign performance comes directly from Vivid
         events tied to the organization's QR placements.
