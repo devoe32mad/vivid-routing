@@ -2529,185 +2529,337 @@ if (!isSuperAdmin && !isOrganizationAdmin) {
 
         No KPI values are stored in the Organization database.
       */
-      const locationResult = await q(`
-        WITH active_locations AS (
-          SELECT
-            s.id,
-            s.name,
-            s.location
-          FROM spaces s
-          WHERE s.organization_id = $1
-            AND COALESCE(s.is_archived, false) = false
-        ),
+ const locationResult = await q(`
+  WITH filtered_locations AS (
+    SELECT
+      s.id,
+      s.name,
+      s.location
+    FROM spaces s
+    WHERE s.organization_id = $1
 
-        active_qrs AS (
-          SELECT
-            qr.id,
-            qr.space_id,
-            COALESCE(qr.total_cost, qr.annual_cost, 0)::numeric
-              AS placement_value,
-            COALESCE(qr.annual_impressions, 0)::numeric
-              AS impressions
-          FROM qr_codes qr
-          JOIN active_locations al
-            ON al.id = qr.space_id
-          WHERE COALESCE(qr.is_archived, false) = false
-            AND COALESCE(qr.is_active, true) = true
-        ),
-
-        qr_campaign_metrics AS (
-          SELECT
-            aq.id AS qr_id,
-
-            COUNT(
-              DISTINCT CASE
-                WHEN COALESCE(qc.is_active, true) = true
-                 AND COALESCE(c.is_archived, false) = false
-                THEN c.id
-              END
-            )::int AS active_campaigns,
-
-            COUNT(
-              DISTINCT CASE
-                WHEN COALESCE(qc.is_active, true) = true
-                 AND COALESCE(c.is_archived, false) = false
-                 AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL
-                THEN LOWER(TRIM(c.advertiser))
-              END
-            )::int AS advertisers
-
-          FROM active_qrs aq
-
-          LEFT JOIN qr_campaigns qc
-            ON qc.qr_id = aq.id
-
-          LEFT JOIN campaigns c
-            ON c.id = qc.campaign_id
-
-          GROUP BY aq.id
-        ),
-
-        qr_event_metrics AS (
-          SELECT
-            aq.id AS qr_id,
-
-            COUNT(e.id) FILTER (
-              WHERE e.type = 'scan'
-            )::int AS scans,
-
-            COUNT(e.id) FILTER (
-              WHERE e.type IN ('offer', 'maps', 'waze')
-            )::int AS intent,
-
-            COUNT(e.id) FILTER (
-              WHERE e.type = 'conversion'
-            )::int AS conversions,
-
-            COALESCE(
-              SUM(e.value) FILTER (
-                WHERE e.type = 'conversion'
-              ),
-              0
-            )::numeric AS conversion_value
-
-          FROM active_qrs aq
-
-          LEFT JOIN events e
-            ON e.qr_id = aq.id
-
-          GROUP BY aq.id
-        ),
-
-        qr_metrics AS (
-          SELECT
-            aq.id AS qr_id,
-            aq.space_id,
-            aq.placement_value,
-            aq.impressions,
-
-            COALESCE(qcm.active_campaigns, 0)::int
-              AS active_campaigns,
-
-            COALESCE(qcm.advertisers, 0)::int
-              AS advertisers,
-
-            COALESCE(qem.scans, 0)::int
-              AS scans,
-
-            COALESCE(qem.intent, 0)::int
-              AS intent,
-
-            COALESCE(qem.conversions, 0)::int
-              AS conversions,
-
-            COALESCE(qem.conversion_value, 0)::numeric
-              AS conversion_value
-
-          FROM active_qrs aq
-
-          LEFT JOIN qr_campaign_metrics qcm
-            ON qcm.qr_id = aq.id
-
-          LEFT JOIN qr_event_metrics qem
-            ON qem.qr_id = aq.id
+      AND (
+        /*
+          With no selected dates, show currently active locations.
+        */
+        (
+          NULLIF($2, '') IS NULL
+          AND NULLIF($3, '') IS NULL
+          AND COALESCE(s.is_archived, false) = false
         )
 
-        SELECT
-          al.id,
-          al.name,
-          al.location,
+        OR
 
-          COUNT(DISTINCT qm.qr_id)::int
-            AS qr_placements,
+        /*
+          With dates selected, include any location whose
+          active period overlaps the requested range.
+        */
+        (
+          (NULLIF($2, '') IS NULL
+            OR s.end_date IS NULL
+            OR s.end_date >= NULLIF($2, '')::date)
 
-          COALESCE(
-            SUM(qm.placement_value),
-            0
-          )::numeric AS placement_value,
+          AND
 
-          COALESCE(
-            SUM(qm.impressions),
-            0
-          )::numeric AS impressions,
+          (NULLIF($3, '') IS NULL
+            OR COALESCE(s.live_date, s.created_at::date)
+               <= NULLIF($3, '')::date)
+        )
+      )
+  ),
 
-          COALESCE(
-            SUM(qm.active_campaigns),
-            0
-          )::int AS active_campaigns,
+  filtered_qrs AS (
+    SELECT
+      qr.id,
+      qr.space_id,
 
-          COALESCE(
-            SUM(qm.scans),
-            0
-          )::int AS scans,
+      COALESCE(
+        qr.total_cost,
+        qr.annual_cost,
+        0
+      )::numeric AS placement_value,
 
-          COALESCE(
-            SUM(qm.intent),
-            0
-          )::int AS intent,
+      COALESCE(
+        qr.annual_impressions,
+        0
+      )::numeric AS impressions
 
-          COALESCE(
-            SUM(qm.conversions),
-            0
-          )::int AS conversions,
+    FROM qr_codes qr
 
-          COALESCE(
-            SUM(qm.conversion_value),
-            0
-          )::numeric AS conversion_value
+    JOIN filtered_locations fl
+      ON fl.id = qr.space_id
 
-        FROM active_locations al
+    WHERE
+      (
+        /*
+          With no selected dates, show currently active QRs.
+        */
+        (
+          NULLIF($2, '') IS NULL
+          AND NULLIF($3, '') IS NULL
+          AND COALESCE(qr.is_archived, false) = false
+          AND COALESCE(qr.is_active, true) = true
+        )
 
-        LEFT JOIN qr_metrics qm
-          ON qm.space_id = al.id
+        OR
 
-        GROUP BY
-          al.id,
-          al.name,
-          al.location
+        /*
+          With dates selected, include any QR whose
+          placement period overlaps the requested range.
+        */
+        (
+          (NULLIF($2, '') IS NULL
+            OR qr.end_date IS NULL
+            OR qr.end_date >= NULLIF($2, '')::date)
 
-        ORDER BY al.name
-      `, [orgId]);
+          AND
 
+          (NULLIF($3, '') IS NULL
+            OR COALESCE(qr.live_date, qr.created_at::date)
+               <= NULLIF($3, '')::date)
+        )
+      )
+  ),
+
+  qr_campaign_metrics AS (
+    SELECT
+      fq.id AS qr_id,
+
+      COUNT(
+        DISTINCT CASE
+          WHEN
+            /*
+              Assignment/campaign overlaps the requested range.
+            */
+            (
+              (
+                NULLIF($2, '') IS NULL
+                AND NULLIF($3, '') IS NULL
+                AND COALESCE(qc.is_active, true) = true
+                AND COALESCE(c.is_archived, false) = false
+              )
+
+              OR
+
+              (
+                (
+                  NULLIF($2, '') IS NULL
+                  OR COALESCE(
+                       qc.ended_at::date,
+                       c.end_date,
+                       NULLIF($3, '')::date
+                     ) >= NULLIF($2, '')::date
+                )
+
+                AND
+
+                (
+                  NULLIF($3, '') IS NULL
+                  OR COALESCE(
+                       qc.started_at::date,
+                       qc.assigned_at::date,
+                       c.start_date,
+                       c.live_date,
+                       c.created_at::date
+                     ) <= NULLIF($3, '')::date
+                )
+              )
+            )
+          THEN c.id
+        END
+      )::int AS active_campaigns,
+
+      COUNT(
+        DISTINCT CASE
+          WHEN
+            NULLIF(TRIM(c.advertiser), '') IS NOT NULL
+
+            AND
+
+            (
+              (
+                NULLIF($2, '') IS NULL
+                AND NULLIF($3, '') IS NULL
+                AND COALESCE(qc.is_active, true) = true
+                AND COALESCE(c.is_archived, false) = false
+              )
+
+              OR
+
+              (
+                (
+                  NULLIF($2, '') IS NULL
+                  OR COALESCE(
+                       qc.ended_at::date,
+                       c.end_date,
+                       NULLIF($3, '')::date
+                     ) >= NULLIF($2, '')::date
+                )
+
+                AND
+
+                (
+                  NULLIF($3, '') IS NULL
+                  OR COALESCE(
+                       qc.started_at::date,
+                       qc.assigned_at::date,
+                       c.start_date,
+                       c.live_date,
+                       c.created_at::date
+                     ) <= NULLIF($3, '')::date
+                )
+              )
+            )
+
+          THEN LOWER(TRIM(c.advertiser))
+        END
+      )::int AS advertisers
+
+    FROM filtered_qrs fq
+
+    LEFT JOIN qr_campaigns qc
+      ON qc.qr_id = fq.id
+
+    LEFT JOIN campaigns c
+      ON c.id = qc.campaign_id
+
+    GROUP BY fq.id
+  ),
+
+  qr_event_metrics AS (
+    SELECT
+      fq.id AS qr_id,
+
+      COUNT(e.id) FILTER (
+        WHERE e.type = 'scan'
+      )::int AS scans,
+
+      COUNT(e.id) FILTER (
+        WHERE e.type IN ('offer', 'maps', 'waze')
+      )::int AS intent,
+
+      COUNT(e.id) FILTER (
+        WHERE e.type = 'conversion'
+      )::int AS conversions,
+
+      COALESCE(
+        SUM(e.value) FILTER (
+          WHERE e.type = 'conversion'
+        ),
+        0
+      )::numeric AS conversion_value
+
+    FROM filtered_qrs fq
+
+    LEFT JOIN events e
+      ON e.qr_id = fq.id
+
+     AND (
+       NULLIF($2, '') IS NULL
+       OR e.created_at::date >= NULLIF($2, '')::date
+     )
+
+     AND (
+       NULLIF($3, '') IS NULL
+       OR e.created_at::date <= NULLIF($3, '')::date
+     )
+
+    GROUP BY fq.id
+  ),
+
+  qr_metrics AS (
+    SELECT
+      fq.id AS qr_id,
+      fq.space_id,
+      fq.placement_value,
+      fq.impressions,
+
+      COALESCE(qcm.active_campaigns, 0)::int
+        AS active_campaigns,
+
+      COALESCE(qcm.advertisers, 0)::int
+        AS advertisers,
+
+      COALESCE(qem.scans, 0)::int
+        AS scans,
+
+      COALESCE(qem.intent, 0)::int
+        AS intent,
+
+      COALESCE(qem.conversions, 0)::int
+        AS conversions,
+
+      COALESCE(qem.conversion_value, 0)::numeric
+        AS conversion_value
+
+    FROM filtered_qrs fq
+
+    LEFT JOIN qr_campaign_metrics qcm
+      ON qcm.qr_id = fq.id
+
+    LEFT JOIN qr_event_metrics qem
+      ON qem.qr_id = fq.id
+  )
+
+  SELECT
+    fl.id,
+    fl.name,
+    fl.location,
+
+    COUNT(DISTINCT qm.qr_id)::int
+      AS qr_placements,
+
+    COALESCE(
+      SUM(qm.placement_value),
+      0
+    )::numeric AS placement_value,
+
+    COALESCE(
+      SUM(qm.impressions),
+      0
+    )::numeric AS impressions,
+
+    COALESCE(
+      SUM(qm.active_campaigns),
+      0
+    )::int AS active_campaigns,
+
+    COALESCE(
+      SUM(qm.scans),
+      0
+    )::int AS scans,
+
+    COALESCE(
+      SUM(qm.intent),
+      0
+    )::int AS intent,
+
+    COALESCE(
+      SUM(qm.conversions),
+      0
+    )::int AS conversions,
+
+    COALESCE(
+      SUM(qm.conversion_value),
+      0
+    )::numeric AS conversion_value
+
+  FROM filtered_locations fl
+
+  LEFT JOIN qr_metrics qm
+    ON qm.space_id = fl.id
+
+  GROUP BY
+    fl.id,
+    fl.name,
+    fl.location
+
+  ORDER BY fl.name
+`, [
+  orgId,
+  fromDate,
+  toDate
+]);
       /*
         Count advertisers once across the entire organization.
         Advertisers are derived from Vivid Campaign records.
