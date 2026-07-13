@@ -2864,26 +2864,109 @@ if (!isSuperAdmin && !isOrganizationAdmin) {
         Count advertisers once across the entire organization.
         Advertisers are derived from Vivid Campaign records.
       */
-      const advertiserResult = await q(`
-        SELECT
-          COUNT(
-            DISTINCT LOWER(TRIM(c.advertiser))
-          )::int AS advertisers
-        FROM spaces s
-        JOIN qr_codes qr
-          ON qr.space_id = s.id
-         AND COALESCE(qr.is_archived, false) = false
-         AND COALESCE(qr.is_active, true) = true
-        JOIN qr_campaigns qc
-          ON qc.qr_id = qr.id
-         AND COALESCE(qc.is_active, true) = true
-        JOIN campaigns c
-          ON c.id = qc.campaign_id
-         AND COALESCE(c.is_archived, false) = false
-        WHERE s.organization_id = $1
-          AND COALESCE(s.is_archived, false) = false
-          AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL
-      `, [orgId]);
+const advertiserResult = await q(`
+  SELECT
+    COUNT(
+      DISTINCT LOWER(TRIM(c.advertiser))
+    )::int AS advertisers
+
+  FROM spaces s
+
+  JOIN qr_codes qr
+    ON qr.space_id = s.id
+   AND COALESCE(qr.is_archived, false) = false
+
+  JOIN qr_campaigns qc
+    ON qc.qr_id = qr.id
+
+  JOIN campaigns c
+    ON c.id = qc.campaign_id
+
+  WHERE s.organization_id = $1
+    AND COALESCE(s.is_archived, false) = false
+    AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL
+
+    /*
+      Location overlaps the selected range.
+    */
+    AND (
+      NULLIF($2, '') IS NULL
+      OR s.end_date IS NULL
+      OR s.end_date >= NULLIF($2, '')::date
+    )
+
+    AND (
+      NULLIF($3, '') IS NULL
+      OR COALESCE(
+           s.live_date,
+           s.created_at::date
+         ) <= NULLIF($3, '')::date
+    )
+
+    /*
+      QR placement overlaps the selected range.
+    */
+    AND (
+      NULLIF($2, '') IS NULL
+      OR qr.end_date IS NULL
+      OR qr.end_date >= NULLIF($2, '')::date
+    )
+
+    AND (
+      NULLIF($3, '') IS NULL
+      OR COALESCE(
+           qr.live_date,
+           qr.created_at::date
+         ) <= NULLIF($3, '')::date
+    )
+
+    /*
+      Campaign assignment overlaps the selected range.
+    */
+    AND (
+      NULLIF($2, '') IS NULL
+      OR COALESCE(
+           qc.ended_at::date,
+           c.end_date,
+           NULLIF($3, '')::date
+         ) >= NULLIF($2, '')::date
+    )
+
+    AND (
+      NULLIF($3, '') IS NULL
+      OR COALESCE(
+           qc.started_at::date,
+           qc.assigned_at::date,
+           c.start_date,
+           c.live_date,
+           c.created_at::date
+         ) <= NULLIF($3, '')::date
+    )
+
+    /*
+      With no dates selected, preserve the current active-only view.
+    */
+    AND (
+      (
+        NULLIF($2, '') IS NULL
+        AND NULLIF($3, '') IS NULL
+        AND COALESCE(qr.is_active, true) = true
+        AND COALESCE(qc.is_active, true) = true
+        AND COALESCE(c.is_archived, false) = false
+      )
+
+      OR
+
+      (
+        NULLIF($2, '') IS NOT NULL
+        OR NULLIF($3, '') IS NOT NULL
+      )
+    )
+`, [
+  orgId,
+  fromDate,
+  toDate
+]);
 
       /*
         Contracts belong to the Organization management layer.
