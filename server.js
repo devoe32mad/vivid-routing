@@ -3803,73 +3803,225 @@ if (
 
         No Organization KPI data is stored separately.
       */
-      const qrResult = await q(`
-        SELECT
-          qr.id,
-          qr.name,
-          qr.description,
-          qr.is_imported,
-          qr.is_active,
-          qr.live_date,
-          qr.end_date,
+const qrResult = await q(`
+  SELECT
+    qr.id,
+    qr.name,
+    qr.description,
+    qr.is_imported,
+    qr.is_active,
+    qr.live_date,
+    qr.end_date,
 
-          COALESCE(
-            qr.total_cost,
-            qr.annual_cost,
-            0
-          )::numeric AS placement_value,
+    COALESCE(
+      qr.total_cost,
+      qr.annual_cost,
+      0
+    )::numeric AS placement_value,
 
-          COALESCE(
-            qr.annual_impressions,
-            0
-          )::numeric AS impressions,
+    COALESCE(
+      qr.annual_impressions,
+      0
+    )::numeric AS impressions,
 
+    /*
+      Campaigns connected to this QR during
+      the selected reporting period.
+    */
+    (
+      SELECT
+        COUNT(DISTINCT qc.campaign_id)::int
+
+      FROM qr_campaigns qc
+
+      JOIN campaigns c
+        ON c.id = qc.campaign_id
+       AND COALESCE(c.is_archived, false) = false
+
+      WHERE qc.qr_id = qr.id
+
+        AND (
+          /*
+            No dates selected:
+            preserve the current active-only view.
+          */
           (
-            SELECT COUNT(DISTINCT qc.campaign_id)::int
-            FROM qr_campaigns qc
-            LEFT JOIN campaigns c
-              ON c.id = qc.campaign_id
-            WHERE qc.qr_id = qr.id
-              AND COALESCE(qc.is_active, true) = true
-              AND COALESCE(c.is_archived, false) = false
-          ) AS active_campaigns,
+            NULLIF($2, '') IS NULL
+            AND NULLIF($3, '') IS NULL
+            AND COALESCE(qc.is_active, true) = true
+          )
 
+          OR
+
+          /*
+            Dates selected:
+            assignment/campaign overlaps the range.
+          */
           (
-            SELECT COUNT(e.id)::int
-            FROM events e
-            WHERE e.qr_id = qr.id
-              AND e.type = 'scan'
-          ) AS scans,
+            (
+              NULLIF($2, '') IS NULL
+              OR COALESCE(
+                   qc.ended_at::date,
+                   c.end_date,
+                   NULLIF($3, '')::date
+                 ) >= NULLIF($2, '')::date
+            )
 
-          (
-            SELECT COUNT(e.id)::int
-            FROM events e
-            WHERE e.qr_id = qr.id
-              AND e.type IN ('offer', 'maps', 'waze')
-          ) AS intent,
+            AND
 
-          (
-            SELECT COUNT(e.id)::int
-            FROM events e
-            WHERE e.qr_id = qr.id
-              AND e.type = 'conversion'
-          ) AS conversions,
+            (
+              NULLIF($3, '') IS NULL
+              OR COALESCE(
+                   qc.started_at::date,
+                   qc.assigned_at::date,
+                   c.start_date,
+                   c.live_date,
+                   c.created_at::date
+                 ) <= NULLIF($3, '')::date
+            )
+          )
+        )
+    ) AS active_campaigns,
 
-          (
-            SELECT COALESCE(SUM(e.value), 0)::numeric
-            FROM events e
-            WHERE e.qr_id = qr.id
-              AND e.type = 'conversion'
-          ) AS conversion_value
+    /*
+      Scans during the selected reporting period.
+    */
+    (
+      SELECT COUNT(e.id)::int
 
-        FROM qr_codes qr
+      FROM events e
 
-        WHERE qr.space_id = $1
-          AND COALESCE(qr.is_archived, false) = false
-          AND COALESCE(qr.is_active, true) = true
+      WHERE e.qr_id = qr.id
+        AND e.type = 'scan'
 
-        ORDER BY qr.name
-      `, [locationId]);
+        AND (
+          NULLIF($2, '') IS NULL
+          OR e.created_at::date >= NULLIF($2, '')::date
+        )
+
+        AND (
+          NULLIF($3, '') IS NULL
+          OR e.created_at::date <= NULLIF($3, '')::date
+        )
+    ) AS scans,
+
+    /*
+      Intent during the selected reporting period.
+    */
+    (
+      SELECT COUNT(e.id)::int
+
+      FROM events e
+
+      WHERE e.qr_id = qr.id
+        AND e.type IN ('offer', 'maps', 'waze')
+
+        AND (
+          NULLIF($2, '') IS NULL
+          OR e.created_at::date >= NULLIF($2, '')::date
+        )
+
+        AND (
+          NULLIF($3, '') IS NULL
+          OR e.created_at::date <= NULLIF($3, '')::date
+        )
+    ) AS intent,
+
+    /*
+      Conversions during the selected reporting period.
+    */
+    (
+      SELECT COUNT(e.id)::int
+
+      FROM events e
+
+      WHERE e.qr_id = qr.id
+        AND e.type = 'conversion'
+
+        AND (
+          NULLIF($2, '') IS NULL
+          OR e.created_at::date >= NULLIF($2, '')::date
+        )
+
+        AND (
+          NULLIF($3, '') IS NULL
+          OR e.created_at::date <= NULLIF($3, '')::date
+        )
+    ) AS conversions,
+
+    /*
+      Revenue generated during the selected period.
+    */
+    (
+      SELECT
+        COALESCE(
+          SUM(e.value),
+          0
+        )::numeric
+
+      FROM events e
+
+      WHERE e.qr_id = qr.id
+        AND e.type = 'conversion'
+
+        AND (
+          NULLIF($2, '') IS NULL
+          OR e.created_at::date >= NULLIF($2, '')::date
+        )
+
+        AND (
+          NULLIF($3, '') IS NULL
+          OR e.created_at::date <= NULLIF($3, '')::date
+        )
+    ) AS conversion_value
+
+  FROM qr_codes qr
+
+  WHERE qr.space_id = $1
+    AND COALESCE(qr.is_archived, false) = false
+
+    AND (
+      /*
+        No dates selected:
+        preserve the current active-only view.
+      */
+      (
+        NULLIF($2, '') IS NULL
+        AND NULLIF($3, '') IS NULL
+        AND COALESCE(qr.is_active, true) = true
+      )
+
+      OR
+
+      /*
+        Dates selected:
+        QR placement overlaps the range.
+      */
+      (
+        (
+          NULLIF($2, '') IS NULL
+          OR qr.end_date IS NULL
+          OR qr.end_date >= NULLIF($2, '')::date
+        )
+
+        AND
+
+        (
+          NULLIF($3, '') IS NULL
+          OR COALESCE(
+               qr.live_date,
+               qr.created_at::date
+             ) <= NULLIF($3, '')::date
+        )
+      )
+    )
+
+  ORDER BY qr.name
+`, [
+  locationId,
+  fromDate,
+  toDate
+]);
 
       const qrPlacements = qrResult.rows;
 
