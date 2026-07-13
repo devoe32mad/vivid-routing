@@ -2537,15 +2537,15 @@ if (!isSuperAdmin && !isOrganizationAdmin) {
       s.location
     FROM spaces s
     WHERE s.organization_id = $1
+  AND COALESCE(s.is_archived, false) = false
 
-      AND (
+  AND (
         /*
           With no selected dates, show currently active locations.
         */
         (
           NULLIF($2, '') IS NULL
           AND NULLIF($3, '') IS NULL
-          AND COALESCE(s.is_archived, false) = false
         )
 
         OR
