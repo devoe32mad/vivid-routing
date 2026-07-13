@@ -5201,6 +5201,90 @@ const campaignInSelectedRange =
         Campaign performance comes directly from Vivid
         events tied to the organization's QR placements.
       */
+      if (!campaignInSelectedRange) {
+  const rangeBackHref =
+    Number.isInteger(requestedQrId) &&
+    requestedQrId > 0
+      ? `/org-qr/${requestedQrId}?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}`
+      : `/org-organization/${organizationId}${dateQueryString ? `?${dateQueryString}` : ""}`;
+
+  return res.send(orgPage(
+    "Campaign Detail",
+    `
+      <div class="topbar">
+        <div class="brand">
+          Vivid Organizations
+        </div>
+
+        <h1>${campaign.name || "Campaign"}</h1>
+
+        <p class="subtitle">
+          ${campaign.advertiser || "Advertiser not set"}
+          · ${organization.name}
+        </p>
+      </div>
+
+      <div class="wrap">
+
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:16px;
+          flex-wrap:wrap;
+          margin-bottom:20px;
+        ">
+
+          <div>
+            <h2 style="margin:0 0 5px;">
+              Campaign Overview
+            </h2>
+
+            <div style="color:#65776b;">
+              Campaign performance pulled directly from Vivid.
+            </div>
+          </div>
+
+          <a
+            class="btn secondary"
+            href="${rangeBackHref}"
+          >
+            Back
+          </a>
+
+        </div>
+
+        ${orgDateFilterForm({
+          action: `/org-campaign/${campaign.id}`,
+          fromDate,
+          toDate
+        })}
+
+        <div
+          class="card"
+          style="
+            margin:0;
+            text-align:center;
+            padding:34px 24px;
+          "
+        >
+          <h2 style="margin:0 0 10px;">
+            No active campaign during this date range
+          </h2>
+
+          <p style="
+            margin:0;
+            color:#65776b;
+          ">
+            ${campaign.name || "This campaign"} was not active during the selected reporting period.
+            Select another date range or clear the filter.
+          </p>
+        </div>
+
+      </div>
+    `
+  ));
+}
       const metricsResult = await q(`
         SELECT
           COUNT(e.id) FILTER (
