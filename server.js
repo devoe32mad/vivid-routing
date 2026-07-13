@@ -5524,7 +5524,14 @@ if (
 
             </div>
 
-            <!-- Executive Overview -->
+${orgDateFilterForm({
+  action: `/org-campaign/${campaign.id}`,
+  fromDate,
+  toDate
+})}
+
+<!-- Executive Overview -->
+
 
             <div style="
               display:grid;
