@@ -3724,16 +3724,30 @@ app.get(
         );
       }
 
-      const locationId = Number(req.params.locationId);
+   const locationId = Number(req.params.locationId);
 
-      if (
-        !Number.isInteger(organizationId) ||
-        organizationId <= 0 ||
-        !Number.isInteger(locationId) ||
-        locationId <= 0
-      ) {
-        return res.status(403).send("Access denied");
-      }
+const dateFilter = getOrgDateFilter(req);
+
+if (dateFilter.error) {
+  return res.status(400).send(
+    dateFilter.error
+  );
+}
+
+const {
+  fromDate,
+  toDate,
+  queryString: dateQueryString
+} = dateFilter;
+
+if (
+  !Number.isInteger(organizationId) ||
+  organizationId <= 0 ||
+  !Number.isInteger(locationId) ||
+  locationId <= 0
+) {
+  return res.status(403).send("Access denied");
+}
 
       /*
         Confirm the organization exists.
