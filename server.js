@@ -4384,16 +4384,30 @@ app.get(
         );
       }
 
-      const qrId = Number(req.params.qrId);
+   const qrId = Number(req.params.qrId);
 
-      if (
-        !Number.isInteger(organizationId) ||
-        organizationId <= 0 ||
-        !Number.isInteger(qrId) ||
-        qrId <= 0
-      ) {
-        return res.status(403).send("Access denied");
-      }
+const dateFilter = getOrgDateFilter(req);
+
+if (dateFilter.error) {
+  return res.status(400).send(
+    dateFilter.error
+  );
+}
+
+const {
+  fromDate,
+  toDate,
+  queryString: dateQueryString
+} = dateFilter;
+
+if (
+  !Number.isInteger(organizationId) ||
+  organizationId <= 0 ||
+  !Number.isInteger(qrId) ||
+  qrId <= 0
+) {
+  return res.status(403).send("Access denied");
+}
 
       /*
         Confirm the QR belongs to a Vivid location connected
