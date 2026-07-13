@@ -4731,16 +4731,22 @@ min-height:220px;
 
               <a
                 class="btn secondary"
-                href="/org-location/${qr.location_id}?organization_id=${qr.organization_id}"
+                href="/org-location/${qr.location_id}?organization_id=${qr.organization_id}${dateQueryString ? `&${dateQueryString}` : ""}"
               >
                 Back to ${qr.location_name}
               </a>
 
-            </div>
+         </div>
 
-            <!-- Executive KPI cards -->
+${orgDateFilterForm({
+  action: `/org-qr/${qr.id}`,
+  fromDate,
+  toDate
+})}
 
-            <div style="
+<!-- Executive KPI cards -->
+
+<div style="
               display:grid;
               grid-template-columns:repeat(auto-fit,minmax(175px,1fr));
               gap:12px;
