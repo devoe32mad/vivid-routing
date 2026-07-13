@@ -4569,7 +4569,7 @@ if (
 
  const campaignCards = campaigns.map(campaign => `
   <a
-    href="/org-campaign/${campaign.id}?organization_id=${organizationId}&qr_id=${qr.id}"
+    href="/org-campaign/${campaign.id}?organization_id=${organizationId}&qr_id=${qr.id}${dateQueryString ? `&${dateQueryString}` : ""}"
     style="
       text-decoration:none;
       color:inherit;
