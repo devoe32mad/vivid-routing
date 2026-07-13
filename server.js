@@ -2507,25 +2507,19 @@ app.get(
   async (req, res) => {
     try {
       const orgId = Number(req.params.id);
-const fromDate = String(req.query.from || "").trim();
-const toDate = String(req.query.to || "").trim();
+const dateFilter = getOrgDateFilter(req);
 
-const validDate = value =>
-  value === "" || /^\d{4}-\d{2}-\d{2}$/.test(value);
-
-if (!validDate(fromDate) || !validDate(toDate)) {
-  return res.status(400).send("Invalid date range.");
-}
-
-if (
-  fromDate &&
-  toDate &&
-  fromDate > toDate
-) {
+if (dateFilter.error) {
   return res.status(400).send(
-    "From date cannot be after To date."
+    dateFilter.error
   );
 }
+
+const {
+  fromDate,
+  toDate,
+  queryString: dateQueryString
+} = dateFilter;
       const isSuperAdmin =
   req.session.user?.role === "super_admin";
 
