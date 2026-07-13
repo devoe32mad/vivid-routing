@@ -5217,8 +5217,23 @@ if (
           ON s.id = qr.space_id
 
         WHERE e.campaign_id = $1
-          AND s.organization_id = $2
-      `, [campaignId, organizationId]);
+  AND s.organization_id = $2
+
+  AND (
+    NULLIF($3, '') IS NULL
+    OR e.created_at::date >= NULLIF($3, '')::date
+  )
+
+  AND (
+    NULLIF($4, '') IS NULL
+    OR e.created_at::date <= NULLIF($4, '')::date
+  )
+      `, [
+  campaignId,
+  organizationId,
+  fromDate,
+  toDate
+]);
 
       const metrics = metricsResult.rows[0] || {
         scans: 0,
@@ -5285,8 +5300,18 @@ if (
          AND COALESCE(s.is_archived, false) = false
 
         LEFT JOIN events e
-          ON e.qr_id = qr.id
-         AND e.campaign_id = qc.campaign_id
+  ON e.qr_id = qr.id
+ AND e.campaign_id = qc.campaign_id
+
+ AND (
+   NULLIF($3, '') IS NULL
+   OR e.created_at::date >= NULLIF($3, '')::date
+ )
+
+ AND (
+   NULLIF($4, '') IS NULL
+   OR e.created_at::date <= NULLIF($4, '')::date
+ )
 
         WHERE qc.campaign_id = $1
           AND s.organization_id = $2
@@ -5307,7 +5332,12 @@ if (
         ORDER BY
           s.name,
           qr.name
-      `, [campaignId, organizationId]);
+      `, [
+  campaignId,
+  organizationId,
+  fromDate,
+  toDate
+]);
 
       const qrPlacements = qrResult.rows;
 
