@@ -288,6 +288,47 @@ function successPage(title, message, nextStep, buttons = []) {
     </div>
   `);
 }
+function getOrgDateFilter(req) {
+  const fromDate = String(req.query.from || "").trim();
+  const toDate = String(req.query.to || "").trim();
+
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+  if (
+    (fromDate && !datePattern.test(fromDate)) ||
+    (toDate && !datePattern.test(toDate))
+  ) {
+    return {
+      error: "Invalid date range."
+    };
+  }
+
+  if (
+    fromDate &&
+    toDate &&
+    fromDate > toDate
+  ) {
+    return {
+      error: "From date cannot be after To date."
+    };
+  }
+
+  const queryString = new URLSearchParams();
+
+  if (fromDate) {
+    queryString.set("from", fromDate);
+  }
+
+  if (toDate) {
+    queryString.set("to", toDate);
+  }
+
+  return {
+    fromDate,
+    toDate,
+    queryString: queryString.toString()
+  };
+}
 app.get("/seed-admin", async (req, res) => {
   try {
     await q(`
