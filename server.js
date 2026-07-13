@@ -5379,8 +5379,8 @@ if (
         ) || qrPlacements[0] || null;
 
       const backHref = originatingQr
-        ? `/org-qr/${originatingQr.id}?organization_id=${organizationId}`
-        : `/org-organization/${organizationId}`;
+  ? `/org-qr/${originatingQr.id}?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}`
+  : `/org-organization/${organizationId}${dateQueryString ? `?${dateQueryString}` : ""}`;
 
       const backLabel = originatingQr
         ? `Back to ${originatingQr.name}`
@@ -5388,7 +5388,7 @@ if (
 
       const qrCards = qrPlacements.map(qr => `
         <a
-          href="/org-qr/${qr.id}?organization_id=${organizationId}"
+          href="/org-qr/${qr.id}?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}"
           style="
             text-decoration:none;
             color:inherit;
