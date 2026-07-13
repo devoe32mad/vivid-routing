@@ -4073,7 +4073,7 @@ const qrResult = await q(`
 
 const qrCards = qrPlacements.map(qr => `
   <a
-    href="/org-qr/${qr.id}?organization_id=${organization.id}&location_id=${location.id}"
+    href="/org-qr/${qr.id}?organization_id=${organization.id}&location_id=${location.id}${dateQueryString ? `&${dateQueryString}` : ""}"
     style="
       text-decoration:none;
       color:inherit;
