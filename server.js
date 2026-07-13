@@ -3298,79 +3298,11 @@ min-height:220px;
     : ""
 }
           </div>
-<form
-  method="GET"
-  action="/org-organization/${org.id}"
-  style="
-    background:white;
-    border-radius:14px;
-    padding:14px 16px;
-    box-shadow:0 5px 14px rgba(0,0,0,.07);
-    display:flex;
-    align-items:end;
-    gap:12px;
-    flex-wrap:wrap;
-    margin:0 0 22px;
-  "
->
-  <div style="min-width:165px;">
-    <label style="
-      display:block;
-      font-size:11px;
-      color:#65776b;
-      margin-bottom:4px;
-    ">
-      From
-    </label>
-
-    <input
-      type="date"
-      name="from"
-      value="${fromDate}"
-      style="margin:0;"
-    >
-  </div>
-
-  <div style="min-width:165px;">
-    <label style="
-      display:block;
-      font-size:11px;
-      color:#65776b;
-      margin-bottom:4px;
-    ">
-      To
-    </label>
-
-    <input
-      type="date"
-      name="to"
-      value="${toDate}"
-      style="margin:0;"
-    >
-  </div>
-
-  <button
-    class="btn"
-    type="submit"
-    style="margin:0;"
-  >
-    Apply
-  </button>
-
-  ${
-    fromDate || toDate
-      ? `
-        <a
-          class="btn secondary"
-          href="/org-organization/${org.id}"
-          style="margin:0;"
-        >
-          Clear
-        </a>
-      `
-      : ""
-  }
-</form>
+${orgDateFilterForm({
+  action: `/org-organization/${org.id}`,
+  fromDate,
+  toDate
+})}
           <div style="
             display:grid;
             grid-template-columns:repeat(auto-fit,minmax(185px,1fr));
