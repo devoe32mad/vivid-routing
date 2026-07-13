@@ -4092,7 +4092,11 @@ min-height:220px;
               </a>
 
             </div>
-
+${orgDateFilterForm({
+  action: `/org-location/${location.id}`,
+  fromDate,
+  toDate
+})}
             <div style="
               display:grid;
               grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
