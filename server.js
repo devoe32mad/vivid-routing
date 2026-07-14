@@ -6204,7 +6204,7 @@ summary.conversions += Number(
 
       const advertiserCards = advertisers.map(advertiser => `
   <a
-    href="/org-advertiser/${encodeURIComponent(advertiser.advertiser_key)}?organization_id=${organizationId}"
+    href="/org-advertiser/${encodeURIComponent(advertiser.advertiser_key)}?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}"
     style="
       text-decoration:none;
       color:inherit;
@@ -6345,7 +6345,7 @@ ${orgDateFilterForm({
 
               <a
                 class="btn secondary"
-                href="/org-organization/${organization.id}"
+                href="/org-organization/${organization.id}${dateQueryString ? `?${dateQueryString}` : ""}"
               >
                 Back to ${organization.name}
               </a>
