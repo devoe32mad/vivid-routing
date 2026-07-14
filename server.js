@@ -8330,7 +8330,7 @@ app.get(
                       font-weight:bold;
                       margin-bottom:6px;
                     ">
-                      Select School TEST
+                      Select School 
                     </div>
 
                     <select style="
