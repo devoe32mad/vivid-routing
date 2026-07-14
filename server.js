@@ -5998,6 +5998,198 @@ justify-content:flex-start;
   }
 );
 app.get(
+  "/org-marketplace",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Organization Portal users use the organization
+        stored in their login session.
+      */
+      if (req.session.orgUser?.organization_id) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      /*
+        Super Admin may select an organization through
+        the organization_id query parameter.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res.status(403).send("Access denied");
+      }
+
+      /*
+        Confirm that the organization exists and is active.
+      */
+      const organizationResult = await q(`
+        SELECT
+          id,
+          name
+        FROM organizations
+        WHERE id = $1
+          AND COALESCE(is_active, true) = true
+        LIMIT 1
+      `, [organizationId]);
+
+      const organization = organizationResult.rows[0];
+
+      if (!organization) {
+        return res.status(404).send(
+          "Organization not found."
+        );
+      }
+
+      /*
+        Version 1, Step 1:
+        This is only the Marketplace management landing page.
+
+        The organization_opportunities table and opportunity
+        records will be added in Step 2.
+      */
+      res.send(orgPage(
+        "Organization Marketplace",
+        `
+          <div class="topbar">
+            <div class="brand">
+              Vivid Organizations
+            </div>
+
+            <h1>${organization.name} Marketplace</h1>
+
+            <p class="subtitle">
+              Manage advertising opportunities available to prospective advertisers.
+            </p>
+          </div>
+
+          <div class="wrap">
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:16px;
+              flex-wrap:wrap;
+              margin-bottom:24px;
+            ">
+
+              <div>
+                <h2 style="margin:0 0 5px;">
+                  Advertising Opportunities
+                </h2>
+
+                <div style="color:#65776b;">
+                  Configure the opportunities advertisers can select through
+                  your public Advertise With Us page.
+                </div>
+              </div>
+
+              <div style="
+                display:flex;
+                gap:8px;
+                flex-wrap:wrap;
+              ">
+                <a
+                  class="btn"
+                  href="#"
+                  onclick="
+                    alert('Create Advertising Opportunity will be activated after the opportunity table is added.');
+                    return false;
+                  "
+                >
+                  Create Advertising Opportunity
+                </a>
+
+                <a
+                  class="btn secondary"
+                  href="/org-organization/${organization.id}"
+                >
+                  Back to ${organization.name}
+                </a>
+              </div>
+
+            </div>
+
+            <div
+              class="card"
+              style="
+                margin:0;
+                text-align:center;
+                padding:42px 24px;
+              "
+            >
+              <div style="
+                width:58px;
+                height:58px;
+                border-radius:50%;
+                background:#eaf3e8;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                margin:0 auto 18px;
+                font-size:27px;
+              ">
+                +
+              </div>
+
+              <h2 style="margin:0 0 10px;">
+                No advertising opportunities have been created
+              </h2>
+
+              <p style="
+                color:#65776b;
+                line-height:1.55;
+                max-width:650px;
+                margin:0 auto 22px;
+              ">
+                Advertising opportunities will define what prospective
+                advertisers can purchase, where the opportunity is available,
+                and the visible price.
+              </p>
+
+              <a
+                class="btn"
+                href="#"
+                onclick="
+                  alert('Create Advertising Opportunity will be activated after the opportunity table is added.');
+                  return false;
+                "
+              >
+                Create Your First Opportunity
+              </a>
+            </div>
+
+          </div>
+        `
+      ));
+
+    } catch (err) {
+      console.error(
+        "ORG MARKETPLACE ERROR:",
+        err
+      );
+
+      res.status(500).send(
+        "ORG MARKETPLACE ERROR: " + err.message
+      );
+    }
+  }
+);
+app.get(
   "/org-advertisers",
   async (req, res) => {
     try {
