@@ -8333,19 +8333,70 @@ app.get(
                       Select School 
                     </div>
 
-                    <select style="
-                      width:100%;
-                      padding:12px 14px;
-                      border:1px solid #d7dfd8;
-                      border-radius:10px;
-                      font-size:15px;
-                      background:white;
-                      box-sizing:border-box;
-                    ">
-                      <option>${firstLocation}</option>
-                      <option>${secondLocation}</option>
-                      <option>${thirdLocation}</option>
-                    </select>
+                  <select style="
+  width:100%;
+  padding:12px 14px;
+  border:1px solid #d7dfd8;
+  border-radius:10px;
+  font-size:15px;
+  background:white;
+  box-sizing:border-box;
+">
+  <option>CCPS District</option>
+
+  <option>Aubrey Rogers High School</option>
+  <option>Avalon Elementary School</option>
+  <option>Ave Maria Elementary School</option>
+  <option selected>Barron Collier High School</option>
+  <option>Bear Creek Elementary School</option>
+  <option>Big Cypress Elementary School</option>
+  <option>Calusa Park Elementary School</option>
+  <option>Corkscrew Elementary School</option>
+  <option>Corkscrew Middle School</option>
+  <option>Cypress Palm Middle School</option>
+  <option>East Naples Middle School</option>
+  <option>Eden Park Elementary School</option>
+  <option>Estates Elementary School</option>
+  <option>Everglades City School</option>
+  <option>Golden Gate Elementary School</option>
+  <option>Golden Gate High School</option>
+  <option>Golden Gate Middle School</option>
+  <option>Golden Terrace Elementary School</option>
+  <option>Gulf Coast High School</option>
+  <option>Gulfview Middle School</option>
+  <option>Herbert Cambridge Elementary School</option>
+  <option>Highlands Elementary School</option>
+  <option>Immokalee High School</option>
+  <option>Immokalee Middle School</option>
+  <option>Lake Park Elementary School</option>
+  <option>Lake Trafford Elementary School</option>
+  <option>Laurel Oak Elementary School</option>
+  <option>Lavern Gaynor Elementary School</option>
+  <option>Lely Elementary School</option>
+  <option>Lely High School</option>
+  <option>Manatee Elementary School</option>
+  <option>Manatee Middle School</option>
+  <option>Mike Davis Elementary School</option>
+  <option>Naples High School</option>
+  <option>Naples Park Elementary School</option>
+  <option>North Naples Middle School</option>
+  <option>Oakridge Middle School</option>
+  <option>Osceola Elementary School</option>
+  <option>Palmetto Elementary School</option>
+  <option>Palmetto Ridge High School</option>
+  <option>Parkside Elementary School</option>
+  <option>Pelican Marsh Elementary School</option>
+  <option>Pine Ridge Middle School</option>
+  <option>Pinecrest Elementary School</option>
+  <option>Poinciana Elementary School</option>
+  <option>Sabal Palm Elementary School</option>
+  <option>Sea Gate Elementary School</option>
+  <option>Shadowlawn Elementary School</option>
+  <option>Tommie Barfield Elementary School</option>
+  <option>Veterans Memorial Elementary School</option>
+  <option>Village Oaks Elementary School</option>
+  <option>Vineyards Elementary School</option>
+</select>
 
                   </div>
 
