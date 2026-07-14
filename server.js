@@ -5741,9 +5741,25 @@ ${orgDateFilterForm({
                     Advertiser
                   </div>
 
-                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
-                    ${campaign.advertiser || "Not set"}
-                  </div>
+                <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+  ${
+    campaign.advertiser
+      ? `
+        <a
+          href="/org-advertiser/${encodeURIComponent(
+            campaign.advertiser.trim().toLowerCase()
+          )}?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}"
+          style="
+            color:#176b3a;
+            text-decoration:underline;
+          "
+        >
+          ${campaign.advertiser}
+        </a>
+      `
+      : "Not set"
+  }
+</div>
                 </div>
 
                 <div>
