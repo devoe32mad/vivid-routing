@@ -6719,7 +6719,19 @@ app.get(
       const advertiserKey = String(
         req.params.advertiserKey || ""
       ).trim().toLowerCase();
+const dateFilter = getOrgDateFilter(req);
 
+if (dateFilter.error) {
+  return res.status(400).send(
+    dateFilter.error
+  );
+}
+
+const {
+  fromDate,
+  toDate,
+  queryString: dateQueryString
+} = dateFilter;
       if (
         !Number.isInteger(organizationId) ||
         organizationId <= 0 ||
