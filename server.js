@@ -7176,7 +7176,11 @@ const {
                 Back to Advertisers
               </a>
             </div>
-
+${orgDateFilterForm({
+  action: `/org-advertiser/${encodeURIComponent(advertiserKey)}?organization_id=${organizationId}`,
+  fromDate,
+  toDate
+})
             <div style="
               display:grid;
               grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
