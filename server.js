@@ -6334,56 +6334,257 @@ app.get(
 
             </div>
 
-            <div
-              class="card"
-              style="
-                margin:0;
-                text-align:center;
-                padding:42px 24px;
-              "
-            >
-              <div style="
-                width:58px;
-                height:58px;
-                border-radius:50%;
-                background:#eaf3e8;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                margin:0 auto 18px;
-                font-size:27px;
-              ">
-                +
-              </div>
+     <div style="
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:18px;
+  margin-top:22px;
+">
 
-              <h2 style="margin:0 0 10px;">
-                No advertising opportunities have been created
-              </h2>
+  <div class="card" style="margin:0;">
+    <div style="
+      font-size:12px;
+      color:#65776b;
+      margin-bottom:5px;
+    ">
+      Location
+    </div>
 
-              <p style="
-                color:#65776b;
-                line-height:1.55;
-                max-width:650px;
-                margin:0 auto 22px;
-              ">
-                Advertising opportunities will define what prospective
-                advertisers can purchase, where the opportunity is available,
-                and the visible price.
-              </p>
+    <div style="
+      font-size:19px;
+      font-weight:bold;
+      margin-bottom:18px;
+    ">
+      Barron Collier High School
+    </div>
 
-              <a
-                class="btn"
-                href="#"
-                onclick="
-                  alert('Create Advertising Opportunity will be activated after the opportunity table is added.');
-                  return false;
-                "
-              >
-                Create Your First Opportunity
-              </a>
-            </div>
+    <div style="
+      font-size:12px;
+      color:#65776b;
+      margin-bottom:5px;
+    ">
+      Sponsorship Opportunity
+    </div>
 
-          </div>
+    <div style="
+      font-size:19px;
+      font-weight:bold;
+      margin-bottom:18px;
+    ">
+      Football Stadium Sponsorship
+    </div>
+
+    <div style="
+      font-size:12px;
+      color:#65776b;
+      margin-bottom:5px;
+    ">
+      Annual Investment
+    </div>
+
+    <div style="
+      font-size:24px;
+      font-weight:bold;
+      margin-bottom:16px;
+    ">
+      $1,500
+    </div>
+
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+    ">
+      <span style="
+        display:inline-block;
+        background:#eaf3e8;
+        color:#176b3a;
+        border-radius:999px;
+        padding:7px 11px;
+        font-size:12px;
+        font-weight:bold;
+      ">
+        Available
+      </span>
+
+      <a
+        class="btn secondary"
+        href="#"
+        onclick="
+          alert('Opportunity editing will be activated in the next Marketplace build step.');
+          return false;
+        "
+      >
+        Edit
+      </a>
+    </div>
+  </div>
+
+  <div class="card" style="margin:0;">
+    <div style="
+      font-size:12px;
+      color:#65776b;
+      margin-bottom:5px;
+    ">
+      Location
+    </div>
+
+    <div style="
+      font-size:19px;
+      font-weight:bold;
+      margin-bottom:18px;
+    ">
+      Lely High School
+    </div>
+
+    <div style="
+      font-size:12px;
+      color:#65776b;
+      margin-bottom:5px;
+    ">
+      Sponsorship Opportunity
+    </div>
+
+    <div style="
+      font-size:19px;
+      font-weight:bold;
+      margin-bottom:18px;
+    ">
+      Car Line Sponsorship
+    </div>
+
+    <div style="
+      font-size:12px;
+      color:#65776b;
+      margin-bottom:5px;
+    ">
+      Annual Investment
+    </div>
+
+    <div style="
+      font-size:24px;
+      font-weight:bold;
+      margin-bottom:16px;
+    ">
+      $950
+    </div>
+
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+    ">
+      <span style="
+        display:inline-block;
+        background:#eaf3e8;
+        color:#176b3a;
+        border-radius:999px;
+        padding:7px 11px;
+        font-size:12px;
+        font-weight:bold;
+      ">
+        Available
+      </span>
+
+      <a
+        class="btn secondary"
+        href="#"
+        onclick="
+          alert('Opportunity editing will be activated in the next Marketplace build step.');
+          return false;
+        "
+      >
+        Edit
+      </a>
+    </div>
+  </div>
+
+  <div class="card" style="margin:0;">
+    <div style="
+      font-size:12px;
+      color:#65776b;
+      margin-bottom:5px;
+    ">
+      Location
+    </div>
+
+    <div style="
+      font-size:19px;
+      font-weight:bold;
+      margin-bottom:18px;
+    ">
+      Palmetto Ridge High School
+    </div>
+
+    <div style="
+      font-size:12px;
+      color:#65776b;
+      margin-bottom:5px;
+    ">
+      Sponsorship Opportunity
+    </div>
+
+    <div style="
+      font-size:19px;
+      font-weight:bold;
+      margin-bottom:18px;
+    ">
+      Gym Sponsorship
+    </div>
+
+    <div style="
+      font-size:12px;
+      color:#65776b;
+      margin-bottom:5px;
+    ">
+      Annual Investment
+    </div>
+
+    <div style="
+      font-size:24px;
+      font-weight:bold;
+      margin-bottom:16px;
+    ">
+      $1,200
+    </div>
+
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+    ">
+      <span style="
+        display:inline-block;
+        background:#eaf3e8;
+        color:#176b3a;
+        border-radius:999px;
+        padding:7px 11px;
+        font-size:12px;
+        font-weight:bold;
+      ">
+        Available
+      </span>
+
+      <a
+        class="btn secondary"
+        href="#"
+        onclick="
+          alert('Opportunity editing will be activated in the next Marketplace build step.');
+          return false;
+        "
+      >
+        Edit
+      </a>
+    </div>
+  </div>
+
+</div>
         `
       ));
 
