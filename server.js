@@ -8396,6 +8396,12 @@ app.get(
   <option>Veterans Memorial Elementary School</option>
   <option>Village Oaks Elementary School</option>
   <option>Vineyards Elementary School</option>
+<!--
+TODO - Marketplace V1
+Temporary hardcoded CCPS schools.
+Replace with dynamic organization locations after
+Marketplace Opportunities are database-driven.
+-->
 </select>
 
                   </div>
