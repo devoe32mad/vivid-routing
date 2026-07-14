@@ -6719,19 +6719,21 @@ app.get(
       const advertiserKey = String(
         req.params.advertiserKey || ""
       ).trim().toLowerCase();
-const dateFilter = getOrgDateFilter(req);
 
-if (dateFilter.error) {
-  return res.status(400).send(
-    dateFilter.error
-  );
-}
+      const dateFilter = getOrgDateFilter(req);
 
-const {
-  fromDate,
-  toDate,
-  queryString: dateQueryString
-} = dateFilter;
+      if (dateFilter.error) {
+        return res.status(400).send(
+          dateFilter.error
+        );
+      }
+
+      const {
+        fromDate,
+        toDate,
+        queryString: dateQueryString
+      } = dateFilter;
+
       if (
         !Number.isInteger(organizationId) ||
         organizationId <= 0 ||
@@ -6741,7 +6743,9 @@ const {
       }
 
       const organizationResult = await q(`
-        SELECT id, name
+        SELECT
+          id,
+          name
         FROM organizations
         WHERE id = $1
           AND COALESCE(is_active, true) = true
@@ -6757,51 +6761,225 @@ const {
       }
 
       /*
-        Confirm the advertiser exists inside this organization.
+        Confirm this advertiser has at least one valid
+        relationship during the selected reporting period.
       */
       const advertiserResult = await q(`
+        WITH filtered_relationships AS (
+          SELECT DISTINCT
+            TRIM(c.advertiser) AS advertiser_name,
+            c.id AS campaign_id,
+            qr.id AS qr_id,
+            s.id AS location_id
+
+          FROM campaigns c
+
+          JOIN qr_campaigns qc
+            ON qc.campaign_id = c.id
+
+          JOIN qr_codes qr
+            ON qr.id = qc.qr_id
+           AND COALESCE(qr.is_archived, false) = false
+
+          JOIN spaces s
+            ON s.id = qr.space_id
+           AND COALESCE(s.is_archived, false) = false
+
+          WHERE s.organization_id = $1
+            AND LOWER(TRIM(c.advertiser)) = $2
+            AND COALESCE(c.is_archived, false) = false
+
+            AND (
+              /*
+                No dates selected:
+                preserve the current active-only view.
+              */
+              (
+                NULLIF($3, '') IS NULL
+                AND NULLIF($4, '') IS NULL
+                AND COALESCE(qr.is_active, true) = true
+                AND COALESCE(qc.is_active, true) = true
+              )
+
+              OR
+
+              /*
+                Dates selected:
+                location, QR, and campaign assignment
+                must overlap the requested range.
+              */
+              (
+                (
+                  NULLIF($3, '') IS NULL
+                  OR s.end_date IS NULL
+                  OR s.end_date >= NULLIF($3, '')::date
+                )
+
+                AND
+
+                (
+                  NULLIF($4, '') IS NULL
+                  OR COALESCE(
+                       s.live_date,
+                       s.created_at::date
+                     ) <= NULLIF($4, '')::date
+                )
+
+                AND
+
+                (
+                  NULLIF($3, '') IS NULL
+                  OR qr.end_date IS NULL
+                  OR qr.end_date >= NULLIF($3, '')::date
+                )
+
+                AND
+
+                (
+                  NULLIF($4, '') IS NULL
+                  OR COALESCE(
+                       qr.live_date,
+                       qr.created_at::date
+                     ) <= NULLIF($4, '')::date
+                )
+
+                AND
+
+                (
+                  NULLIF($3, '') IS NULL
+                  OR COALESCE(
+                       qc.ended_at::date,
+                       c.end_date
+                     ) IS NULL
+                  OR COALESCE(
+                       qc.ended_at::date,
+                       c.end_date
+                     ) >= NULLIF($3, '')::date
+                )
+
+                AND
+
+                (
+                  NULLIF($4, '') IS NULL
+                  OR COALESCE(
+                       qc.started_at::date,
+                       qc.assigned_at::date,
+                       c.start_date,
+                       c.live_date,
+                       c.created_at::date
+                     ) <= NULLIF($4, '')::date
+                )
+              )
+            )
+        )
+
         SELECT
-          MIN(TRIM(c.advertiser)) AS advertiser_name,
+          MIN(advertiser_name) AS advertiser_name,
+          COUNT(DISTINCT location_id)::int AS locations,
+          COUNT(DISTINCT qr_id)::int AS qr_placements,
+          COUNT(DISTINCT campaign_id)::int AS active_campaigns
 
-          COUNT(DISTINCT s.id)::int AS locations,
-
-          COUNT(DISTINCT qr.id)::int AS qr_placements,
-
-          COUNT(
-            DISTINCT CASE
-              WHEN COALESCE(qc.is_active, true) = true
-              THEN c.id
-            END
-          )::int AS active_campaigns
-
-        FROM campaigns c
-
-        JOIN qr_campaigns qc
-          ON qc.campaign_id = c.id
-
-        JOIN qr_codes qr
-          ON qr.id = qc.qr_id
-         AND COALESCE(qr.is_archived, false) = false
-
-        JOIN spaces s
-          ON s.id = qr.space_id
-         AND COALESCE(s.is_archived, false) = false
-
-        WHERE s.organization_id = $1
-          AND LOWER(TRIM(c.advertiser)) = $2
-          AND COALESCE(c.is_archived, false) = false
-      `, [organizationId, advertiserKey]);
+        FROM filtered_relationships
+      `, [
+        organizationId,
+        advertiserKey,
+        fromDate,
+        toDate
+      ]);
 
       const advertiser = advertiserResult.rows[0];
 
+      /*
+        The advertiser exists in Vivid but had no valid
+        relationship during the selected reporting period.
+      */
       if (!advertiser?.advertiser_name) {
-        return res.status(404).send(
-          "Advertiser not found for this organization."
-        );
+        return res.send(orgPage(
+          "Organization Advertiser",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                ${advertiserKey
+                  .split(" ")
+                  .map(word =>
+                    word.charAt(0).toUpperCase() +
+                    word.slice(1)
+                  )
+                  .join(" ")}
+              </h1>
+
+              <p class="subtitle">
+                ${organization.name} Advertiser Performance
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:16px;
+                flex-wrap:wrap;
+                margin-bottom:20px;
+              ">
+                <div>
+                  <h2 style="margin:0 0 5px;">
+                    Advertiser Overview
+                  </h2>
+
+                  <div style="color:#65776b;">
+                    Organization-wide performance pulled directly from Vivid.
+                  </div>
+                </div>
+
+                <a
+                  class="btn secondary"
+                  href="/org-advertisers?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}"
+                >
+                  Back to Advertisers
+                </a>
+              </div>
+
+              ${orgDateFilterForm({
+                action: `/org-advertiser/${encodeURIComponent(advertiserKey)}`,
+                fromDate,
+                toDate
+              })}
+
+              <div
+                class="card"
+                style="
+                  margin:0;
+                  text-align:center;
+                  padding:34px 24px;
+                "
+              >
+                <h2 style="margin:0 0 10px;">
+                  No active advertiser during this date range
+                </h2>
+
+                <p style="
+                  margin:0;
+                  color:#65776b;
+                ">
+                  This advertiser had no active location, QR placement,
+                  or campaign relationship during the selected reporting period.
+                  Select another date range or clear the filter.
+                </p>
+              </div>
+
+            </div>
+          `
+        ));
       }
 
       /*
-        Full advertiser analytics from Vivid events.
+        Date-filtered advertiser event performance.
       */
       const metricsResult = await q(`
         SELECT
@@ -6843,18 +7021,43 @@ const {
 
         JOIN qr_codes qr
           ON qr.id = e.qr_id
+         AND COALESCE(qr.is_archived, false) = false
 
         JOIN spaces s
           ON s.id = qr.space_id
+         AND COALESCE(s.is_archived, false) = false
 
         WHERE s.organization_id = $1
           AND LOWER(TRIM(c.advertiser)) = $2
-      `, [organizationId, advertiserKey]);
 
-      const metrics = metricsResult.rows[0] || {};
+          AND (
+            NULLIF($3, '') IS NULL
+            OR e.created_at::date >= NULLIF($3, '')::date
+          )
+
+          AND (
+            NULLIF($4, '') IS NULL
+            OR e.created_at::date <= NULLIF($4, '')::date
+          )
+      `, [
+        organizationId,
+        advertiserKey,
+        fromDate,
+        toDate
+      ]);
+
+      const metrics = metricsResult.rows[0] || {
+        scans: 0,
+        offer_clicks: 0,
+        maps_clicks: 0,
+        waze_clicks: 0,
+        intent: 0,
+        conversions: 0,
+        revenue_generated: 0
+      };
 
       /*
-        Related locations.
+        Related locations active during the selected period.
       */
       const locationResult = await q(`
         SELECT
@@ -6862,9 +7065,11 @@ const {
           s.name,
           s.location,
 
-          COUNT(DISTINCT qr.id)::int AS qr_placements,
+          COUNT(DISTINCT qr.id)::int
+            AS qr_placements,
 
-          COUNT(DISTINCT c.id)::int AS campaigns
+          COUNT(DISTINCT c.id)::int
+            AS campaigns
 
         FROM campaigns c
 
@@ -6883,16 +7088,95 @@ const {
           AND LOWER(TRIM(c.advertiser)) = $2
           AND COALESCE(c.is_archived, false) = false
 
+          AND (
+            (
+              NULLIF($3, '') IS NULL
+              AND NULLIF($4, '') IS NULL
+              AND COALESCE(qr.is_active, true) = true
+              AND COALESCE(qc.is_active, true) = true
+            )
+
+            OR
+
+            (
+              (
+                NULLIF($3, '') IS NULL
+                OR s.end_date IS NULL
+                OR s.end_date >= NULLIF($3, '')::date
+              )
+
+              AND
+
+              (
+                NULLIF($4, '') IS NULL
+                OR COALESCE(
+                     s.live_date,
+                     s.created_at::date
+                   ) <= NULLIF($4, '')::date
+              )
+
+              AND
+
+              (
+                NULLIF($3, '') IS NULL
+                OR qr.end_date IS NULL
+                OR qr.end_date >= NULLIF($3, '')::date
+              )
+
+              AND
+
+              (
+                NULLIF($4, '') IS NULL
+                OR COALESCE(
+                     qr.live_date,
+                     qr.created_at::date
+                   ) <= NULLIF($4, '')::date
+              )
+
+              AND
+
+              (
+                NULLIF($3, '') IS NULL
+                OR COALESCE(
+                     qc.ended_at::date,
+                     c.end_date
+                   ) IS NULL
+                OR COALESCE(
+                     qc.ended_at::date,
+                     c.end_date
+                   ) >= NULLIF($3, '')::date
+              )
+
+              AND
+
+              (
+                NULLIF($4, '') IS NULL
+                OR COALESCE(
+                     qc.started_at::date,
+                     qc.assigned_at::date,
+                     c.start_date,
+                     c.live_date,
+                     c.created_at::date
+                   ) <= NULLIF($4, '')::date
+              )
+            )
+          )
+
         GROUP BY
           s.id,
           s.name,
           s.location
 
         ORDER BY s.name
-      `, [organizationId, advertiserKey]);
+      `, [
+        organizationId,
+        advertiserKey,
+        fromDate,
+        toDate
+      ]);
 
       /*
-        Related campaigns.
+        Related campaigns active during the selected period.
       */
       const campaignResult = await q(`
         SELECT DISTINCT
@@ -6905,12 +7189,15 @@ const {
           CASE
             WHEN COALESCE(c.is_archived, false) = true
               THEN 'Archived'
+
             WHEN c.start_date IS NOT NULL
              AND c.start_date > CURRENT_DATE
               THEN 'Scheduled'
+
             WHEN c.end_date IS NOT NULL
              AND c.end_date < CURRENT_DATE
               THEN 'Completed'
+
             ELSE 'Active'
           END AS status
 
@@ -6921,19 +7208,82 @@ const {
 
         JOIN qr_codes qr
           ON qr.id = qc.qr_id
+         AND COALESCE(qr.is_archived, false) = false
 
         JOIN spaces s
           ON s.id = qr.space_id
+         AND COALESCE(s.is_archived, false) = false
 
         WHERE s.organization_id = $1
           AND LOWER(TRIM(c.advertiser)) = $2
           AND COALESCE(c.is_archived, false) = false
 
+          AND (
+            (
+              NULLIF($3, '') IS NULL
+              AND NULLIF($4, '') IS NULL
+              AND COALESCE(qr.is_active, true) = true
+              AND COALESCE(qc.is_active, true) = true
+            )
+
+            OR
+
+            (
+              (
+                NULLIF($3, '') IS NULL
+                OR COALESCE(
+                     qc.ended_at::date,
+                     c.end_date
+                   ) IS NULL
+                OR COALESCE(
+                     qc.ended_at::date,
+                     c.end_date
+                   ) >= NULLIF($3, '')::date
+              )
+
+              AND
+
+              (
+                NULLIF($4, '') IS NULL
+                OR COALESCE(
+                     qc.started_at::date,
+                     qc.assigned_at::date,
+                     c.start_date,
+                     c.live_date,
+                     c.created_at::date
+                   ) <= NULLIF($4, '')::date
+              )
+
+              AND
+
+              (
+                NULLIF($3, '') IS NULL
+                OR qr.end_date IS NULL
+                OR qr.end_date >= NULLIF($3, '')::date
+              )
+
+              AND
+
+              (
+                NULLIF($4, '') IS NULL
+                OR COALESCE(
+                     qr.live_date,
+                     qr.created_at::date
+                   ) <= NULLIF($4, '')::date
+              )
+            )
+          )
+
         ORDER BY c.name
-      `, [organizationId, advertiserKey]);
+      `, [
+        organizationId,
+        advertiserKey,
+        fromDate,
+        toDate
+      ]);
 
       /*
-        Related QR placements.
+        Related QR placements active during the selected period.
       */
       const qrResult = await q(`
         SELECT DISTINCT
@@ -6965,16 +7315,82 @@ const {
 
         WHERE s.organization_id = $1
           AND LOWER(TRIM(c.advertiser)) = $2
+          AND COALESCE(c.is_archived, false) = false
+
+          AND (
+            (
+              NULLIF($3, '') IS NULL
+              AND NULLIF($4, '') IS NULL
+              AND COALESCE(qr.is_active, true) = true
+              AND COALESCE(qc.is_active, true) = true
+            )
+
+            OR
+
+            (
+              (
+                NULLIF($3, '') IS NULL
+                OR qr.end_date IS NULL
+                OR qr.end_date >= NULLIF($3, '')::date
+              )
+
+              AND
+
+              (
+                NULLIF($4, '') IS NULL
+                OR COALESCE(
+                     qr.live_date,
+                     qr.created_at::date
+                   ) <= NULLIF($4, '')::date
+              )
+
+              AND
+
+              (
+                NULLIF($3, '') IS NULL
+                OR COALESCE(
+                     qc.ended_at::date,
+                     c.end_date
+                   ) IS NULL
+                OR COALESCE(
+                     qc.ended_at::date,
+                     c.end_date
+                   ) >= NULLIF($3, '')::date
+              )
+
+              AND
+
+              (
+                NULLIF($4, '') IS NULL
+                OR COALESCE(
+                     qc.started_at::date,
+                     qc.assigned_at::date,
+                     c.start_date,
+                     c.live_date,
+                     c.created_at::date
+                   ) <= NULLIF($4, '')::date
+              )
+            )
+          )
 
         ORDER BY
           s.name,
           qr.name
-      `, [organizationId, advertiserKey]);
+      `, [
+        organizationId,
+        advertiserKey,
+        fromDate,
+        toDate
+      ]);
 
       const locationCards = locationResult.rows.map(location => `
         <a
-          href="/org-location/${location.id}?organization_id=${organizationId}"
-          style="text-decoration:none;color:inherit;display:block;"
+          href="/org-location/${location.id}?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}"
+          style="
+            text-decoration:none;
+            color:inherit;
+            display:block;
+          "
         >
           <div style="
             background:white;
@@ -6989,7 +7405,11 @@ const {
               ${location.name}
             </div>
 
-            <div style="font-size:11px;color:#65776b;margin:5px 0 18px;">
+            <div style="
+              font-size:11px;
+              color:#65776b;
+              margin:5px 0 18px;
+            ">
               ${location.location || "Market not set"}
             </div>
 
@@ -7002,6 +7422,7 @@ const {
                 <div style="font-size:10px;color:#65776b;">
                   QR Placements
                 </div>
+
                 <div style="font-size:16px;font-weight:bold;">
                   ${Number(location.qr_placements || 0)}
                 </div>
@@ -7011,6 +7432,7 @@ const {
                 <div style="font-size:10px;color:#65776b;">
                   Campaigns
                 </div>
+
                 <div style="font-size:16px;font-weight:bold;">
                   ${Number(location.campaigns || 0)}
                 </div>
@@ -7033,8 +7455,12 @@ const {
 
       const qrCards = qrResult.rows.map(qr => `
         <a
-          href="/org-qr/${qr.id}?organization_id=${organizationId}"
-          style="text-decoration:none;color:inherit;display:block;"
+          href="/org-qr/${qr.id}?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}"
+          style="
+            text-decoration:none;
+            color:inherit;
+            display:block;
+          "
         >
           <div style="
             background:white;
@@ -7049,7 +7475,11 @@ const {
               ${qr.name || "Unnamed QR Placement"}
             </div>
 
-            <div style="font-size:11px;color:#65776b;margin:5px 0 18px;">
+            <div style="
+              font-size:11px;
+              color:#65776b;
+              margin:5px 0 18px;
+            ">
               ${qr.location_name}
             </div>
 
@@ -7057,6 +7487,7 @@ const {
               <div style="font-size:10px;color:#65776b;">
                 Placement Value
               </div>
+
               <div style="font-size:16px;font-weight:bold;">
                 ${money(qr.placement_value)}
               </div>
@@ -7078,8 +7509,12 @@ const {
 
       const campaignCards = campaignResult.rows.map(campaign => `
         <a
-          href="/org-campaign/${campaign.id}?organization_id=${organizationId}"
-          style="text-decoration:none;color:inherit;display:block;"
+          href="/org-campaign/${campaign.id}?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}"
+          style="
+            text-decoration:none;
+            color:inherit;
+            display:block;
+          "
         >
           <div style="
             background:white;
@@ -7094,7 +7529,11 @@ const {
               ${campaign.name || "Unnamed Campaign"}
             </div>
 
-            <div style="font-size:11px;color:#65776b;margin:5px 0 18px;">
+            <div style="
+              font-size:11px;
+              color:#65776b;
+              margin:5px 0 18px;
+            ">
               ${campaign.status}
             </div>
 
@@ -7107,6 +7546,7 @@ const {
                 <div style="font-size:10px;color:#65776b;">
                   Start Date
                 </div>
+
                 <div style="font-size:13px;font-weight:bold;">
                   ${dateLabel(campaign.start_date)}
                 </div>
@@ -7116,6 +7556,7 @@ const {
                 <div style="font-size:10px;color:#65776b;">
                   End Date
                 </div>
+
                 <div style="font-size:13px;font-weight:bold;">
                   ${dateLabel(campaign.end_date, "Active")}
                 </div>
@@ -7140,7 +7581,9 @@ const {
         "Organization Advertiser",
         `
           <div class="topbar">
-            <div class="brand">Vivid Organizations</div>
+            <div class="brand">
+              Vivid Organizations
+            </div>
 
             <h1>${advertiser.advertiser_name}</h1>
 
@@ -7176,11 +7619,13 @@ const {
                 Back to Advertisers
               </a>
             </div>
-${orgDateFilterForm({
-  action: `/org-advertiser/${encodeURIComponent(advertiserKey)}`,
-  fromDate,
-  toDate
-})}
+
+            ${orgDateFilterForm({
+              action: `/org-advertiser/${encodeURIComponent(advertiserKey)}`,
+              fromDate,
+              toDate
+            })}
+
             <div style="
               display:grid;
               grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
@@ -7188,35 +7633,50 @@ ${orgDateFilterForm({
               margin-bottom:30px;
             ">
               <div class="card" style="margin:0;">
-                <div style="font-size:12px;color:#65776b;">Locations</div>
+                <div style="font-size:12px;color:#65776b;">
+                  Locations
+                </div>
+
                 <div style="font-size:27px;font-weight:bold;margin-top:6px;">
                   ${Number(advertiser.locations || 0)}
                 </div>
               </div>
 
               <div class="card" style="margin:0;">
-                <div style="font-size:12px;color:#65776b;">QR Placements</div>
+                <div style="font-size:12px;color:#65776b;">
+                  QR Placements
+                </div>
+
                 <div style="font-size:27px;font-weight:bold;margin-top:6px;">
                   ${Number(advertiser.qr_placements || 0)}
                 </div>
               </div>
 
               <div class="card" style="margin:0;">
-                <div style="font-size:12px;color:#65776b;">Active Campaigns</div>
+                <div style="font-size:12px;color:#65776b;">
+                  Active Campaigns
+                </div>
+
                 <div style="font-size:27px;font-weight:bold;margin-top:6px;">
                   ${Number(advertiser.active_campaigns || 0)}
                 </div>
               </div>
 
               <div class="card" style="margin:0;">
-                <div style="font-size:12px;color:#65776b;">Scans</div>
+                <div style="font-size:12px;color:#65776b;">
+                  Scans
+                </div>
+
                 <div style="font-size:27px;font-weight:bold;margin-top:6px;">
                   ${Number(metrics.scans || 0)}
                 </div>
               </div>
 
               <div class="card" style="margin:0;">
-                <div style="font-size:12px;color:#65776b;">Conversions</div>
+                <div style="font-size:12px;color:#65776b;">
+                  Conversions
+                </div>
+
                 <div style="font-size:27px;font-weight:bold;margin-top:6px;">
                   ${Number(metrics.conversions || 0)}
                 </div>
@@ -7226,6 +7686,7 @@ ${orgDateFilterForm({
                 <div style="font-size:12px;color:#65776b;">
                   Revenue Generated
                 </div>
+
                 <div style="font-size:27px;font-weight:bold;margin-top:6px;">
                   ${money(metrics.revenue_generated)}
                 </div>
@@ -7253,16 +7714,20 @@ ${orgDateFilterForm({
                   <div style="font-size:11px;color:#65776b;">
                     ${label}
                   </div>
+
                   <div style="font-size:24px;font-weight:bold;margin-top:6px;">
-                    ${typeof value === "number"
-                      ? value.toLocaleString()
-                      : value || 0}
+                    ${
+                      typeof value === "number"
+                        ? value.toLocaleString()
+                        : value || 0
+                    }
                   </div>
                 </div>
               `).join("")}
             </div>
 
             <h2>Locations</h2>
+
             <div style="
               display:grid;
               grid-template-columns:repeat(auto-fill,260px);
@@ -7273,6 +7738,7 @@ ${orgDateFilterForm({
             </div>
 
             <h2>QR Placements</h2>
+
             <div style="
               display:grid;
               grid-template-columns:repeat(auto-fill,260px);
@@ -7283,6 +7749,7 @@ ${orgDateFilterForm({
             </div>
 
             <h2>Campaigns</h2>
+
             <div style="
               display:grid;
               grid-template-columns:repeat(auto-fill,260px);
@@ -7296,10 +7763,14 @@ ${orgDateFilterForm({
       ));
 
     } catch (err) {
-      console.error("ORG ADVERTISER ERROR:", err);
+      console.error(
+        "ORG ADVERTISER ERROR:",
+        err
+      );
 
       res.status(500).send(
-        "ORG ADVERTISER ERROR: " + err.message
+        "ORG ADVERTISER ERROR: " +
+        err.message
       );
     }
   }
