@@ -8551,7 +8551,7 @@ app.get(
 
               </div>
 
-                            <div class="marketplace-card" style="margin-bottom:24px;">
+              <div class="marketplace-card" style="margin-bottom:24px;">
 
                 <div style="
                   display:flex;
@@ -8584,6 +8584,7 @@ app.get(
                       border-radius:10px;
                       font-size:15px;
                       background:white;
+                      box-sizing:border-box;
                     ">
                       <option>${firstLocation}</option>
                       <option>${secondLocation}</option>
@@ -8596,7 +8597,7 @@ app.get(
                     class="marketplace-btn"
                     href="#"
                     onclick="
-                      alert('Add Sponsorship will be activated in Version 2.');
+                      alert('Add Sponsorship will be activated in the next Marketplace build step.');
                       return false;
                     "
                   >
@@ -8609,7 +8610,7 @@ app.get(
                   Available Sponsorships
                 </h2>
 
-                <div class="marketplace-grid">
+                <div class="marketplace-grid" style="margin:0;">
 
                   <div class="marketplace-card">
 
@@ -8622,7 +8623,7 @@ app.get(
                     </div>
 
                     <div class="marketplace-label">
-                      Sponsorship
+                      Sponsorship Opportunity
                     </div>
 
                     <div class="marketplace-value">
@@ -8654,7 +8655,7 @@ app.get(
                     </div>
 
                     <div class="marketplace-label">
-                      Sponsorship
+                      Sponsorship Opportunity
                     </div>
 
                     <div class="marketplace-value">
@@ -8686,7 +8687,7 @@ app.get(
                     </div>
 
                     <div class="marketplace-label">
-                      Sponsorship
+                      Sponsorship Opportunity
                     </div>
 
                     <div class="marketplace-value">
@@ -8710,7 +8711,6 @@ app.get(
                 </div>
 
               </div>
-
                
 
               <div class="marketplace-card">
