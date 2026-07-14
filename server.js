@@ -6053,121 +6053,205 @@ const {
         Event metrics are aggregated separately so QR/campaign
         joins do not duplicate scan or revenue totals.
       */
-      const advertiserResult = await q(`
-        WITH organization_campaigns AS (
-          SELECT DISTINCT
-            c.id AS campaign_id,
-            TRIM(c.advertiser) AS advertiser_name
-          FROM campaigns c
+   const advertiserResult = await q(`
+  WITH filtered_relationships AS (
+    SELECT DISTINCT
+      LOWER(TRIM(c.advertiser)) AS advertiser_key,
+      TRIM(c.advertiser) AS advertiser_name,
 
-          JOIN qr_campaigns qc
-            ON qc.campaign_id = c.id
+      c.id AS campaign_id,
+      qr.id AS qr_id,
+      s.id AS location_id
 
-          JOIN qr_codes qr
-            ON qr.id = qc.qr_id
-           AND COALESCE(qr.is_archived, false) = false
+    FROM campaigns c
 
-          JOIN spaces s
-            ON s.id = qr.space_id
-           AND COALESCE(s.is_archived, false) = false
+    JOIN qr_campaigns qc
+      ON qc.campaign_id = c.id
 
-          WHERE s.organization_id = $1
-            AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL
-            AND COALESCE(c.is_archived, false) = false
-        ),
+    JOIN qr_codes qr
+      ON qr.id = qc.qr_id
+     AND COALESCE(qr.is_archived, false) = false
 
-        advertiser_relationships AS (
-          SELECT
-            LOWER(TRIM(c.advertiser)) AS advertiser_key,
-            TRIM(c.advertiser) AS advertiser_name,
+    JOIN spaces s
+      ON s.id = qr.space_id
+     AND COALESCE(s.is_archived, false) = false
 
-            COUNT(DISTINCT s.id)::int AS locations,
+    WHERE s.organization_id = $1
+      AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL
+      AND COALESCE(c.is_archived, false) = false
 
-            COUNT(DISTINCT qr.id)::int AS qr_placements,
+      /*
+        No dates selected:
+        preserve the current active-only view.
+      */
+      AND (
+        (
+          NULLIF($2, '') IS NULL
+          AND NULLIF($3, '') IS NULL
 
-            COUNT(
-              DISTINCT CASE
-                WHEN COALESCE(qc.is_active, true) = true
-                THEN c.id
-              END
-            )::int AS active_campaigns
-
-          FROM campaigns c
-
-          JOIN qr_campaigns qc
-            ON qc.campaign_id = c.id
-
-          JOIN qr_codes qr
-            ON qr.id = qc.qr_id
-           AND COALESCE(qr.is_archived, false) = false
-
-          JOIN spaces s
-            ON s.id = qr.space_id
-           AND COALESCE(s.is_archived, false) = false
-
-          WHERE s.organization_id = $1
-            AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL
-            AND COALESCE(c.is_archived, false) = false
-
-          GROUP BY
-            LOWER(TRIM(c.advertiser)),
-            TRIM(c.advertiser)
-        ),
-
-        advertiser_events AS (
-          SELECT
-            LOWER(TRIM(c.advertiser)) AS advertiser_key,
-
-       COUNT(e.id) FILTER (
-  WHERE e.type = 'scan'
-)::int AS scans,
-
-COUNT(e.id) FILTER (
-  WHERE e.type = 'conversion'
-)::int AS conversions,
-
-COALESCE(
-  SUM(e.value) FILTER (
-    WHERE e.type = 'conversion'
-  ),
-  0
-)::numeric AS revenue_generated
-
-          FROM campaigns c
-
-          JOIN organization_campaigns oc
-            ON oc.campaign_id = c.id
-
-          LEFT JOIN events e
-            ON e.campaign_id = c.id
-
-          GROUP BY
-            LOWER(TRIM(c.advertiser))
+          AND COALESCE(qr.is_active, true) = true
+          AND COALESCE(qc.is_active, true) = true
         )
 
-        SELECT
-          ar.advertiser_key,
-          ar.advertiser_name,
-          ar.locations,
-          ar.qr_placements,
-          ar.active_campaigns,
+        OR
 
-COALESCE(ae.scans, 0)::int
-  AS scans,
+        /*
+          Dates selected:
+          location, QR, and campaign assignment
+          must overlap the reporting period.
+        */
+        (
+          (
+            NULLIF($2, '') IS NULL
+            OR s.end_date IS NULL
+            OR s.end_date >= NULLIF($2, '')::date
+          )
 
-COALESCE(ae.conversions, 0)::int
-  AS conversions,
+          AND
 
-COALESCE(ae.revenue_generated, 0)::numeric
-  AS revenue_generated
-        FROM advertiser_relationships ar
+          (
+            NULLIF($3, '') IS NULL
+            OR COALESCE(
+                 s.live_date,
+                 s.created_at::date
+               ) <= NULLIF($3, '')::date
+          )
 
-        LEFT JOIN advertiser_events ae
-          ON ae.advertiser_key = ar.advertiser_key
+          AND
 
-        ORDER BY
-          ar.advertiser_name
-      `, [organizationId]);
+          (
+            NULLIF($2, '') IS NULL
+            OR qr.end_date IS NULL
+            OR qr.end_date >= NULLIF($2, '')::date
+          )
+
+          AND
+
+          (
+            NULLIF($3, '') IS NULL
+            OR COALESCE(
+                 qr.live_date,
+                 qr.created_at::date
+               ) <= NULLIF($3, '')::date
+          )
+
+          AND
+
+          (
+            NULLIF($2, '') IS NULL
+            OR COALESCE(
+                 qc.ended_at::date,
+                 c.end_date
+               ) IS NULL
+            OR COALESCE(
+                 qc.ended_at::date,
+                 c.end_date
+               ) >= NULLIF($2, '')::date
+          )
+
+          AND
+
+          (
+            NULLIF($3, '') IS NULL
+            OR COALESCE(
+                 qc.started_at::date,
+                 qc.assigned_at::date,
+                 c.start_date,
+                 c.live_date,
+                 c.created_at::date
+               ) <= NULLIF($3, '')::date
+          )
+        )
+      )
+  ),
+
+  advertiser_relationships AS (
+    SELECT
+      advertiser_key,
+      MAX(advertiser_name) AS advertiser_name,
+
+      COUNT(DISTINCT location_id)::int
+        AS locations,
+
+      COUNT(DISTINCT qr_id)::int
+        AS qr_placements,
+
+      COUNT(DISTINCT campaign_id)::int
+        AS active_campaigns
+
+    FROM filtered_relationships
+
+    GROUP BY advertiser_key
+  ),
+
+  advertiser_events AS (
+    SELECT
+      fr.advertiser_key,
+
+      COUNT(DISTINCT e.id) FILTER (
+        WHERE e.type = 'scan'
+      )::int AS scans,
+
+      COUNT(DISTINCT e.id) FILTER (
+        WHERE e.type = 'conversion'
+      )::int AS conversions,
+
+      COALESCE(
+        SUM(e.value) FILTER (
+          WHERE e.type = 'conversion'
+        ),
+        0
+      )::numeric AS revenue_generated
+
+    FROM filtered_relationships fr
+
+    LEFT JOIN events e
+      ON e.campaign_id = fr.campaign_id
+     AND e.qr_id = fr.qr_id
+
+     AND (
+       NULLIF($2, '') IS NULL
+       OR e.created_at::date >= NULLIF($2, '')::date
+     )
+
+     AND (
+       NULLIF($3, '') IS NULL
+       OR e.created_at::date <= NULLIF($3, '')::date
+     )
+
+    GROUP BY fr.advertiser_key
+  )
+
+  SELECT
+    ar.advertiser_key,
+    ar.advertiser_name,
+    ar.locations,
+    ar.qr_placements,
+    ar.active_campaigns,
+
+    COALESCE(ae.scans, 0)::int
+      AS scans,
+
+    COALESCE(ae.conversions, 0)::int
+      AS conversions,
+
+    COALESCE(
+      ae.revenue_generated,
+      0
+    )::numeric AS revenue_generated
+
+  FROM advertiser_relationships ar
+
+  LEFT JOIN advertiser_events ae
+    ON ae.advertiser_key = ar.advertiser_key
+
+  ORDER BY ar.advertiser_name
+`, [
+  organizationId,
+  fromDate,
+  toDate
+]);
+
 
       const advertisers = advertiserResult.rows;
 
