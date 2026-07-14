@@ -8551,105 +8551,167 @@ app.get(
 
               </div>
 
-              <div class="marketplace-grid">
+                            <div class="marketplace-card" style="margin-bottom:24px;">
 
-                <div class="marketplace-card">
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:end;
+                  gap:18px;
+                  flex-wrap:wrap;
+                  margin-bottom:24px;
+                ">
 
-                  <div class="marketplace-label">
-                    Location
+                  <div style="
+                    flex:1;
+                    min-width:300px;
+                    max-width:520px;
+                  ">
+
+                    <div style="
+                      font-size:12px;
+                      color:#65776b;
+                      font-weight:bold;
+                      margin-bottom:6px;
+                    ">
+                      Select School
+                    </div>
+
+                    <select style="
+                      width:100%;
+                      padding:12px 14px;
+                      border:1px solid #d7dfd8;
+                      border-radius:10px;
+                      font-size:15px;
+                      background:white;
+                    ">
+                      <option>${firstLocation}</option>
+                      <option>${secondLocation}</option>
+                      <option>${thirdLocation}</option>
+                    </select>
+
                   </div>
 
-                  <div class="marketplace-value">
-                    ${firstLocation}
-                  </div>
-
-                  <div class="marketplace-label">
-                    Advertising Opportunity
-                  </div>
-
-                  <div class="marketplace-value">
-                    Football Stadium Sponsorship
-                  </div>
-
-                  <div class="marketplace-label">
-                    Annual Investment
-                  </div>
-
-                  <div class="marketplace-value">
-                    $1,500
-                  </div>
-
-                  <span class="marketplace-status">
-                    Available
-                  </span>
+                  <a
+                    class="marketplace-btn"
+                    href="#"
+                    onclick="
+                      alert('Add Sponsorship will be activated in Version 2.');
+                      return false;
+                    "
+                  >
+                    + Add Sponsorship
+                  </a>
 
                 </div>
 
-                <div class="marketplace-card">
+                <h2 style="margin:0 0 18px;">
+                  Available Sponsorships
+                </h2>
 
-                  <div class="marketplace-label">
-                    Location
+                <div class="marketplace-grid">
+
+                  <div class="marketplace-card">
+
+                    <div class="marketplace-label">
+                      Location
+                    </div>
+
+                    <div class="marketplace-value">
+                      ${firstLocation}
+                    </div>
+
+                    <div class="marketplace-label">
+                      Sponsorship
+                    </div>
+
+                    <div class="marketplace-value">
+                      Football Stadium Sponsorship
+                    </div>
+
+                    <div class="marketplace-label">
+                      Annual Investment
+                    </div>
+
+                    <div class="marketplace-value">
+                      $1,500
+                    </div>
+
+                    <span class="marketplace-status">
+                      Available
+                    </span>
+
                   </div>
 
-                  <div class="marketplace-value">
-                    ${secondLocation}
+                  <div class="marketplace-card">
+
+                    <div class="marketplace-label">
+                      Location
+                    </div>
+
+                    <div class="marketplace-value">
+                      ${firstLocation}
+                    </div>
+
+                    <div class="marketplace-label">
+                      Sponsorship
+                    </div>
+
+                    <div class="marketplace-value">
+                      Gym Sponsorship
+                    </div>
+
+                    <div class="marketplace-label">
+                      Annual Investment
+                    </div>
+
+                    <div class="marketplace-value">
+                      $1,200
+                    </div>
+
+                    <span class="marketplace-status">
+                      Available
+                    </span>
+
                   </div>
 
-                  <div class="marketplace-label">
-                    Advertising Opportunity
+                  <div class="marketplace-card">
+
+                    <div class="marketplace-label">
+                      Location
+                    </div>
+
+                    <div class="marketplace-value">
+                      ${firstLocation}
+                    </div>
+
+                    <div class="marketplace-label">
+                      Sponsorship
+                    </div>
+
+                    <div class="marketplace-value">
+                      Car Line Sponsorship
+                    </div>
+
+                    <div class="marketplace-label">
+                      Annual Investment
+                    </div>
+
+                    <div class="marketplace-value">
+                      $950
+                    </div>
+
+                    <span class="marketplace-status">
+                      Available
+                    </span>
+
                   </div>
-
-                  <div class="marketplace-value">
-                    Car Line Sponsorship
-                  </div>
-
-                  <div class="marketplace-label">
-                    Annual Investment
-                  </div>
-
-                  <div class="marketplace-value">
-                    $950
-                  </div>
-
-                  <span class="marketplace-status">
-                    Available
-                  </span>
-
-                </div>
-
-                <div class="marketplace-card">
-
-                  <div class="marketplace-label">
-                    Location
-                  </div>
-
-                  <div class="marketplace-value">
-                    ${thirdLocation}
-                  </div>
-
-                  <div class="marketplace-label">
-                    Advertising Opportunity
-                  </div>
-
-                  <div class="marketplace-value">
-                    Gym Sponsorship
-                  </div>
-
-                  <div class="marketplace-label">
-                    Annual Investment
-                  </div>
-
-                  <div class="marketplace-value">
-                    $1,200
-                  </div>
-
-                  <span class="marketplace-status">
-                    Available
-                  </span>
 
                 </div>
 
               </div>
+
+               
 
               <div class="marketplace-card">
 
