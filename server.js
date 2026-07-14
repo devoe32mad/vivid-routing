@@ -254,6 +254,161 @@ ${body}
 </body>
 </html>`;
 }
+function marketplacePage(title, body) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <title>${title}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    body{
+      margin:0;
+      font-family:Arial,sans-serif;
+      background:#f4f7f1;
+      color:#073b22;
+    }
+
+    .marketplace-topbar{
+      background:linear-gradient(135deg,#123d25,#2f7d46);
+      color:white;
+      padding:30px 40px;
+    }
+
+    .marketplace-brand{
+      font-size:13px;
+      letter-spacing:2px;
+      text-transform:uppercase;
+      color:#d7eadb;
+      font-weight:bold;
+    }
+
+    .marketplace-topbar h1{
+      margin:4px 0 6px;
+      font-size:34px;
+    }
+
+    .marketplace-subtitle{
+      color:#d7eadb;
+      margin:0;
+      line-height:1.5;
+    }
+
+    .marketplace-wrap{
+      padding:30px 40px;
+      max-width:1250px;
+      margin:0 auto;
+    }
+
+    .marketplace-btn{
+      display:inline-block;
+      background:#2f7d46;
+      color:white;
+      padding:12px 16px;
+      border-radius:12px;
+      text-decoration:none;
+      font-weight:bold;
+      margin:5px 8px 5px 0;
+      border:0;
+      cursor:pointer;
+    }
+
+    .marketplace-btn.secondary{
+      background:#123d25;
+    }
+
+    .marketplace-card{
+      background:white;
+      border-radius:18px;
+      padding:20px;
+      box-shadow:0 8px 22px rgba(0,0,0,.08);
+      box-sizing:border-box;
+    }
+
+    .marketplace-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(270px,1fr));
+      gap:18px;
+      margin:20px 0 32px;
+    }
+
+    .marketplace-label{
+      color:#65776b;
+      font-size:12px;
+      margin-bottom:4px;
+    }
+
+    .marketplace-value{
+      font-size:21px;
+      font-weight:bold;
+      margin-bottom:14px;
+    }
+
+    .marketplace-status{
+      display:inline-block;
+      padding:7px 11px;
+      border-radius:999px;
+      background:#eaf3e8;
+      color:#176b3a;
+      font-size:12px;
+      font-weight:bold;
+    }
+
+    .marketplace-preview{
+      display:inline-block;
+      padding:7px 11px;
+      border-radius:999px;
+      background:#fff4d6;
+      color:#7a4b00;
+      font-size:12px;
+      font-weight:bold;
+      margin-bottom:12px;
+    }
+
+    .workflow-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
+      gap:12px;
+      margin-top:20px;
+    }
+
+    .workflow-step{
+      background:#f7faf6;
+      border:1px solid #e1ebe0;
+      border-radius:14px;
+      padding:16px;
+      text-align:center;
+      font-size:14px;
+      font-weight:bold;
+      min-height:54px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    @media(max-width:800px){
+      .marketplace-topbar,
+      .marketplace-wrap{
+        padding:22px;
+      }
+
+      .marketplace-topbar h1{
+        font-size:28px;
+      }
+
+      .marketplace-grid,
+      .workflow-grid{
+        grid-template-columns:1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  ${body}
+</body>
+</html>`;
+}
 function successPage(title, message, nextStep, buttons = []) {
   const buttonHtml = buttons.map((b, i) => `
     <a href="${b.href}"
