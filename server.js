@@ -7171,7 +7171,7 @@ const {
 
               <a
                 class="btn secondary"
-                href="/org-advertisers?organization_id=${organizationId}"
+                href="/org-advertisers?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}"
               >
                 Back to Advertisers
               </a>
