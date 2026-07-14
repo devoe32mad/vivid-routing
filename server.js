@@ -6034,7 +6034,19 @@ app.get(
           "Organization not found."
         );
       }
+const dateFilter = getOrgDateFilter(req);
 
+if (dateFilter.error) {
+  return res.status(400).send(
+    dateFilter.error
+  );
+}
+
+const {
+  fromDate,
+  toDate,
+  queryString: dateQueryString
+} = dateFilter;
       /*
         Advertisers are derived directly from Vivid campaigns.
 
