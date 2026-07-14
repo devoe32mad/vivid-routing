@@ -8170,6 +8170,349 @@ app.get(
     }
   }
 );
+/*
+=========================================================
+VIVID MARKETPLACE MODULE
+Separate from Vivid Core and Organization analytics.
+Version 1 presentation preview.
+=========================================================
+*/
+
+app.get(
+  "/org-marketplace",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Organization Portal user access.
+      */
+      if (req.session.orgUser?.organization_id) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      /*
+        Super Admin access.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res.status(403).send(
+          "Marketplace access denied."
+        );
+      }
+
+      /*
+        Marketplace only reads the existing organization.
+        It does not modify Organization analytics.
+      */
+      const organizationResult = await q(`
+        SELECT
+          id,
+          name
+        FROM organizations
+        WHERE id = $1
+          AND COALESCE(is_active, true) = true
+        LIMIT 1
+      `, [organizationId]);
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res.status(404).send(
+          "Organization not found."
+        );
+      }
+
+      /*
+        Marketplace reads existing location names only.
+        No Marketplace data is written in this preview.
+      */
+      const locationsResult = await q(`
+        SELECT
+          id,
+          name,
+          location
+        FROM spaces
+        WHERE organization_id = $1
+          AND COALESCE(is_archived, false) = false
+        ORDER BY name
+        LIMIT 3
+      `, [organizationId]);
+
+      const locations = locationsResult.rows;
+
+      const firstLocation =
+        locations[0]?.name ||
+        "Barron Collier High School";
+
+      const secondLocation =
+        locations[1]?.name ||
+        "Lely High School";
+
+      const thirdLocation =
+        locations[2]?.name ||
+        "Palmetto Ridge High School";
+
+      res.send(
+        marketplacePage(
+          `${organization.name} Advertise With Us`,
+          `
+            <div class="marketplace-topbar">
+
+              <div class="marketplace-brand">
+                Vivid Marketplace
+              </div>
+
+              <h1>
+                Advertise With ${organization.name}
+              </h1>
+
+              <p class="marketplace-subtitle">
+                Create, publish and manage advertising
+                opportunities available to prospective
+                advertisers.
+              </p>
+
+            </div>
+
+            <div class="marketplace-wrap">
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:16px;
+                flex-wrap:wrap;
+                margin-bottom:24px;
+              ">
+
+                <div>
+                  <span class="marketplace-preview">
+                    Marketplace Preview
+                  </span>
+
+                  <h2 style="margin:0 0 6px;">
+                    Advertising Opportunities
+                  </h2>
+
+                  <div style="
+                    color:#65776b;
+                    line-height:1.5;
+                  ">
+                    Opportunities advertisers will be able
+                    to select through the public
+                    Advertise With Us experience.
+                  </div>
+                </div>
+
+                <div>
+                  <a
+                    class="marketplace-btn"
+                    href="#"
+                    onclick="
+                      alert(
+                        'Opportunity management is included in the next Marketplace build step.'
+                      );
+                      return false;
+                    "
+                  >
+                    Create Advertising Opportunity
+                  </a>
+
+                  <a
+                    class="marketplace-btn secondary"
+                    href="/org-organization/${organization.id}"
+                  >
+                    Back to ${organization.name}
+                  </a>
+                </div>
+
+              </div>
+
+              <div class="marketplace-grid">
+
+                <div class="marketplace-card">
+
+                  <div class="marketplace-label">
+                    Location
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${firstLocation}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Advertising Opportunity
+                  </div>
+
+                  <div class="marketplace-value">
+                    Football Stadium Sponsorship
+                  </div>
+
+                  <div class="marketplace-label">
+                    Annual Investment
+                  </div>
+
+                  <div class="marketplace-value">
+                    $1,500
+                  </div>
+
+                  <span class="marketplace-status">
+                    Available
+                  </span>
+
+                </div>
+
+                <div class="marketplace-card">
+
+                  <div class="marketplace-label">
+                    Location
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${secondLocation}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Advertising Opportunity
+                  </div>
+
+                  <div class="marketplace-value">
+                    Car Line Sponsorship
+                  </div>
+
+                  <div class="marketplace-label">
+                    Annual Investment
+                  </div>
+
+                  <div class="marketplace-value">
+                    $950
+                  </div>
+
+                  <span class="marketplace-status">
+                    Available
+                  </span>
+
+                </div>
+
+                <div class="marketplace-card">
+
+                  <div class="marketplace-label">
+                    Location
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${thirdLocation}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Advertising Opportunity
+                  </div>
+
+                  <div class="marketplace-value">
+                    Gym Sponsorship
+                  </div>
+
+                  <div class="marketplace-label">
+                    Annual Investment
+                  </div>
+
+                  <div class="marketplace-value">
+                    $1,200
+                  </div>
+
+                  <span class="marketplace-status">
+                    Available
+                  </span>
+
+                </div>
+
+              </div>
+
+              <div class="marketplace-card">
+
+                <h2 style="margin:0 0 7px;">
+                  Public Advertiser Experience
+                </h2>
+
+                <p style="
+                  color:#65776b;
+                  line-height:1.55;
+                  margin-top:0;
+                ">
+                  ${organization.name} will be able to place
+                  an Advertise With Us button on its website.
+                  Prospective advertisers complete a guided
+                  onboarding process and submit their
+                  selection for approval.
+                </p>
+
+                <div class="workflow-grid">
+
+                  <div class="workflow-step">
+                    Advertise With Us
+                  </div>
+
+                  <div class="workflow-step">
+                    Choose Location
+                  </div>
+
+                  <div class="workflow-step">
+                    Choose Opportunity
+                  </div>
+
+                  <div class="workflow-step">
+                    Company Information
+                  </div>
+
+                  <div class="workflow-step">
+                    Campaign Information
+                  </div>
+
+                  <div class="workflow-step">
+                    Location Approval
+                  </div>
+
+                  <div class="workflow-step">
+                    Added to Vivid
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "MARKETPLACE PREVIEW ERROR:",
+        err
+      );
+
+      res.status(500).send(
+        "MARKETPLACE PREVIEW ERROR: " +
+        err.message
+      );
+    }
+  }
+);
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
