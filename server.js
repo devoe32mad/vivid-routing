@@ -6272,11 +6272,13 @@ app.get(
               Vivid Organizations
             </div>
 
-            <h1>${organization.name} Marketplace</h1>
+           <h1>
+  Advertise With ${organization.name}
+</h1>
 
-            <p class="subtitle">
-              Manage advertising opportunities available to prospective advertisers.
-            </p>
+<p class="marketplace-subtitle">
+  Publish and manage sponsorship opportunities available to businesses interested in partnering with ${organization.name}.
+</p>
           </div>
 
           <div class="wrap">
@@ -6291,15 +6293,20 @@ app.get(
             ">
 
               <div>
-                <h2 style="margin:0 0 5px;">
-                  Advertising Opportunities
-                </h2>
+  <h2 style="margin:0 0 5px;">
+    Available Sponsorship Opportunities
+  </h2>
 
-                <div style="color:#65776b;">
-                  Configure the opportunities advertisers can select through
-                  your public Advertise With Us page.
-                </div>
-              </div>
+  <div style="
+    color:#65776b;
+    line-height:1.5;
+    max-width:700px;
+  ">
+    Create the sponsorship opportunities businesses will see when they click
+    <strong>Advertise With ${organization.name}</strong> on your website.
+  </div>
+</div>
+               
 
               <div style="
                 display:flex;
