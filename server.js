@@ -3425,7 +3425,46 @@ ${orgDateFilterForm({
             </div>
 
           </div>
+<div style="
+  margin:0 0 30px;
+  padding:8px 0 12px;
+  border-top:1px solid #e7eee7;
+">
 
+  <h2 style="margin:0 0 14px;">
+    Organization Management
+  </h2>
+
+  <div style="
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+  ">
+
+    <a
+      class="btn"
+      href="/org-locations?organization_id=${org.id}"
+    >
+      Locations
+    </a>
+
+    <a
+      class="btn"
+      href="/org-advertisers?organization_id=${org.id}"
+    >
+      Advertisers
+    </a>
+
+    <a
+      class="btn"
+      href="/org-marketplace?organization_id=${org.id}"
+    >
+      Advertise With Us
+    </a>
+
+  </div>
+
+</div>
           <div style="
             display:flex;
             justify-content:space-between;
