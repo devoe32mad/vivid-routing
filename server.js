@@ -8672,15 +8672,14 @@ if (
                 Vivid Marketplace
               </div>
 
-              <h1>
-                Advertise With ${organization.name}
-              </h1>
+            <h1>
+  Sponsorship Inventory
+</h1>
 
-              <p class="marketplace-subtitle">
-                Create, publish and manage advertising
-                opportunities available to prospective
-                advertisers.
-              </p>
+            <p class="marketplace-subtitle">
+  Create and manage sponsorship opportunities
+  available across ${organization.name} locations.
+</p>
 
             </div>
 
@@ -8696,22 +8695,21 @@ if (
               ">
 
                 <div>
-                  <span class="marketplace-preview">
-                    Marketplace Preview
-                  </span>
+             <span class="marketplace-preview">
+  Internal Management
+</span>
 
                   <h2 style="margin:0 0 6px;">
-                    Advertising Opportunities
-                  </h2>
+  Sponsorship Inventory
+</h2>
 
-                  <div style="
-                    color:#65776b;
-                    line-height:1.5;
-                  ">
-                    Opportunities advertisers will be able
-                    to select through the public
-                    Advertise With Us experience.
-                  </div>
+           <div style="
+  color:#65776b;
+  line-height:1.5;
+">
+  Manage sponsorship opportunities available
+  throughout your organization.
+</div>
                 </div>
 
                 <div>
