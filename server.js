@@ -9001,206 +9001,231 @@ app.get(
                 "
               >
 
-                <form
-                  method="POST"
-                  action="/org-opportunity/new"
-                >
+             
 
-                  <input
-                    type="hidden"
-                    name="organization_id"
-                    value="${organizationId}"
-                  >
+           <form
+  method="POST"
+  action="/org-opportunity/new"
+>
 
-                  <input
-                    type="hidden"
-                    name="space_id"
-                    value="${spaceId}"
-                  >
-<div style="
-  margin-bottom:28px;
-">
+  <input
+    type="hidden"
+    name="organization_id"
+    value="${organizationId}"
+  >
 
-  <div style="
-    font-size:13px;
-    font-weight:700;
-    color:#4d5d53;
-    margin-bottom:8px;
-  ">
-    Location
+  <input
+    type="hidden"
+    name="space_id"
+    value="${spaceId}"
+  >
+
+  <div style="margin-bottom:26px;">
+
+    <div style="
+      font-size:13px;
+      font-weight:bold;
+      color:#4d5d53;
+      margin-bottom:8px;
+    ">
+      Location
+    </div>
+
+    <div style="
+      background:#f5f7f6;
+      border:1px solid #d7dfd8;
+      border-radius:10px;
+      padding:14px 16px;
+      font-size:15px;
+      color:#2b3b31;
+    ">
+      📍 ${location.name}
+    </div>
+
   </div>
 
   <div style="
-    background:#f5f7f6;
-    border:1px solid #d7dfd8;
-    border-radius:10px;
-    padding:14px 16px;
-    font-size:15px;
-    color:#2b3b31;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:20px;
   ">
-    📍 ${location.name}
+
+    <div>
+      <label style="
+        display:block;
+        font-weight:bold;
+        margin-bottom:7px;
+      ">
+        Sponsorship Opportunity
+      </label>
+
+      <input
+        type="text"
+        name="title"
+        required
+        placeholder="Example: Football Stadium Sponsorship"
+        style="margin:0;"
+      >
+    </div>
+
+    <div>
+      <label style="
+        display:block;
+        font-weight:bold;
+        margin-bottom:7px;
+      ">
+        Category
+      </label>
+
+      <input
+        type="text"
+        name="category"
+        placeholder="Example: Athletics"
+        style="margin:0;"
+      >
+    </div>
+
+    <div style="grid-column:1 / -1;">
+      <label style="
+        display:block;
+        font-weight:bold;
+        margin-bottom:7px;
+      ">
+        Description
+      </label>
+
+      <textarea
+        name="description"
+        rows="6"
+        placeholder="Describe the sponsorship opportunity."
+        style="
+          width:100%;
+          padding:11px;
+          border-radius:10px;
+          border:1px solid #cfdacf;
+          margin:0;
+          font-size:15px;
+          box-sizing:border-box;
+          font-family:Arial,sans-serif;
+          resize:vertical;
+        "
+      ></textarea>
+    </div>
+
+    <div>
+      <label style="
+        display:block;
+        font-weight:bold;
+        margin-bottom:7px;
+      ">
+        Annual Sponsorship Investment
+      </label>
+
+      <input
+        type="number"
+        name="annual_price"
+        min="0"
+        step="0.01"
+        required
+        placeholder="1500.00"
+        style="margin:0;"
+      >
+    </div>
+
+    <div>
+      <label style="
+        display:block;
+        font-weight:bold;
+        margin-bottom:7px;
+      ">
+        Existing QR Placement
+      </label>
+
+      <select
+        name="qr_id"
+        style="margin:0;"
+      >
+        <option value="">
+          None — create or connect later
+        </option>
+
+        ${qrOptions}
+      </select>
+    </div>
+
+    <div>
+      <label style="
+        display:block;
+        font-weight:bold;
+        margin-bottom:7px;
+      ">
+        Status
+      </label>
+
+      <select
+        name="status"
+        style="margin:0;"
+      >
+        <option value="Available">
+          Available
+        </option>
+
+        <option value="Reserved">
+          Reserved
+        </option>
+
+        <option value="Unavailable">
+          Unavailable
+        </option>
+      </select>
+    </div>
+
+    <div>
+      <label style="
+        display:block;
+        font-weight:bold;
+        margin-bottom:7px;
+      ">
+        Display Order
+      </label>
+
+      <input
+        type="number"
+        name="display_order"
+        min="1"
+        step="1"
+        value="1"
+        required
+        style="margin:0;"
+      >
+    </div>
+
   </div>
-
-</div>
-
-<div style="
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-  gap:22px;
-">
-               <div style="
-  margin-bottom:28px;
-">
 
   <div style="
-    font-size:13px;
-    font-weight:700;
-    color:#4d5d53;
-    margin-bottom:8px;
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-top:24px;
   ">
-    Location
+
+    <button
+      class="marketplace-btn"
+      type="submit"
+    >
+      Save Sponsorship
+    </button>
+
+    <a
+      class="marketplace-btn secondary"
+      href="/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}"
+    >
+      Cancel
+    </a>
+
   </div>
 
-  <div style="
-    background:#f5f7f6;
-    border:1px solid #d7dfd8;
-    border-radius:10px;
-    padding:14px 16px;
-    font-size:15px;
-    color:#2b3b31;
-  ">
-    📍 ${location.name}
-  </div>
-
-</div>
-
-<div style="
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-  gap:22px;
-">
-
-                  <label>
-                    Sponsorship Opportunity
-                  </label>
-
-                  <input
-                    type="text"
-                    name="title"
-                    required
-                    placeholder="Example: Football Stadium Sponsorship"
-                  >
-
-                  <label>
-                    Category
-                  </label>
-
-                  <input
-                    type="text"
-                    name="category"
-                    placeholder="Example: Athletics"
-                  >
-
-                  <label>
-                    Description
-                  </label>
-
-                  <textarea
-                    name="description"
-                    rows="5"
-                    style="
-                      width:100%;
-                      padding:11px;
-                      border-radius:10px;
-                      border:1px solid #cfdacf;
-                      margin:6px 0 14px;
-                      font-size:15px;
-                      box-sizing:border-box;
-                      font-family:Arial,sans-serif;
-                    "
-                    placeholder="Describe the sponsorship opportunity."
-                  ></textarea>
-
-                  <label>
-                    Annual Investment
-                  </label>
-
-                  <input
-                    type="number"
-                    name="annual_price"
-                    min="0"
-                    step="0.01"
-                    required
-                    placeholder="1500.00"
-                  >
-
-                  <label>
-                    Existing QR Placement
-                  </label>
-
-                  <select name="qr_id">
-                    <option value="">
-                      None — create or connect later
-                    </option>
-
-                    ${qrOptions}
-                  </select>
-
-                  <label>
-                    Status
-                  </label>
-
-                  <select name="status">
-                    <option value="Available">
-                      Available
-                    </option>
-
-                    <option value="Reserved">
-                      Reserved
-                    </option>
-
-                    <option value="Unavailable">
-                      Unavailable
-                    </option>
-                  </select>
-
-                  <label>
-                    Display Order
-                  </label>
-
-                  <input
-                    type="number"
-                    name="display_order"
-                    min="1"
-                    step="1"
-                    value="1"
-                    required
-                  >
-
-                  <div style="
-                    display:flex;
-                    gap:12px;
-                    flex-wrap:wrap;
-                    margin-top:8px;
-                  ">
-
-                    <button
-                      class="marketplace-btn"
-                      type="submit"
-                    >
-                      Save Sponsorship
-                    </button>
-
-                    <a
-                      class="marketplace-btn secondary"
-                      href="/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}"
-                    >
-                      Cancel
-                    </a>
-
-                  </div>
-
-                </form>
+</form>
 
               </div>
 
