@@ -9182,6 +9182,306 @@ app.get(
     }
   }
 );
+app.post(
+  "/org-opportunity/new",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Organization Portal user access:
+        use the organization from the authenticated session.
+      */
+      if (req.session.orgUser?.organization_id) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      /*
+        Super Admin access:
+        use the organization submitted by the form.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.body.organization_id
+        );
+      }
+
+      const spaceId = Number(req.body.space_id);
+
+      const title = String(
+        req.body.title || ""
+      ).trim();
+
+      const category = String(
+        req.body.category || ""
+      ).trim();
+
+      const description = String(
+        req.body.description || ""
+      ).trim();
+
+      const annualPrice = Number(
+        req.body.annual_price
+      );
+
+      const status = String(
+        req.body.status || "Available"
+      ).trim();
+
+      const displayOrder = Number(
+        req.body.display_order || 1
+      );
+
+      const qrId =
+        String(req.body.qr_id || "").trim() === ""
+          ? null
+          : Number(req.body.qr_id);
+
+      /*
+        Validate required IDs.
+      */
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !Number.isInteger(spaceId) ||
+        spaceId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid organization and location are required."
+        );
+      }
+
+      /*
+        Validate submitted opportunity fields.
+      */
+      if (!title) {
+        return res.status(400).send(
+          "Sponsorship Opportunity is required."
+        );
+      }
+
+      if (
+        !Number.isFinite(annualPrice) ||
+        annualPrice < 0
+      ) {
+        return res.status(400).send(
+          "Annual Investment must be a valid amount."
+        );
+      }
+
+      if (
+        !Number.isInteger(displayOrder) ||
+        displayOrder < 1
+      ) {
+        return res.status(400).send(
+          "Display Order must be a whole number of 1 or greater."
+        );
+      }
+
+      const allowedStatuses = [
+        "Available",
+        "Reserved",
+        "Unavailable"
+      ];
+
+      if (!allowedStatuses.includes(status)) {
+        return res.status(400).send(
+          "Invalid sponsorship status."
+        );
+      }
+
+      if (
+        qrId !== null &&
+        (
+          !Number.isInteger(qrId) ||
+          qrId <= 0
+        )
+      ) {
+        return res.status(400).send(
+          "Invalid QR placement."
+        );
+      }
+
+      /*
+        Confirm the location belongs to this organization.
+      */
+      const locationResult = await q(`
+        SELECT
+          id,
+          name,
+          organization_id
+
+        FROM spaces
+
+        WHERE id = $1
+          AND organization_id = $2
+          AND COALESCE(is_archived, false) = false
+
+        LIMIT 1
+      `, [
+        spaceId,
+        organizationId
+      ]);
+
+      const location =
+        locationResult.rows[0];
+
+      if (!location) {
+        return res.status(404).send(
+          "Active organization location not found."
+        );
+      }
+
+      /*
+        If a QR was selected, confirm that it belongs
+        to this exact Vivid location.
+      */
+      if (qrId !== null) {
+        const qrResult = await q(`
+          SELECT
+            id,
+            name,
+            space_id
+
+          FROM qr_codes
+
+          WHERE id = $1
+            AND space_id = $2
+            AND COALESCE(is_archived, false) = false
+
+          LIMIT 1
+        `, [
+          qrId,
+          spaceId
+        ]);
+
+        if (!qrResult.rows[0]) {
+          return res.status(400).send(
+            "The selected QR placement does not belong to this location."
+          );
+        }
+      }
+
+      /*
+        Prevent duplicate active opportunities with the
+        same title at the same organization location.
+      */
+      const duplicateResult = await q(`
+        SELECT id
+
+        FROM organization_opportunities
+
+        WHERE organization_id = $1
+          AND space_id = $2
+          AND LOWER(TRIM(title)) =
+              LOWER(TRIM($3))
+          AND COALESCE(is_active, true) = true
+
+        LIMIT 1
+      `, [
+        organizationId,
+        spaceId,
+        title
+      ]);
+
+      if (duplicateResult.rows[0]) {
+        return res.status(409).send(`
+          An active sponsorship opportunity with this name
+          already exists at ${location.name}.
+          <br><br>
+          <a href="/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}">
+            Back to Marketplace
+          </a>
+        `);
+      }
+
+      /*
+        Record who created it when available.
+        This is informational only and does not control access.
+      */
+      const createdBy =
+        req.session.orgUser?.id ||
+        req.session.user?.id ||
+        null;
+
+      const insertResult = await q(`
+        INSERT INTO organization_opportunities (
+          organization_id,
+          space_id,
+          qr_id,
+          title,
+          description,
+          category,
+          annual_price,
+          status,
+          display_order,
+          is_active,
+          created_by,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7,
+          $8,
+          $9,
+          true,
+          $10,
+          CURRENT_TIMESTAMP,
+          CURRENT_TIMESTAMP
+        )
+        RETURNING
+          id,
+          organization_id,
+          space_id,
+          title,
+          annual_price,
+          status
+      `, [
+        organizationId,
+        spaceId,
+        qrId,
+        title,
+        description || null,
+        category || null,
+        annualPrice,
+        status,
+        displayOrder,
+        createdBy
+      ]);
+
+      /*
+        Return directly to the selected location.
+        The newly created record will immediately render
+        from organization_opportunities.
+      */
+      return res.redirect(
+        `/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}`
+      );
+
+    } catch (err) {
+      console.error(
+        "CREATE ORG OPPORTUNITY ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "CREATE ORG OPPORTUNITY ERROR: " +
+        err.message
+      );
+    }
+  }
+);
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
