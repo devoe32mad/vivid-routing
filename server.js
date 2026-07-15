@@ -9585,6 +9585,745 @@ app.post(
     }
   }
 );
+app.get(
+  "/org-opportunity/edit/:opportunityId",
+  async (req, res) => {
+    try {
+      const opportunityId = Number(
+        req.params.opportunityId
+      );
+
+      let organizationId = null;
+
+      /*
+        Super Admin uses the explicitly selected
+        organization from the URL.
+      */
+      if (
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      /*
+        Organization Portal users use their
+        authenticated organization.
+      */
+      if (
+        !organizationId &&
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(opportunityId) ||
+        opportunityId <= 0 ||
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid opportunity and organization are required."
+        );
+      }
+
+      /*
+        Load the opportunity and verify that it belongs
+        to this organization and an active Vivid location.
+      */
+      const opportunityResult = await q(`
+        SELECT
+          oo.id,
+          oo.organization_id,
+          oo.space_id,
+          oo.qr_id,
+          oo.title,
+          oo.description,
+          oo.category,
+          oo.annual_price,
+          oo.status,
+          oo.display_order,
+          oo.is_active,
+
+          s.name AS location_name,
+          s.location AS market,
+
+          o.name AS organization_name
+
+        FROM organization_opportunities oo
+
+        JOIN spaces s
+          ON s.id = oo.space_id
+         AND s.organization_id = oo.organization_id
+
+        JOIN organizations o
+          ON o.id = oo.organization_id
+
+        WHERE oo.id = $1
+          AND oo.organization_id = $2
+          AND COALESCE(oo.is_active, true) = true
+          AND COALESCE(s.is_archived, false) = false
+          AND COALESCE(o.is_active, true) = true
+
+        LIMIT 1
+      `, [
+        opportunityId,
+        organizationId
+      ]);
+
+      const opportunity =
+        opportunityResult.rows[0];
+
+      if (!opportunity) {
+        return res.status(404).send(
+          "Active sponsorship opportunity not found."
+        );
+      }
+
+      /*
+        Load optional QR placements belonging only
+        to this opportunity's Vivid location.
+      */
+      const qrResult = await q(`
+        SELECT
+          id,
+          name
+
+        FROM qr_codes
+
+        WHERE space_id = $1
+          AND COALESCE(is_archived, false) = false
+
+        ORDER BY name
+      `, [opportunity.space_id]);
+
+      const qrOptions = qrResult.rows
+        .map(qr => `
+          <option
+            value="${qr.id}"
+            ${
+              Number(qr.id) ===
+              Number(opportunity.qr_id)
+                ? "selected"
+                : ""
+            }
+          >
+            ${qr.name}
+          </option>
+        `)
+        .join("");
+
+      return res.send(
+        marketplacePage(
+          `Edit Sponsorship - ${opportunity.location_name}`,
+          `
+            <div class="marketplace-topbar">
+
+              <div class="marketplace-brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Edit Sponsorship
+              </h1>
+
+              <p class="marketplace-subtitle">
+                Update this sponsorship opportunity in
+                ${opportunity.location_name}'s inventory.
+              </p>
+
+            </div>
+
+            <div class="marketplace-wrap">
+
+              <div
+                class="marketplace-card"
+                style="
+                  max-width:760px;
+                  margin:0 auto;
+                "
+              >
+
+                <div style="margin-bottom:24px;">
+
+                  <h2 style="
+                    margin:0 0 7px;
+                    font-size:22px;
+                  ">
+                    Sponsorship Details
+                  </h2>
+
+                  <div style="
+                    color:#65776b;
+                    line-height:1.5;
+                    font-size:14px;
+                  ">
+                    Edit the opportunity details businesses
+                    will see for this location.
+                  </div>
+
+                </div>
+
+                <form
+                  method="POST"
+                  action="/org-opportunity/edit/${opportunity.id}"
+                >
+
+                  <input
+                    type="hidden"
+                    name="organization_id"
+                    value="${organizationId}"
+                  >
+
+                  <input
+                    type="hidden"
+                    name="space_id"
+                    value="${opportunity.space_id}"
+                  >
+
+                  <div style="margin-bottom:26px;">
+
+                    <div style="
+                      font-size:13px;
+                      font-weight:bold;
+                      color:#4d5d53;
+                      margin-bottom:8px;
+                    ">
+                      Location
+                    </div>
+
+                    <div style="
+                      background:#f5f7f6;
+                      border:1px solid #d7dfd8;
+                      border-radius:10px;
+                      padding:14px 16px;
+                      font-size:15px;
+                      color:#2b3b31;
+                    ">
+                      📍 ${opportunity.location_name}
+                    </div>
+
+                  </div>
+
+                  <div style="
+                    display:grid;
+                    grid-template-columns:
+                      repeat(2,minmax(0,1fr));
+                    gap:20px;
+                  ">
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-weight:bold;
+                        margin-bottom:7px;
+                      ">
+                        Sponsorship Opportunity
+                      </label>
+
+                      <input
+                        type="text"
+                        name="title"
+                        value="${opportunity.title || ""}"
+                        required
+                        style="margin:0;"
+                      >
+                    </div>
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-weight:bold;
+                        margin-bottom:7px;
+                      ">
+                        Category
+                      </label>
+
+                      <input
+                        type="text"
+                        name="category"
+                        value="${opportunity.category || ""}"
+                        placeholder="Example: Athletics"
+                        style="margin:0;"
+                      >
+                    </div>
+
+                    <div style="grid-column:1 / -1;">
+                      <label style="
+                        display:block;
+                        font-weight:bold;
+                        margin-bottom:7px;
+                      ">
+                        Description
+                      </label>
+
+                      <textarea
+                        name="description"
+                        rows="6"
+                        placeholder="Describe the sponsorship opportunity."
+                        style="
+                          width:100%;
+                          padding:11px;
+                          border-radius:10px;
+                          border:1px solid #cfdacf;
+                          margin:0;
+                          font-size:15px;
+                          box-sizing:border-box;
+                          font-family:Arial,sans-serif;
+                          resize:vertical;
+                        "
+                      >${opportunity.description || ""}</textarea>
+                    </div>
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-weight:bold;
+                        margin-bottom:7px;
+                      ">
+                        Annual Sponsorship Investment
+                      </label>
+
+                      <input
+                        type="number"
+                        name="annual_price"
+                        min="0"
+                        step="0.01"
+                        value="${Number(
+                          opportunity.annual_price || 0
+                        ).toFixed(2)}"
+                        required
+                        style="margin:0;"
+                      >
+                    </div>
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-weight:bold;
+                        margin-bottom:7px;
+                      ">
+                        Existing QR Placement
+                      </label>
+
+                      <select
+                        name="qr_id"
+                        style="margin:0;"
+                      >
+                        <option
+                          value=""
+                          ${
+                            !opportunity.qr_id
+                              ? "selected"
+                              : ""
+                          }
+                        >
+                          None — create or connect later
+                        </option>
+
+                        ${qrOptions}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-weight:bold;
+                        margin-bottom:7px;
+                      ">
+                        Availability
+                      </label>
+
+                      <select
+                        name="status"
+                        style="margin:0;"
+                      >
+                        <option
+                          value="Available"
+                          ${
+                            opportunity.status === "Available"
+                              ? "selected"
+                              : ""
+                          }
+                        >
+                          Available
+                        </option>
+
+                        <option
+                          value="Reserved"
+                          ${
+                            opportunity.status === "Reserved"
+                              ? "selected"
+                              : ""
+                          }
+                        >
+                          Reserved
+                        </option>
+
+                        <option
+                          value="Unavailable"
+                          ${
+                            opportunity.status === "Unavailable"
+                              ? "selected"
+                              : ""
+                          }
+                        >
+                          Unavailable
+                        </option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-weight:bold;
+                        margin-bottom:7px;
+                      ">
+                        Display Order
+                      </label>
+
+                      <input
+                        type="number"
+                        name="display_order"
+                        min="1"
+                        step="1"
+                        value="${Number(
+                          opportunity.display_order || 1
+                        )}"
+                        required
+                        style="margin:0;"
+                      >
+                    </div>
+
+                  </div>
+
+                  <div style="
+                    display:flex;
+                    gap:12px;
+                    flex-wrap:wrap;
+                    margin-top:24px;
+                  ">
+
+                    <button
+                      class="marketplace-btn"
+                      type="submit"
+                    >
+                      Save Changes
+                    </button>
+
+                    <a
+                      class="marketplace-btn secondary"
+                      href="/org-marketplace?organization_id=${organizationId}&location_id=${opportunity.space_id}"
+                    >
+                      Cancel
+                    </a>
+
+                  </div>
+
+                </form>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "EDIT ORG OPPORTUNITY PAGE ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "EDIT ORG OPPORTUNITY PAGE ERROR: " +
+        err.message
+      );
+    }
+  }
+);
+app.post(
+  "/org-opportunity/edit/:opportunityId",
+  async (req, res) => {
+    try {
+      const opportunityId = Number(
+        req.params.opportunityId
+      );
+
+      let organizationId = null;
+
+      /*
+        Super Admin uses the organization submitted
+        by the protected form.
+      */
+      if (
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.body.organization_id
+        );
+      }
+
+      /*
+        Organization Portal users use their
+        authenticated organization.
+      */
+      if (
+        !organizationId &&
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      const spaceId = Number(
+        req.body.space_id
+      );
+
+      const title = String(
+        req.body.title || ""
+      ).trim();
+
+      const category = String(
+        req.body.category || ""
+      ).trim();
+
+      const description = String(
+        req.body.description || ""
+      ).trim();
+
+      const annualPrice = Number(
+        req.body.annual_price
+      );
+
+      const status = String(
+        req.body.status || "Available"
+      ).trim();
+
+      const displayOrder = Number(
+        req.body.display_order || 1
+      );
+
+      const qrId =
+        String(req.body.qr_id || "").trim() === ""
+          ? null
+          : Number(req.body.qr_id);
+
+      if (
+        !Number.isInteger(opportunityId) ||
+        opportunityId <= 0 ||
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !Number.isInteger(spaceId) ||
+        spaceId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid opportunity, organization, and location are required."
+        );
+      }
+
+      if (!title) {
+        return res.status(400).send(
+          "Sponsorship Opportunity is required."
+        );
+      }
+
+      if (
+        !Number.isFinite(annualPrice) ||
+        annualPrice < 0
+      ) {
+        return res.status(400).send(
+          "Annual Sponsorship Investment must be a valid amount."
+        );
+      }
+
+      if (
+        !Number.isInteger(displayOrder) ||
+        displayOrder < 1
+      ) {
+        return res.status(400).send(
+          "Display Order must be a whole number of 1 or greater."
+        );
+      }
+
+      const allowedStatuses = [
+        "Available",
+        "Reserved",
+        "Unavailable"
+      ];
+
+      if (!allowedStatuses.includes(status)) {
+        return res.status(400).send(
+          "Invalid sponsorship availability."
+        );
+      }
+
+      if (
+        qrId !== null &&
+        (
+          !Number.isInteger(qrId) ||
+          qrId <= 0
+        )
+      ) {
+        return res.status(400).send(
+          "Invalid QR placement."
+        );
+      }
+
+      /*
+        Confirm the opportunity belongs to this
+        organization and location.
+      */
+      const currentResult = await q(`
+        SELECT
+          oo.id,
+          oo.organization_id,
+          oo.space_id,
+          s.name AS location_name
+
+        FROM organization_opportunities oo
+
+        JOIN spaces s
+          ON s.id = oo.space_id
+         AND s.organization_id = oo.organization_id
+
+        WHERE oo.id = $1
+          AND oo.organization_id = $2
+          AND oo.space_id = $3
+          AND COALESCE(oo.is_active, true) = true
+          AND COALESCE(s.is_archived, false) = false
+
+        LIMIT 1
+      `, [
+        opportunityId,
+        organizationId,
+        spaceId
+      ]);
+
+      const current =
+        currentResult.rows[0];
+
+      if (!current) {
+        return res.status(404).send(
+          "Active sponsorship opportunity not found."
+        );
+      }
+
+      /*
+        Confirm an optional QR belongs to the same
+        Vivid location.
+      */
+      if (qrId !== null) {
+        const qrResult = await q(`
+          SELECT id
+
+          FROM qr_codes
+
+          WHERE id = $1
+            AND space_id = $2
+            AND COALESCE(is_archived, false) = false
+
+          LIMIT 1
+        `, [
+          qrId,
+          spaceId
+        ]);
+
+        if (!qrResult.rows[0]) {
+          return res.status(400).send(
+            "The selected QR placement does not belong to this location."
+          );
+        }
+      }
+
+      /*
+        Prevent duplicate active titles at the same
+        location, excluding the record being edited.
+      */
+      const duplicateResult = await q(`
+        SELECT id
+
+        FROM organization_opportunities
+
+        WHERE organization_id = $1
+          AND space_id = $2
+          AND id <> $3
+          AND LOWER(TRIM(title)) =
+              LOWER(TRIM($4))
+          AND COALESCE(is_active, true) = true
+
+        LIMIT 1
+      `, [
+        organizationId,
+        spaceId,
+        opportunityId,
+        title
+      ]);
+
+      if (duplicateResult.rows[0]) {
+        return res.status(409).send(`
+          Another active sponsorship opportunity with
+          this name already exists at
+          ${current.location_name}.
+          <br><br>
+          <a href="/org-opportunity/edit/${opportunityId}?organization_id=${organizationId}">
+            Back to Edit Sponsorship
+          </a>
+        `);
+      }
+
+      await q(`
+        UPDATE organization_opportunities
+
+        SET
+          qr_id = $1,
+          title = $2,
+          description = $3,
+          category = $4,
+          annual_price = $5,
+          status = $6,
+          display_order = $7,
+          updated_at = CURRENT_TIMESTAMP
+
+        WHERE id = $8
+          AND organization_id = $9
+          AND space_id = $10
+          AND COALESCE(is_active, true) = true
+      `, [
+        qrId,
+        title,
+        description || null,
+        category || null,
+        annualPrice,
+        status,
+        displayOrder,
+        opportunityId,
+        organizationId,
+        spaceId
+      ]);
+
+      return res.redirect(
+        `/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}`
+      );
+
+    } catch (err) {
+      console.error(
+        "UPDATE ORG OPPORTUNITY ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "UPDATE ORG OPPORTUNITY ERROR: " +
+        err.message
+      );
+    }
+  }
+);
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
