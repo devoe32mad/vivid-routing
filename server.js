@@ -8225,7 +8225,6 @@ app.get(
         WHERE organization_id = $1
           AND COALESCE(is_archived, false) = false
         ORDER BY name
-        LIMIT 3
       `, [organizationId]);
 
      const locations = locationsResult.rows;
