@@ -9735,17 +9735,19 @@ app.get(
       */
       const opportunityResult = await q(`
         SELECT
-          oo.id,
-          oo.organization_id,
-          oo.space_id,
-          oo.qr_id,
-          oo.title,
-          oo.description,
-          oo.category,
-          oo.annual_price,
-          oo.status,
-          oo.display_order,
-          oo.is_active,
+       oo.title,
+oo.description,
+oo.category,
+
+oo.annual_price,
+oo.price,
+oo.pricing_unit,
+oo.suggested_term_length,
+oo.suggested_term_unit,
+
+oo.status,
+oo.display_order,
+oo.is_active,
 
           s.name AS location_name,
           s.location AS market,
