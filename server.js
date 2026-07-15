@@ -8524,7 +8524,22 @@ app.get(
         ORDER BY name
       `, [organizationId]);
 
-     const locations = locationsResult.rows;
+const locations = locationsResult.rows;
+
+const selectedLocationId =
+  Number(req.query.location_id) ||
+  Number(locations[0]?.id);
+
+const selectedLocation =
+  locations.find(
+    location =>
+      Number(location.id) ===
+      Number(selectedLocationId)
+  );
+
+const selectedLocationName =
+  selectedLocation?.name ||
+  "No active location";
 
 const locationOptions = locations
   .map(location => `
@@ -8541,12 +8556,6 @@ const locationOptions = locations
     </option>
   `)
   .join("");
-const selectedLocationName =
-  locations[0]?.name ||
-  "No active location";
-    const selectedLocationId =
-  Number(req.query.location_id) ||
-  Number(locations[0]?.id);
 
 let opportunities = [];
 
@@ -8567,7 +8576,6 @@ if (
       oo.status,
       oo.display_order,
       oo.is_active,
-
       s.name AS location_name,
       qr.name AS qr_name
 
