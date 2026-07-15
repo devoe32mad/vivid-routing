@@ -1486,7 +1486,37 @@ CREATE TABLE IF NOT EXISTS organization_opportunities (
       DEFAULT CURRENT_TIMESTAMP
 )
 `);
+/*
+=========================================================
+FLEXIBLE SPONSORSHIP PRICING
+Vivid Core remains authoritative for actual dates,
+contract days, allocation and reporting.
+=========================================================
+*/
 
+await q(`
+  ALTER TABLE organization_opportunities
+  ADD COLUMN IF NOT EXISTS price
+    NUMERIC(12,2)
+`);
+
+await q(`
+  ALTER TABLE organization_opportunities
+  ADD COLUMN IF NOT EXISTS pricing_unit
+    TEXT DEFAULT 'Per Year'
+`);
+
+await q(`
+  ALTER TABLE organization_opportunities
+  ADD COLUMN IF NOT EXISTS suggested_term_length
+    INTEGER DEFAULT 12
+`);
+
+await q(`
+  ALTER TABLE organization_opportunities
+  ADD COLUMN IF NOT EXISTS suggested_term_unit
+    TEXT DEFAULT 'Months'
+`);
 await q(`
 CREATE INDEX IF NOT EXISTS
 idx_org_opportunities_org
