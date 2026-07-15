@@ -1422,8 +1422,98 @@ await q(`
   const assignments = await q(`SELECT COUNT(*) FROM qr_campaigns`);
   if (Number(assignments.rows[0].count) === 0) await q(`INSERT INTO qr_campaigns (qr_id,campaign_id,is_active) VALUES (1,1,true)`);
 
-  const campaignStores = await q(`SELECT COUNT(*) FROM campaign_stores`);
-  if (Number(campaignStores.rows[0].count) === 0) await q(`INSERT INTO campaign_stores (campaign_id,store_id,weight,is_active) VALUES (1,1,70,true),(2,2,90,true)`);
+const campaignStores = await q(`SELECT COUNT(*) FROM campaign_stores`);
+
+if (Number(campaignStores.rows[0].count) === 0) {
+  await q(`
+    INSERT INTO campaign_stores
+    (
+      campaign_id,
+      store_id,
+      weight,
+      is_active
+    )
+    VALUES
+      (1,1,70,true),
+      (2,2,90,true)
+  `);
+}
+
+/*
+=========================================================
+MARKETPLACE OPPORTUNITIES
+=========================================================
+*/
+
+await q(`
+CREATE TABLE IF NOT EXISTS organization_opportunities (
+
+    id SERIAL PRIMARY KEY,
+
+    organization_id INTEGER NOT NULL
+      REFERENCES organizations(id),
+
+    space_id INTEGER NOT NULL
+      REFERENCES spaces(id),
+
+    qr_id INTEGER
+      REFERENCES qr_codes(id),
+
+    title TEXT NOT NULL,
+
+    description TEXT,
+
+    category TEXT,
+
+    annual_price NUMERIC(12,2)
+      NOT NULL DEFAULT 0,
+
+    status TEXT
+      NOT NULL DEFAULT 'Available',
+
+    display_order INTEGER
+      NOT NULL DEFAULT 1,
+
+    is_active BOOLEAN
+      NOT NULL DEFAULT true,
+
+    created_by INTEGER,
+
+    created_at TIMESTAMP
+      DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP
+      DEFAULT CURRENT_TIMESTAMP
+)
+`);
+
+await q(`
+CREATE INDEX IF NOT EXISTS
+idx_org_opportunities_org
+ON organization_opportunities
+(
+    organization_id
+)
+`);
+
+await q(`
+CREATE INDEX IF NOT EXISTS
+idx_org_opportunities_space
+ON organization_opportunities
+(
+    space_id
+)
+`);
+
+await q(`
+CREATE INDEX IF NOT EXISTS
+idx_org_opportunities_status
+ON organization_opportunities
+(
+    status
+)
+`);
+
 }
 
 function daysBetween(startDate, endDate) {
