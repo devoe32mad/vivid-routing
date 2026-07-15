@@ -8668,9 +8668,9 @@ if (
           `
             <div class="marketplace-topbar">
 
-              <div class="marketplace-brand">
-                Vivid Marketplace
-              </div>
+          <div class="marketplace-brand">
+  Vivid Organizations
+</div>
 
             <h1>
   Sponsorship Inventory
