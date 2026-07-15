@@ -10304,9 +10304,21 @@ app.post(
         req.body.description || ""
       ).trim();
 
-      const annualPrice = Number(
-        req.body.annual_price
-      );
+      const price = Number(
+  req.body.price
+);
+
+const pricingUnit = String(
+  req.body.pricing_unit || ""
+).trim();
+
+const suggestedTermLength = Number(
+  req.body.suggested_term_length
+);
+
+const suggestedTermUnit = String(
+  req.body.suggested_term_unit || ""
+).trim();
 
       const status = String(
         req.body.status || "Available"
@@ -10341,13 +10353,57 @@ app.post(
       }
 
       if (
-        !Number.isFinite(annualPrice) ||
-        annualPrice < 0
-      ) {
-        return res.status(400).send(
-          "Annual Sponsorship Investment must be a valid amount."
-        );
-      }
+  !Number.isFinite(price) ||
+  price < 0
+) {
+  return res.status(400).send(
+    "Sponsorship Price must be a valid amount."
+  );
+}
+
+const allowedPricingUnits = [
+  "Per Day",
+  "Per Week",
+  "Per Month",
+  "Per Quarter",
+  "Per Year",
+  "Per Campaign",
+  "Per Event",
+  "Custom"
+];
+
+if (!allowedPricingUnits.includes(pricingUnit)) {
+  return res.status(400).send(
+    "Invalid pricing unit."
+  );
+}
+
+if (
+  !Number.isInteger(suggestedTermLength) ||
+  suggestedTermLength < 1
+) {
+  return res.status(400).send(
+    "Suggested Term Length must be a whole number of 1 or greater."
+  );
+}
+
+const allowedTermUnits = [
+  "Days",
+  "Weeks",
+  "Months",
+  "Quarters",
+  "Years",
+  "Campaigns",
+  "Events",
+  "Issues",
+  "Custom"
+];
+
+if (!allowedTermUnits.includes(suggestedTermUnit)) {
+  return res.status(400).send(
+    "Invalid suggested term unit."
+  );
+}
 
       if (
         !Number.isInteger(displayOrder) ||
@@ -10488,31 +10544,43 @@ app.post(
         UPDATE organization_opportunities
 
         SET
-          qr_id = $1,
-          title = $2,
-          description = $3,
-          category = $4,
-          annual_price = $5,
-          status = $6,
-          display_order = $7,
-          updated_at = CURRENT_TIMESTAMP
+  qr_id = $1,
+  title = $2,
+  description = $3,
+  category = $4,
 
-        WHERE id = $8
-          AND organization_id = $9
-          AND space_id = $10
+  price = $5,
+  annual_price = $5,
+  pricing_unit = $6,
+  suggested_term_length = $7,
+  suggested_term_unit = $8,
+
+  status = $9,
+  display_order = $10,
+  updated_at = CURRENT_TIMESTAMP
+
+WHERE id = $11
+  AND organization_id = $12
+  AND space_id = $13
           AND COALESCE(is_active, true) = true
       `, [
-        qrId,
-        title,
-        description || null,
-        category || null,
-        annualPrice,
-        status,
-        displayOrder,
-        opportunityId,
-        organizationId,
-        spaceId
-      ]);
+  qrId,
+  title,
+  description || null,
+  category || null,
+
+  price,
+  pricingUnit,
+  suggestedTermLength,
+  suggestedTermUnit,
+
+  status,
+  displayOrder,
+
+  opportunityId,
+  organizationId,
+  spaceId
+]
 
       return res.redirect(
         `/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}`
