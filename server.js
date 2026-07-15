@@ -8868,6 +8868,320 @@ ${locationOptions}
     }
   }
 );
+app.get(
+  "/org-opportunity/new",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Organization Portal user access.
+      */
+      if (req.session.orgUser?.organization_id) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      /*
+        Super Admin access.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      const spaceId = Number(
+        req.query.space_id
+      );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !Number.isInteger(spaceId) ||
+        spaceId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid organization and location are required."
+        );
+      }
+
+      /*
+        Confirm that the selected location belongs
+        to the selected organization.
+      */
+      const locationResult = await q(`
+        SELECT
+          s.id,
+          s.name,
+          s.location,
+          s.organization_id,
+          o.name AS organization_name
+
+        FROM spaces s
+
+        JOIN organizations o
+          ON o.id = s.organization_id
+
+        WHERE s.id = $1
+          AND s.organization_id = $2
+          AND COALESCE(
+            s.is_archived,
+            false
+          ) = false
+          AND COALESCE(
+            o.is_active,
+            true
+          ) = true
+
+        LIMIT 1
+      `, [
+        spaceId,
+        organizationId
+      ]);
+
+      const location =
+        locationResult.rows[0];
+
+      if (!location) {
+        return res.status(404).send(
+          "Active organization location not found."
+        );
+      }
+
+      /*
+        Existing QR placements are optional.
+        The opportunity may be created before
+        a physical QR placement exists.
+      */
+      const qrResult = await q(`
+        SELECT
+          qr.id,
+          qr.name
+
+        FROM qr_codes qr
+
+        WHERE qr.space_id = $1
+          AND COALESCE(
+            qr.is_archived,
+            false
+          ) = false
+
+        ORDER BY qr.name
+      `, [spaceId]);
+
+      const qrOptions = qrResult.rows
+        .map(qr => `
+          <option value="${qr.id}">
+            ${qr.name}
+          </option>
+        `)
+        .join("");
+
+      return res.send(
+        marketplacePage(
+          `Add Sponsorship - ${location.name}`,
+          `
+            <div class="marketplace-topbar">
+
+              <div class="marketplace-brand">
+                Vivid Marketplace
+              </div>
+
+              <h1>
+                Add Sponsorship Opportunity
+              </h1>
+
+              <p class="marketplace-subtitle">
+                ${location.organization_name}
+                · ${location.name}
+              </p>
+
+            </div>
+
+            <div class="marketplace-wrap">
+
+              <div
+                class="marketplace-card"
+                style="
+                  max-width:760px;
+                  margin:0 auto;
+                "
+              >
+
+                <form
+                  method="POST"
+                  action="/org-opportunity/new"
+                >
+
+                  <input
+                    type="hidden"
+                    name="organization_id"
+                    value="${organizationId}"
+                  >
+
+                  <input
+                    type="hidden"
+                    name="space_id"
+                    value="${spaceId}"
+                  >
+
+                  <label>
+                    Location
+                  </label>
+
+                  <input
+                    type="text"
+                    value="${location.name}"
+                    readonly
+                  >
+
+                  <label>
+                    Sponsorship Opportunity
+                  </label>
+
+                  <input
+                    type="text"
+                    name="title"
+                    required
+                    placeholder="Example: Football Stadium Sponsorship"
+                  >
+
+                  <label>
+                    Category
+                  </label>
+
+                  <input
+                    type="text"
+                    name="category"
+                    placeholder="Example: Athletics"
+                  >
+
+                  <label>
+                    Description
+                  </label>
+
+                  <textarea
+                    name="description"
+                    rows="5"
+                    style="
+                      width:100%;
+                      padding:11px;
+                      border-radius:10px;
+                      border:1px solid #cfdacf;
+                      margin:6px 0 14px;
+                      font-size:15px;
+                      box-sizing:border-box;
+                      font-family:Arial,sans-serif;
+                    "
+                    placeholder="Describe the sponsorship opportunity."
+                  ></textarea>
+
+                  <label>
+                    Annual Investment
+                  </label>
+
+                  <input
+                    type="number"
+                    name="annual_price"
+                    min="0"
+                    step="0.01"
+                    required
+                    placeholder="1500.00"
+                  >
+
+                  <label>
+                    Existing QR Placement
+                  </label>
+
+                  <select name="qr_id">
+                    <option value="">
+                      None — create or connect later
+                    </option>
+
+                    ${qrOptions}
+                  </select>
+
+                  <label>
+                    Status
+                  </label>
+
+                  <select name="status">
+                    <option value="Available">
+                      Available
+                    </option>
+
+                    <option value="Reserved">
+                      Reserved
+                    </option>
+
+                    <option value="Unavailable">
+                      Unavailable
+                    </option>
+                  </select>
+
+                  <label>
+                    Display Order
+                  </label>
+
+                  <input
+                    type="number"
+                    name="display_order"
+                    min="1"
+                    step="1"
+                    value="1"
+                    required
+                  >
+
+                  <div style="
+                    display:flex;
+                    gap:12px;
+                    flex-wrap:wrap;
+                    margin-top:8px;
+                  ">
+
+                    <button
+                      class="marketplace-btn"
+                      type="submit"
+                    >
+                      Save Sponsorship
+                    </button>
+
+                    <a
+                      class="marketplace-btn secondary"
+                      href="/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}"
+                    >
+                      Cancel
+                    </a>
+
+                  </div>
+
+                </form>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "NEW ORG OPPORTUNITY PAGE ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "NEW ORG OPPORTUNITY PAGE ERROR: " +
+        err.message
+      );
+    }
+  }
+);
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
