@@ -8780,11 +8780,7 @@ ${locationOptions}
 
                   <a
                     class="marketplace-btn"
-                    href="#"
-                    onclick="
-                      alert('Add Sponsorship will be activated in the next Marketplace build step.');
-                      return false;
-                    "
+                href="/org-opportunity/new?organization_id=${organization.id}&space_id=${selectedLocationId}"
                   >
                     + Add Sponsorship
                   </a>
