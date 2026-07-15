@@ -10580,9 +10580,8 @@ WHERE id = $11
   opportunityId,
   organizationId,
   spaceId
-]
-
-      return res.redirect(
+]);
+        return res.redirect(
         `/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}`
       );
 
