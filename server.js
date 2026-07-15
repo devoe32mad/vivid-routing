@@ -8603,6 +8603,65 @@ if (
 
   opportunities = opportunityResult.rows;
 }
+    const opportunityCards =
+  opportunities.length === 0
+    ? `
+      <div class="marketplace-card">
+        <h3 style="margin-top:0;">
+          No Opportunities
+        </h3>
+
+        <p style="
+          color:#65776b;
+          line-height:1.55;
+          margin-bottom:0;
+        ">
+          No advertising opportunities have been created
+          for this location yet.
+        </p>
+      </div>
+    `
+    : opportunities.map(opportunity => `
+      <div class="marketplace-card">
+
+        <div class="marketplace-label">
+          Location
+        </div>
+
+        <div class="marketplace-value">
+          ${opportunity.location_name}
+        </div>
+
+        <div class="marketplace-label">
+          Sponsorship Opportunity
+        </div>
+
+        <div class="marketplace-value">
+          ${opportunity.title}
+        </div>
+
+        <div class="marketplace-label">
+          Category
+        </div>
+
+        <div class="marketplace-value">
+          ${opportunity.category || "Not Set"}
+        </div>
+
+        <div class="marketplace-label">
+          Annual Investment
+        </div>
+
+        <div class="marketplace-value">
+          ${money(opportunity.annual_price)}
+        </div>
+
+        <span class="marketplace-status">
+          ${opportunity.status}
+        </span>
+
+      </div>
+    `).join("");
       res.send(
         marketplacePage(
           `${organization.name} Advertise With Us`,
@@ -8737,103 +8796,7 @@ ${locationOptions}
                 </h2>
 
                 <div class="marketplace-grid" style="margin:0;">
-
-                  <div class="marketplace-card">
-
-                    <div class="marketplace-label">
-                      Location
-                    </div>
-
-                    <div class="marketplace-value">
-                        ${selectedLocationName}                
-                        </div>
-
-                    <div class="marketplace-label">
-                      Sponsorship Opportunity
-                    </div>
-
-                    <div class="marketplace-value">
-                      Football Stadium Sponsorship
-                    </div>
-
-                    <div class="marketplace-label">
-                      Annual Investment
-                    </div>
-
-                    <div class="marketplace-value">
-                      $1,500
-                    </div>
-
-                    <span class="marketplace-status">
-                      Available
-                    </span>
-
-                  </div>
-
-                  <div class="marketplace-card">
-
-                    <div class="marketplace-label">
-                      Location
-                    </div>
-
-                    <div class="marketplace-value">
-                      ${selectedLocationName}
-                    </div>
-
-                    <div class="marketplace-label">
-                      Sponsorship Opportunity
-                    </div>
-
-                    <div class="marketplace-value">
-                      Gym Sponsorship
-                    </div>
-
-                    <div class="marketplace-label">
-                      Annual Investment
-                    </div>
-
-                    <div class="marketplace-value">
-                      $1,200
-                    </div>
-
-                    <span class="marketplace-status">
-                      Available
-                    </span>
-
-                  </div>
-
-                  <div class="marketplace-card">
-
-                    <div class="marketplace-label">
-                      Location
-                    </div>
-
-                    <div class="marketplace-value">
-                      ${selectedLocationName}
-                    </div>
-
-                    <div class="marketplace-label">
-                      Sponsorship Opportunity
-                    </div>
-
-                    <div class="marketplace-value">
-                      Car Line Sponsorship
-                    </div>
-
-                    <div class="marketplace-label">
-                      Annual Investment
-                    </div>
-
-                    <div class="marketplace-value">
-                      $950
-                    </div>
-
-                    <span class="marketplace-status">
-                      Available
-                    </span>
-
-                  </div>
-
+                  ${opportunityCards}
                 </div>
 
               </div>
