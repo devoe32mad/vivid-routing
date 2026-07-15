@@ -9248,25 +9248,132 @@ app.get(
       ></textarea>
     </div>
 
-    <div>
-      <label style="
-        display:block;
-        font-weight:bold;
-        margin-bottom:7px;
-      ">
-        Annual Sponsorship Investment
-      </label>
+ <div>
+  <label style="
+    display:block;
+    font-weight:bold;
+    margin-bottom:7px;
+  ">
+    Sponsorship Price
+  </label>
 
-      <input
-        type="number"
-        name="annual_price"
-        min="0"
-        step="0.01"
-        required
-        placeholder="Example: 1500.00"
-        style="margin:0;"
+  <input
+    type="number"
+    name="price"
+    min="0"
+    step="0.01"
+    value="${Number(
+      opportunity.price ??
+      opportunity.annual_price ??
+      0
+    ).toFixed(2)}"
+    required
+    style="margin:0;"
+  >
+</div>
+
+<div>
+  <label style="
+    display:block;
+    font-weight:bold;
+    margin-bottom:7px;
+  ">
+    Pricing Unit
+  </label>
+
+  <select
+    name="pricing_unit"
+    style="margin:0;"
+  >
+    ${[
+      "Per Day",
+      "Per Week",
+      "Per Month",
+      "Per Quarter",
+      "Per Year",
+      "Per Campaign",
+      "Per Event",
+      "Custom"
+    ].map(unit => `
+      <option
+        value="${unit}"
+        ${
+          String(
+            opportunity.pricing_unit ||
+            "Per Year"
+          ) === unit
+            ? "selected"
+            : ""
+        }
       >
-    </div>
+        ${unit}
+      </option>
+    `).join("")}
+  </select>
+</div>
+
+<div>
+  <label style="
+    display:block;
+    font-weight:bold;
+    margin-bottom:7px;
+  ">
+    Suggested Term Length
+  </label>
+
+  <input
+    type="number"
+    name="suggested_term_length"
+    min="1"
+    step="1"
+    value="${Number(
+      opportunity.suggested_term_length || 12
+    )}"
+    required
+    style="margin:0;"
+  >
+</div>
+
+<div>
+  <label style="
+    display:block;
+    font-weight:bold;
+    margin-bottom:7px;
+  ">
+    Suggested Term Unit
+  </label>
+
+  <select
+    name="suggested_term_unit"
+    style="margin:0;"
+  >
+    ${[
+      "Days",
+      "Weeks",
+      "Months",
+      "Quarters",
+      "Years",
+      "Campaigns",
+      "Events",
+      "Issues",
+      "Custom"
+    ].map(unit => `
+      <option
+        value="${unit}"
+        ${
+          String(
+            opportunity.suggested_term_unit ||
+            "Months"
+          ) === unit
+            ? "selected"
+            : ""
+        }
+      >
+        ${unit}
+      </option>
+    `).join("")}
+  </select>
+</div>
 
     <div>
       <label style="
