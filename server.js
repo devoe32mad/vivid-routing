@@ -9277,35 +9277,19 @@ app.get(
     Pricing Unit
   </label>
 
-  <select
-    name="pricing_unit"
-    style="margin:0;"
-  >
-    ${[
-      "Per Day",
-      "Per Week",
-      "Per Month",
-      "Per Quarter",
-      "Per Year",
-      "Per Campaign",
-      "Per Event",
-      "Custom"
-    ].map(unit => `
-      <option
-        value="${unit}"
-        ${
-          String(
-            opportunity.pricing_unit ||
-            "Per Year"
-          ) === unit
-            ? "selected"
-            : ""
-        }
-      >
-        ${unit}
-      </option>
-    `).join("")}
-  </select>
+<select
+  name="pricing_unit"
+  style="margin:0;"
+>
+  <option value="Per Day">Per Day</option>
+  <option value="Per Week">Per Week</option>
+  <option value="Per Month">Per Month</option>
+  <option value="Per Quarter">Per Quarter</option>
+  <option value="Per Year" selected>Per Year</option>
+  <option value="Per Campaign">Per Campaign</option>
+  <option value="Per Event">Per Event</option>
+  <option value="Custom">Custom</option>
+</select>
 </div>
 
 <div>
@@ -9322,9 +9306,7 @@ app.get(
     name="suggested_term_length"
     min="1"
     step="1"
-    value="${Number(
-      opportunity.suggested_term_length || 12
-    )}"
+   value="12"
     required
     style="margin:0;"
   >
@@ -9339,36 +9321,20 @@ app.get(
     Suggested Term Unit
   </label>
 
-  <select
-    name="suggested_term_unit"
-    style="margin:0;"
-  >
-    ${[
-      "Days",
-      "Weeks",
-      "Months",
-      "Quarters",
-      "Years",
-      "Campaigns",
-      "Events",
-      "Issues",
-      "Custom"
-    ].map(unit => `
-      <option
-        value="${unit}"
-        ${
-          String(
-            opportunity.suggested_term_unit ||
-            "Months"
-          ) === unit
-            ? "selected"
-            : ""
-        }
-      >
-        ${unit}
-      </option>
-    `).join("")}
-  </select>
+<select
+  name="suggested_term_unit"
+  style="margin:0;"
+>
+  <option value="Days">Days</option>
+  <option value="Weeks">Weeks</option>
+  <option value="Months" selected>Months</option>
+  <option value="Quarters">Quarters</option>
+  <option value="Years">Years</option>
+  <option value="Campaigns">Campaigns</option>
+  <option value="Events">Events</option>
+  <option value="Issues">Issues</option>
+  <option value="Custom">Custom</option>
+</select>
 </div>
 
     <div>
