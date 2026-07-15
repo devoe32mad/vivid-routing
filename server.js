@@ -1517,6 +1517,30 @@ await q(`
   ADD COLUMN IF NOT EXISTS suggested_term_unit
     TEXT DEFAULT 'Months'
 `);
+  await q(`
+  UPDATE organization_opportunities
+  SET
+    price = COALESCE(
+      price,
+      annual_price,
+      0
+    ),
+
+    pricing_unit = COALESCE(
+      NULLIF(TRIM(pricing_unit), ''),
+      'Per Year'
+    ),
+
+    suggested_term_length = COALESCE(
+      suggested_term_length,
+      12
+    ),
+
+    suggested_term_unit = COALESCE(
+      NULLIF(TRIM(suggested_term_unit), ''),
+      'Months'
+    )
+`);
 await q(`
 CREATE INDEX IF NOT EXISTS
 idx_org_opportunities_org
