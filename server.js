@@ -2211,6 +2211,136 @@ app.get(
     }
   }
 );
+app.get(
+  "/debug-seed-ccps-opportunities",
+  requireLogin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const organizationId = 13;
+      const spaceId = 36;
+
+      const locationResult = await q(`
+        SELECT
+          id,
+          name,
+          organization_id,
+          is_archived
+        FROM spaces
+        WHERE id = $1
+          AND organization_id = $2
+          AND COALESCE(is_archived, false) = false
+        LIMIT 1
+      `, [
+        spaceId,
+        organizationId
+      ]);
+
+      const location = locationResult.rows[0];
+
+      if (!location) {
+        return res.status(404).send(
+          "Active Barron Collier location was not found for CCPS."
+        );
+      }
+
+      const result = await q(`
+        INSERT INTO organization_opportunities (
+          organization_id,
+          space_id,
+          title,
+          description,
+          category,
+          annual_price,
+          status,
+          display_order,
+          is_active
+        )
+
+        SELECT
+          $1,
+          $2,
+          opportunity.title,
+          opportunity.description,
+          opportunity.category,
+          opportunity.annual_price,
+          'Available',
+          opportunity.display_order,
+          true
+
+        FROM (
+          VALUES
+            (
+              'Football Stadium Sponsorship',
+              'Home football stadium sponsorship.',
+              'Athletics',
+              1500::numeric,
+              1
+            ),
+            (
+              'Gym Sponsorship',
+              'Main gymnasium sponsorship.',
+              'Athletics',
+              1200::numeric,
+              2
+            ),
+            (
+              'Car Line Sponsorship',
+              'Morning and afternoon student pickup.',
+              'Campus',
+              950::numeric,
+              3
+            )
+        ) AS opportunity (
+          title,
+          description,
+          category,
+          annual_price,
+          display_order
+        )
+
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM organization_opportunities existing
+          WHERE existing.organization_id = $1
+            AND existing.space_id = $2
+            AND LOWER(TRIM(existing.title)) =
+                LOWER(TRIM(opportunity.title))
+        )
+
+        RETURNING
+          id,
+          organization_id,
+          space_id,
+          title,
+          annual_price,
+          status,
+          display_order
+      `, [
+        organizationId,
+        spaceId
+      ]);
+
+      return res.json({
+        message: "CCPS opportunities seeded.",
+        location,
+        inserted_count: result.rows.length,
+        inserted: result.rows
+      });
+
+    } catch (err) {
+      console.error(
+        "SEED CCPS OPPORTUNITIES ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "SEED CCPS OPPORTUNITIES ERROR: " +
+        err.message
+      );
+    }
+  }
+);
 app.get("/debug-conversions", async (req, res) => {
   const result = await q(`
     SELECT id, qr_id, campaign_id, type, value, created_at
