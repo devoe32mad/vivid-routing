@@ -9262,11 +9262,7 @@ app.get(
     name="price"
     min="0"
     step="0.01"
-    value="${Number(
-      opportunity.price ??
-      opportunity.annual_price ??
-      0
-    ).toFixed(2)}"
+    placeholder="Example: 1500.00"
     required
     style="margin:0;"
   >
