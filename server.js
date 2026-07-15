@@ -2196,8 +2196,15 @@ app.get(
           oo.title,
           oo.description,
           oo.category,
-          oo.annual_price,
-          oo.status,
+
+oo.annual_price,
+
+oo.price,
+oo.pricing_unit,
+oo.suggested_term_length,
+oo.suggested_term_unit,
+
+oo.status,
           oo.display_order,
           oo.is_active,
           oo.created_at,
