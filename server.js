@@ -4086,7 +4086,7 @@ ${orgDateFilterForm({
       class="btn"
       href="/org-marketplace?organization_id=${org.id}"
     >
-      Advertise With Us
+      Sponsorship Inventory
     </a>
 
   </div>
