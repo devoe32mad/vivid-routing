@@ -8717,14 +8717,43 @@ qr.name AS qr_name
           ${opportunity.category || "Not Set"}
         </div>
 
-        <div class="marketplace-label">
-          Annual Investment
-        </div>
+<div class="marketplace-label">
+  Sponsorship Price
+</div>
 
-        <div class="marketplace-value">
-          ${money(opportunity.annual_price)}
-        </div>
+<div class="marketplace-value">
+  ${money(
+    opportunity.price ??
+    opportunity.annual_price
+  )}
+</div>
 
+<div class="marketplace-label">
+  Pricing
+</div>
+
+<div class="marketplace-value">
+  ${opportunity.pricing_unit || "Custom"}
+</div>
+
+<div class="marketplace-label">
+  Suggested Term
+</div>
+
+<div class="marketplace-value">
+  ${
+    Number(
+      opportunity.suggested_term_length || 0
+    ) > 0
+      ? `${Number(
+          opportunity.suggested_term_length
+        )} ${
+          opportunity.suggested_term_unit ||
+          "Days"
+        }`
+      : "Custom"
+  }
+</div>
   <span class="marketplace-status">
   ${opportunity.status}
 </span>
