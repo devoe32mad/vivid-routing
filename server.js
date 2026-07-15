@@ -2134,6 +2134,83 @@ app.get("/debug-org-location-link/:orgId", requireLogin, async (req, res) => {
     );
   }
 });
+app.get(
+  "/debug-org-opportunities/:orgId",
+  requireLogin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const organizationId = Number(req.params.orgId);
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid organization ID is required."
+        );
+      }
+
+      const result = await q(`
+        SELECT
+          oo.id,
+          oo.organization_id,
+          o.name AS organization_name,
+
+          oo.space_id,
+          s.name AS location_name,
+
+          oo.qr_id,
+          qr.name AS qr_name,
+
+          oo.title,
+          oo.description,
+          oo.category,
+          oo.annual_price,
+          oo.status,
+          oo.display_order,
+          oo.is_active,
+          oo.created_at,
+          oo.updated_at
+
+        FROM organization_opportunities oo
+
+        JOIN organizations o
+          ON o.id = oo.organization_id
+
+        JOIN spaces s
+          ON s.id = oo.space_id
+
+        LEFT JOIN qr_codes qr
+          ON qr.id = oo.qr_id
+
+        WHERE oo.organization_id = $1
+
+        ORDER BY
+          s.name,
+          oo.display_order,
+          oo.title
+      `, [organizationId]);
+
+      return res.json({
+        organization_id: organizationId,
+        opportunity_count: result.rows.length,
+        opportunities: result.rows
+      });
+
+    } catch (err) {
+      console.error(
+        "DEBUG ORG OPPORTUNITIES ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "DEBUG ORG OPPORTUNITIES ERROR: " +
+        err.message
+      );
+    }
+  }
+);
 app.get("/debug-conversions", async (req, res) => {
   const result = await q(`
     SELECT id, qr_id, campaign_id, type, value, created_at
