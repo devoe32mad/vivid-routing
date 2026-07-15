@@ -8656,12 +8656,34 @@ if (
           ${money(opportunity.annual_price)}
         </div>
 
-        <span class="marketplace-status">
-          ${opportunity.status}
-        </span>
+  <span class="marketplace-status">
+  ${opportunity.status}
+</span>
 
-      </div>
-    `).join("");
+<div style="
+  margin-top:18px;
+  padding-top:14px;
+  border-top:1px solid #e7eee7;
+  display:flex;
+  justify-content:flex-end;
+">
+
+  <a
+    class="marketplace-btn"
+    href="/org-opportunity/edit/${opportunity.id}?organization_id=${organizationId}"
+    style="
+      margin:0;
+      padding:8px 14px;
+      font-size:13px;
+    "
+  >
+    Edit Sponsorship
+  </a>
+
+</div>
+
+</div>
+`).join("");
       res.send(
         marketplacePage(
           `${organization.name} Advertise With Us`,
