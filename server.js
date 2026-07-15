@@ -9017,16 +9017,68 @@ app.get(
                     name="space_id"
                     value="${spaceId}"
                   >
+<div style="
+  margin-bottom:28px;
+">
 
-                  <label>
-                    Location
-                  </label>
+  <div style="
+    font-size:13px;
+    font-weight:700;
+    color:#4d5d53;
+    margin-bottom:8px;
+  ">
+    Location
+  </div>
 
-                  <input
-                    type="text"
-                    value="${location.name}"
-                    readonly
-                  >
+  <div style="
+    background:#f5f7f6;
+    border:1px solid #d7dfd8;
+    border-radius:10px;
+    padding:14px 16px;
+    font-size:15px;
+    color:#2b3b31;
+  ">
+    📍 ${location.name}
+  </div>
+
+</div>
+
+<div style="
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:22px;
+">
+               <div style="
+  margin-bottom:28px;
+">
+
+  <div style="
+    font-size:13px;
+    font-weight:700;
+    color:#4d5d53;
+    margin-bottom:8px;
+  ">
+    Location
+  </div>
+
+  <div style="
+    background:#f5f7f6;
+    border:1px solid #d7dfd8;
+    border-radius:10px;
+    padding:14px 16px;
+    font-size:15px;
+    color:#2b3b31;
+  ">
+    📍 ${location.name}
+  </div>
+
+</div>
+
+<div style="
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:22px;
+">
 
                   <label>
                     Sponsorship Opportunity
