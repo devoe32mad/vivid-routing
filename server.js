@@ -8236,7 +8236,9 @@ const locationOptions = locations
     </option>
   `)
   .join("");
-
+const selectedLocationName =
+  locations[0]?.name ||
+  "No active location";
       res.send(
         marketplacePage(
           `${organization.name} Advertise With Us`,
