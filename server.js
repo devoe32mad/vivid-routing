@@ -9459,8 +9459,8 @@ app.post(
       let organizationId = null;
 
       /*
-        Organization Portal user access:
-        use the organization from the authenticated session.
+        Organization Portal users use the organization
+        stored in their authenticated session.
       */
       if (req.session.orgUser?.organization_id) {
         organizationId = Number(
@@ -9469,8 +9469,8 @@ app.post(
       }
 
       /*
-        Super Admin access:
-        use the organization submitted by the form.
+        Super Admin uses the organization submitted
+        by the protected form.
       */
       if (
         !organizationId &&
@@ -9481,7 +9481,9 @@ app.post(
         );
       }
 
-      const spaceId = Number(req.body.space_id);
+      const spaceId = Number(
+        req.body.space_id
+      );
 
       const title = String(
         req.body.title || ""
@@ -9495,9 +9497,21 @@ app.post(
         req.body.description || ""
       ).trim();
 
-      const annualPrice = Number(
-        req.body.annual_price
+      const price = Number(
+        req.body.price
       );
+
+      const pricingUnit = String(
+        req.body.pricing_unit || ""
+      ).trim();
+
+      const suggestedTermLength = Number(
+        req.body.suggested_term_length
+      );
+
+      const suggestedTermUnit = String(
+        req.body.suggested_term_unit || ""
+      ).trim();
 
       const status = String(
         req.body.status || "Available"
@@ -9513,7 +9527,7 @@ app.post(
           : Number(req.body.qr_id);
 
       /*
-        Validate required IDs.
+        Validate organization and location IDs.
       */
       if (
         !Number.isInteger(organizationId) ||
@@ -9526,9 +9540,6 @@ app.post(
         );
       }
 
-      /*
-        Validate submitted opportunity fields.
-      */
       if (!title) {
         return res.status(400).send(
           "Sponsorship Opportunity is required."
@@ -9536,11 +9547,65 @@ app.post(
       }
 
       if (
-        !Number.isFinite(annualPrice) ||
-        annualPrice < 0
+        !Number.isFinite(price) ||
+        price < 0
       ) {
         return res.status(400).send(
-          "Annual Investment must be a valid amount."
+          "Sponsorship Price must be a valid amount."
+        );
+      }
+
+      const allowedPricingUnits = [
+        "Per Day",
+        "Per Week",
+        "Per Month",
+        "Per Quarter",
+        "Per Year",
+        "Per Campaign",
+        "Per Event",
+        "Custom"
+      ];
+
+      if (
+        !allowedPricingUnits.includes(
+          pricingUnit
+        )
+      ) {
+        return res.status(400).send(
+          "Invalid pricing unit."
+        );
+      }
+
+      if (
+        !Number.isInteger(
+          suggestedTermLength
+        ) ||
+        suggestedTermLength < 1
+      ) {
+        return res.status(400).send(
+          "Suggested Term Length must be a whole number of 1 or greater."
+        );
+      }
+
+      const allowedTermUnits = [
+        "Days",
+        "Weeks",
+        "Months",
+        "Quarters",
+        "Years",
+        "Campaigns",
+        "Events",
+        "Issues",
+        "Custom"
+      ];
+
+      if (
+        !allowedTermUnits.includes(
+          suggestedTermUnit
+        )
+      ) {
+        return res.status(400).send(
+          "Invalid suggested term unit."
         );
       }
 
@@ -9578,7 +9643,8 @@ app.post(
       }
 
       /*
-        Confirm the location belongs to this organization.
+        Confirm that the active Vivid location belongs
+        to the selected organization.
       */
       const locationResult = await q(`
         SELECT
@@ -9590,7 +9656,10 @@ app.post(
 
         WHERE id = $1
           AND organization_id = $2
-          AND COALESCE(is_archived, false) = false
+          AND COALESCE(
+            is_archived,
+            false
+          ) = false
 
         LIMIT 1
       `, [
@@ -9608,8 +9677,8 @@ app.post(
       }
 
       /*
-        If a QR was selected, confirm that it belongs
-        to this exact Vivid location.
+        When a QR placement is selected, confirm that
+        it belongs to this exact Vivid location.
       */
       if (qrId !== null) {
         const qrResult = await q(`
@@ -9622,7 +9691,10 @@ app.post(
 
           WHERE id = $1
             AND space_id = $2
-            AND COALESCE(is_archived, false) = false
+            AND COALESCE(
+              is_archived,
+              false
+            ) = false
 
           LIMIT 1
         `, [
@@ -9638,8 +9710,8 @@ app.post(
       }
 
       /*
-        Prevent duplicate active opportunities with the
-        same title at the same organization location.
+        Prevent duplicate active opportunity names
+        within the same location.
       */
       const duplicateResult = await q(`
         SELECT id
@@ -9650,7 +9722,10 @@ app.post(
           AND space_id = $2
           AND LOWER(TRIM(title)) =
               LOWER(TRIM($3))
-          AND COALESCE(is_active, true) = true
+          AND COALESCE(
+            is_active,
+            true
+          ) = true
 
         LIMIT 1
       `, [
@@ -9661,25 +9736,26 @@ app.post(
 
       if (duplicateResult.rows[0]) {
         return res.status(409).send(`
-          An active sponsorship opportunity with this name
-          already exists at ${location.name}.
+          An active sponsorship opportunity with this
+          name already exists at ${location.name}.
           <br><br>
+
           <a href="/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}">
-            Back to Marketplace
+            Back to Sponsorship Inventory
           </a>
         `);
       }
 
-      /*
-        Record who created it when available.
-        This is informational only and does not control access.
-      */
       const createdBy =
         req.session.orgUser?.id ||
         req.session.user?.id ||
         null;
 
-      const insertResult = await q(`
+      /*
+        annual_price temporarily mirrors price so that
+        older code remains compatible during conversion.
+      */
+      await q(`
         INSERT INTO organization_opportunities (
           organization_id,
           space_id,
@@ -9687,7 +9763,13 @@ app.post(
           title,
           description,
           category,
+
+          price,
           annual_price,
+          pricing_unit,
+          suggested_term_length,
+          suggested_term_unit,
+
           status,
           display_order,
           is_active,
@@ -9702,39 +9784,38 @@ app.post(
           $4,
           $5,
           $6,
+
+          $7,
           $7,
           $8,
           $9,
-          true,
           $10,
+
+          $11,
+          $12,
+          true,
+          $13,
           CURRENT_TIMESTAMP,
           CURRENT_TIMESTAMP
         )
-        RETURNING
-          id,
-          organization_id,
-          space_id,
-          title,
-          annual_price,
-          status
       `, [
-        organizationId,
-        spaceId,
-        qrId,
-        title,
-        description || null,
-        category || null,
-        annualPrice,
-        status,
-        displayOrder,
-        createdBy
+        organizationId,          // $1
+        spaceId,                 // $2
+        qrId,                    // $3
+        title,                   // $4
+        description || null,     // $5
+        category || null,        // $6
+
+        price,                   // $7
+        pricingUnit,             // $8
+        suggestedTermLength,     // $9
+        suggestedTermUnit,       // $10
+
+        status,                  // $11
+        displayOrder,            // $12
+        createdBy                // $13
       ]);
 
-      /*
-        Return directly to the selected location.
-        The newly created record will immediately render
-        from organization_opportunities.
-      */
       return res.redirect(
         `/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}`
       );
