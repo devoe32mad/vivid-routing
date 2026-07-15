@@ -8715,19 +8715,7 @@ if (
                 </div>
 
                 <div>
-                  <a
-                    class="marketplace-btn"
-                    href="#"
-                    onclick="
-                      alert(
-                        'Opportunity management is included in the next Marketplace build step.'
-                      );
-                      return false;
-                    "
-                  >
-                    Create Advertising Opportunity
-                  </a>
-
+                
                   <a
                     class="marketplace-btn secondary"
                     href="/org-organization/${organization.id}"
