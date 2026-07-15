@@ -8972,22 +8972,22 @@ app.get(
         marketplacePage(
           `Add Sponsorship - ${location.name}`,
           `
-            <div class="marketplace-topbar">
+           <div class="marketplace-topbar">
 
-              <div class="marketplace-brand">
-                Vivid Marketplace
-              </div>
+  <div class="marketplace-brand">
+    Vivid Organizations
+  </div>
 
-              <h1>
-                Add Sponsorship Opportunity
-              </h1>
+  <h1>
+    Add Sponsorship
+  </h1>
 
-              <p class="marketplace-subtitle">
-                ${location.organization_name}
-                · ${location.name}
-              </p>
+  <p class="marketplace-subtitle">
+    Add a sponsorship opportunity to
+    ${location.name}'s inventory.
+  </p>
 
-            </div>
+</div>
 
             <div class="marketplace-wrap">
 
@@ -8999,7 +8999,25 @@ app.get(
                 "
               >
 
-             
+             <div style="margin-bottom:24px;">
+
+  <h2 style="
+    margin:0 0 7px;
+    font-size:22px;
+  ">
+    Sponsorship Details
+  </h2>
+
+  <div style="
+    color:#65776b;
+    line-height:1.5;
+    font-size:14px;
+  ">
+    Enter the opportunity details businesses will see
+    when viewing this location's available sponsorships.
+  </div>
+
+</div>
 
            <form
   method="POST"
@@ -9125,7 +9143,7 @@ app.get(
         min="0"
         step="0.01"
         required
-        placeholder="1500.00"
+        placeholder="Example: 1500.00"
         style="margin:0;"
       >
     </div>
