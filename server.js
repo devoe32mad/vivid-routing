@@ -8381,8 +8381,8 @@ ${locationOptions}
                     </div>
 
                     <div class="marketplace-value">
-                      ${firstLocation}
-                    </div>
+                        ${selectedLocationName}                
+                        </div>
 
                     <div class="marketplace-label">
                       Sponsorship Opportunity
@@ -8413,7 +8413,7 @@ ${locationOptions}
                     </div>
 
                     <div class="marketplace-value">
-                      ${firstLocation}
+                      ${selectedLocationName}
                     </div>
 
                     <div class="marketplace-label">
@@ -8445,7 +8445,7 @@ ${locationOptions}
                     </div>
 
                     <div class="marketplace-value">
-                      ${firstLocation}
+                      ${selectedLocationName}
                     </div>
 
                     <div class="marketplace-label">
