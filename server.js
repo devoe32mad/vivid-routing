@@ -2659,7 +2659,7 @@ app.post("/login", async (req, res) => {
 
     }
 
-    req.session.user = {
+ req.session.user = {
   id: user.rows[0].id,
   name: user.rows[0].name,
   email: user.rows[0].email,
@@ -2667,7 +2667,18 @@ app.post("/login", async (req, res) => {
   customer_id: user.rows[0].customer_id
 };
 
-    res.redirect("/my-setup");
+/*
+  Super Admin enters the platform control center.
+  Customer users continue to enter Vivid Core.
+*/
+if (
+  String(user.rows[0].role || "").toLowerCase() ===
+  "super_admin"
+) {
+  return res.redirect("/platform-admin");
+}
+
+return res.redirect("/my-setup");
 
   } catch (err) {
 
