@@ -9884,26 +9884,31 @@ app.get(
         to this organization and an active Vivid location.
       */
       const opportunityResult = await q(`
-        SELECT
-       oo.title,
-oo.description,
-oo.category,
 
-oo.annual_price,
-oo.price,
-oo.pricing_unit,
-oo.suggested_term_length,
-oo.suggested_term_unit,
+SELECT
+  oo.id,
+  oo.organization_id,
+  oo.space_id,
+  oo.qr_id,
 
-oo.status,
-oo.display_order,
-oo.is_active,
+  oo.title,
+  oo.description,
+  oo.category,
 
-          s.name AS location_name,
-          s.location AS market,
+  oo.annual_price,
+  oo.price,
+  oo.pricing_unit,
+  oo.suggested_term_length,
+  oo.suggested_term_unit,
 
-          o.name AS organization_name
+  oo.status,
+  oo.display_order,
+  oo.is_active,
 
+  s.name AS location_name,
+  s.location AS market,
+
+  o.name AS organization_name
         FROM organization_opportunities oo
 
         JOIN spaces s
