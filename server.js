@@ -9488,17 +9488,51 @@ app.get(
                     Download Import Template
                   </a>
 
-                  <button
-                    class="marketplace-btn secondary"
-                    type="button"
-                    disabled
-                    style="
-                      opacity:.55;
-                      cursor:not-allowed;
-                    "
-                  >
-                    Upload Completed Template
-                  </button>
+                 <form
+  method="POST"
+  action="/org-import-upload"
+  enctype="multipart/form-data"
+  style="
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin:5px 8px 5px 0;
+  "
+>
+  <input
+    type="hidden"
+    name="organization_id"
+    value="${organizationId}"
+  >
+
+  <input
+    type="hidden"
+    name="location_id"
+    value="${location.id}"
+  >
+
+  <input
+    type="file"
+    name="template_file"
+    accept=".xlsx"
+    required
+    style="
+      width:auto;
+      max-width:310px;
+      margin:0;
+      background:white;
+    "
+  >
+
+  <button
+    class="marketplace-btn secondary"
+    type="submit"
+    style="margin:0;"
+  >
+    Upload Completed Template
+  </button>
+</form>
 
                   <a
                     class="marketplace-btn secondary"
