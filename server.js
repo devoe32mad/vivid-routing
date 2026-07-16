@@ -10542,20 +10542,20 @@ const createOpportunitiesButton =
 
  row.style.cssText = \`
   display:grid;
-  grid-template-columns:
-    minmax(145px,.95fr)
-    minmax(210px,1.45fr)
-    minmax(125px,.85fr)
-    minmax(90px,.6fr)
-    minmax(120px,.8fr)
-    minmax(68px,.45fr)
-    minmax(105px,.7fr)
-    minmax(115px,.75fr)
-    58px
-    92px;
-  gap:9px;
-  align-items:end;
-  padding:14px 0;
+ grid-template-columns:
+  150px    /* Area / Venue */
+  235px    /* Placement */
+  120px    /* Category */
+  90px     /* Price */
+  125px    /* Pricing Unit */
+  70px     /* Term */
+  110px    /* Term Unit */
+  120px    /* Availability */
+  55px     /* Order */
+  110px;   /* Remove */
+
+gap:7px;
+padding:14px 6px;
   border-top:1px solid #e3e9e4;
 \`;
 
@@ -10752,9 +10752,10 @@ const createOpportunitiesButton =
       class="marketplace-btn secondary remove-opportunity-row"
    style="
   margin:0;
-  width:92px;
-  padding:10px 8px;
-  white-space:nowrap;
+width:100px;
+min-width:100px;
+padding:10px 8px;
+white-space:nowrap;
 "
     >
       Remove
