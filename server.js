@@ -10543,16 +10543,16 @@ const createOpportunitiesButton =
  row.style.cssText = \`
   display:grid;
 grid-template-columns:
-  135px
-  205px
-  110px
-  82px
-  112px
-  62px
-  100px
-  108px
-  48px
-  92px;
+  135px    /* Area / Venue */
+  205px    /* Placement */
+  95px     /* Category */
+  70px     /* Price */
+  100px    /* Pricing Unit */
+  50px     /* Term */
+  90px     /* Term Unit */
+  95px     /* Availability */
+  38px     /* Order */
+  100px;   /* Remove */
 
 gap:6px;
 
