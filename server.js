@@ -9346,7 +9346,7 @@ row.getCell(7).dataValidation = {
   type: "list",
   allowBlank: false,
   formulae: [
-    "VividPricingUnits"
+    "=VividPricingUnits"
   ],
   showErrorMessage: true,
   errorStyle: "error",
@@ -9359,7 +9359,7 @@ row.getCell(9).dataValidation = {
   type: "list",
   allowBlank: false,
   formulae: [
-    "VividTermUnits"
+    "=VividTermUnits"
   ],
   showErrorMessage: true,
   errorStyle: "error",
@@ -9372,7 +9372,7 @@ row.getCell(10).dataValidation = {
   type: "list",
   allowBlank: false,
   formulae: [
-    "VividAvailability"
+    "=VividAvailability"
   ],
   showErrorMessage: true,
   errorStyle: "error",
