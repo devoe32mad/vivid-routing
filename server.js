@@ -9088,7 +9088,54 @@ app.get(
 
       const workbook =
         new ExcelJS.Workbook();
+const validationSheet =
+  workbook.addWorksheet("Validation Lists");
 
+const pricingUnits = [
+  "Per Day",
+  "Per Week",
+  "Per Month",
+  "Per Quarter",
+  "Per Year",
+  "Per Campaign",
+  "Per Event",
+  "Custom"
+];
+
+const termUnits = [
+  "Days",
+  "Weeks",
+  "Months",
+  "Quarters",
+  "Years",
+  "Campaigns",
+  "Events",
+  "Issues",
+  "Custom"
+];
+
+const availabilityOptions = [
+  "Available",
+  "Reserved",
+  "Unavailable"
+];
+
+pricingUnits.forEach((value, index) => {
+  validationSheet.getCell(index + 1, 1).value =
+    value;
+});
+
+termUnits.forEach((value, index) => {
+  validationSheet.getCell(index + 1, 2).value =
+    value;
+});
+
+availabilityOptions.forEach((value, index) => {
+  validationSheet.getCell(index + 1, 3).value =
+    value;
+});
+
+validationSheet.state = "veryHidden";
       workbook.creator = "Vivid";
       workbook.company = "Vivid";
       workbook.created = new Date();
@@ -9255,50 +9302,46 @@ app.get(
         /*
           Helpful defaults.
         */
-        row.getCell(7).value =
-          "Per Year";
-
-        row.getCell(8).value =
-          12;
-
-        row.getCell(9).value =
-          "Months";
-
-        row.getCell(10).value =
-          "Available";
-
-        row.getCell(11).value =
-          rowNumber - 1;
+     
 
         /*
           Pricing Unit dropdown.
         */
-        row.getCell(7).dataValidation = {
-          type: "list",
-          allowBlank: false,
-          formulae: [
-            '"Per Day,Per Week,Per Month,Per Quarter,Per Year,Per Campaign,Per Event,Custom"'
-          ],
-          showErrorMessage: true,
-          errorTitle: "Invalid Pricing Unit",
-          error:
-            "Select a pricing unit from the dropdown."
-        };
+    row.getCell(7).dataValidation = {
+  type: "list",
+  allowBlank: false,
+  formulae: [
+    "'Validation Lists'!$A$1:$A$8"
+  ],
+  showErrorMessage: true,
+  errorTitle: "Invalid Pricing Unit",
+  error:
+    "Select a pricing unit from the dropdown."
+};
 
-        /*
-          Suggested Term Unit dropdown.
-        */
-        row.getCell(9).dataValidation = {
-          type: "list",
-          allowBlank: false,
-          formulae: [
-            '"Days,Weeks,Months,Quarters,Years,Campaigns,Events,Issues,Custom"'
-          ],
-          showErrorMessage: true,
-          errorTitle: "Invalid Term Unit",
-          error:
-            "Select a term unit from the dropdown."
-        };
+row.getCell(9).dataValidation = {
+  type: "list",
+  allowBlank: false,
+  formulae: [
+    "'Validation Lists'!$B$1:$B$9"
+  ],
+  showErrorMessage: true,
+  errorTitle: "Invalid Term Unit",
+  error:
+    "Select a term unit from the dropdown."
+};
+
+row.getCell(10).dataValidation = {
+  type: "list",
+  allowBlank: false,
+  formulae: [
+    "'Validation Lists'!$C$1:$C$3"
+  ],
+  showErrorMessage: true,
+  errorTitle: "Invalid Availability",
+  error:
+    "Select availability from the dropdown."
+};
 
         /*
           Availability dropdown.
