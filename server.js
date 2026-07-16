@@ -10216,6 +10216,828 @@ worksheet.eachRow(
     }
   }
 );
+/*
+=========================================================
+ORGANIZATION OPPORTUNITY BUILDER
+Vivid-native bulk creation workflow.
+No database writes in this first version.
+=========================================================
+*/
+
+app.get(
+  "/org-opportunity-builder",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Super Admin uses the organization selected
+        in the query string.
+      */
+      if (
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      /*
+        Organization users always use the organization
+        stored in their authenticated session.
+      */
+      if (
+        !organizationId &&
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      const locationId = Number(
+        req.query.location_id
+      );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res.status(403).send(
+          "Opportunity Builder access denied."
+        );
+      }
+
+      if (
+        !Number.isInteger(locationId) ||
+        locationId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid location is required."
+        );
+      }
+
+      /*
+        Reload the authoritative organization and
+        location directly from Vivid.
+      */
+      const locationResult = await q(`
+        SELECT
+          s.id,
+          s.name,
+          s.location,
+          s.organization_id,
+          o.name AS organization_name
+
+        FROM spaces s
+
+        JOIN organizations o
+          ON o.id = s.organization_id
+
+        WHERE s.id = $1
+          AND s.organization_id = $2
+          AND COALESCE(
+            s.is_archived,
+            false
+          ) = false
+          AND COALESCE(
+            o.is_active,
+            true
+          ) = true
+
+        LIMIT 1
+      `, [
+        locationId,
+        organizationId
+      ]);
+
+      const location =
+        locationResult.rows[0];
+
+      if (!location) {
+        return res.status(404).send(
+          "Active organization location not found."
+        );
+      }
+
+      return res.send(
+        marketplacePage(
+          `Opportunity Builder - ${location.name}`,
+          `
+            <div class="marketplace-topbar">
+
+              <div class="marketplace-brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Opportunity Builder
+              </h1>
+
+              <p class="marketplace-subtitle">
+                Create multiple advertising opportunities
+                for ${location.name}.
+              </p>
+
+            </div>
+
+            <div class="marketplace-wrap">
+
+              <div
+                class="marketplace-card"
+                style="
+                  max-width:1100px;
+                  margin:0 auto 22px;
+                "
+              >
+
+                <div style="
+                  font-size:12px;
+                  color:#65776b;
+                  font-weight:bold;
+                  margin-bottom:7px;
+                ">
+                  ORGANIZATION
+                </div>
+
+                <div style="
+                  font-size:19px;
+                  font-weight:bold;
+                  margin-bottom:18px;
+                ">
+                  ${location.organization_name}
+                </div>
+
+                <div style="
+                  font-size:12px;
+                  color:#65776b;
+                  font-weight:bold;
+                  margin-bottom:7px;
+                ">
+                  LOCKED LOCATION
+                </div>
+
+                <div style="
+                  background:#f5f7f6;
+                  border:1px solid #d7dfd8;
+                  border-radius:12px;
+                  padding:15px 17px;
+                ">
+
+                  <div style="
+                    font-size:17px;
+                    font-weight:bold;
+                  ">
+                    ${location.name}
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                    margin-top:4px;
+                  ">
+                    Location ID: ${location.id}
+                    ${
+                      location.location
+                        ? ` · ${location.location}`
+                        : ""
+                    }
+                  </div>
+
+                </div>
+
+              </div>
+
+              <div
+                id="opportunity-groups"
+                style="
+                  max-width:1100px;
+                  margin:0 auto;
+                "
+              ></div>
+
+              <div style="
+                max-width:1100px;
+                margin:20px auto 0;
+                display:flex;
+                gap:12px;
+                flex-wrap:wrap;
+              ">
+
+                <button
+                  type="button"
+                  class="marketplace-btn"
+                  id="add-opportunity-group"
+                >
+                  + Add Opportunity Group
+                </button>
+
+                <button
+                  type="button"
+                  class="marketplace-btn secondary"
+                  disabled
+                  style="
+                    opacity:.55;
+                    cursor:not-allowed;
+                  "
+                >
+                  Create Opportunities
+                </button>
+
+                <a
+                  class="marketplace-btn secondary"
+                  href="/org-marketplace?organization_id=${organizationId}&location_id=${location.id}"
+                >
+                  Back to Sponsorship Inventory
+                </a>
+
+              </div>
+
+            </div>
+
+            <script>
+              (() => {
+                const groupsContainer =
+                  document.getElementById(
+                    "opportunity-groups"
+                  );
+
+                const addGroupButton =
+                  document.getElementById(
+                    "add-opportunity-group"
+                  );
+
+                let groupCounter = 0;
+
+                const pricingUnits = [
+                  "Per Day",
+                  "Per Week",
+                  "Per Month",
+                  "Per Quarter",
+                  "Per Year",
+                  "Per Campaign",
+                  "Per Event",
+                  "Custom"
+                ];
+
+                const termUnits = [
+                  "Days",
+                  "Weeks",
+                  "Months",
+                  "Quarters",
+                  "Years",
+                  "Campaigns",
+                  "Events",
+                  "Issues",
+                  "Custom"
+                ];
+
+                const statuses = [
+                  "Available",
+                  "Reserved",
+                  "Unavailable"
+                ];
+
+                function buildOptions(
+                  values,
+                  selectedValue
+                ) {
+                  return values
+                    .map(value => {
+                      const selected =
+                        value === selectedValue
+                          ? "selected"
+                          : "";
+
+                      return \`
+                        <option
+                          value="\${value}"
+                          \${selected}
+                        >
+                          \${value}
+                        </option>
+                      \`;
+                    })
+                    .join("");
+                }
+
+                function createOpportunityRow(
+                  groupId,
+                  rowNumber,
+                  defaults
+                ) {
+                  const row =
+                    document.createElement("div");
+
+                  row.className =
+                    "builder-opportunity-row";
+
+                  row.style.cssText = \`
+                    display:grid;
+                    grid-template-columns:
+                      minmax(180px,1.5fr)
+                      minmax(105px,.7fr)
+                      minmax(135px,.9fr)
+                      minmax(90px,.6fr)
+                      minmax(130px,.8fr)
+                      minmax(130px,.8fr)
+                      minmax(75px,.5fr)
+                      auto;
+                    gap:10px;
+                    align-items:end;
+                    padding:14px 0;
+                    border-top:1px solid #e3e9e4;
+                  \`;
+
+                  row.dataset.groupId =
+                    String(groupId);
+
+                  row.innerHTML = \`
+                    <div>
+                      <label style="
+                        display:block;
+                        font-size:12px;
+                        font-weight:bold;
+                        margin-bottom:6px;
+                      ">
+                        Placement / Description
+                      </label>
+
+                      <input
+                        type="text"
+                        class="builder-title"
+                        placeholder="Example: Home Side"
+                        style="margin:0;"
+                      >
+                    </div>
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-size:12px;
+                        font-weight:bold;
+                        margin-bottom:6px;
+                      ">
+                        Price
+                      </label>
+
+                      <input
+                        type="number"
+                        class="builder-price"
+                        min="0"
+                        step="0.01"
+                        value="\${defaults.price}"
+                        style="margin:0;"
+                      >
+                    </div>
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-size:12px;
+                        font-weight:bold;
+                        margin-bottom:6px;
+                      ">
+                        Pricing Unit
+                      </label>
+
+                      <select
+                        class="builder-pricing-unit"
+                        style="margin:0;"
+                      >
+                        \${buildOptions(
+                          pricingUnits,
+                          defaults.pricingUnit
+                        )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-size:12px;
+                        font-weight:bold;
+                        margin-bottom:6px;
+                      ">
+                        Term
+                      </label>
+
+                      <input
+                        type="number"
+                        class="builder-term-length"
+                        min="1"
+                        step="1"
+                        value="\${defaults.termLength}"
+                        style="margin:0;"
+                      >
+                    </div>
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-size:12px;
+                        font-weight:bold;
+                        margin-bottom:6px;
+                      ">
+                        Term Unit
+                      </label>
+
+                      <select
+                        class="builder-term-unit"
+                        style="margin:0;"
+                      >
+                        \${buildOptions(
+                          termUnits,
+                          defaults.termUnit
+                        )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-size:12px;
+                        font-weight:bold;
+                        margin-bottom:6px;
+                      ">
+                        Availability
+                      </label>
+
+                      <select
+                        class="builder-status"
+                        style="margin:0;"
+                      >
+                        \${buildOptions(
+                          statuses,
+                          defaults.status
+                        )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-size:12px;
+                        font-weight:bold;
+                        margin-bottom:6px;
+                      ">
+                        Order
+                      </label>
+
+                      <input
+                        type="number"
+                        class="builder-order"
+                        min="1"
+                        step="1"
+                        value="\${rowNumber}"
+                        style="margin:0;"
+                      >
+                    </div>
+
+                    <button
+                      type="button"
+                      class="marketplace-btn secondary remove-opportunity-row"
+                      style="
+                        margin:0;
+                        padding:10px 12px;
+                      "
+                    >
+                      Remove
+                    </button>
+                  \`;
+
+                  row
+                    .querySelector(
+                      ".remove-opportunity-row"
+                    )
+                    .addEventListener(
+                      "click",
+                      () => {
+                        row.remove();
+                      }
+                    );
+
+                  return row;
+                }
+
+                function addGroup() {
+                  groupCounter += 1;
+
+                  const groupId =
+                    groupCounter;
+
+                  const group =
+                    document.createElement("div");
+
+                  group.className =
+                    "marketplace-card";
+
+                  group.style.cssText = \`
+                    margin:0 0 22px;
+                  \`;
+
+                  group.innerHTML = \`
+                    <div style="
+                      display:flex;
+                      justify-content:space-between;
+                      gap:16px;
+                      align-items:flex-start;
+                      flex-wrap:wrap;
+                      margin-bottom:20px;
+                    ">
+
+                      <div>
+                        <h2 style="
+                          margin:0 0 6px;
+                          font-size:22px;
+                        ">
+                          Opportunity Group
+                        </h2>
+
+                        <div style="
+                          color:#65776b;
+                          font-size:14px;
+                        ">
+                          Define an area such as a football
+                          stadium, lobby, pool or terminal.
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        class="marketplace-btn secondary delete-group"
+                      >
+                        Delete Group
+                      </button>
+
+                    </div>
+
+                    <div style="
+                      display:grid;
+                      grid-template-columns:
+                        repeat(4,minmax(0,1fr));
+                      gap:16px;
+                      margin-bottom:18px;
+                    ">
+
+                      <div>
+                        <label style="
+                          display:block;
+                          font-weight:bold;
+                          margin-bottom:7px;
+                        ">
+                          Area / Venue
+                        </label>
+
+                        <input
+                          type="text"
+                          class="group-name"
+                          placeholder="Example: Football Stadium"
+                          style="margin:0;"
+                        >
+                      </div>
+
+                      <div>
+                        <label style="
+                          display:block;
+                          font-weight:bold;
+                          margin-bottom:7px;
+                        ">
+                          Category
+                        </label>
+
+                        <input
+                          type="text"
+                          class="group-category"
+                          placeholder="Example: Athletics"
+                          style="margin:0;"
+                        >
+                      </div>
+
+                      <div>
+                        <label style="
+                          display:block;
+                          font-weight:bold;
+                          margin-bottom:7px;
+                        ">
+                          Default Price
+                        </label>
+
+                        <input
+                          type="number"
+                          class="group-price"
+                          min="0"
+                          step="0.01"
+                          value="0"
+                          style="margin:0;"
+                        >
+                      </div>
+
+                      <div>
+                        <label style="
+                          display:block;
+                          font-weight:bold;
+                          margin-bottom:7px;
+                        ">
+                          Number of Opportunities
+                        </label>
+
+                        <input
+                          type="number"
+                          class="group-count"
+                          min="1"
+                          max="100"
+                          step="1"
+                          value="1"
+                          style="margin:0;"
+                        >
+                      </div>
+
+                    </div>
+
+                    <div style="
+                      display:flex;
+                      gap:10px;
+                      flex-wrap:wrap;
+                      margin-bottom:18px;
+                    ">
+
+                      <button
+                        type="button"
+                        class="marketplace-btn generate-group-rows"
+                      >
+                        Generate Opportunities
+                      </button>
+
+                      <button
+                        type="button"
+                        class="marketplace-btn secondary add-group-row"
+                      >
+                        + Add Placement
+                      </button>
+
+                    </div>
+
+                    <div
+                      class="group-rows"
+                    ></div>
+                  \`;
+
+                  const rowsContainer =
+                    group.querySelector(
+                      ".group-rows"
+                    );
+
+                  function getDefaults() {
+                    return {
+                      price:
+                        group.querySelector(
+                          ".group-price"
+                        ).value || "0",
+
+                      pricingUnit:
+                        "Per Year",
+
+                      termLength:
+                        12,
+
+                      termUnit:
+                        "Months",
+
+                      status:
+                        "Available"
+                    };
+                  }
+
+                  group
+                    .querySelector(
+                      ".generate-group-rows"
+                    )
+                    .addEventListener(
+                      "click",
+                      () => {
+                        const requestedCount =
+                          Number(
+                            group.querySelector(
+                              ".group-count"
+                            ).value
+                          );
+
+                        if (
+                          !Number.isInteger(
+                            requestedCount
+                          ) ||
+                          requestedCount < 1 ||
+                          requestedCount > 100
+                        ) {
+                          alert(
+                            "Enter a number of opportunities between 1 and 100."
+                          );
+
+                          return;
+                        }
+
+                        rowsContainer.innerHTML =
+                          "";
+
+                        const defaults =
+                          getDefaults();
+
+                        for (
+                          let rowNumber = 1;
+                          rowNumber <= requestedCount;
+                          rowNumber += 1
+                        ) {
+                          rowsContainer.appendChild(
+                            createOpportunityRow(
+                              groupId,
+                              rowNumber,
+                              defaults
+                            )
+                          );
+                        }
+                      }
+                    );
+
+                  group
+                    .querySelector(
+                      ".add-group-row"
+                    )
+                    .addEventListener(
+                      "click",
+                      () => {
+                        const currentCount =
+                          rowsContainer.querySelectorAll(
+                            ".builder-opportunity-row"
+                          ).length;
+
+                        rowsContainer.appendChild(
+                          createOpportunityRow(
+                            groupId,
+                            currentCount + 1,
+                            getDefaults()
+                          )
+                        );
+                      }
+                    );
+
+                  group
+                    .querySelector(
+                      ".delete-group"
+                    )
+                    .addEventListener(
+                      "click",
+                      () => {
+                        const groupName =
+                          group.querySelector(
+                            ".group-name"
+                          ).value.trim() ||
+                          "this opportunity group";
+
+                        const confirmed =
+                          window.confirm(
+                            \`Delete \${groupName} and all of its unsaved opportunities?\`
+                          );
+
+                        if (confirmed) {
+                          group.remove();
+                        }
+                      }
+                    );
+
+                  groupsContainer.appendChild(
+                    group
+                  );
+                }
+
+                addGroupButton.addEventListener(
+                  "click",
+                  addGroup
+                );
+
+                /*
+                  Open the builder with one blank group.
+                */
+                addGroup();
+              })();
+            </script>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "OPPORTUNITY BUILDER PAGE ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "OPPORTUNITY BUILDER PAGE ERROR: " +
+        err.message
+      );
+    }
+  }
+);
 app.get(
   "/org-opportunity/new",
   async (req, res) => {
