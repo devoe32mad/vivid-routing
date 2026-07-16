@@ -9202,6 +9202,319 @@ app.get(
     }
   }
 );
+/*
+=========================================================
+ORGANIZATION OPPORTUNITY IMPORT
+Standalone organization workflow.
+Does not duplicate Vivid Core setup or analytics logic.
+=========================================================
+*/
+
+app.get(
+  "/org-import-opportunities",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Super Admin uses the organization explicitly
+        selected in the URL.
+      */
+      if (
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      /*
+        Organization Portal users use their
+        authenticated organization.
+      */
+      if (
+        !organizationId &&
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      const locationId = Number(
+        req.query.location_id
+      );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res.status(403).send(
+          "Import access denied."
+        );
+      }
+
+      if (
+        !Number.isInteger(locationId) ||
+        locationId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid location is required."
+        );
+      }
+
+      /*
+        Reload the organization and location from Vivid.
+        Do not trust names submitted through the URL.
+      */
+      const locationResult = await q(`
+        SELECT
+          s.id,
+          s.name,
+          s.location,
+          s.organization_id,
+
+          o.name AS organization_name
+
+        FROM spaces s
+
+        JOIN organizations o
+          ON o.id = s.organization_id
+
+        WHERE s.id = $1
+          AND s.organization_id = $2
+          AND COALESCE(
+            s.is_archived,
+            false
+          ) = false
+          AND COALESCE(
+            o.is_active,
+            true
+          ) = true
+
+        LIMIT 1
+      `, [
+        locationId,
+        organizationId
+      ]);
+
+      const location =
+        locationResult.rows[0];
+
+      if (!location) {
+        return res.status(404).send(
+          "Active organization location not found."
+        );
+      }
+
+      return res.send(
+        marketplacePage(
+          `Import Opportunities - ${location.name}`,
+          `
+            <div class="marketplace-topbar">
+
+              <div class="marketplace-brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Import Advertising Opportunities
+              </h1>
+
+              <p class="marketplace-subtitle">
+                Add multiple opportunities to
+                ${location.name}'s sponsorship inventory.
+              </p>
+
+            </div>
+
+            <div class="marketplace-wrap">
+
+              <div
+                class="marketplace-card"
+                style="
+                  max-width:900px;
+                  margin:0 auto 22px;
+                "
+              >
+
+                <div style="
+                  font-size:12px;
+                  color:#65776b;
+                  font-weight:bold;
+                  margin-bottom:7px;
+                ">
+                  ORGANIZATION
+                </div>
+
+                <div style="
+                  font-size:20px;
+                  font-weight:bold;
+                  margin-bottom:20px;
+                ">
+                  ${location.organization_name}
+                </div>
+
+                <div style="
+                  font-size:12px;
+                  color:#65776b;
+                  font-weight:bold;
+                  margin-bottom:7px;
+                ">
+                  LOCKED LOCATION
+                </div>
+
+                <div style="
+                  background:#f5f7f6;
+                  border:1px solid #d7dfd8;
+                  border-radius:12px;
+                  padding:15px 17px;
+                  margin-bottom:12px;
+                ">
+
+                  <div style="
+                    font-size:17px;
+                    font-weight:bold;
+                  ">
+                    ${location.name}
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                    margin-top:4px;
+                  ">
+                    Location ID: ${location.id}
+                    ${
+                      location.location
+                        ? ` · ${location.location}`
+                        : ""
+                    }
+                  </div>
+
+                </div>
+
+                <div style="
+                  color:#65776b;
+                  line-height:1.55;
+                  font-size:14px;
+                ">
+                  This import is permanently mapped to the
+                  location shown above. Location ID and
+                  Location Name cannot be changed. Complete
+                  only the editable advertising-opportunity
+                  fields in the template.
+                </div>
+
+              </div>
+
+              <div
+                class="marketplace-card"
+                style="
+                  max-width:900px;
+                  margin:0 auto 22px;
+                "
+              >
+
+                <h2 style="
+                  margin:0 0 8px;
+                  font-size:22px;
+                ">
+                  Import Process
+                </h2>
+
+                <p style="
+                  color:#65776b;
+                  line-height:1.55;
+                  margin:0 0 20px;
+                ">
+                  Vivid will validate every row before any
+                  opportunity is added to Sponsorship Inventory.
+                </p>
+
+                <div class="workflow-grid">
+
+                  <div class="workflow-step">
+                    1. Download Template
+                  </div>
+
+                  <div class="workflow-step">
+                    2. Complete Opportunities
+                  </div>
+
+                  <div class="workflow-step">
+                    3. Upload File
+                  </div>
+
+                  <div class="workflow-step">
+                    4. Validate
+                  </div>
+
+                  <div class="workflow-step">
+                    5. Preview
+                  </div>
+
+                  <div class="workflow-step">
+                    6. Confirm Import
+                  </div>
+
+                </div>
+
+                <div style="
+                  display:flex;
+                  gap:12px;
+                  flex-wrap:wrap;
+                  margin-top:24px;
+                ">
+
+                  <a
+                    class="marketplace-btn"
+                    href="/org-opportunities/bulk-template?organization_id=${organizationId}&location_id=${location.id}"
+                  >
+                    Download Import Template
+                  </a>
+
+                  <button
+                    class="marketplace-btn secondary"
+                    type="button"
+                    disabled
+                    style="
+                      opacity:.55;
+                      cursor:not-allowed;
+                    "
+                  >
+                    Upload Completed Template
+                  </button>
+
+                  <a
+                    class="marketplace-btn secondary"
+                    href="/org-marketplace?organization_id=${organizationId}&location_id=${location.id}"
+                  >
+                    Back to Sponsorship Inventory
+                  </a>
+
+                </div>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "IMPORT OPPORTUNITIES PAGE ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "IMPORT OPPORTUNITIES PAGE ERROR: " +
+        err.message
+      );
+    }
+  }
+);
 app.get(
   "/org-opportunity/new",
   async (req, res) => {
