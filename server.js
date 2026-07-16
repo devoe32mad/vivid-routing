@@ -9298,7 +9298,19 @@ validationSheet.state = "veryHidden";
             locked: false
           };
         }
+/*
+  Helpful defaults.
+  These are editable.
+*/
+row.getCell(7).value = "Per Year";
+row.getCell(8).value = 12;
+row.getCell(9).value = "Months";
+row.getCell(10).value = "Available";
 
+/*
+  Organization chooses display order.
+*/
+row.getCell(11).value = null;
         /*
           Helpful defaults.
         */
