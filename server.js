@@ -10943,26 +10943,36 @@ app.get(
                       ".group-rows"
                     );
 
-                  function getDefaults() {
-                    return {
-                      price:
-                        group.querySelector(
-                          ".group-price"
-                        ).value || "0",
+             function getDefaults() {
+  return {
+    groupName:
+      group.querySelector(
+        ".group-name"
+      ).value.trim(),
 
-                      pricingUnit:
-                        "Per Year",
+    category:
+      group.querySelector(
+        ".group-category"
+      ).value.trim(),
 
-                      termLength:
-                        12,
+    price:
+      group.querySelector(
+        ".group-price"
+      ).value || "0",
 
-                      termUnit:
-                        "Months",
+    pricingUnit:
+      "Per Year",
 
-                      status:
-                        "Available"
-                    };
-                  }
+    termLength:
+      12,
+
+    termUnit:
+      "Months",
+
+    status:
+      "Available"
+  };
+}
 
                   group
                     .querySelector(
@@ -10977,7 +10987,22 @@ app.get(
                               ".group-count"
                             ).value
                           );
+const groupName =
+  group.querySelector(
+    ".group-name"
+  ).value.trim();
 
+if (!groupName) {
+  alert(
+    "Enter the Area / Venue before generating placements."
+  );
+
+  group.querySelector(
+    ".group-name"
+  ).focus();
+
+  return;
+}
                         if (
                           !Number.isInteger(
                             requestedCount
