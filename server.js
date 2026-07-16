@@ -9000,8 +9000,8 @@ app.get(
       let organizationId = null;
 
       /*
-        Organization Portal users always use the
-        organization stored in their session.
+        Organization Portal users use their
+        authenticated organization.
       */
       if (req.session.orgUser?.organization_id) {
         organizationId = Number(
@@ -9031,7 +9031,7 @@ app.get(
         organizationId <= 0
       ) {
         return res.status(403).send(
-          "Bulk template access denied."
+          "Template access denied."
         );
       }
 
@@ -9045,16 +9045,13 @@ app.get(
       }
 
       /*
-        Confirm that the location belongs to the
-        selected organization.
-
-        Location ID is authoritative.
-        Location Name is included only for readability.
+        Reload the authoritative location from Vivid.
       */
       const locationResult = await q(`
         SELECT
           s.id,
           s.name,
+          s.location,
           s.organization_id,
           o.name AS organization_name
 
@@ -9089,86 +9086,362 @@ app.get(
         );
       }
 
+      const workbook =
+        new ExcelJS.Workbook();
+
+      workbook.creator = "Vivid";
+      workbook.company = "Vivid";
+      workbook.created = new Date();
+
       /*
-        CSV values are escaped so names containing
-        commas or quotation marks remain valid.
+        First worksheet is intentionally the import sheet
+        because the upload reader uses worksheet 1.
       */
-      const csvValue = value => {
-        const text = String(
-          value ?? ""
+      const worksheet =
+        workbook.addWorksheet(
+          "Advertising Opportunities"
         );
 
-        return `"${text.replace(/"/g, '""')}"`;
-      };
-
-      const headers = [
-        "Location ID",
-        "Location Name",
-        "Advertising Opportunity",
-        "Category",
-        "Description",
-        "Price",
-        "Pricing Unit",
-        "Suggested Term Length",
-        "Suggested Term Unit",
-        "Availability",
-        "Display Order"
+      worksheet.columns = [
+        {
+          header: "Location ID",
+          key: "location_id",
+          width: 14
+        },
+        {
+          header: "Location Name",
+          key: "location_name",
+          width: 34
+        },
+        {
+          header: "Advertising Opportunity",
+          key: "title",
+          width: 34
+        },
+        {
+          header: "Category",
+          key: "category",
+          width: 20
+        },
+        {
+          header: "Description",
+          key: "description",
+          width: 44
+        },
+        {
+          header: "Price",
+          key: "price",
+          width: 14
+        },
+        {
+          header: "Pricing Unit",
+          key: "pricing_unit",
+          width: 20
+        },
+        {
+          header: "Suggested Term Length",
+          key: "term_length",
+          width: 24
+        },
+        {
+          header: "Suggested Term Unit",
+          key: "term_unit",
+          width: 23
+        },
+        {
+          header: "Availability",
+          key: "availability",
+          width: 18
+        },
+        {
+          header: "Display Order",
+          key: "display_order",
+          width: 16
+        }
       ];
 
       /*
-        Include example rows to show that multiple
-        distinct opportunities may exist within the
-        same stadium, court, lobby, pool, or other area.
+        Format the header row.
       */
-      const sampleRows = [
-        [
-          location.id,
-          location.name,
-          "Football Stadium - Home Side",
-          "Athletics",
-          "Home-side football stadium sponsorship.",
-          "1500.00",
-          "Per Year",
-          "12",
-          "Months",
-          "Available",
-          "1"
-        ],
-        [
-          location.id,
-          location.name,
-          "Football Stadium - Visitor Side",
-          "Athletics",
-          "Visitor-side football stadium sponsorship.",
-          "1500.00",
-          "Per Year",
-          "12",
-          "Months",
-          "Available",
-          "2"
-        ],
-        [
-          location.id,
-          location.name,
-          "Basketball Court - North Wall",
-          "Athletics",
-          "North-wall basketball court sponsorship.",
-          "1000.00",
-          "Per Year",
-          "12",
-          "Months",
-          "Available",
-          "3"
-        ]
+      const headerRow =
+        worksheet.getRow(1);
+
+      headerRow.height = 28;
+      headerRow.font = {
+        bold: true,
+        color: {
+          argb: "FFFFFFFF"
+        }
+      };
+
+      headerRow.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: {
+          argb: "FF176B3A"
+        }
+      };
+
+      headerRow.alignment = {
+        vertical: "middle",
+        horizontal: "center",
+        wrapText: true
+      };
+
+      /*
+        Create 100 ready-to-use rows.
+
+        Location ID and Location Name are populated
+        and locked by Vivid.
+
+        All opportunity fields remain editable.
+      */
+      for (
+        let rowNumber = 2;
+        rowNumber <= 101;
+        rowNumber += 1
+      ) {
+        const row =
+          worksheet.getRow(rowNumber);
+
+        row.getCell(1).value =
+          location.id;
+
+        row.getCell(2).value =
+          location.name;
+
+        /*
+          Locked system-controlled cells.
+        */
+        row.getCell(1).protection = {
+          locked: true
+        };
+
+        row.getCell(2).protection = {
+          locked: true
+        };
+
+        row.getCell(1).fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: {
+            argb: "FFE7ECE8"
+          }
+        };
+
+        row.getCell(2).fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: {
+            argb: "FFE7ECE8"
+          }
+        };
+
+        /*
+          Editable opportunity fields: columns C through K.
+        */
+        for (
+          let columnNumber = 3;
+          columnNumber <= 11;
+          columnNumber += 1
+        ) {
+          row.getCell(
+            columnNumber
+          ).protection = {
+            locked: false
+          };
+        }
+
+        /*
+          Helpful defaults.
+        */
+        row.getCell(7).value =
+          "Per Year";
+
+        row.getCell(8).value =
+          12;
+
+        row.getCell(9).value =
+          "Months";
+
+        row.getCell(10).value =
+          "Available";
+
+        row.getCell(11).value =
+          rowNumber - 1;
+
+        /*
+          Pricing Unit dropdown.
+        */
+        row.getCell(7).dataValidation = {
+          type: "list",
+          allowBlank: false,
+          formulae: [
+            '"Per Day,Per Week,Per Month,Per Quarter,Per Year,Per Campaign,Per Event,Custom"'
+          ],
+          showErrorMessage: true,
+          errorTitle: "Invalid Pricing Unit",
+          error:
+            "Select a pricing unit from the dropdown."
+        };
+
+        /*
+          Suggested Term Unit dropdown.
+        */
+        row.getCell(9).dataValidation = {
+          type: "list",
+          allowBlank: false,
+          formulae: [
+            '"Days,Weeks,Months,Quarters,Years,Campaigns,Events,Issues,Custom"'
+          ],
+          showErrorMessage: true,
+          errorTitle: "Invalid Term Unit",
+          error:
+            "Select a term unit from the dropdown."
+        };
+
+        /*
+          Availability dropdown.
+        */
+        row.getCell(10).dataValidation = {
+          type: "list",
+          allowBlank: false,
+          formulae: [
+            '"Available,Reserved,Unavailable"'
+          ],
+          showErrorMessage: true,
+          errorTitle: "Invalid Availability",
+          error:
+            "Select an availability value from the dropdown."
+        };
+
+        /*
+          Price must be zero or greater.
+        */
+        row.getCell(6).dataValidation = {
+          type: "decimal",
+          operator: "greaterThanOrEqual",
+          formulae: [0],
+          allowBlank: true,
+          showErrorMessage: true,
+          errorTitle: "Invalid Price",
+          error:
+            "Price must be zero or greater."
+        };
+
+        /*
+          Term length must be a positive whole number.
+        */
+        row.getCell(8).dataValidation = {
+          type: "whole",
+          operator: "greaterThanOrEqual",
+          formulae: [1],
+          allowBlank: false,
+          showErrorMessage: true,
+          errorTitle: "Invalid Term Length",
+          error:
+            "Suggested Term Length must be 1 or greater."
+        };
+
+        /*
+          Display order must be a positive whole number.
+        */
+        row.getCell(11).dataValidation = {
+          type: "whole",
+          operator: "greaterThanOrEqual",
+          formulae: [1],
+          allowBlank: false,
+          showErrorMessage: true,
+          errorTitle: "Invalid Display Order",
+          error:
+            "Display Order must be 1 or greater."
+        };
+      }
+
+      worksheet.views = [
+        {
+          state: "frozen",
+          ySplit: 1
+        }
       ];
 
-      const csv = [
-        headers.map(csvValue).join(","),
+      worksheet.autoFilter = {
+        from: "A1",
+        to: "K101"
+      };
 
-        ...sampleRows.map(row =>
-          row.map(csvValue).join(",")
-        )
-      ].join("\r\n");
+      /*
+        Protect the worksheet.
+
+        Locked cells cannot be edited.
+        Unlocked opportunity cells remain editable.
+      */
+      await worksheet.protect(
+        "vivid-import",
+        {
+          selectLockedCells: true,
+          selectUnlockedCells: true,
+          formatCells: false,
+          formatColumns: false,
+          formatRows: false,
+          insertRows: false,
+          deleteRows: false,
+          sort: true,
+          autoFilter: true
+        }
+      );
+
+      /*
+        Add a separate instruction worksheet.
+      */
+      const instructions =
+        workbook.addWorksheet(
+          "Instructions"
+        );
+
+      instructions.columns = [
+        {
+          key: "instruction",
+          width: 110
+        }
+      ];
+
+      instructions.addRow([
+        "Vivid Advertising Opportunity Import Instructions"
+      ]);
+
+      instructions.addRow([
+        ""
+      ]);
+
+      instructions.addRow([
+        `Organization: ${location.organization_name}`
+      ]);
+
+      instructions.addRow([
+        `Locked Location: ${location.name} — Location ID ${location.id}`
+      ]);
+
+      instructions.addRow([
+        ""
+      ]);
+
+      instructions.addRow([
+        "Do not change Location ID or Location Name. These fields are locked and mapped directly to Vivid."
+      ]);
+
+      instructions.addRow([
+        "Complete only the editable Advertising Opportunity, Category, Description, Price, Pricing Unit, Suggested Term, Availability, and Display Order fields."
+      ]);
+
+      instructions.addRow([
+        "Leave unused rows blank. Vivid will validate every completed row before importing anything."
+      ]);
+
+      instructions.getRow(1).font = {
+        bold: true,
+        size: 16
+      };
 
       const safeOrganizationName =
         String(
@@ -9189,11 +9462,14 @@ app.get(
           .replace(/^-|-$/g, "");
 
       const filename =
-        `${safeOrganizationName}-${safeLocationName}-sponsorship-template.csv`;
+        `${safeOrganizationName}-${safeLocationName}-advertising-opportunities.xlsx`;
+
+      const buffer =
+        await workbook.xlsx.writeBuffer();
 
       res.setHeader(
         "Content-Type",
-        "text/csv; charset=utf-8"
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       );
 
       res.setHeader(
@@ -9201,28 +9477,24 @@ app.get(
         `attachment; filename="${filename}"`
       );
 
-      return res.send(csv);
+      return res.send(
+        Buffer.from(buffer)
+      );
 
     } catch (err) {
       console.error(
-        "BULK TEMPLATE ERROR:",
+        "EXCEL TEMPLATE ERROR:",
         err
       );
 
       return res.status(500).send(
-        "BULK TEMPLATE ERROR: " +
+        "EXCEL TEMPLATE ERROR: " +
         err.message
       );
     }
   }
 );
-/*
-=========================================================
-ORGANIZATION OPPORTUNITY IMPORT
-Standalone organization workflow.
-Does not duplicate Vivid Core setup or analytics logic.
-=========================================================
-*/
+ 
 
 app.get(
   "/org-import-opportunities",
