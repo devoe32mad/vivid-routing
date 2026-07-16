@@ -10551,8 +10551,8 @@ grid-template-columns:
   50px     /* Term */
   90px     /* Term Unit */
   95px     /* Availability */
-  30px     /* Order */
-  110px;   /* Remove */
+  24px     /* Order */
+  116px;   /* Remove */
 
 gap:6px;
 
@@ -12269,11 +12269,14 @@ app.get(
         step="1"
         value="1"
         required
-        style="
+style="
 margin:0;
-width:38px;
-min-width:38px;
+width:24px;
+min-width:24px;
+padding:0;
 text-align:center;
+"
+:center;
 "
       >
     </div>
