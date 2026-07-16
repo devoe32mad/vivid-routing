@@ -2,11 +2,25 @@ const express = require("express");
 const session = require("express-session");
 const { Pool } = require("pg");
 const PDFDocument = require("pdfkit");
+const multer = require("multer");
+const ExcelJS = require("exceljs");
 const crypto = require("crypto");
 const app = express();
 const port = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || "https://vivid-routing-production.up.railway.app";
+/*
+=========================================================
+ORGANIZATION IMPORT MODULE
+=========================================================
+*/
 
+const importUpload = multer({
+  storage: multer.memoryStorage(),
+
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10 MB
+  }
+});
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(session({
