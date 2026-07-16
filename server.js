@@ -8890,7 +8890,12 @@ ${locationOptions}
                   >
                     + Add Sponsorship
                   </a>
-
+<a
+  class="marketplace-btn secondary"
+  href="/org-opportunities/bulk-template?organization_id=${organizationId}&location_id=${selectedLocationId}"
+>
+  Download Bulk Template
+</a>
                 </div>
 
                 <h2 style="margin:0 0 18px;">
