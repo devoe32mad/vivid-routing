@@ -8892,7 +8892,7 @@ ${locationOptions}
                   </a>
 <a
   class="marketplace-btn secondary"
-  href="/org-opportunities/bulk-template?organization_id=${organizationId}&location_id=${selectedLocationId}"
+  href="/org-import-opportunities?organization_id=${organizationId}&location_id=${selectedLocationId}"
 >
   Download Bulk Template
 </a>
