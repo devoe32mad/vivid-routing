@@ -10540,7 +10540,7 @@ const createOpportunitiesButton =
   row.dataset.groupId =
     String(groupId);
 
- row.style.cssText = `
+ row.style.cssText = \`
   display:grid;
   grid-template-columns:
     minmax(145px,.95fr)
@@ -10557,7 +10557,7 @@ const createOpportunitiesButton =
   align-items:end;
   padding:14px 0;
   border-top:1px solid #e3e9e4;
-`;
+\`;
 
   row.innerHTML = \`
     <div>
