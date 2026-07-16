@@ -9474,8 +9474,10 @@ await worksheet.protect(
   }
 );
 */
-        Add a separate instruction worksheet.
-      */
+
+/*
+  Add a separate instruction worksheet.
+*/
       const instructions =
         workbook.addWorksheet(
           "Instructions"
