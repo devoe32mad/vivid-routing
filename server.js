@@ -10551,8 +10551,8 @@ grid-template-columns:
   50px     /* Term */
   90px     /* Term Unit */
   95px     /* Availability */
-  38px     /* Order */
-  100px;   /* Remove */
+  30px     /* Order */
+  110px;   /* Remove */
 
 gap:6px;
 
