@@ -10019,29 +10019,29 @@ app.post(
         Count rows containing at least one value.
         Row 1 is treated as the column-header row.
       */
-      let populatedRows = 0;
+let dataRowCount = 0;
 
-      worksheet.eachRow(
-        { includeEmpty: false },
-        row => {
-          const hasValue = row.values
-            .slice(1)
-            .some(value => {
-              if (value === null || value === undefined) {
-                return false;
-              }
+worksheet.eachRow(
+  { includeEmpty: false },
+  (row, rowNumber) => {
+    if (rowNumber === 1) {
+      return;
+    }
 
-              return String(value).trim() !== "";
-            });
+    /*
+      A row is only considered an opportunity
+      when Advertising Opportunity (column C)
+      contains a value.
+    */
+    const opportunityTitle = String(
+      row.getCell(3).value ?? ""
+    ).trim();
 
-          if (hasValue) {
-            populatedRows += 1;
-          }
-        }
-      );
-
-      const dataRowCount =
-        Math.max(0, populatedRows - 1);
+    if (opportunityTitle) {
+      dataRowCount += 1;
+    }
+  }
+);
 
       return res.send(
         marketplacePage(
