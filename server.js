@@ -9144,10 +9144,10 @@ validationSheet.state = "veryHidden";
         First worksheet is intentionally the import sheet
         because the upload reader uses worksheet 1.
       */
-      const worksheet =
-        workbook.addWorksheet(
-          "Advertising Opportunities"
-        );
+    const worksheet =
+  workbook.getWorksheet(
+    "Advertising Opportunities"
+  );
 
       worksheet.columns = [
         {
