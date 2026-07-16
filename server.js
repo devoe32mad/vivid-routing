@@ -10551,8 +10551,8 @@ grid-template-columns:
   50px     /* Term */
   90px     /* Term Unit */
   95px     /* Availability */
-  24px     /* Order */
-  120px;   /* Remove */
+  40px     /* Order */
+  110px;   /* Remove */
 
 gap:6px;
 
@@ -10737,7 +10737,7 @@ padding:14px 0;
         font-weight:bold;
         margin-bottom:4px;
       ">
-        #
+        Order#
       </label>
 
       <input
