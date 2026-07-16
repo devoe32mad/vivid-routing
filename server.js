@@ -8975,6 +8975,229 @@ ${locationOptions}
   }
 );
 app.get(
+  "/org-opportunities/bulk-template",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Organization Portal users always use the
+        organization stored in their session.
+      */
+      if (req.session.orgUser?.organization_id) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      /*
+        Super Admin uses the organization selected
+        in the URL.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      const locationId = Number(
+        req.query.location_id
+      );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res.status(403).send(
+          "Bulk template access denied."
+        );
+      }
+
+      if (
+        !Number.isInteger(locationId) ||
+        locationId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid location is required."
+        );
+      }
+
+      /*
+        Confirm that the location belongs to the
+        selected organization.
+
+        Location ID is authoritative.
+        Location Name is included only for readability.
+      */
+      const locationResult = await q(`
+        SELECT
+          s.id,
+          s.name,
+          s.organization_id,
+          o.name AS organization_name
+
+        FROM spaces s
+
+        JOIN organizations o
+          ON o.id = s.organization_id
+
+        WHERE s.id = $1
+          AND s.organization_id = $2
+          AND COALESCE(
+            s.is_archived,
+            false
+          ) = false
+          AND COALESCE(
+            o.is_active,
+            true
+          ) = true
+
+        LIMIT 1
+      `, [
+        locationId,
+        organizationId
+      ]);
+
+      const location =
+        locationResult.rows[0];
+
+      if (!location) {
+        return res.status(404).send(
+          "Active organization location not found."
+        );
+      }
+
+      /*
+        CSV values are escaped so names containing
+        commas or quotation marks remain valid.
+      */
+      const csvValue = value => {
+        const text = String(
+          value ?? ""
+        );
+
+        return `"${text.replace(/"/g, '""')}"`;
+      };
+
+      const headers = [
+        "Location ID",
+        "Location Name",
+        "Advertising Opportunity",
+        "Category",
+        "Description",
+        "Price",
+        "Pricing Unit",
+        "Suggested Term Length",
+        "Suggested Term Unit",
+        "Availability",
+        "Display Order"
+      ];
+
+      /*
+        Include example rows to show that multiple
+        distinct opportunities may exist within the
+        same stadium, court, lobby, pool, or other area.
+      */
+      const sampleRows = [
+        [
+          location.id,
+          location.name,
+          "Football Stadium - Home Side",
+          "Athletics",
+          "Home-side football stadium sponsorship.",
+          "1500.00",
+          "Per Year",
+          "12",
+          "Months",
+          "Available",
+          "1"
+        ],
+        [
+          location.id,
+          location.name,
+          "Football Stadium - Visitor Side",
+          "Athletics",
+          "Visitor-side football stadium sponsorship.",
+          "1500.00",
+          "Per Year",
+          "12",
+          "Months",
+          "Available",
+          "2"
+        ],
+        [
+          location.id,
+          location.name,
+          "Basketball Court - North Wall",
+          "Athletics",
+          "North-wall basketball court sponsorship.",
+          "1000.00",
+          "Per Year",
+          "12",
+          "Months",
+          "Available",
+          "3"
+        ]
+      ];
+
+      const csv = [
+        headers.map(csvValue).join(","),
+
+        ...sampleRows.map(row =>
+          row.map(csvValue).join(",")
+        )
+      ].join("\r\n");
+
+      const safeOrganizationName =
+        String(
+          location.organization_name ||
+          "organization"
+        )
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+
+      const safeLocationName =
+        String(
+          location.name ||
+          "location"
+        )
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+
+      const filename =
+        `${safeOrganizationName}-${safeLocationName}-sponsorship-template.csv`;
+
+      res.setHeader(
+        "Content-Type",
+        "text/csv; charset=utf-8"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`
+      );
+
+      return res.send(csv);
+
+    } catch (err) {
+      console.error(
+        "BULK TEMPLATE ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "BULK TEMPLATE ERROR: " +
+        err.message
+      );
+    }
+  }
+);
+app.get(
   "/org-opportunity/new",
   async (req, res) => {
     try {
