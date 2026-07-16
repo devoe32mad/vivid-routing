@@ -9319,11 +9319,11 @@ row.getCell(11).value = null;
         /*
           Pricing Unit dropdown.
         */
-    row.getCell(7).dataValidation = {
+row.getCell(7).dataValidation = {
   type: "list",
   allowBlank: false,
   formulae: [
-    "'Validation Lists'!$A$1:$A$8"
+    '"Per Day,Per Week,Per Month,Per Quarter,Per Year,Per Campaign,Per Event,Custom"'
   ],
   showErrorMessage: true,
   errorTitle: "Invalid Pricing Unit",
@@ -9335,7 +9335,7 @@ row.getCell(9).dataValidation = {
   type: "list",
   allowBlank: false,
   formulae: [
-    "'Validation Lists'!$B$1:$B$9"
+    '"Days,Weeks,Months,Quarters,Years,Campaigns,Events,Issues,Custom"'
   ],
   showErrorMessage: true,
   errorTitle: "Invalid Term Unit",
@@ -9347,7 +9347,7 @@ row.getCell(10).dataValidation = {
   type: "list",
   allowBlank: false,
   formulae: [
-    "'Validation Lists'!$C$1:$C$3"
+    '"Available,Reserved,Unavailable"'
   ],
   showErrorMessage: true,
   errorTitle: "Invalid Availability",
