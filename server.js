@@ -9135,7 +9135,30 @@ availabilityOptions.forEach((value, index) => {
     value;
 });
 
-validationSheet.state = "veryHidden";
+/*
+  Named ranges allow Excel dropdown validation
+  to reference values stored on another worksheet.
+*/
+workbook.definedNames.add(
+  "'Validation Lists'!$A$1:$A$8",
+  "VividPricingUnits"
+);
+
+workbook.definedNames.add(
+  "'Validation Lists'!$B$1:$B$9",
+  "VividTermUnits"
+);
+
+workbook.definedNames.add(
+  "'Validation Lists'!$C$1:$C$3",
+  "VividAvailability"
+);
+
+/*
+  Keep this sheet hidden from normal users.
+  Use hidden—not veryHidden—until testing is complete.
+*/
+validationSheet.state = "hidden";
       workbook.creator = "Vivid";
       workbook.company = "Vivid";
       workbook.created = new Date();
@@ -9323,9 +9346,10 @@ row.getCell(7).dataValidation = {
   type: "list",
   allowBlank: false,
   formulae: [
-    '"Per Day,Per Week,Per Month,Per Quarter,Per Year,Per Campaign,Per Event,Custom"'
+    "VividPricingUnits"
   ],
   showErrorMessage: true,
+  errorStyle: "error",
   errorTitle: "Invalid Pricing Unit",
   error:
     "Select a pricing unit from the dropdown."
@@ -9335,24 +9359,26 @@ row.getCell(9).dataValidation = {
   type: "list",
   allowBlank: false,
   formulae: [
-    '"Days,Weeks,Months,Quarters,Years,Campaigns,Events,Issues,Custom"'
+    "VividTermUnits"
   ],
   showErrorMessage: true,
+  errorStyle: "error",
   errorTitle: "Invalid Term Unit",
   error:
-    "Select a term unit from the dropdown."
+    "Select a suggested term unit from the dropdown."
 };
 
 row.getCell(10).dataValidation = {
   type: "list",
   allowBlank: false,
   formulae: [
-    '"Available,Reserved,Unavailable"'
+    "VividAvailability"
   ],
   showErrorMessage: true,
+  errorStyle: "error",
   errorTitle: "Invalid Availability",
   error:
-    "Select availability from the dropdown."
+    "Select an availability value from the dropdown."
 };
 
         /*
