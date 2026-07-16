@@ -11104,7 +11104,259 @@ if (!groupName) {
                     group
                   );
                 }
+function collectBuilderData() {
+  const groupElements =
+    groupsContainer.querySelectorAll(
+      ".marketplace-card"
+    );
 
+  const groups = [];
+  const errors = [];
+
+  groupElements.forEach(
+    (group, groupIndex) => {
+      const groupName =
+        group.querySelector(
+          ".group-name"
+        )?.value.trim() || "";
+
+      const category =
+        group.querySelector(
+          ".group-category"
+        )?.value.trim() || "";
+
+      const rowElements =
+        group.querySelectorAll(
+          ".builder-opportunity-row"
+        );
+
+      if (!groupName && rowElements.length === 0) {
+        return;
+      }
+
+      if (!groupName) {
+        errors.push(
+          \`Group \${groupIndex + 1}: Area / Venue is required.\`
+        );
+
+        return;
+      }
+
+      if (rowElements.length === 0) {
+        errors.push(
+          \`\${groupName}: Generate at least one placement.\`
+        );
+
+        return;
+      }
+
+      const placements = [];
+
+      rowElements.forEach(
+        (row, rowIndex) => {
+          const placement =
+            row.querySelector(
+              ".builder-title"
+            )?.value.trim() || "";
+
+          const price = Number(
+            row.querySelector(
+              ".builder-price"
+            )?.value
+          );
+
+          const pricingUnit =
+            row.querySelector(
+              ".builder-pricing-unit"
+            )?.value || "";
+
+          const termLength = Number(
+            row.querySelector(
+              ".builder-term-length"
+            )?.value
+          );
+
+          const termUnit =
+            row.querySelector(
+              ".builder-term-unit"
+            )?.value || "";
+
+          const status =
+            row.querySelector(
+              ".builder-status"
+            )?.value || "";
+
+          const displayOrder = Number(
+            row.querySelector(
+              ".builder-order"
+            )?.value
+          );
+
+          const rowLabel =
+            \`\${groupName}, placement \${rowIndex + 1}\`;
+
+          if (!placement) {
+            errors.push(
+              \`\${rowLabel}: Placement is required.\`
+            );
+          }
+
+          if (
+            !Number.isFinite(price) ||
+            price < 0
+          ) {
+            errors.push(
+              \`\${rowLabel}: Price must be zero or greater.\`
+            );
+          }
+
+          if (
+            !Number.isInteger(termLength) ||
+            termLength < 1
+          ) {
+            errors.push(
+              \`\${rowLabel}: Term must be a whole number of 1 or greater.\`
+            );
+          }
+
+          if (
+            !Number.isInteger(displayOrder) ||
+            displayOrder < 1
+          ) {
+            errors.push(
+              \`\${rowLabel}: Order must be a whole number of 1 or greater.\`
+            );
+          }
+
+          placements.push({
+            placement,
+            price,
+            pricingUnit,
+            termLength,
+            termUnit,
+            status,
+            displayOrder
+          });
+        }
+      );
+
+      groups.push({
+        groupName,
+        category,
+        placements
+      });
+    }
+  );
+
+  if (groups.length === 0) {
+    errors.push(
+      "Create at least one opportunity group."
+    );
+  }
+
+  return {
+    groups,
+    errors
+  };
+}
+
+createOpportunitiesButton.addEventListener(
+  "click",
+  async () => {
+    const result =
+      collectBuilderData();
+
+    if (result.errors.length > 0) {
+      alert(
+        "Please correct the following:\\n\\n" +
+        result.errors.join("\\n")
+      );
+
+      return;
+    }
+
+    const opportunityCount =
+      result.groups.reduce(
+        (total, group) =>
+          total + group.placements.length,
+        0
+      );
+
+    const confirmed =
+      window.confirm(
+        \`Create \${opportunityCount} advertising opportunities for ${location.name}?\`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    createOpportunitiesButton.disabled =
+      true;
+
+    createOpportunitiesButton.textContent =
+      "Creating Opportunities...";
+
+    try {
+      const formData =
+        new URLSearchParams();
+
+      formData.set(
+        "organization_id",
+        "${organizationId}"
+      );
+
+      formData.set(
+        "location_id",
+        "${location.id}"
+      );
+
+      formData.set(
+        "builder_payload",
+        JSON.stringify(result.groups)
+      );
+
+      const response = await fetch(
+        "/org-opportunity-builder/save",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/x-www-form-urlencoded;charset=UTF-8"
+          },
+
+          body: formData.toString()
+        }
+      );
+
+      const responseText =
+        await response.text();
+
+      if (!response.ok) {
+        throw new Error(
+          responseText ||
+          "Unable to create opportunities."
+        );
+      }
+
+      window.location.href =
+        responseText;
+
+    } catch (err) {
+      alert(
+        "CREATE OPPORTUNITIES ERROR: " +
+        err.message
+      );
+
+      createOpportunitiesButton.disabled =
+        false;
+
+      createOpportunitiesButton.textContent =
+        "Create Opportunities";
+    }
+  }
+);
                 addGroupButton.addEventListener(
                   "click",
                   addGroup
@@ -11128,6 +11380,457 @@ if (!groupName) {
 
       return res.status(500).send(
         "OPPORTUNITY BUILDER PAGE ERROR: " +
+        err.message
+      );
+    }
+  }
+);
+app.post(
+  "/org-opportunity-builder/save",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Organization users are always restricted
+        to their authenticated organization.
+      */
+      if (
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      /*
+        Super Admin may submit the organization
+        selected in the Builder.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.body.organization_id
+        );
+      }
+
+      const locationId = Number(
+        req.body.location_id
+      );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !Number.isInteger(locationId) ||
+        locationId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid organization and location are required."
+        );
+      }
+
+      /*
+        Confirm the location still belongs to the
+        selected organization.
+      */
+      const locationResult = await q(`
+        SELECT
+          id,
+          name,
+          organization_id
+
+        FROM spaces
+
+        WHERE id = $1
+          AND organization_id = $2
+          AND COALESCE(
+            is_archived,
+            false
+          ) = false
+
+        LIMIT 1
+      `, [
+        locationId,
+        organizationId
+      ]);
+
+      const location =
+        locationResult.rows[0];
+
+      if (!location) {
+        return res.status(404).send(
+          "Active organization location not found."
+        );
+      }
+
+      let groups;
+
+      try {
+        groups = JSON.parse(
+          String(
+            req.body.builder_payload || ""
+          )
+        );
+      } catch (parseErr) {
+        return res.status(400).send(
+          "Invalid Opportunity Builder submission."
+        );
+      }
+
+      if (
+        !Array.isArray(groups) ||
+        groups.length === 0
+      ) {
+        return res.status(400).send(
+          "At least one opportunity group is required."
+        );
+      }
+
+      const allowedPricingUnits = [
+        "Per Day",
+        "Per Week",
+        "Per Month",
+        "Per Quarter",
+        "Per Year",
+        "Per Campaign",
+        "Per Event",
+        "Custom"
+      ];
+
+      const allowedTermUnits = [
+        "Days",
+        "Weeks",
+        "Months",
+        "Quarters",
+        "Years",
+        "Campaigns",
+        "Events",
+        "Issues",
+        "Custom"
+      ];
+
+      const allowedStatuses = [
+        "Available",
+        "Reserved",
+        "Unavailable"
+      ];
+
+      const records = [];
+      const submittedTitles =
+        new Set();
+
+      for (const group of groups) {
+        const opportunityGroup =
+          String(
+            group?.groupName || ""
+          ).trim();
+
+        const category =
+          String(
+            group?.category || ""
+          ).trim();
+
+        if (!opportunityGroup) {
+          return res.status(400).send(
+            "Every opportunity group requires an Area / Venue."
+          );
+        }
+
+        if (
+          !Array.isArray(group?.placements) ||
+          group.placements.length === 0
+        ) {
+          return res.status(400).send(
+            `${opportunityGroup} requires at least one placement.`
+          );
+        }
+
+        for (
+          const submittedPlacement
+          of group.placements
+        ) {
+          const placement =
+            String(
+              submittedPlacement?.placement ||
+              ""
+            ).trim();
+
+          const price = Number(
+            submittedPlacement?.price
+          );
+
+          const pricingUnit =
+            String(
+              submittedPlacement?.pricingUnit ||
+              ""
+            ).trim();
+
+          const termLength = Number(
+            submittedPlacement?.termLength
+          );
+
+          const termUnit =
+            String(
+              submittedPlacement?.termUnit ||
+              ""
+            ).trim();
+
+          const status =
+            String(
+              submittedPlacement?.status ||
+              ""
+            ).trim();
+
+          const displayOrder = Number(
+            submittedPlacement?.displayOrder
+          );
+
+          if (!placement) {
+            return res.status(400).send(
+              `${opportunityGroup} contains a placement without a name.`
+            );
+          }
+
+          if (
+            !Number.isFinite(price) ||
+            price < 0
+          ) {
+            return res.status(400).send(
+              `${opportunityGroup} — ${placement} has an invalid price.`
+            );
+          }
+
+          if (
+            !allowedPricingUnits.includes(
+              pricingUnit
+            )
+          ) {
+            return res.status(400).send(
+              `${opportunityGroup} — ${placement} has an invalid pricing unit.`
+            );
+          }
+
+          if (
+            !Number.isInteger(termLength) ||
+            termLength < 1
+          ) {
+            return res.status(400).send(
+              `${opportunityGroup} — ${placement} has an invalid term.`
+            );
+          }
+
+          if (
+            !allowedTermUnits.includes(
+              termUnit
+            )
+          ) {
+            return res.status(400).send(
+              `${opportunityGroup} — ${placement} has an invalid term unit.`
+            );
+          }
+
+          if (
+            !allowedStatuses.includes(status)
+          ) {
+            return res.status(400).send(
+              `${opportunityGroup} — ${placement} has an invalid availability.`
+            );
+          }
+
+          if (
+            !Number.isInteger(displayOrder) ||
+            displayOrder < 1
+          ) {
+            return res.status(400).send(
+              `${opportunityGroup} — ${placement} has an invalid display order.`
+            );
+          }
+
+          const title =
+            `${opportunityGroup} — ${placement}`;
+
+          const normalizedTitle =
+            title.toLowerCase();
+
+          if (
+            submittedTitles.has(
+              normalizedTitle
+            )
+          ) {
+            return res.status(409).send(
+              `Duplicate opportunity in this submission: ${title}`
+            );
+          }
+
+          submittedTitles.add(
+            normalizedTitle
+          );
+
+          records.push({
+            opportunityGroup,
+            placement,
+            title,
+            category,
+            price,
+            pricingUnit,
+            termLength,
+            termUnit,
+            status,
+            displayOrder
+          });
+        }
+      }
+
+      if (records.length === 0) {
+        return res.status(400).send(
+          "No completed opportunities were submitted."
+        );
+      }
+
+      /*
+        Check the existing Marketplace inventory
+        before inserting anything.
+      */
+      const existingResult = await q(`
+        SELECT title
+
+        FROM organization_opportunities
+
+        WHERE organization_id = $1
+          AND space_id = $2
+          AND COALESCE(
+            is_active,
+            true
+          ) = true
+      `, [
+        organizationId,
+        locationId
+      ]);
+
+      const existingTitles =
+        new Set(
+          existingResult.rows.map(row =>
+            String(
+              row.title || ""
+            )
+              .trim()
+              .toLowerCase()
+          )
+        );
+
+      const duplicateRecord =
+        records.find(record =>
+          existingTitles.has(
+            record.title.toLowerCase()
+          )
+        );
+
+      if (duplicateRecord) {
+        return res.status(409).send(
+          `An active opportunity already exists: ${duplicateRecord.title}`
+        );
+      }
+
+      const createdBy =
+        req.session.orgUser?.id ||
+        req.session.user?.id ||
+        null;
+
+      /*
+        Build one parameterized multi-row INSERT.
+        PostgreSQL executes this as one statement:
+        either all rows insert or none do.
+      */
+      const values = [];
+      const placeholders =
+        records.map(
+          (record, recordIndex) => {
+            const offset =
+              recordIndex * 16;
+
+            values.push(
+              organizationId,
+              locationId,
+              null,
+              record.opportunityGroup,
+              record.placement,
+              record.title,
+              null,
+              record.category || null,
+              record.price,
+              record.price,
+              record.pricingUnit,
+              record.termLength,
+              record.termUnit,
+              record.status,
+              record.displayOrder,
+              createdBy
+            );
+
+            return `(
+              $${offset + 1},
+              $${offset + 2},
+              $${offset + 3},
+              $${offset + 4},
+              $${offset + 5},
+              $${offset + 6},
+              $${offset + 7},
+              $${offset + 8},
+              $${offset + 9},
+              $${offset + 10},
+              $${offset + 11},
+              $${offset + 12},
+              $${offset + 13},
+              $${offset + 14},
+              $${offset + 15},
+              true,
+              $${offset + 16},
+              CURRENT_TIMESTAMP,
+              CURRENT_TIMESTAMP
+            )`;
+          }
+        );
+
+      await q(`
+        INSERT INTO organization_opportunities (
+          organization_id,
+          space_id,
+          qr_id,
+          opportunity_group,
+          placement,
+          title,
+          description,
+          category,
+          annual_price,
+          price,
+          pricing_unit,
+          suggested_term_length,
+          suggested_term_unit,
+          status,
+          display_order,
+          is_active,
+          created_by,
+          created_at,
+          updated_at
+        )
+        VALUES
+          ${placeholders.join(",")}
+      `, values);
+
+      return res.send(
+        `/org-marketplace?organization_id=${organizationId}&location_id=${locationId}&builder_created=${records.length}`
+      );
+
+    } catch (err) {
+      console.error(
+        "SAVE OPPORTUNITY BUILDER ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "SAVE OPPORTUNITY BUILDER ERROR: " +
         err.message
       );
     }
