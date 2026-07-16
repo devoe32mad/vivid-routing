@@ -12262,19 +12262,19 @@ app.get(
         Display Order
       </label>
 
-      <input
-        type="number"
-        name="display_order"
-        min="1"
-        step="1"
-        value="1"
-        required
-style="
-margin:0;
-width:24px;
-min-width:24px;
-padding:0;
-text-align:center;
+<input
+    type="number"
+    name="display_order"
+    min="1"
+    step="1"
+    value="1"
+    required
+    style="
+        margin:0;
+        width:52px;
+        min-width:52px;
+        max-width:52px;
+        text-align:center;
 "
 :center;
 "
