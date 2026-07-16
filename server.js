@@ -10552,7 +10552,7 @@ grid-template-columns:
   90px     /* Term Unit */
   95px     /* Availability */
   24px     /* Order */
-  116px;   /* Remove */
+  120px;   /* Remove */
 
 gap:6px;
 
@@ -10737,7 +10737,7 @@ padding:14px 0;
         font-weight:bold;
         margin-bottom:4px;
       ">
-        Order
+        #
       </label>
 
       <input
@@ -10754,7 +10754,7 @@ padding:14px 0;
       type="button"
       class="marketplace-btn secondary remove-opportunity-row"
    style="
- margin:0;
+ margin-left:8px;
 width:92px;
 min-width:92px;
 padding:10px 8px;
