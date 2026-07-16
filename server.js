@@ -12269,7 +12269,12 @@ app.get(
         step="1"
         value="1"
         required
-        style="margin:0;"
+        style="
+margin:0;
+width:38px;
+min-width:38px;
+text-align:center;
+"
       >
     </div>
 
