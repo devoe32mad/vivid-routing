@@ -10540,24 +10540,24 @@ const createOpportunitiesButton =
   row.dataset.groupId =
     String(groupId);
 
-  row.style.cssText = \`
-    display:grid;
-    grid-template-columns:
-      minmax(150px,1.1fr)
-      minmax(170px,1.3fr)
-      minmax(120px,.9fr)
-      minmax(100px,.7fr)
-      minmax(130px,.9fr)
-      minmax(80px,.55fr)
-      minmax(120px,.85fr)
-      minmax(125px,.85fr)
-      minmax(65px,.45fr)
-      auto;
-    gap:10px;
-    align-items:end;
-    padding:14px 0;
-    border-top:1px solid #e3e9e4;
-  \`;
+ row.style.cssText = `
+  display:grid;
+  grid-template-columns:
+    minmax(145px,.95fr)
+    minmax(210px,1.45fr)
+    minmax(125px,.85fr)
+    minmax(90px,.6fr)
+    minmax(120px,.8fr)
+    minmax(68px,.45fr)
+    minmax(105px,.7fr)
+    minmax(115px,.75fr)
+    58px
+    92px;
+  gap:9px;
+  align-items:end;
+  padding:14px 0;
+  border-top:1px solid #e3e9e4;
+`;
 
   row.innerHTML = \`
     <div>
@@ -10629,7 +10629,7 @@ const createOpportunitiesButton =
         display:block;
         font-size:12px;
         font-weight:bold;
-        margin-bottom:6px;
+        margin-bottom:4px;
       ">
         Price
       </label>
@@ -10649,7 +10649,7 @@ const createOpportunitiesButton =
         display:block;
         font-size:12px;
         font-weight:bold;
-        margin-bottom:6px;
+        margin-bottom:4px;
       ">
         Pricing Unit
       </label>
@@ -10670,7 +10670,7 @@ const createOpportunitiesButton =
         display:block;
         font-size:12px;
         font-weight:bold;
-        margin-bottom:6px;
+        margin-bottom:4px;
       ">
         Term
       </label>
@@ -10690,7 +10690,7 @@ const createOpportunitiesButton =
         display:block;
         font-size:12px;
         font-weight:bold;
-        margin-bottom:6px;
+        margin-bottom:4px;
       ">
         Term Unit
       </label>
@@ -10711,7 +10711,7 @@ const createOpportunitiesButton =
         display:block;
         font-size:12px;
         font-weight:bold;
-        margin-bottom:6px;
+        margin-bottom:4px;
       ">
         Availability
       </label>
@@ -10732,7 +10732,7 @@ const createOpportunitiesButton =
         display:block;
         font-size:12px;
         font-weight:bold;
-        margin-bottom:6px;
+        margin-bottom:4px;
       ">
         Order
       </label>
@@ -10750,10 +10750,12 @@ const createOpportunitiesButton =
     <button
       type="button"
       class="marketplace-btn secondary remove-opportunity-row"
-      style="
-        margin:0;
-        padding:10px 12px;
-      "
+   style="
+  margin:0;
+  width:92px;
+  padding:10px 8px;
+  white-space:nowrap;
+"
     >
       Remove
     </button>
@@ -10874,7 +10876,7 @@ const createOpportunitiesButton =
                           font-weight:bold;
                           margin-bottom:7px;
                         ">
-                          Default Price
+                          Default Placement Price
                         </label>
 
                         <input
