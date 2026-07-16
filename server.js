@@ -10438,17 +10438,13 @@ app.get(
                   + Add Opportunity Group
                 </button>
 
-                <button
-                  type="button"
-                  class="marketplace-btn secondary"
-                  disabled
-                  style="
-                    opacity:.55;
-                    cursor:not-allowed;
-                  "
-                >
-                  Create Opportunities
-                </button>
+              <button
+  type="button"
+  class="marketplace-btn"
+  id="create-builder-opportunities"
+>
+  Create Opportunities
+</button>
 
                 <a
                   class="marketplace-btn secondary"
@@ -10472,7 +10468,10 @@ app.get(
                   document.getElementById(
                     "add-opportunity-group"
                   );
-
+const createOpportunitiesButton =
+  document.getElementById(
+    "create-builder-opportunities"
+  );
                 let groupCounter = 0;
 
                 const pricingUnits = [
