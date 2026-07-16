@@ -8906,6 +8906,12 @@ ${locationOptions}
                   </a>
 <a
   class="marketplace-btn secondary"
+  href="/org-opportunity-builder?organization_id=${organizationId}&location_id=${selectedLocationId}"
+>
+  Bulk Create
+</a>
+<a
+  class="marketplace-btn secondary"
   href="/org-import-opportunities?organization_id=${organizationId}&location_id=${selectedLocationId}"
 >
   Download Bulk Template
