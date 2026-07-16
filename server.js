@@ -9563,6 +9563,303 @@ app.get(
     }
   }
 );
+app.post(
+  "/org-import-upload",
+  importUpload.single("template_file"),
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Super Admin uses the organization submitted
+        by the organization-controlled import page.
+      */
+      if (
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.body.organization_id
+        );
+      }
+
+      /*
+        Organization Portal users always use their
+        authenticated organization.
+      */
+      if (
+        !organizationId &&
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      const locationId = Number(
+        req.body.location_id
+      );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res.status(403).send(
+          "Import access denied."
+        );
+      }
+
+      if (
+        !Number.isInteger(locationId) ||
+        locationId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid location is required."
+        );
+      }
+
+      if (!req.file) {
+        return res.status(400).send(
+          "Please select an Excel workbook."
+        );
+      }
+
+      const originalName = String(
+        req.file.originalname || ""
+      );
+
+      if (
+        !originalName
+          .toLowerCase()
+          .endsWith(".xlsx")
+      ) {
+        return res.status(400).send(
+          "Only .xlsx Excel workbooks are supported."
+        );
+      }
+
+      /*
+        Reload the authoritative organization and
+        location from Vivid Core.
+      */
+      const locationResult = await q(`
+        SELECT
+          s.id,
+          s.name,
+          s.location,
+          s.organization_id,
+          o.name AS organization_name
+
+        FROM spaces s
+
+        JOIN organizations o
+          ON o.id = s.organization_id
+
+        WHERE s.id = $1
+          AND s.organization_id = $2
+          AND COALESCE(
+            s.is_archived,
+            false
+          ) = false
+          AND COALESCE(
+            o.is_active,
+            true
+          ) = true
+
+        LIMIT 1
+      `, [
+        locationId,
+        organizationId
+      ]);
+
+      const location =
+        locationResult.rows[0];
+
+      if (!location) {
+        return res.status(404).send(
+          "Active organization location not found."
+        );
+      }
+
+      /*
+        Read the workbook from memory.
+        Nothing is saved to disk or the database.
+      */
+      const workbook =
+        new ExcelJS.Workbook();
+
+      await workbook.xlsx.load(
+        req.file.buffer
+      );
+
+      const worksheet =
+        workbook.worksheets[0];
+
+      if (!worksheet) {
+        return res.status(400).send(
+          "The workbook does not contain a worksheet."
+        );
+      }
+
+      /*
+        Count rows containing at least one value.
+        Row 1 is treated as the column-header row.
+      */
+      let populatedRows = 0;
+
+      worksheet.eachRow(
+        { includeEmpty: false },
+        row => {
+          const hasValue = row.values
+            .slice(1)
+            .some(value => {
+              if (value === null || value === undefined) {
+                return false;
+              }
+
+              return String(value).trim() !== "";
+            });
+
+          if (hasValue) {
+            populatedRows += 1;
+          }
+        }
+      );
+
+      const dataRowCount =
+        Math.max(0, populatedRows - 1);
+
+      return res.send(
+        marketplacePage(
+          `Workbook Read - ${location.name}`,
+          `
+            <div class="marketplace-topbar">
+
+              <div class="marketplace-brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Workbook Read Successfully
+              </h1>
+
+              <p class="marketplace-subtitle">
+                Vivid opened the workbook without
+                importing or changing any records.
+              </p>
+
+            </div>
+
+            <div class="marketplace-wrap">
+
+              <div
+                class="marketplace-card"
+                style="
+                  max-width:820px;
+                  margin:0 auto;
+                "
+              >
+
+                <h2 style="margin:0 0 20px;">
+                  Upload Summary
+                </h2>
+
+                <div class="marketplace-label">
+                  Organization
+                </div>
+
+                <div class="marketplace-value">
+                  ${location.organization_name}
+                </div>
+
+                <div class="marketplace-label">
+                  Locked Location
+                </div>
+
+                <div class="marketplace-value">
+                  ${location.name}
+                </div>
+
+                <div class="marketplace-label">
+                  Workbook
+                </div>
+
+                <div class="marketplace-value">
+                  ${originalName}
+                </div>
+
+                <div class="marketplace-label">
+                  First Worksheet
+                </div>
+
+                <div class="marketplace-value">
+                  ${worksheet.name}
+                </div>
+
+                <div class="marketplace-label">
+                  Worksheets Found
+                </div>
+
+                <div class="marketplace-value">
+                  ${workbook.worksheets.length}
+                </div>
+
+                <div class="marketplace-label">
+                  Opportunity Rows Found
+                </div>
+
+                <div class="marketplace-value">
+                  ${dataRowCount}
+                </div>
+
+                <div style="
+                  background:#f5f7f6;
+                  border:1px solid #d7dfd8;
+                  border-radius:12px;
+                  padding:16px;
+                  color:#65776b;
+                  line-height:1.55;
+                  margin:8px 0 22px;
+                ">
+                  This was a read-only test. No validation,
+                  preview records, sponsorship opportunities,
+                  QR placements, campaigns, or schedules were
+                  created.
+                </div>
+
+                <a
+                  class="marketplace-btn"
+                  href="/org-import-opportunities?organization_id=${organizationId}&location_id=${location.id}"
+                >
+                  Back to Import
+                </a>
+
+                <a
+                  class="marketplace-btn secondary"
+                  href="/org-marketplace?organization_id=${organizationId}&location_id=${location.id}"
+                >
+                  Back to Sponsorship Inventory
+                </a>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "IMPORT WORKBOOK READ ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "IMPORT WORKBOOK READ ERROR: " +
+        err.message
+      );
+    }
+  }
+);
 app.get(
   "/org-opportunity/new",
   async (req, res) => {
