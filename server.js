@@ -11046,6 +11046,22 @@ if (!groupName) {
                     .addEventListener(
                       "click",
                       () => {
+const groupName =
+  group.querySelector(
+    ".group-name"
+  ).value.trim();
+
+if (!groupName) {
+  alert(
+    "Enter the Area / Venue before adding a placement."
+  );
+
+  group.querySelector(
+    ".group-name"
+  ).focus();
+
+  return;
+}
                         const currentCount =
                           rowsContainer.querySelectorAll(
                             ".builder-opportunity-row"
