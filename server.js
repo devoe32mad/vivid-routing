@@ -9451,28 +9451,29 @@ row.getCell(10).dataValidation = {
         to: "K101"
       };
 
-      /*
-        Protect the worksheet.
+   /*
+  Protect the worksheet.
 
-        Locked cells cannot be edited.
-        Unlocked opportunity cells remain editable.
-      */
-      await worksheet.protect(
-        "vivid-import",
-        {
-          selectLockedCells: true,
-          selectUnlockedCells: true,
-          formatCells: false,
-          formatColumns: false,
-          formatRows: false,
-          insertRows: false,
-          deleteRows: false,
-          sort: true,
-          autoFilter: true
-        }
-      );
+  Locked cells cannot be edited.
+  Unlocked opportunity cells remain editable.
+*/
 
-      /*
+/*
+await worksheet.protect(
+  "vivid-import",
+  {
+    selectLockedCells: true,
+    selectUnlockedCells: true,
+    formatCells: false,
+    formatColumns: false,
+    formatRows: false,
+    insertRows: false,
+    deleteRows: false,
+    sort: true,
+    autoFilter: true
+  }
+);
+*/
         Add a separate instruction worksheet.
       */
       const instructions =
