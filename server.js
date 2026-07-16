@@ -10527,204 +10527,253 @@ app.get(
                     .join("");
                 }
 
-                function createOpportunityRow(
-                  groupId,
-                  rowNumber,
-                  defaults
-                ) {
-                  const row =
-                    document.createElement("div");
+       function createOpportunityRow(
+  groupId,
+  rowNumber,
+  defaults
+) {
+  const row =
+    document.createElement("div");
 
-                  row.className =
-                    "builder-opportunity-row";
+  row.className =
+    "builder-opportunity-row";
 
-                  row.style.cssText = \`
-                    display:grid;
-                    grid-template-columns:
-                      minmax(180px,1.5fr)
-                      minmax(105px,.7fr)
-                      minmax(135px,.9fr)
-                      minmax(90px,.6fr)
-                      minmax(130px,.8fr)
-                      minmax(130px,.8fr)
-                      minmax(75px,.5fr)
-                      auto;
-                    gap:10px;
-                    align-items:end;
-                    padding:14px 0;
-                    border-top:1px solid #e3e9e4;
-                  \`;
+  row.dataset.groupId =
+    String(groupId);
 
-                  row.dataset.groupId =
-                    String(groupId);
+  row.style.cssText = \`
+    display:grid;
+    grid-template-columns:
+      minmax(150px,1.1fr)
+      minmax(170px,1.3fr)
+      minmax(120px,.9fr)
+      minmax(100px,.7fr)
+      minmax(130px,.9fr)
+      minmax(80px,.55fr)
+      minmax(120px,.85fr)
+      minmax(125px,.85fr)
+      minmax(65px,.45fr)
+      auto;
+    gap:10px;
+    align-items:end;
+    padding:14px 0;
+    border-top:1px solid #e3e9e4;
+  \`;
 
-                  row.innerHTML = \`
-                    <div>
-                      <label style="
-                        display:block;
-                        font-size:12px;
-                        font-weight:bold;
-                        margin-bottom:6px;
-                      ">
-                        Placement / Description
-                      </label>
+  row.innerHTML = \`
+    <div>
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        margin-bottom:6px;
+      ">
+        Area / Venue
+      </label>
 
-                      <input
-                        type="text"
-                        class="builder-title"
-                        placeholder="Example: Home Side"
-                        style="margin:0;"
-                      >
-                    </div>
+      <input
+        type="text"
+        class="builder-group-name"
+        value="\${defaults.groupName}"
+        readonly
+        style="
+          margin:0;
+          background:#f2f5f2;
+          color:#4d5d53;
+        "
+      >
+    </div>
 
-                    <div>
-                      <label style="
-                        display:block;
-                        font-size:12px;
-                        font-weight:bold;
-                        margin-bottom:6px;
-                      ">
-                        Price
-                      </label>
+    <div>
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        margin-bottom:6px;
+      ">
+        Placement
+      </label>
 
-                      <input
-                        type="number"
-                        class="builder-price"
-                        min="0"
-                        step="0.01"
-                        value="\${defaults.price}"
-                        style="margin:0;"
-                      >
-                    </div>
+      <input
+        type="text"
+        class="builder-title"
+        placeholder="Example: Home Side"
+        style="margin:0;"
+      >
+    </div>
 
-                    <div>
-                      <label style="
-                        display:block;
-                        font-size:12px;
-                        font-weight:bold;
-                        margin-bottom:6px;
-                      ">
-                        Pricing Unit
-                      </label>
+    <div>
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        margin-bottom:6px;
+      ">
+        Category
+      </label>
 
-                      <select
-                        class="builder-pricing-unit"
-                        style="margin:0;"
-                      >
-                        \${buildOptions(
-                          pricingUnits,
-                          defaults.pricingUnit
-                        )}
-                      </select>
-                    </div>
+      <input
+        type="text"
+        class="builder-category"
+        value="\${defaults.category}"
+        readonly
+        style="
+          margin:0;
+          background:#f2f5f2;
+          color:#4d5d53;
+        "
+      >
+    </div>
 
-                    <div>
-                      <label style="
-                        display:block;
-                        font-size:12px;
-                        font-weight:bold;
-                        margin-bottom:6px;
-                      ">
-                        Term
-                      </label>
+    <div>
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        margin-bottom:6px;
+      ">
+        Price
+      </label>
 
-                      <input
-                        type="number"
-                        class="builder-term-length"
-                        min="1"
-                        step="1"
-                        value="\${defaults.termLength}"
-                        style="margin:0;"
-                      >
-                    </div>
+      <input
+        type="number"
+        class="builder-price"
+        min="0"
+        step="0.01"
+        value="\${defaults.price}"
+        style="margin:0;"
+      >
+    </div>
 
-                    <div>
-                      <label style="
-                        display:block;
-                        font-size:12px;
-                        font-weight:bold;
-                        margin-bottom:6px;
-                      ">
-                        Term Unit
-                      </label>
+    <div>
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        margin-bottom:6px;
+      ">
+        Pricing Unit
+      </label>
 
-                      <select
-                        class="builder-term-unit"
-                        style="margin:0;"
-                      >
-                        \${buildOptions(
-                          termUnits,
-                          defaults.termUnit
-                        )}
-                      </select>
-                    </div>
+      <select
+        class="builder-pricing-unit"
+        style="margin:0;"
+      >
+        \${buildOptions(
+          pricingUnits,
+          defaults.pricingUnit
+        )}
+      </select>
+    </div>
 
-                    <div>
-                      <label style="
-                        display:block;
-                        font-size:12px;
-                        font-weight:bold;
-                        margin-bottom:6px;
-                      ">
-                        Availability
-                      </label>
+    <div>
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        margin-bottom:6px;
+      ">
+        Term
+      </label>
 
-                      <select
-                        class="builder-status"
-                        style="margin:0;"
-                      >
-                        \${buildOptions(
-                          statuses,
-                          defaults.status
-                        )}
-                      </select>
-                    </div>
+      <input
+        type="number"
+        class="builder-term-length"
+        min="1"
+        step="1"
+        value="\${defaults.termLength}"
+        style="margin:0;"
+      >
+    </div>
 
-                    <div>
-                      <label style="
-                        display:block;
-                        font-size:12px;
-                        font-weight:bold;
-                        margin-bottom:6px;
-                      ">
-                        Order
-                      </label>
+    <div>
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        margin-bottom:6px;
+      ">
+        Term Unit
+      </label>
 
-                      <input
-                        type="number"
-                        class="builder-order"
-                        min="1"
-                        step="1"
-                        value="\${rowNumber}"
-                        style="margin:0;"
-                      >
-                    </div>
+      <select
+        class="builder-term-unit"
+        style="margin:0;"
+      >
+        \${buildOptions(
+          termUnits,
+          defaults.termUnit
+        )}
+      </select>
+    </div>
 
-                    <button
-                      type="button"
-                      class="marketplace-btn secondary remove-opportunity-row"
-                      style="
-                        margin:0;
-                        padding:10px 12px;
-                      "
-                    >
-                      Remove
-                    </button>
-                  \`;
+    <div>
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        margin-bottom:6px;
+      ">
+        Availability
+      </label>
 
-                  row
-                    .querySelector(
-                      ".remove-opportunity-row"
-                    )
-                    .addEventListener(
-                      "click",
-                      () => {
-                        row.remove();
-                      }
-                    );
+      <select
+        class="builder-status"
+        style="margin:0;"
+      >
+        \${buildOptions(
+          statuses,
+          defaults.status
+        )}
+      </select>
+    </div>
 
-                  return row;
-                }
+    <div>
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        margin-bottom:6px;
+      ">
+        Order
+      </label>
+
+      <input
+        type="number"
+        class="builder-order"
+        min="1"
+        step="1"
+        value="\${rowNumber}"
+        style="margin:0;"
+      >
+    </div>
+
+    <button
+      type="button"
+      class="marketplace-btn secondary remove-opportunity-row"
+      style="
+        margin:0;
+        padding:10px 12px;
+      "
+    >
+      Remove
+    </button>
+  \`;
+
+  row
+    .querySelector(
+      ".remove-opportunity-row"
+    )
+    .addEventListener(
+      "click",
+      () => {
+        row.remove();
+      }
+    );
+
+  return row;
+}         
+             
 
                 function addGroup() {
                   groupCounter += 1;
