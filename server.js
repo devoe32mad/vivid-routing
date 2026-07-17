@@ -13859,56 +13859,72 @@ app.get(
                         None Available
                       </span>
                     `;
+return `
+  <article style="
+    background:white;
+    border:1px solid #d9e1da;
+    border-radius:18px;
+    padding:26px 28px;
+    min-height:180px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    gap:24px;
+    box-shadow:
+      0 12px 30px rgba(28,57,39,.08);
+  ">
 
-                return `
-                  <article style="
-                    background:white;
-                    border:1px solid #d9e1da;
-                    border-radius:14px;
-                    padding:20px;
-                    display:flex;
-                    align-items:center;
-                    justify-content:space-between;
-                    gap:20px;
-                    flex-wrap:wrap;
-                  ">
+    <div>
 
-                    <div style="
-                      min-width:220px;
-                      flex:1;
-                    ">
-                      <h2 style="
-                        margin:0;
-                        color:#24382c;
-                        font-size:20px;
-                      ">
-                        ${escapeHtml(
-                          location.name
-                        )}
-                      </h2>
+      <div style="
+        color:#65776b;
+        font-size:12px;
+        font-weight:bold;
+        letter-spacing:.05em;
+        text-transform:uppercase;
+        margin-bottom:8px;
+      ">
+        Location
+      </div>
 
-                      ${locationDetail}
+      <h2 style="
+        margin:0;
+        color:#17482f;
+        font-size:24px;
+        line-height:1.25;
+      ">
+        ${escapeHtml(
+          location.name
+        )}
+      </h2>
 
-                      <div style="
-                        color:${
-                          availableCount > 0
-                            ? "#176b3a"
-                            : "#738078"
-                        };
-                        font-size:14px;
-                        font-weight:bold;
-                        margin-top:11px;
-                      ">
-                        ${escapeHtml(
-                          opportunityLabel
-                        )}
-                      </div>
-                    </div>
+      ${locationDetail}
 
-                    ${actionHtml}
+      <div style="
+        color:${
+          availableCount > 0
+            ? "#176b3a"
+            : "#738078"
+        };
+        font-size:15px;
+        font-weight:bold;
+        margin-top:18px;
+      ">
+        ${
+          availableCount === 1
+            ? "1 Advertising Opportunity Available"
+            : `${availableCount} Advertising Opportunities Available`
+        }
+      </div>
 
-                  </article>
-                `;
+    </div>
+
+    <div>
+      ${actionHtml}
+    </div>
+
+  </article>
+`;
               })
               .join("")
           : `
@@ -13969,21 +13985,25 @@ app.get(
               padding: 34px 0 50px;
             }
 
-            .public-location-grid {
-              display: grid;
-              grid-template-columns: 1fr;
-              gap: 14px;
-            }
+      .public-location-grid {
+  display:grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap:22px;
+}
 
             @media (max-width: 640px) {
               .public-portal-header {
                 padding: 30px 18px;
               }
-
-              .public-portal-main {
-                width: min(100% - 22px, 1000px);
-                padding-top: 24px;
-              }
+.public-portal-main {
+  width:min(1200px, calc(100% - 32px));
+  margin:0 auto;
+  padding:34px 0 50px;
+}
+.public-location-grid {
+  grid-template-columns:1fr;
+}
             }
           </style>
         </head>
