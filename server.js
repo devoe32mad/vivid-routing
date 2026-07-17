@@ -16015,9 +16015,9 @@ app.get(
                       font-size:14px;
                       line-height:1.6;
                     ">
-                      Provide the basic campaign details.
-                      Additional scheduling and setup will
-                      occur after approval.
+                      Provide the basic information about your advertising request. Additional campaign setup will be completed after your request has been approved.
+                      
+                  
                     </p>
 
                     <div class="field-grid">
