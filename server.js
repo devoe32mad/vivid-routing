@@ -17912,6 +17912,331 @@ app.post(
     }
   }
 );
+/*
+=========================================================
+PUBLIC MARKETPLACE — REQUEST SUBMITTED
+
+GET:
+/advertise/:slug/request-submitted
+
+- Confirms the advertising request was received
+- Does not expose private request details
+- Provides a clean end to the public workflow
+=========================================================
+*/
+
+app.get(
+  "/advertise/:slug/request-submitted",
+  async (req, res) => {
+    try {
+      const slug = String(
+        req.params.slug || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!slug) {
+        return res.status(400).send(
+          "A valid organization is required."
+        );
+      }
+
+      const escapeHtml = value =>
+        String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+
+      const organizationResult = await q(`
+        SELECT
+          id,
+          name,
+          slug,
+          public_logo_url
+
+        FROM organizations
+
+        WHERE LOWER(TRIM(slug)) = $1
+          AND COALESCE(
+            is_active,
+            true
+          ) = true
+
+        LIMIT 1
+      `, [slug]);
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res.status(404).send(
+          "Advertising portal not found."
+        );
+      }
+
+      const requestId = Number(
+        req.query.request_id
+      );
+
+      let requestReferenceHtml = "";
+
+      if (
+        Number.isInteger(requestId) &&
+        requestId > 0
+      ) {
+        requestReferenceHtml = `
+          <div class="reference">
+            Request Reference:
+            <strong>
+              ${escapeHtml(requestId)}
+            </strong>
+          </div>
+        `;
+      }
+
+      const logoHtml =
+        organization.public_logo_url
+          ? `
+            <img
+              src="${escapeHtml(
+                organization.public_logo_url
+              )}"
+              alt="${escapeHtml(
+                organization.name
+              )} logo"
+              class="organization-logo"
+            >
+          `
+          : "";
+
+      return res.send(`
+        <!DOCTYPE html>
+
+        <html lang="en">
+
+        <head>
+
+          <meta charset="UTF-8">
+
+          <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1"
+          >
+
+          <title>
+            Advertising Request Submitted
+          </title>
+
+          <style>
+            * {
+              box-sizing:border-box;
+            }
+
+            body {
+              margin:0;
+              min-height:100vh;
+              display:flex;
+              align-items:center;
+              justify-content:center;
+              padding:24px;
+              background:#f4f7f5;
+              color:#24382c;
+              font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+            }
+
+            .confirmation-card {
+              width:min(
+                680px,
+                100%
+              );
+              background:white;
+              border:
+                1px solid #dbe5dd;
+              border-radius:22px;
+              padding:42px 34px;
+              text-align:center;
+              box-shadow:
+                0 12px 34px
+                rgba(0,0,0,.07);
+            }
+
+            .organization-logo {
+              display:block;
+              max-width:160px;
+              max-height:85px;
+              object-fit:contain;
+              margin:0 auto 22px;
+            }
+
+            .success-icon {
+              width:70px;
+              height:70px;
+              margin:0 auto 22px;
+              display:flex;
+              align-items:center;
+              justify-content:center;
+              border-radius:50%;
+              background:#176b3a;
+              color:white;
+              font-size:34px;
+              font-weight:bold;
+            }
+
+            .eyebrow {
+              color:#176b3a;
+              font-size:13px;
+              font-weight:bold;
+              letter-spacing:.08em;
+              text-transform:uppercase;
+              margin-bottom:10px;
+            }
+
+            h1 {
+              margin:0;
+              color:#24382c;
+              font-size:
+                clamp(
+                  30px,
+                  5vw,
+                  44px
+                );
+              line-height:1.15;
+            }
+
+            .message {
+              max-width:560px;
+              margin:18px auto 0;
+              color:#65776b;
+              font-size:16px;
+              line-height:1.7;
+            }
+
+            .reference {
+              display:inline-block;
+              margin-top:24px;
+              padding:11px 15px;
+              border-radius:10px;
+              background:#f3f7f4;
+              border:
+                1px solid #dbe5dd;
+              color:#52645a;
+              font-size:14px;
+            }
+
+            .next-steps {
+              margin-top:28px;
+              padding:18px;
+              border-radius:14px;
+              background:#f8faf8;
+              border:
+                1px solid #e1e8e3;
+              color:#52645a;
+              font-size:14px;
+              line-height:1.65;
+            }
+
+            .home-button {
+              display:inline-flex;
+              align-items:center;
+              justify-content:center;
+              margin-top:28px;
+              padding:13px 20px;
+              border-radius:9px;
+              background:#176b3a;
+              color:white;
+              font-size:14px;
+              font-weight:bold;
+              text-decoration:none;
+            }
+
+            .home-button:hover {
+              background:#125a30;
+            }
+
+            @media (
+              max-width:600px
+            ) {
+              .confirmation-card {
+                padding:32px 22px;
+              }
+            }
+          </style>
+
+        </head>
+
+        <body>
+
+          <main class="confirmation-card">
+
+            ${logoHtml}
+
+            <div class="success-icon">
+              ✓
+            </div>
+
+            <div class="eyebrow">
+              Request Submitted
+            </div>
+
+            <h1>
+              Thank You
+            </h1>
+
+            <p class="message">
+              Your advertising request has been submitted
+              successfully to
+              ${escapeHtml(
+                organization.name
+              )}.
+            </p>
+
+            <p class="message">
+              The organization will review your request and
+              contact you using the information you provided.
+            </p>
+
+            ${requestReferenceHtml}
+
+            <div class="next-steps">
+              Submission does not guarantee approval or
+              placement availability. No payment has been
+              collected and no active advertising campaign
+              has been created.
+            </div>
+
+            <a
+              href="/advertise/${encodeURIComponent(
+                organization.slug
+              )}"
+              class="home-button"
+            >
+              Return to Advertising Opportunities
+            </a>
+
+          </main>
+
+        </body>
+
+        </html>
+      `);
+
+    } catch (err) {
+      console.error(
+        "PUBLIC REQUEST CONFIRMATION ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load the request confirmation page."
+      );
+    }
+  }
+);
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
