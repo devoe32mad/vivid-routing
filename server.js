@@ -13844,7 +13844,7 @@ const actionHtml =
         View Opportunities
       </a>
     `
-                    `
+                    
                     : `
                       <span style="
                         display:inline-flex;
@@ -14081,14 +14081,7 @@ margin-top:10px;
     Select a location to explore its currently available advertising opportunities.
 </p>
 
-              <p style="
-                margin:0;
-                color:#65776b;
-                line-height:1.5;
-              ">
-                Select a location to explore its currently
-                available advertising opportunities.
-              </p>
+          
             </div>
 
             <div class="public-location-grid">
