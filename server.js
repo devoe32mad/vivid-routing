@@ -853,6 +853,62 @@ await q(`
     UNIQUE (space_id, user_id)
   )
 `);
+  /*
+=========================================================
+ORGANIZATION USER PERMISSIONS
+=========================================================
+*/
+
+await q(`
+CREATE TABLE IF NOT EXISTS organization_user_permissions (
+
+    id SERIAL PRIMARY KEY,
+
+    organization_user_id INTEGER NOT NULL
+        REFERENCES organization_users(id)
+        ON DELETE CASCADE,
+
+    permission_key TEXT NOT NULL,
+
+    is_allowed BOOLEAN NOT NULL DEFAULT true,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (
+        organization_user_id,
+        permission_key
+    )
+
+)
+`);
+  /*
+=========================================================
+ORGANIZATION USER NOTIFICATIONS
+=========================================================
+*/
+
+await q(`
+CREATE TABLE IF NOT EXISTS organization_user_notifications (
+
+    id SERIAL PRIMARY KEY,
+
+    organization_user_id INTEGER NOT NULL
+        REFERENCES organization_users(id)
+        ON DELETE CASCADE,
+
+    notification_key TEXT NOT NULL,
+
+    is_enabled BOOLEAN NOT NULL DEFAULT true,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (
+        organization_user_id,
+        notification_key
+    )
+
+)
+`);
   await q(`
     CREATE TABLE IF NOT EXISTS advertisers (
       id SERIAL PRIMARY KEY,
