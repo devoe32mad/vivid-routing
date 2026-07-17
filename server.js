@@ -15926,13 +15926,15 @@ app.get(
                           Website
                         </label>
 
-                        <input
-                          id="website"
-                          name="website"
-                          type="url"
-                          maxlength="500"
-                          placeholder="https://example.com"
-                          autocomplete="url"
+                      <input
+  id="website"
+  name="website"
+  type="text"
+  maxlength="500"
+  placeholder="example.com"
+  autocomplete="url"
+>
+                          
                         >
                       </div>
 
@@ -16042,13 +16044,14 @@ app.get(
                           <span class="required">*</span>
                         </label>
 
-                        <input
-                          id="destination_url"
-                          name="destination_url"
-                          type="url"
-                          maxlength="1000"
-                          placeholder="https://example.com"
-                          required
+<input
+  id="destination_url"
+  name="destination_url"
+  type="text"
+  maxlength="1000"
+  placeholder="example.com"
+  required
+>
                         >
                       </div>
 
