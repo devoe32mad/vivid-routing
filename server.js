@@ -17977,25 +17977,22 @@ app.get(
         );
       }
 
-      const requestId = Number(
-        req.query.request_id
-      );
+      const requestReference = String(
+  req.query.request_reference || ""
+).trim();
 
       let requestReferenceHtml = "";
 
-      if (
-        Number.isInteger(requestId) &&
-        requestId > 0
-      ) {
-        requestReferenceHtml = `
-          <div class="reference">
-            Request Reference:
-            <strong>
-              ${escapeHtml(requestId)}
-            </strong>
-          </div>
-        `;
-      }
+if (requestReference) {
+  requestReferenceHtml = `
+    <div class="reference">
+      Request Reference:
+      <strong>
+        ${escapeHtml(requestReference)}
+      </strong>
+    </div>
+  `;
+}
 
       const logoHtml =
         organization.public_logo_url
