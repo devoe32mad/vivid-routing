@@ -16052,63 +16052,8 @@ app.get(
                         >
                       </div>
 
-                      <div class="field">
-                        <label for="call_to_action">
-                          Call to Action
-                        </label>
 
-                        <select
-                          id="call_to_action"
-                          name="call_to_action"
-                        >
-                          <option value="">
-                            Select an option
-                          </option>
-
-                          <option value="Learn More">
-                            Learn More
-                          </option>
-
-                          <option value="Shop Now">
-                            Shop Now
-                          </option>
-
-                          <option value="Book Now">
-                            Book Now
-                          </option>
-
-                          <option value="Call Today">
-                            Call Today
-                          </option>
-
-                          <option value="Order Online">
-                            Order Online
-                          </option>
-
-                          <option value="Get a Quote">
-                            Get a Quote
-                          </option>
-
-                          <option value="Visit Website">
-                            Visit Website
-                          </option>
-                        </select>
-                      </div>
-
-                      <div class="field">
-                        <label for="offer">
-                          Offer
-                        </label>
-
-                        <input
-                          id="offer"
-                          name="offer"
-                          type="text"
-                          maxlength="240"
-                          placeholder="Example: 10% off"
-                        >
-                      </div>
-
+                    
                       <div class="field full-width">
                         <label for="campaign_notes">
                           Additional Information
