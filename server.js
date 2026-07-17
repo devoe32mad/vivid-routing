@@ -17437,6 +17437,481 @@ const normalizeWebsiteUrl = value => {
     }
   }
 );
+/*
+=========================================================
+PUBLIC MARKETPLACE — SUBMIT ADVERTISING REQUEST
+
+POST:
+/advertise/:slug/location/:locationId/opportunity/:opportunityId/submit
+
+Phase 5B:
+- Revalidates all submitted information
+- Creates a Pending advertising request
+- Stores an opportunity snapshot
+- Does not create Vivid Core records
+- Redirects to confirmation page
+=========================================================
+*/
+
+app.post(
+  "/advertise/:slug/location/:locationId/opportunity/:opportunityId/submit",
+  async (req, res) => {
+    try {
+      const slug = String(
+        req.params.slug || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const locationId = Number(
+        req.params.locationId
+      );
+
+      const opportunityId = Number(
+        req.params.opportunityId
+      );
+
+      if (
+        !slug ||
+        !Number.isInteger(locationId) ||
+        locationId <= 0 ||
+        !Number.isInteger(opportunityId) ||
+        opportunityId <= 0
+      ) {
+        return res.status(400).send(
+          "A valid organization, location and opportunity are required."
+        );
+      }
+
+      const cleanText = (
+        value,
+        maximumLength = 500
+      ) =>
+        String(value ?? "")
+          .trim()
+          .slice(0, maximumLength);
+
+      const normalizeWebsiteUrl = value => {
+        const cleaned = cleanText(
+          value,
+          1000
+        );
+
+        if (!cleaned) {
+          return "";
+        }
+
+        if (
+          /^https?:\/\//i.test(cleaned)
+        ) {
+          return cleaned;
+        }
+
+        return `https://${cleaned}`;
+      };
+
+      const businessName = cleanText(
+        req.body.business_name,
+        160
+      );
+
+      const contactName = cleanText(
+        req.body.contact_name,
+        160
+      );
+
+      const email = cleanText(
+        req.body.email,
+        220
+      ).toLowerCase();
+
+      const phone = cleanText(
+        req.body.phone,
+        40
+      );
+
+      const website = normalizeWebsiteUrl(
+        req.body.website
+      );
+
+      const businessCategory = cleanText(
+        req.body.business_category,
+        100
+      );
+
+      const campaignName = cleanText(
+        req.body.campaign_name,
+        180
+      );
+
+      const destinationUrl =
+        normalizeWebsiteUrl(
+          req.body.destination_url
+        );
+
+      const campaignNotes = cleanText(
+        req.body.campaign_notes,
+        2000
+      );
+
+      const approvalAcknowledgement =
+        cleanText(
+          req.body.approval_acknowledgement,
+          20
+        );
+
+      if (
+        !businessName ||
+        !contactName ||
+        !email ||
+        !phone ||
+        !destinationUrl
+      ) {
+        return res.status(400).send(
+          "Please complete all required fields before submitting."
+        );
+      }
+
+      const emailPattern =
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!emailPattern.test(email)) {
+        return res.status(400).send(
+          "Please enter a valid email address."
+        );
+      }
+
+      const isValidWebUrl = value => {
+        if (!value) {
+          return true;
+        }
+
+        try {
+          const parsedUrl = new URL(value);
+
+          return (
+            parsedUrl.protocol === "http:" ||
+            parsedUrl.protocol === "https:"
+          );
+        } catch {
+          return false;
+        }
+      };
+
+      if (
+        website &&
+        !isValidWebUrl(website)
+      ) {
+        return res.status(400).send(
+          "Please enter a valid business website."
+        );
+      }
+
+      if (
+        !isValidWebUrl(destinationUrl)
+      ) {
+        return res.status(400).send(
+          "Please enter a valid website to promote."
+        );
+      }
+
+      if (
+        approvalAcknowledgement !== "yes"
+      ) {
+        return res.status(400).send(
+          "You must acknowledge that the request is subject to approval."
+        );
+      }
+
+      const organizationResult = await q(`
+        SELECT
+          id,
+          name,
+          slug
+
+        FROM organizations
+
+        WHERE LOWER(TRIM(slug)) = $1
+          AND COALESCE(
+            is_active,
+            true
+          ) = true
+
+        LIMIT 1
+      `, [slug]);
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res.status(404).send(
+          "Advertising portal not found."
+        );
+      }
+
+      const locationResult = await q(`
+        SELECT
+          id,
+          name,
+          location
+
+        FROM spaces
+
+        WHERE id = $1
+          AND organization_id = $2
+          AND COALESCE(
+            is_archived,
+            false
+          ) = false
+
+        LIMIT 1
+      `, [
+        locationId,
+        organization.id
+      ]);
+
+      const location =
+        locationResult.rows[0];
+
+      if (!location) {
+        return res.status(404).send(
+          "Location not found."
+        );
+      }
+
+      const opportunityResult = await q(`
+        SELECT
+          oo.id,
+
+          COALESCE(
+            NULLIF(
+              to_jsonb(oo)->>'opportunity_name',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'name',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'title',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'placement',
+              ''
+            ),
+            'Advertising Opportunity'
+          ) AS opportunity_name,
+
+          COALESCE(
+            NULLIF(
+              to_jsonb(oo)->>'opportunity_group',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'area',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'venue',
+              ''
+            )
+          ) AS opportunity_group,
+
+          NULLIF(
+            to_jsonb(oo)->>'placement',
+            ''
+          ) AS placement,
+
+          NULLIF(
+            to_jsonb(oo)->>'category',
+            ''
+          ) AS category,
+
+          NULLIF(
+            to_jsonb(oo)->>'description',
+            ''
+          ) AS description,
+
+          NULLIF(
+            to_jsonb(oo)->>'price',
+            ''
+          )::numeric AS price,
+
+          COALESCE(
+            NULLIF(
+              to_jsonb(oo)->>'pricing_unit',
+              ''
+            ),
+            'year'
+          ) AS pricing_unit,
+
+          NULLIF(
+            to_jsonb(oo)->>'suggested_term_length',
+            ''
+          )::numeric AS suggested_term_length,
+
+          NULLIF(
+            to_jsonb(oo)->>'suggested_term_unit',
+            ''
+          ) AS suggested_term_unit
+
+        FROM organization_opportunities oo
+
+        WHERE oo.id = $1
+          AND oo.organization_id = $2
+          AND oo.space_id = $3
+
+          AND COALESCE(
+            oo.is_active,
+            true
+          ) = true
+
+          AND oo.status = 'Available'
+
+          AND (
+            oo.available_from IS NULL
+            OR oo.available_from <= CURRENT_DATE
+          )
+
+          AND (
+            oo.available_until IS NULL
+            OR oo.available_until >= CURRENT_DATE
+          )
+
+        LIMIT 1
+      `, [
+        opportunityId,
+        organization.id,
+        location.id
+      ]);
+
+      const opportunity =
+        opportunityResult.rows[0];
+
+      if (!opportunity) {
+        return res.status(404).send(
+          "This advertising opportunity is no longer available."
+        );
+      }
+
+      const insertResult = await q(`
+        INSERT INTO organization_advertising_requests (
+          organization_id,
+          location_id,
+          opportunity_id,
+
+          business_name,
+          contact_name,
+          email,
+          phone,
+          website,
+          business_category,
+
+          campaign_name,
+          destination_url,
+          campaign_notes,
+
+          opportunity_name,
+          opportunity_group,
+          placement,
+          opportunity_category,
+          opportunity_description,
+          price,
+          pricing_unit,
+          suggested_term_length,
+          suggested_term_unit,
+
+          status,
+          submitted_at,
+          created_at,
+          updated_at
+        )
+
+        VALUES (
+          $1,
+          $2,
+          $3,
+
+          $4,
+          $5,
+          $6,
+          $7,
+          $8,
+          $9,
+
+          $10,
+          $11,
+          $12,
+
+          $13,
+          $14,
+          $15,
+          $16,
+          $17,
+          $18,
+          $19,
+          $20,
+          $21,
+
+          'Pending',
+          NOW(),
+          NOW(),
+          NOW()
+        )
+
+        RETURNING id
+      `, [
+        organization.id,
+        location.id,
+        opportunity.id,
+
+        businessName,
+        contactName,
+        email,
+        phone,
+        website || null,
+        businessCategory || null,
+
+        campaignName || null,
+        destinationUrl,
+        campaignNotes || null,
+
+        opportunity.opportunity_name,
+        opportunity.opportunity_group || null,
+        opportunity.placement || null,
+        opportunity.category || null,
+        opportunity.description || null,
+        opportunity.price,
+        opportunity.pricing_unit || null,
+        opportunity.suggested_term_length,
+        opportunity.suggested_term_unit || null
+      ]);
+
+      const requestId =
+        insertResult.rows[0].id;
+
+      return res.redirect(
+        303,
+        `/advertise/${encodeURIComponent(
+          organization.slug
+        )}/request-submitted?request_id=${encodeURIComponent(
+          requestId
+        )}`
+      );
+
+    } catch (err) {
+      console.error(
+        "PUBLIC ADVERTISING SUBMIT ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to submit the advertising request."
+      );
+    }
+  }
+);
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
