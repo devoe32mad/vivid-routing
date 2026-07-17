@@ -13818,33 +13818,32 @@ app.get(
                       </div>
                     `
                     : "";
-
-                const actionHtml =
-                  availableCount > 0
-                    ? `
-                      <a
-                        href="/advertise/${encodeURIComponent(
-                          organization.slug
-                        )}/location/${location.id}"
-                      style="
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  width:100%;
-  margin-top:14px;
-  background:#176b3a;
-  color:white;
-  text-decoration:none;
-  border-radius:9px;
-  padding:11px 16px;
-  font-weight:bold;
-  font-size:14px;
-  white-space:nowrap;
-"
-                        "
-                      >
-                        View Opportunities
-                      </a>
+const actionHtml =
+  availableCount > 0
+    ? `
+      <a
+        href="/advertise/${encodeURIComponent(
+          organization.slug
+        )}/location/${location.id}"
+        style="
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          width:100%;
+          margin-top:14px;
+          background:#176b3a;
+          color:white;
+          text-decoration:none;
+          border-radius:9px;
+          padding:11px 16px;
+          font-weight:bold;
+          font-size:14px;
+          white-space:nowrap;
+        "
+      >
+        View Opportunities
+      </a>
+    `
                     `
                     : `
                       <span style="
@@ -13990,12 +13989,14 @@ margin-top:10px;
             }
 
 .public-location-grid {
-    display:grid;
-    grid-template-columns:
-        repeat(auto-fit,minmax(260px,1fr));
-    gap:20px;
-    max-width:1400px;
-    margin:0 auto;
+  display:grid;
+  grid-template-columns:
+    repeat(auto-fill, minmax(240px, 280px));
+  justify-content:center;
+  gap:20px;
+  width:100%;
+  max-width:1400px;
+  margin:0 auto;
 }
 
             @media (max-width: 640px) {
