@@ -14118,7 +14118,854 @@ margin-top:10px;
     }
   }
 );
+/*
+=========================================================
+PUBLIC LOCATION OPPORTUNITIES PAGE
 
+Example:
+  /advertise/ccps/location/60
+
+Displays only opportunities that:
+- Belong to the organization
+- Belong to the selected location
+- Are active
+- Have Available status
+- Are within their availability dates
+=========================================================
+*/
+
+app.get(
+  "/advertise/:slug/location/:locationId",
+  async (req, res) => {
+    try {
+      const slug = String(
+        req.params.slug || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const locationId = Number(
+        req.params.locationId
+      );
+
+      if (
+        !slug ||
+        !Number.isInteger(locationId) ||
+        locationId <= 0
+      ) {
+        return res.status(400).send(
+          "A valid organization and location are required."
+        );
+      }
+
+      const escapeHtml = value =>
+        String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+
+      /*
+        Load and validate the organization.
+      */
+      const organizationResult = await q(`
+        SELECT
+          id,
+          name,
+          slug,
+          public_heading,
+          public_description,
+          public_logo_url
+
+        FROM organizations
+
+        WHERE LOWER(TRIM(slug)) = $1
+          AND COALESCE(
+            is_active,
+            true
+          ) = true
+
+        LIMIT 1
+      `, [slug]);
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res.status(404).send(
+          "Advertising portal not found."
+        );
+      }
+
+      /*
+        Load the selected location.
+
+        The organization_id condition prevents someone
+        from accessing a location belonging to another
+        organization by changing the URL.
+      */
+      const locationResult = await q(`
+        SELECT
+          id,
+          name,
+          location
+
+        FROM spaces
+
+        WHERE id = $1
+          AND organization_id = $2
+          AND COALESCE(
+            is_archived,
+            false
+          ) = false
+
+        LIMIT 1
+      `, [
+        locationId,
+        organization.id
+      ]);
+
+      const location =
+        locationResult.rows[0];
+
+      if (!location) {
+        return res.status(404).send(
+          "Location not found."
+        );
+      }
+
+      /*
+        Load all currently available opportunities.
+
+        to_jsonb is used for the display fields so this
+        remains compatible with the opportunity naming
+        fields already used by the Marketplace builder.
+      */
+      const opportunitiesResult = await q(`
+        SELECT
+          oo.id,
+
+          COALESCE(
+            NULLIF(
+              to_jsonb(oo)->>'opportunity_name',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'name',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'title',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'placement',
+              ''
+            ),
+            'Advertising Opportunity'
+          ) AS opportunity_name,
+
+          COALESCE(
+            NULLIF(
+              to_jsonb(oo)->>'opportunity_group',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'area',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'venue',
+              ''
+            )
+          ) AS opportunity_group,
+
+          NULLIF(
+            to_jsonb(oo)->>'placement',
+            ''
+          ) AS placement,
+
+          NULLIF(
+            to_jsonb(oo)->>'category',
+            ''
+          ) AS category,
+
+          NULLIF(
+            to_jsonb(oo)->>'description',
+            ''
+          ) AS description,
+
+          NULLIF(
+            to_jsonb(oo)->>'price',
+            ''
+          )::numeric AS price,
+
+          COALESCE(
+            NULLIF(
+              to_jsonb(oo)->>'pricing_unit',
+              ''
+            ),
+            'year'
+          ) AS pricing_unit,
+
+          NULLIF(
+            to_jsonb(oo)->>'suggested_term_length',
+            ''
+          )::numeric AS suggested_term_length,
+
+          NULLIF(
+            to_jsonb(oo)->>'suggested_term_unit',
+            ''
+          ) AS suggested_term_unit,
+
+          oo.available_from,
+          oo.available_until,
+
+          COALESCE(
+            NULLIF(
+              to_jsonb(oo)->>'display_order',
+              ''
+            )::integer,
+            999999
+          ) AS display_order
+
+        FROM organization_opportunities oo
+
+        WHERE oo.organization_id = $1
+          AND oo.space_id = $2
+
+          AND COALESCE(
+            oo.is_active,
+            true
+          ) = true
+
+          AND oo.status = 'Available'
+
+          AND (
+            oo.available_from IS NULL
+            OR oo.available_from <= CURRENT_DATE
+          )
+
+          AND (
+            oo.available_until IS NULL
+            OR oo.available_until >= CURRENT_DATE
+          )
+
+        ORDER BY
+          display_order,
+          opportunity_group NULLS LAST,
+          placement NULLS LAST,
+          opportunity_name,
+          oo.id
+      `, [
+        organization.id,
+        location.id
+      ]);
+
+      const opportunities =
+        opportunitiesResult.rows;
+
+      const formatMoney = value => {
+        const amount = Number(value);
+
+        if (!Number.isFinite(amount)) {
+          return "Contact for pricing";
+        }
+
+        return new Intl.NumberFormat(
+          "en-US",
+          {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits:
+              Number.isInteger(amount)
+                ? 0
+                : 2
+          }
+        ).format(amount);
+      };
+
+      const formatDate = value => {
+        if (!value) {
+          return "";
+        }
+
+        const date = new Date(value);
+
+        if (
+          Number.isNaN(
+            date.getTime()
+          )
+        ) {
+          return "";
+        }
+
+        return date.toLocaleDateString(
+          "en-US",
+          {
+            month: "short",
+            day: "numeric",
+            year: "numeric"
+          }
+        );
+      };
+
+      const formatPricingUnit = value => {
+        const unit = String(
+          value || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const labels = {
+          year: "per year",
+          annual: "per year",
+          month: "per month",
+          monthly: "per month",
+          week: "per week",
+          weekly: "per week",
+          day: "per day",
+          daily: "per day",
+          event: "per event",
+          season: "per season",
+          semester: "per semester",
+          campaign: "per campaign",
+          placement: "per placement",
+          flat: "total investment",
+          one_time: "one-time investment",
+          "one-time": "one-time investment"
+        };
+
+        return labels[unit] ||
+          (
+            unit
+              ? `per ${unit}`
+              : ""
+          );
+      };
+
+      const opportunityCards =
+        opportunities.length > 0
+          ? opportunities
+              .map(opportunity => {
+                const groupHtml =
+                  opportunity.opportunity_group
+                    ? `
+                      <div style="
+                        color:#176b3a;
+                        font-size:12px;
+                        font-weight:bold;
+                        letter-spacing:.06em;
+                        text-transform:uppercase;
+                        margin-bottom:8px;
+                      ">
+                        ${escapeHtml(
+                          opportunity.opportunity_group
+                        )}
+                      </div>
+                    `
+                    : "";
+
+                const placementHtml =
+                  opportunity.placement &&
+                  opportunity.placement !==
+                    opportunity.opportunity_name
+                    ? `
+                      <div style="
+                        color:#65776b;
+                        font-size:15px;
+                        margin-top:6px;
+                        line-height:1.5;
+                      ">
+                        ${escapeHtml(
+                          opportunity.placement
+                        )}
+                      </div>
+                    `
+                    : "";
+
+                const categoryHtml =
+                  opportunity.category
+                    ? `
+                      <div style="
+                        margin-top:12px;
+                      ">
+                        <span style="
+                          display:inline-flex;
+                          align-items:center;
+                          background:#edf5ef;
+                          color:#176b3a;
+                          border-radius:999px;
+                          padding:6px 10px;
+                          font-size:12px;
+                          font-weight:bold;
+                        ">
+                          ${escapeHtml(
+                            opportunity.category
+                          )}
+                        </span>
+                      </div>
+                    `
+                    : "";
+
+                const descriptionHtml =
+                  opportunity.description
+                    ? `
+                      <p style="
+                        margin:14px 0 0;
+                        color:#65776b;
+                        font-size:14px;
+                        line-height:1.6;
+                      ">
+                        ${escapeHtml(
+                          opportunity.description
+                        )}
+                      </p>
+                    `
+                    : "";
+
+                const pricingUnit =
+                  formatPricingUnit(
+                    opportunity.pricing_unit
+                  );
+
+                const priceHtml =
+                  opportunity.price !== null
+                    ? `
+                      <div style="
+                        color:#17482f;
+                        font-size:26px;
+                        font-weight:bold;
+                        line-height:1.2;
+                      ">
+                        ${escapeHtml(
+                          formatMoney(
+                            opportunity.price
+                          )
+                        )}
+                      </div>
+
+                      ${
+                        pricingUnit
+                          ? `
+                            <div style="
+                              color:#65776b;
+                              font-size:13px;
+                              margin-top:3px;
+                            ">
+                              ${escapeHtml(
+                                pricingUnit
+                              )}
+                            </div>
+                          `
+                          : ""
+                      }
+                    `
+                    : `
+                      <div style="
+                        color:#17482f;
+                        font-size:19px;
+                        font-weight:bold;
+                      ">
+                        Contact for pricing
+                      </div>
+                    `;
+
+                const suggestedTermHtml =
+                  opportunity.suggested_term_length &&
+                  opportunity.suggested_term_unit
+                    ? `
+                      <div style="
+                        margin-top:14px;
+                        color:#52645a;
+                        font-size:14px;
+                      ">
+                        <strong>
+                          Suggested term:
+                        </strong>
+
+                        ${escapeHtml(
+                          opportunity.suggested_term_length
+                        )}
+
+                        ${escapeHtml(
+                          opportunity.suggested_term_unit
+                        )}
+                      </div>
+                    `
+                    : "";
+
+                const availableFrom =
+                  formatDate(
+                    opportunity.available_from
+                  );
+
+                const availableUntil =
+                  formatDate(
+                    opportunity.available_until
+                  );
+
+                let availabilityText =
+                  "Currently available";
+
+                if (
+                  availableFrom &&
+                  availableUntil
+                ) {
+                  availabilityText =
+                    `Available ${availableFrom} through ${availableUntil}`;
+                } else if (availableFrom) {
+                  availabilityText =
+                    `Available beginning ${availableFrom}`;
+                } else if (availableUntil) {
+                  availabilityText =
+                    `Available through ${availableUntil}`;
+                }
+
+                return `
+                  <article style="
+                    background:white;
+                    border:1px solid #dbe5dd;
+                    border-radius:18px;
+                    padding:22px;
+                    display:flex;
+                    flex-direction:column;
+                    justify-content:space-between;
+                    min-height:330px;
+                    box-shadow:
+                      0 8px 24px
+                      rgba(0,0,0,.05);
+                  ">
+
+                    <div>
+
+                      ${groupHtml}
+
+                      <h2 style="
+                        margin:0;
+                        color:#17482f;
+                        font-size:21px;
+                        font-weight:700;
+                        line-height:1.3;
+                      ">
+                        ${escapeHtml(
+                          opportunity.opportunity_name
+                        )}
+                      </h2>
+
+                      ${placementHtml}
+                      ${categoryHtml}
+                      ${descriptionHtml}
+
+                    </div>
+
+                    <div style="
+                      margin-top:24px;
+                    ">
+
+                      <div style="
+                        border-top:
+                          1px solid #e3eae5;
+                        padding-top:18px;
+                      ">
+
+                        ${priceHtml}
+                        ${suggestedTermHtml}
+
+                        <div style="
+                          margin-top:12px;
+                          color:#65776b;
+                          font-size:13px;
+                          line-height:1.5;
+                        ">
+                          ${escapeHtml(
+                            availabilityText
+                          )}
+                        </div>
+
+                      </div>
+
+                      <a
+                        href="/advertise/${encodeURIComponent(
+                          organization.slug
+                        )}/location/${location.id}/opportunity/${opportunity.id}"
+                        style="
+                          display:flex;
+                          align-items:center;
+                          justify-content:center;
+                          width:100%;
+                          margin-top:18px;
+                          background:#176b3a;
+                          color:white;
+                          text-decoration:none;
+                          border-radius:9px;
+                          padding:12px 16px;
+                          font-weight:bold;
+                          font-size:14px;
+                        "
+                      >
+                        Select Opportunity
+                      </a>
+
+                    </div>
+
+                  </article>
+                `;
+              })
+              .join("")
+          : `
+            <div style="
+              grid-column:1 / -1;
+              background:white;
+              border:1px solid #d9e1da;
+              border-radius:16px;
+              padding:38px 24px;
+              text-align:center;
+            ">
+
+              <h2 style="
+                margin:0;
+                color:#17482f;
+                font-size:22px;
+              ">
+                No Opportunities Available
+              </h2>
+
+              <p style="
+                margin:10px auto 0;
+                max-width:520px;
+                color:#65776b;
+                line-height:1.6;
+              ">
+                This location does not currently have any
+                publicly available advertising opportunities.
+              </p>
+
+            </div>
+          `;
+
+      const locationDetailHtml =
+        location.location
+          ? `
+            <div style="
+              color:#65776b;
+              font-size:17px;
+              margin-top:8px;
+            ">
+              ${escapeHtml(
+                location.location
+              )}
+            </div>
+          `
+          : "";
+
+      const logoHtml =
+        organization.public_logo_url
+          ? `
+            <img
+              src="${escapeHtml(
+                organization.public_logo_url
+              )}"
+              alt="${escapeHtml(
+                organization.name
+              )} logo"
+              style="
+                display:block;
+                max-width:170px;
+                max-height:90px;
+                object-fit:contain;
+                margin:0 auto 20px;
+              "
+            >
+          `
+          : "";
+
+      return res.send(`
+        <!DOCTYPE html>
+
+        <html lang="en">
+
+        <head>
+
+          <meta charset="UTF-8">
+
+          <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1"
+          >
+
+          <title>
+            Advertising Opportunities at
+            ${escapeHtml(location.name)}
+          </title>
+
+          <style>
+            * {
+              box-sizing:border-box;
+            }
+
+            body {
+              margin:0;
+              background:#f4f7f5;
+              color:#24382c;
+              font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+            }
+
+            .opportunity-header {
+              background:white;
+              border-bottom:
+                1px solid #d9e1da;
+              padding:34px 20px 38px;
+              text-align:center;
+            }
+
+            .opportunity-main {
+              width:min(
+                1200px,
+                calc(100% - 32px)
+              );
+              margin:0 auto;
+              padding:34px 0 54px;
+            }
+
+            .opportunity-grid {
+              display:grid;
+              grid-template-columns:
+                repeat(
+                  auto-fit,
+                  minmax(280px, 1fr)
+                );
+              gap:20px;
+              align-items:stretch;
+            }
+
+            @media (
+              max-width:640px
+            ) {
+              .opportunity-header {
+                padding:26px 18px 30px;
+              }
+
+              .opportunity-main {
+                width:
+                  calc(100% - 24px);
+                padding:
+                  26px 0 40px;
+              }
+
+              .opportunity-grid {
+                grid-template-columns:1fr;
+              }
+            }
+          </style>
+
+        </head>
+
+        <body>
+
+          <header class="opportunity-header">
+
+            ${logoHtml}
+
+            <a
+              href="/advertise/${encodeURIComponent(
+                organization.slug
+              )}"
+              style="
+                display:inline-flex;
+                color:#176b3a;
+                text-decoration:none;
+                font-size:14px;
+                font-weight:bold;
+                margin-bottom:22px;
+              "
+            >
+              ← Back to Locations
+            </a>
+
+            <div style="
+              color:#176b3a;
+              font-size:13px;
+              font-weight:bold;
+              letter-spacing:.08em;
+              text-transform:uppercase;
+              margin-bottom:10px;
+            ">
+              Advertising Opportunities
+            </div>
+
+            <h1 style="
+              margin:0;
+              color:#24382c;
+              font-size:
+                clamp(
+                  30px,
+                  5vw,
+                  46px
+                );
+            ">
+              ${escapeHtml(
+                location.name
+              )}
+            </h1>
+
+            ${locationDetailHtml}
+
+            <p style="
+              max-width:700px;
+              margin:18px auto 0;
+              color:#65776b;
+              font-size:17px;
+              line-height:1.6;
+            ">
+              Select an opportunity below to begin your
+              advertising request.
+            </p>
+
+          </header>
+
+          <main class="opportunity-main">
+
+            <div style="
+              margin-bottom:24px;
+              color:#52645a;
+              font-size:15px;
+              font-weight:bold;
+            ">
+              ${
+                opportunities.length === 1
+                  ? "1 opportunity available"
+                  : `${opportunities.length} opportunities available`
+              }
+            </div>
+
+            <div class="opportunity-grid">
+              ${opportunityCards}
+            </div>
+
+          </main>
+
+        </body>
+
+        </html>
+      `);
+
+    } catch (err) {
+      console.error(
+        "PUBLIC LOCATION OPPORTUNITIES ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load advertising opportunities."
+      );
+    }
+  }
+);
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
