@@ -14084,9 +14084,20 @@ margin-top:10px;
           
             </div>
 
-            <div class="public-location-grid">
-              ${locationCards}
-            </div>
+       <div
+  class="public-location-grid"
+  style="
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(240px, 280px));
+    justify-content:center;
+    gap:20px;
+    width:100%;
+    max-width:1400px;
+    margin:0 auto;
+  "
+>
+  ${locationCards}
+</div>
 
           </main>
 
