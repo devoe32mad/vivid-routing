@@ -13861,17 +13861,16 @@ app.get(
                     `;
 return `
   <article style="
-    background:white;
-    border:1px solid #d9e1da;
-    border-radius:18px;
-    padding:26px 28px;
-    min-height:180px;
-    display:flex;
-    flex-direction:column;
-    justify-content:space-between;
-    gap:24px;
-    box-shadow:
-      0 12px 30px rgba(28,57,39,.08);
+background:white;
+border:1px solid #dbe5dd;
+border-radius:18px;
+padding:18px;
+display:flex;
+flex-direction:column;
+justify-content:space-between;
+min-height:170px;
+box-shadow:0 8px 24px rgba(0,0,0,.05);
+transition:.2s ease;
   ">
 
     <div>
@@ -13985,11 +13984,13 @@ return `
               padding: 34px 0 50px;
             }
 
-      .public-location-grid {
-  display:grid;
-  grid-template-columns:
-    repeat(2, minmax(0, 1fr));
-  gap:22px;
+.public-location-grid {
+    display:grid;
+    grid-template-columns:
+        repeat(auto-fit,minmax(260px,1fr));
+    gap:20px;
+    max-width:1400px;
+    margin:0 auto;
 }
 
             @media (max-width: 640px) {
@@ -14050,12 +14051,29 @@ return `
             <div style="
               margin-bottom:20px;
             ">
-              <h2 style="
-                margin:0 0 7px;
-                font-size:24px;
-              ">
-                Choose a Location
-              </h2>
+           <section style="
+    max-width:1400px;
+    margin:0 auto 50px;
+    text-align:center;
+">
+
+<h2 style="
+    margin:0 0 12px;
+    font-size:48px;
+    color:#163d2d;
+">
+    Choose a Location
+</h2>
+
+<p style="
+    max-width:760px;
+    margin:0 auto 42px;
+    color:#66786f;
+    font-size:20px;
+    line-height:1.6;
+">
+    Select a location to explore its currently available advertising opportunities.
+</p>
 
               <p style="
                 margin:0;
