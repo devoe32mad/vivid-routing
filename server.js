@@ -17890,15 +17890,16 @@ app.post(
 
       const requestId =
         insertResult.rows[0].id;
-
-      return res.redirect(
-        303,
-        `/advertise/${encodeURIComponent(
-          organization.slug
-        )}/request-submitted?request_id=${encodeURIComponent(
-          requestId
-        )}`
-      );
+const requestReference =
+  `${organization.slug.toUpperCase()}-${String(requestId).padStart(6, "0")}`;
+    return res.redirect(
+  303,
+  `/advertise/${encodeURIComponent(
+    organization.slug
+  )}/request-submitted?request_reference=${encodeURIComponent(
+    requestReference
+  )}`
+);
 
     } catch (err) {
       console.error(
