@@ -14088,7 +14088,7 @@ margin-top:10px;
   class="public-location-grid"
   style="
     display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(240px, 280px));
+    grid-template-columns:repeat(auto-fit, minmax(240px, 280px));
     justify-content:center;
     gap:20px;
     width:100%;
