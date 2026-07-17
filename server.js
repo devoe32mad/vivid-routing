@@ -16139,6 +16139,1280 @@ app.get(
     }
   }
 );
+/*
+=========================================================
+PUBLIC MARKETPLACE — REVIEW ADVERTISING REQUEST
+
+POST:
+/advertise/:slug/location/:locationId/opportunity/:opportunityId/review
+
+Phase 5A:
+- Receives advertiser information
+- Validates required fields
+- Revalidates organization, location and opportunity
+- Displays a read-only review page
+- Does not create Marketplace or Vivid Core records
+=========================================================
+*/
+
+app.post(
+  "/advertise/:slug/location/:locationId/opportunity/:opportunityId/review",
+  async (req, res) => {
+    try {
+      const slug = String(
+        req.params.slug || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const locationId = Number(
+        req.params.locationId
+      );
+
+      const opportunityId = Number(
+        req.params.opportunityId
+      );
+
+      if (
+        !slug ||
+        !Number.isInteger(locationId) ||
+        locationId <= 0 ||
+        !Number.isInteger(opportunityId) ||
+        opportunityId <= 0
+      ) {
+        return res.status(400).send(
+          "A valid organization, location and opportunity are required."
+        );
+      }
+
+      const cleanText = (
+        value,
+        maximumLength = 500
+      ) =>
+        String(value ?? "")
+          .trim()
+          .slice(0, maximumLength);
+
+      const escapeHtml = value =>
+        String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+
+      const businessName = cleanText(
+        req.body.business_name,
+        160
+      );
+
+      const contactName = cleanText(
+        req.body.contact_name,
+        160
+      );
+
+      const email = cleanText(
+        req.body.email,
+        220
+      ).toLowerCase();
+
+      const phone = cleanText(
+        req.body.phone,
+        40
+      );
+
+      const website = cleanText(
+        req.body.website,
+        500
+      );
+
+      const businessCategory = cleanText(
+        req.body.business_category,
+        100
+      );
+
+      const campaignName = cleanText(
+        req.body.campaign_name,
+        180
+      );
+
+      const destinationUrl = cleanText(
+        req.body.destination_url,
+        1000
+      );
+
+      const campaignNotes = cleanText(
+        req.body.campaign_notes,
+        2000
+      );
+
+      const approvalAcknowledgement =
+        cleanText(
+          req.body.approval_acknowledgement,
+          20
+        );
+
+      /*
+        Validate required advertiser fields.
+      */
+      if (
+        !businessName ||
+        !contactName ||
+        !email ||
+        !phone ||
+        !destinationUrl
+      ) {
+        return res.status(400).send(
+          "Please complete all required fields before continuing."
+        );
+      }
+
+      /*
+        Basic email validation.
+      */
+      const emailPattern =
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!emailPattern.test(email)) {
+        return res.status(400).send(
+          "Please enter a valid email address."
+        );
+      }
+
+      /*
+        Basic URL validation.
+
+        Both the optional business website and required
+        website to promote must use http or https.
+      */
+      const isValidWebUrl = value => {
+        if (!value) {
+          return true;
+        }
+
+        try {
+          const parsedUrl = new URL(value);
+
+          return (
+            parsedUrl.protocol === "http:" ||
+            parsedUrl.protocol === "https:"
+          );
+        } catch {
+          return false;
+        }
+      };
+
+      if (
+        website &&
+        !isValidWebUrl(website)
+      ) {
+        return res.status(400).send(
+          "Please enter a valid business website beginning with http:// or https://."
+        );
+      }
+
+      if (!isValidWebUrl(destinationUrl)) {
+        return res.status(400).send(
+          "Please enter a valid website to promote beginning with http:// or https://."
+        );
+      }
+
+      if (
+        approvalAcknowledgement !== "yes"
+      ) {
+        return res.status(400).send(
+          "You must acknowledge that the advertising request is subject to approval."
+        );
+      }
+
+      /*
+        Load organization.
+      */
+      const organizationResult = await q(`
+        SELECT
+          id,
+          name,
+          slug,
+          public_heading,
+          public_description,
+          public_logo_url
+
+        FROM organizations
+
+        WHERE LOWER(TRIM(slug)) = $1
+          AND COALESCE(
+            is_active,
+            true
+          ) = true
+
+        LIMIT 1
+      `, [slug]);
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res.status(404).send(
+          "Advertising portal not found."
+        );
+      }
+
+      /*
+        Load and validate location.
+      */
+      const locationResult = await q(`
+        SELECT
+          id,
+          name,
+          location
+
+        FROM spaces
+
+        WHERE id = $1
+          AND organization_id = $2
+          AND COALESCE(
+            is_archived,
+            false
+          ) = false
+
+        LIMIT 1
+      `, [
+        locationId,
+        organization.id
+      ]);
+
+      const location =
+        locationResult.rows[0];
+
+      if (!location) {
+        return res.status(404).send(
+          "Location not found."
+        );
+      }
+
+      /*
+        Revalidate the selected opportunity.
+
+        It must still belong to this organization and
+        location and remain currently available.
+      */
+      const opportunityResult = await q(`
+        SELECT
+          oo.id,
+
+          COALESCE(
+            NULLIF(
+              to_jsonb(oo)->>'opportunity_name',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'name',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'title',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'placement',
+              ''
+            ),
+            'Advertising Opportunity'
+          ) AS opportunity_name,
+
+          COALESCE(
+            NULLIF(
+              to_jsonb(oo)->>'opportunity_group',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'area',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'venue',
+              ''
+            )
+          ) AS opportunity_group,
+
+          NULLIF(
+            to_jsonb(oo)->>'placement',
+            ''
+          ) AS placement,
+
+          NULLIF(
+            to_jsonb(oo)->>'category',
+            ''
+          ) AS category,
+
+          NULLIF(
+            to_jsonb(oo)->>'description',
+            ''
+          ) AS description,
+
+          NULLIF(
+            to_jsonb(oo)->>'price',
+            ''
+          )::numeric AS price,
+
+          COALESCE(
+            NULLIF(
+              to_jsonb(oo)->>'pricing_unit',
+              ''
+            ),
+            'year'
+          ) AS pricing_unit,
+
+          NULLIF(
+            to_jsonb(oo)->>'suggested_term_length',
+            ''
+          )::numeric AS suggested_term_length,
+
+          NULLIF(
+            to_jsonb(oo)->>'suggested_term_unit',
+            ''
+          ) AS suggested_term_unit,
+
+          oo.available_from,
+          oo.available_until
+
+        FROM organization_opportunities oo
+
+        WHERE oo.id = $1
+          AND oo.organization_id = $2
+          AND oo.space_id = $3
+
+          AND COALESCE(
+            oo.is_active,
+            true
+          ) = true
+
+          AND oo.status = 'Available'
+
+          AND (
+            oo.available_from IS NULL
+            OR oo.available_from <= CURRENT_DATE
+          )
+
+          AND (
+            oo.available_until IS NULL
+            OR oo.available_until >= CURRENT_DATE
+          )
+
+        LIMIT 1
+      `, [
+        opportunityId,
+        organization.id,
+        location.id
+      ]);
+
+      const opportunity =
+        opportunityResult.rows[0];
+
+      if (!opportunity) {
+        return res.status(404).send(
+          "This advertising opportunity is no longer available."
+        );
+      }
+
+      const formatMoney = value => {
+        const amount = Number(value);
+
+        if (!Number.isFinite(amount)) {
+          return "Contact for pricing";
+        }
+
+        return new Intl.NumberFormat(
+          "en-US",
+          {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits:
+              Number.isInteger(amount)
+                ? 0
+                : 2
+          }
+        ).format(amount);
+      };
+
+      const formatPricingUnit = value => {
+        const unit = String(
+          value || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const labels = {
+          year: "per year",
+          annual: "per year",
+          month: "per month",
+          monthly: "per month",
+          week: "per week",
+          weekly: "per week",
+          day: "per day",
+          daily: "per day",
+          event: "per event",
+          season: "per season",
+          semester: "per semester",
+          campaign: "per campaign",
+          placement: "per placement",
+          flat: "total investment",
+          one_time: "one-time investment",
+          "one-time": "one-time investment"
+        };
+
+        return labels[unit] ||
+          (
+            unit
+              ? `per ${unit}`
+              : ""
+          );
+      };
+
+      const priceText =
+        opportunity.price !== null
+          ? formatMoney(
+              opportunity.price
+            )
+          : "Contact for pricing";
+
+      const pricingUnitText =
+        opportunity.price !== null
+          ? formatPricingUnit(
+              opportunity.pricing_unit
+            )
+          : "";
+
+      const termText =
+        opportunity.suggested_term_length &&
+        opportunity.suggested_term_unit
+          ? `${opportunity.suggested_term_length} ${opportunity.suggested_term_unit}`
+          : "To be determined";
+
+      /*
+        Display helpers.
+      */
+      const displayValue = value =>
+        value
+          ? escapeHtml(value)
+          : `
+            <span class="not-provided">
+              Not provided
+            </span>
+          `;
+
+      const displayMultilineValue = value =>
+        value
+          ? escapeHtml(value).replace(
+              /\r?\n/g,
+              "<br>"
+            )
+          : `
+            <span class="not-provided">
+              Not provided
+            </span>
+          `;
+
+      const locationDetailHtml =
+        location.location
+          ? `
+            <div class="location-detail">
+              ${escapeHtml(
+                location.location
+              )}
+            </div>
+          `
+          : "";
+
+      const opportunityGroupHtml =
+        opportunity.opportunity_group
+          ? `
+            <div class="review-row">
+              <div class="review-label">
+                Area / Venue
+              </div>
+
+              <div class="review-value">
+                ${escapeHtml(
+                  opportunity.opportunity_group
+                )}
+              </div>
+            </div>
+          `
+          : "";
+
+      const placementHtml =
+        opportunity.placement
+          ? `
+            <div class="review-row">
+              <div class="review-label">
+                Placement
+              </div>
+
+              <div class="review-value">
+                ${escapeHtml(
+                  opportunity.placement
+                )}
+              </div>
+            </div>
+          `
+          : "";
+
+      const categoryHtml =
+        opportunity.category
+          ? `
+            <div class="review-row">
+              <div class="review-label">
+                Opportunity Category
+              </div>
+
+              <div class="review-value">
+                ${escapeHtml(
+                  opportunity.category
+                )}
+              </div>
+            </div>
+          `
+          : "";
+
+      const logoHtml =
+        organization.public_logo_url
+          ? `
+            <img
+              src="${escapeHtml(
+                organization.public_logo_url
+              )}"
+              alt="${escapeHtml(
+                organization.name
+              )} logo"
+              class="organization-logo"
+            >
+          `
+          : "";
+
+      /*
+        The values below are escaped for safe use inside
+        hidden HTML input values.
+      */
+      const hiddenBusinessName =
+        escapeHtml(businessName);
+
+      const hiddenContactName =
+        escapeHtml(contactName);
+
+      const hiddenEmail =
+        escapeHtml(email);
+
+      const hiddenPhone =
+        escapeHtml(phone);
+
+      const hiddenWebsite =
+        escapeHtml(website);
+
+      const hiddenBusinessCategory =
+        escapeHtml(businessCategory);
+
+      const hiddenCampaignName =
+        escapeHtml(campaignName);
+
+      const hiddenDestinationUrl =
+        escapeHtml(destinationUrl);
+
+      const hiddenCampaignNotes =
+        escapeHtml(campaignNotes);
+
+      return res.send(`
+        <!DOCTYPE html>
+
+        <html lang="en">
+
+        <head>
+
+          <meta charset="UTF-8">
+
+          <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1"
+          >
+
+          <title>
+            Review Advertising Request
+          </title>
+
+          <style>
+            * {
+              box-sizing:border-box;
+            }
+
+            body {
+              margin:0;
+              background:#f4f7f5;
+              color:#24382c;
+              font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+            }
+
+            .review-header {
+              background:white;
+              border-bottom:
+                1px solid #d9e1da;
+              padding:30px 20px 34px;
+              text-align:center;
+            }
+
+            .organization-logo {
+              display:block;
+              max-width:160px;
+              max-height:85px;
+              object-fit:contain;
+              margin:0 auto 18px;
+            }
+
+            .eyebrow {
+              color:#176b3a;
+              font-size:13px;
+              font-weight:bold;
+              letter-spacing:.08em;
+              text-transform:uppercase;
+              margin-bottom:9px;
+            }
+
+            .review-header h1 {
+              margin:0;
+              color:#24382c;
+              font-size:
+                clamp(
+                  28px,
+                  5vw,
+                  42px
+                );
+            }
+
+            .header-description {
+              max-width:680px;
+              margin:14px auto 0;
+              color:#65776b;
+              font-size:16px;
+              line-height:1.6;
+            }
+
+            .review-main {
+              width:min(
+                980px,
+                calc(100% - 32px)
+              );
+              margin:0 auto;
+              padding:34px 0 54px;
+            }
+
+            .panel {
+              background:white;
+              border:
+                1px solid #dbe5dd;
+              border-radius:18px;
+              padding:26px;
+              box-shadow:
+                0 8px 24px
+                rgba(0,0,0,.05);
+            }
+
+            .panel + .panel {
+              margin-top:22px;
+            }
+
+            .panel-title {
+              margin:0 0 6px;
+              color:#17482f;
+              font-size:23px;
+              line-height:1.3;
+            }
+
+            .panel-description {
+              margin:0 0 20px;
+              color:#65776b;
+              font-size:14px;
+              line-height:1.55;
+            }
+
+            .location-name {
+              margin-top:8px;
+              color:#52645a;
+              font-size:16px;
+              font-weight:600;
+            }
+
+            .location-detail {
+              margin-top:5px;
+              color:#65776b;
+              font-size:14px;
+            }
+
+            .review-grid {
+              display:grid;
+              grid-template-columns:
+                repeat(
+                  2,
+                  minmax(0, 1fr)
+                );
+              column-gap:28px;
+            }
+
+            .review-row {
+              padding:15px 0;
+              border-bottom:
+                1px solid #e5ebe7;
+            }
+
+            .review-row.full-width {
+              grid-column:1 / -1;
+            }
+
+            .review-label {
+              color:#65776b;
+              font-size:12px;
+              font-weight:bold;
+              letter-spacing:.05em;
+              text-transform:uppercase;
+              margin-bottom:6px;
+            }
+
+            .review-value {
+              color:#24382c;
+              font-size:15px;
+              font-weight:600;
+              line-height:1.5;
+              overflow-wrap:anywhere;
+            }
+
+            .not-provided {
+              color:#849087;
+              font-weight:normal;
+              font-style:italic;
+            }
+
+            .approval-notice {
+              display:flex;
+              align-items:flex-start;
+              gap:11px;
+              margin-top:22px;
+              padding:16px;
+              background:#f3f7f4;
+              border:
+                1px solid #dbe5dd;
+              border-radius:12px;
+              color:#52645a;
+              font-size:14px;
+              line-height:1.55;
+            }
+
+            .approval-icon {
+              display:flex;
+              align-items:center;
+              justify-content:center;
+              flex:0 0 auto;
+              width:22px;
+              height:22px;
+              border-radius:50%;
+              background:#176b3a;
+              color:white;
+              font-size:13px;
+              font-weight:bold;
+            }
+
+            .review-actions {
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:14px;
+              margin-top:28px;
+            }
+
+            .edit-button,
+            .submit-button {
+              display:inline-flex;
+              align-items:center;
+              justify-content:center;
+              border-radius:9px;
+              padding:13px 19px;
+              font-size:14px;
+              font-weight:bold;
+              text-decoration:none;
+              cursor:pointer;
+            }
+
+            .edit-button {
+              border:
+                1px solid #cbd8ce;
+              background:white;
+              color:#344b3d;
+            }
+
+            .submit-button {
+              border:0;
+              background:#176b3a;
+              color:white;
+            }
+
+            .submit-button:hover {
+              background:#125a30;
+            }
+
+            @media (
+              max-width:680px
+            ) {
+              .review-main {
+                width:
+                  calc(100% - 24px);
+                padding:
+                  24px 0 40px;
+              }
+
+              .panel {
+                padding:20px;
+              }
+
+              .review-grid {
+                grid-template-columns:1fr;
+              }
+
+              .review-row.full-width {
+                grid-column:auto;
+              }
+
+              .review-actions {
+                flex-direction:column-reverse;
+                align-items:stretch;
+              }
+
+              .edit-button,
+              .submit-button {
+                width:100%;
+              }
+            }
+          </style>
+
+        </head>
+
+        <body>
+
+          <header class="review-header">
+
+            ${logoHtml}
+
+            <div class="eyebrow">
+              Advertising Request
+            </div>
+
+            <h1>
+              Review Your Information
+            </h1>
+
+            <p class="header-description">
+              Please confirm that the information below is
+              correct before submitting your advertising
+              request to
+              ${escapeHtml(
+                organization.name
+              )}.
+            </p>
+
+          </header>
+
+          <main class="review-main">
+
+            <section class="panel">
+
+              <div class="eyebrow">
+                Selected Opportunity
+              </div>
+
+              <h2 class="panel-title">
+                ${escapeHtml(
+                  opportunity.opportunity_name
+                )}
+              </h2>
+
+              <div class="location-name">
+                ${escapeHtml(
+                  location.name
+                )}
+              </div>
+
+              ${locationDetailHtml}
+
+              <div class="review-grid">
+
+                <div class="review-row">
+                  <div class="review-label">
+                    Organization
+                  </div>
+
+                  <div class="review-value">
+                    ${escapeHtml(
+                      organization.name
+                    )}
+                  </div>
+                </div>
+
+                <div class="review-row">
+                  <div class="review-label">
+                    Location
+                  </div>
+
+                  <div class="review-value">
+                    ${escapeHtml(
+                      location.name
+                    )}
+                  </div>
+                </div>
+
+                <div class="review-row">
+                  <div class="review-label">
+                    Opportunity
+                  </div>
+
+                  <div class="review-value">
+                    ${escapeHtml(
+                      opportunity.opportunity_name
+                    )}
+                  </div>
+                </div>
+
+                ${opportunityGroupHtml}
+                ${placementHtml}
+                ${categoryHtml}
+
+                <div class="review-row">
+                  <div class="review-label">
+                    Investment
+                  </div>
+
+                  <div class="review-value">
+                    ${escapeHtml(
+                      priceText
+                    )}
+
+                    ${
+                      pricingUnitText
+                        ? `
+                          <span style="
+                            color:#65776b;
+                            font-weight:normal;
+                          ">
+                            ${escapeHtml(
+                              pricingUnitText
+                            )}
+                          </span>
+                        `
+                        : ""
+                    }
+                  </div>
+                </div>
+
+                <div class="review-row">
+                  <div class="review-label">
+                    Suggested Term
+                  </div>
+
+                  <div class="review-value">
+                    ${escapeHtml(
+                      termText
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+            </section>
+
+            <section class="panel">
+
+              <h2 class="panel-title">
+                Business Information
+              </h2>
+
+              <p class="panel-description">
+                Contact information for the business
+                submitting this request.
+              </p>
+
+              <div class="review-grid">
+
+                <div class="review-row">
+                  <div class="review-label">
+                    Business Name
+                  </div>
+
+                  <div class="review-value">
+                    ${displayValue(
+                      businessName
+                    )}
+                  </div>
+                </div>
+
+                <div class="review-row">
+                  <div class="review-label">
+                    Primary Contact
+                  </div>
+
+                  <div class="review-value">
+                    ${displayValue(
+                      contactName
+                    )}
+                  </div>
+                </div>
+
+                <div class="review-row">
+                  <div class="review-label">
+                    Email
+                  </div>
+
+                  <div class="review-value">
+                    ${displayValue(
+                      email
+                    )}
+                  </div>
+                </div>
+
+                <div class="review-row">
+                  <div class="review-label">
+                    Phone
+                  </div>
+
+                  <div class="review-value">
+                    ${displayValue(
+                      phone
+                    )}
+                  </div>
+                </div>
+
+                <div class="review-row">
+                  <div class="review-label">
+                    Business Website
+                  </div>
+
+                  <div class="review-value">
+                    ${displayValue(
+                      website
+                    )}
+                  </div>
+                </div>
+
+                <div class="review-row">
+                  <div class="review-label">
+                    Business Category
+                  </div>
+
+                  <div class="review-value">
+                    ${displayValue(
+                      businessCategory
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+            </section>
+
+            <section class="panel">
+
+              <h2 class="panel-title">
+                Advertising Details
+              </h2>
+
+              <p class="panel-description">
+                Initial information about what the business
+                would like to promote.
+              </p>
+
+              <div class="review-grid">
+
+                <div class="review-row full-width">
+                  <div class="review-label">
+                    Campaign / Promotion Name
+                  </div>
+
+                  <div class="review-value">
+                    ${displayValue(
+                      campaignName
+                    )}
+                  </div>
+                </div>
+
+                <div class="review-row full-width">
+                  <div class="review-label">
+                    Website to Promote
+                  </div>
+
+                  <div class="review-value">
+                    ${displayValue(
+                      destinationUrl
+                    )}
+                  </div>
+                </div>
+
+                <div class="review-row full-width">
+                  <div class="review-label">
+                    Additional Information
+                  </div>
+
+                  <div class="review-value">
+                    ${displayMultilineValue(
+                      campaignNotes
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="approval-notice">
+
+                <span class="approval-icon">
+                  ✓
+                </span>
+
+                <span>
+                  This advertising request is subject to
+                  review and approval by
+                  ${escapeHtml(
+                    organization.name
+                  )}.
+                  Submission does not create an active
+                  advertising campaign or guarantee
+                  placement availability.
+                </span>
+
+              </div>
+
+              <form
+                method="POST"
+                action="/advertise/${encodeURIComponent(
+                  organization.slug
+                )}/location/${location.id}/opportunity/${opportunity.id}/submit"
+              >
+
+                <input
+                  type="hidden"
+                  name="organization_id"
+                  value="${organization.id}"
+                >
+
+                <input
+                  type="hidden"
+                  name="location_id"
+                  value="${location.id}"
+                >
+
+                <input
+                  type="hidden"
+                  name="opportunity_id"
+                  value="${opportunity.id}"
+                >
+
+                <input
+                  type="hidden"
+                  name="business_name"
+                  value="${hiddenBusinessName}"
+                >
+
+                <input
+                  type="hidden"
+                  name="contact_name"
+                  value="${hiddenContactName}"
+                >
+
+                <input
+                  type="hidden"
+                  name="email"
+                  value="${hiddenEmail}"
+                >
+
+                <input
+                  type="hidden"
+                  name="phone"
+                  value="${hiddenPhone}"
+                >
+
+                <input
+                  type="hidden"
+                  name="website"
+                  value="${hiddenWebsite}"
+                >
+
+                <input
+                  type="hidden"
+                  name="business_category"
+                  value="${hiddenBusinessCategory}"
+                >
+
+                <input
+                  type="hidden"
+                  name="campaign_name"
+                  value="${hiddenCampaignName}"
+                >
+
+                <input
+                  type="hidden"
+                  name="destination_url"
+                  value="${hiddenDestinationUrl}"
+                >
+
+                <input
+                  type="hidden"
+                  name="campaign_notes"
+                  value="${hiddenCampaignNotes}"
+                >
+
+                <input
+                  type="hidden"
+                  name="approval_acknowledgement"
+                  value="yes"
+                >
+
+                <div class="review-actions">
+
+                  <button
+                    type="button"
+                    class="edit-button"
+                    onclick="history.back()"
+                  >
+                    ← Edit Information
+                  </button>
+
+                  <button
+                    type="submit"
+                    class="submit-button"
+                  >
+                    Submit Advertising Request →
+                  </button>
+
+                </div>
+
+              </form>
+
+            </section>
+
+          </main>
+
+        </body>
+
+        </html>
+      `);
+
+    } catch (err) {
+      console.error(
+        "PUBLIC ADVERTISING REVIEW ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to review the advertising request."
+      );
+    }
+  }
+);
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
