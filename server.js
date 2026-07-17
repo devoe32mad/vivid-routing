@@ -16006,7 +16006,7 @@ app.get(
                       color:#17482f;
                       font-size:23px;
                     ">
-                      Campaign Information
+                      Advertising Details
                     </h2>
 
                     <p style="
@@ -16024,7 +16024,7 @@ app.get(
 
                       <div class="field full-width">
                         <label for="campaign_name">
-                          Campaign Name
+                          Campaign / Promotion Name
                         </label>
 
                         <input
@@ -16038,7 +16038,7 @@ app.get(
 
                       <div class="field full-width">
                         <label for="destination_url">
-                          Destination Website
+                          Website to Promote
                           <span class="required">*</span>
                         </label>
 
