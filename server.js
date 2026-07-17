@@ -16192,7 +16192,24 @@ app.post(
         String(value ?? "")
           .trim()
           .slice(0, maximumLength);
+const normalizeWebsiteUrl = value => {
+  const cleaned = cleanText(
+    value,
+    1000
+  );
 
+  if (!cleaned) {
+    return "";
+  }
+
+  if (
+    /^https?:\/\//i.test(cleaned)
+  ) {
+    return cleaned;
+  }
+
+  return `https://${cleaned}`;
+};
       const escapeHtml = value =>
         String(value ?? "")
           .replace(/&/g, "&amp;")
@@ -16221,10 +16238,12 @@ app.post(
         40
       );
 
-      const website = cleanText(
-        req.body.website,
-        500
-      );
+      const website = normalizeWebsiteUrl(
+  req.body.website
+);
+        
+        
+    
 
       const businessCategory = cleanText(
         req.body.business_category,
@@ -16236,10 +16255,12 @@ app.post(
         180
       );
 
-      const destinationUrl = cleanText(
-        req.body.destination_url,
-        1000
-      );
+      const destinationUrl = normalizeWebsiteUrl(
+  req.body.destination_url
+);
+        
+        
+      
 
       const campaignNotes = cleanText(
         req.body.campaign_notes,
