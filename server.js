@@ -13826,18 +13826,21 @@ app.get(
                         href="/advertise/${encodeURIComponent(
                           organization.slug
                         )}/location/${location.id}"
-                        style="
-                          display:inline-flex;
-                          align-items:center;
-                          justify-content:center;
-                          background:#176b3a;
-                          color:white;
-                          text-decoration:none;
-                          border-radius:9px;
-                          padding:11px 16px;
-                          font-weight:bold;
-                          font-size:14px;
-                          white-space:nowrap;
+                      style="
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  margin-top:14px;
+  background:#176b3a;
+  color:white;
+  text-decoration:none;
+  border-radius:9px;
+  padding:11px 16px;
+  font-weight:bold;
+  font-size:14px;
+  white-space:nowrap;
+"
                         "
                       >
                         View Opportunities
