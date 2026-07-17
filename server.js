@@ -14966,6 +14966,1234 @@ app.get(
     }
   }
 );
+/*
+=========================================================
+PUBLIC ADVERTISER INFORMATION FORM
+
+Example:
+  /advertise/ccps/location/60/opportunity/12
+
+Phase 4:
+- Confirms selected opportunity
+- Collects business information
+- Collects initial campaign information
+- Does not create live Vivid Core records
+- Posts to the Review & Submit route
+=========================================================
+*/
+
+app.get(
+  "/advertise/:slug/location/:locationId/opportunity/:opportunityId",
+  async (req, res) => {
+    try {
+      const slug = String(
+        req.params.slug || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const locationId = Number(
+        req.params.locationId
+      );
+
+      const opportunityId = Number(
+        req.params.opportunityId
+      );
+
+      if (
+        !slug ||
+        !Number.isInteger(locationId) ||
+        locationId <= 0 ||
+        !Number.isInteger(opportunityId) ||
+        opportunityId <= 0
+      ) {
+        return res.status(400).send(
+          "A valid organization, location and opportunity are required."
+        );
+      }
+
+      const escapeHtml = value =>
+        String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+
+      /*
+        Load organization.
+      */
+      const organizationResult = await q(`
+        SELECT
+          id,
+          name,
+          slug,
+          public_heading,
+          public_description,
+          public_logo_url
+
+        FROM organizations
+
+        WHERE LOWER(TRIM(slug)) = $1
+          AND COALESCE(
+            is_active,
+            true
+          ) = true
+
+        LIMIT 1
+      `, [slug]);
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res.status(404).send(
+          "Advertising portal not found."
+        );
+      }
+
+      /*
+        Load and validate location.
+      */
+      const locationResult = await q(`
+        SELECT
+          id,
+          name,
+          location
+
+        FROM spaces
+
+        WHERE id = $1
+          AND organization_id = $2
+          AND COALESCE(
+            is_archived,
+            false
+          ) = false
+
+        LIMIT 1
+      `, [
+        locationId,
+        organization.id
+      ]);
+
+      const location =
+        locationResult.rows[0];
+
+      if (!location) {
+        return res.status(404).send(
+          "Location not found."
+        );
+      }
+
+      /*
+        Load the selected opportunity.
+
+        It must belong to both the organization and
+        selected location, be active, be Available,
+        and be within its availability dates.
+      */
+      const opportunityResult = await q(`
+        SELECT
+          oo.id,
+
+          COALESCE(
+            NULLIF(
+              to_jsonb(oo)->>'opportunity_name',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'name',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'title',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'placement',
+              ''
+            ),
+            'Advertising Opportunity'
+          ) AS opportunity_name,
+
+          COALESCE(
+            NULLIF(
+              to_jsonb(oo)->>'opportunity_group',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'area',
+              ''
+            ),
+            NULLIF(
+              to_jsonb(oo)->>'venue',
+              ''
+            )
+          ) AS opportunity_group,
+
+          NULLIF(
+            to_jsonb(oo)->>'placement',
+            ''
+          ) AS placement,
+
+          NULLIF(
+            to_jsonb(oo)->>'category',
+            ''
+          ) AS category,
+
+          NULLIF(
+            to_jsonb(oo)->>'description',
+            ''
+          ) AS description,
+
+          NULLIF(
+            to_jsonb(oo)->>'price',
+            ''
+          )::numeric AS price,
+
+          COALESCE(
+            NULLIF(
+              to_jsonb(oo)->>'pricing_unit',
+              ''
+            ),
+            'year'
+          ) AS pricing_unit,
+
+          NULLIF(
+            to_jsonb(oo)->>'suggested_term_length',
+            ''
+          )::numeric AS suggested_term_length,
+
+          NULLIF(
+            to_jsonb(oo)->>'suggested_term_unit',
+            ''
+          ) AS suggested_term_unit,
+
+          oo.available_from,
+          oo.available_until
+
+        FROM organization_opportunities oo
+
+        WHERE oo.id = $1
+          AND oo.organization_id = $2
+          AND oo.space_id = $3
+
+          AND COALESCE(
+            oo.is_active,
+            true
+          ) = true
+
+          AND oo.status = 'Available'
+
+          AND (
+            oo.available_from IS NULL
+            OR oo.available_from <= CURRENT_DATE
+          )
+
+          AND (
+            oo.available_until IS NULL
+            OR oo.available_until >= CURRENT_DATE
+          )
+
+        LIMIT 1
+      `, [
+        opportunityId,
+        organization.id,
+        location.id
+      ]);
+
+      const opportunity =
+        opportunityResult.rows[0];
+
+      if (!opportunity) {
+        return res.status(404).send(
+          "This advertising opportunity is no longer available."
+        );
+      }
+
+      const formatMoney = value => {
+        const amount = Number(value);
+
+        if (!Number.isFinite(amount)) {
+          return "Contact for pricing";
+        }
+
+        return new Intl.NumberFormat(
+          "en-US",
+          {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits:
+              Number.isInteger(amount)
+                ? 0
+                : 2
+          }
+        ).format(amount);
+      };
+
+      const formatPricingUnit = value => {
+        const unit = String(
+          value || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const labels = {
+          year: "per year",
+          annual: "per year",
+          month: "per month",
+          monthly: "per month",
+          week: "per week",
+          weekly: "per week",
+          day: "per day",
+          daily: "per day",
+          event: "per event",
+          season: "per season",
+          semester: "per semester",
+          campaign: "per campaign",
+          placement: "per placement",
+          flat: "total investment",
+          one_time: "one-time investment",
+          "one-time": "one-time investment"
+        };
+
+        return labels[unit] ||
+          (
+            unit
+              ? `per ${unit}`
+              : ""
+          );
+      };
+
+      const priceText =
+        opportunity.price !== null
+          ? formatMoney(
+              opportunity.price
+            )
+          : "Contact for pricing";
+
+      const pricingUnitText =
+        opportunity.price !== null
+          ? formatPricingUnit(
+              opportunity.pricing_unit
+            )
+          : "";
+
+      const termText =
+        opportunity.suggested_term_length &&
+        opportunity.suggested_term_unit
+          ? `${opportunity.suggested_term_length} ${opportunity.suggested_term_unit}`
+          : "To be determined";
+
+      const opportunityGroupHtml =
+        opportunity.opportunity_group
+          ? `
+            <div class="summary-row">
+              <div class="summary-label">
+                Area / Venue
+              </div>
+
+              <div class="summary-value">
+                ${escapeHtml(
+                  opportunity.opportunity_group
+                )}
+              </div>
+            </div>
+          `
+          : "";
+
+      const placementHtml =
+        opportunity.placement
+          ? `
+            <div class="summary-row">
+              <div class="summary-label">
+                Placement
+              </div>
+
+              <div class="summary-value">
+                ${escapeHtml(
+                  opportunity.placement
+                )}
+              </div>
+            </div>
+          `
+          : "";
+
+      const categoryHtml =
+        opportunity.category
+          ? `
+            <div class="summary-row">
+              <div class="summary-label">
+                Category
+              </div>
+
+              <div class="summary-value">
+                ${escapeHtml(
+                  opportunity.category
+                )}
+              </div>
+            </div>
+          `
+          : "";
+
+      const locationDetailHtml =
+        location.location
+          ? `
+            <div style="
+              margin-top:6px;
+              color:#65776b;
+              font-size:15px;
+            ">
+              ${escapeHtml(
+                location.location
+              )}
+            </div>
+          `
+          : "";
+
+      const logoHtml =
+        organization.public_logo_url
+          ? `
+            <img
+              src="${escapeHtml(
+                organization.public_logo_url
+              )}"
+              alt="${escapeHtml(
+                organization.name
+              )} logo"
+              style="
+                display:block;
+                max-width:160px;
+                max-height:85px;
+                object-fit:contain;
+                margin:0 auto 18px;
+              "
+            >
+          `
+          : "";
+
+      return res.send(`
+        <!DOCTYPE html>
+
+        <html lang="en">
+
+        <head>
+
+          <meta charset="UTF-8">
+
+          <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1"
+          >
+
+          <title>
+            Advertise With ${escapeHtml(
+              organization.name
+            )}
+          </title>
+
+          <style>
+            * {
+              box-sizing:border-box;
+            }
+
+            body {
+              margin:0;
+              background:#f4f7f5;
+              color:#24382c;
+              font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+            }
+
+            .form-header {
+              background:white;
+              border-bottom:
+                1px solid #d9e1da;
+              padding:30px 20px 34px;
+              text-align:center;
+            }
+
+            .form-main {
+              width:min(
+                1120px,
+                calc(100% - 32px)
+              );
+              margin:0 auto;
+              padding:34px 0 54px;
+            }
+
+            .form-layout {
+              display:grid;
+              grid-template-columns:
+                minmax(280px, 360px)
+                minmax(0, 1fr);
+              gap:24px;
+              align-items:start;
+            }
+
+            .panel {
+              background:white;
+              border:
+                1px solid #dbe5dd;
+              border-radius:18px;
+              padding:24px;
+              box-shadow:
+                0 8px 24px
+                rgba(0,0,0,.05);
+            }
+
+            .summary-panel {
+              position:sticky;
+              top:22px;
+            }
+
+            .summary-row {
+              padding:14px 0;
+              border-bottom:
+                1px solid #e5ebe7;
+            }
+
+            .summary-row:last-child {
+              border-bottom:0;
+            }
+
+            .summary-label {
+              color:#65776b;
+              font-size:12px;
+              font-weight:bold;
+              letter-spacing:.05em;
+              text-transform:uppercase;
+              margin-bottom:5px;
+            }
+
+            .summary-value {
+              color:#24382c;
+              font-size:15px;
+              font-weight:600;
+              line-height:1.45;
+            }
+
+            .form-section {
+              margin-top:28px;
+              padding-top:26px;
+              border-top:
+                1px solid #e2e9e4;
+            }
+
+            .form-section:first-of-type {
+              margin-top:0;
+              padding-top:0;
+              border-top:0;
+            }
+
+            .field-grid {
+              display:grid;
+              grid-template-columns:
+                repeat(
+                  2,
+                  minmax(0, 1fr)
+                );
+              gap:18px;
+            }
+
+            .field {
+              display:flex;
+              flex-direction:column;
+              gap:7px;
+            }
+
+            .field.full-width {
+              grid-column:1 / -1;
+            }
+
+            label {
+              color:#344b3d;
+              font-size:14px;
+              font-weight:bold;
+            }
+
+            input,
+            select,
+            textarea {
+              width:100%;
+              border:
+                1px solid #cbd8ce;
+              border-radius:9px;
+              background:white;
+              color:#24382c;
+              font:inherit;
+              font-size:15px;
+              padding:12px 13px;
+              outline:none;
+            }
+
+            textarea {
+              min-height:100px;
+              resize:vertical;
+            }
+
+            input:focus,
+            select:focus,
+            textarea:focus {
+              border-color:#176b3a;
+              box-shadow:
+                0 0 0 3px
+                rgba(23,107,58,.10);
+            }
+
+            .required {
+              color:#a33232;
+            }
+
+            .agreement {
+              display:flex;
+              align-items:flex-start;
+              gap:11px;
+              margin-top:26px;
+              padding:16px;
+              background:#f3f7f4;
+              border:
+                1px solid #dbe5dd;
+              border-radius:12px;
+            }
+
+            .agreement input {
+              width:auto;
+              margin-top:3px;
+              flex:0 0 auto;
+            }
+
+            .form-actions {
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:14px;
+              margin-top:28px;
+            }
+
+            .back-button,
+            .continue-button {
+              display:inline-flex;
+              align-items:center;
+              justify-content:center;
+              border-radius:9px;
+              padding:12px 18px;
+              font-size:14px;
+              font-weight:bold;
+              text-decoration:none;
+              cursor:pointer;
+            }
+
+            .back-button {
+              border:
+                1px solid #cbd8ce;
+              background:white;
+              color:#344b3d;
+            }
+
+            .continue-button {
+              border:0;
+              background:#176b3a;
+              color:white;
+            }
+
+            @media (
+              max-width:820px
+            ) {
+              .form-layout {
+                grid-template-columns:1fr;
+              }
+
+              .summary-panel {
+                position:static;
+              }
+            }
+
+            @media (
+              max-width:620px
+            ) {
+              .form-main {
+                width:
+                  calc(100% - 24px);
+                padding:
+                  24px 0 40px;
+              }
+
+              .panel {
+                padding:19px;
+              }
+
+              .field-grid {
+                grid-template-columns:1fr;
+              }
+
+              .field.full-width {
+                grid-column:auto;
+              }
+
+              .form-actions {
+                flex-direction:column-reverse;
+                align-items:stretch;
+              }
+
+              .back-button,
+              .continue-button {
+                width:100%;
+              }
+            }
+          </style>
+
+        </head>
+
+        <body>
+
+          <header class="form-header">
+
+            ${logoHtml}
+
+            <div style="
+              color:#176b3a;
+              font-size:13px;
+              font-weight:bold;
+              letter-spacing:.08em;
+              text-transform:uppercase;
+              margin-bottom:9px;
+            ">
+              Advertising Request
+            </div>
+
+            <h1 style="
+              margin:0;
+              color:#24382c;
+              font-size:
+                clamp(
+                  28px,
+                  5vw,
+                  42px
+                );
+            ">
+              Tell Us About Your Business
+            </h1>
+
+            <p style="
+              max-width:680px;
+              margin:14px auto 0;
+              color:#65776b;
+              font-size:16px;
+              line-height:1.6;
+            ">
+              Complete the information below to continue
+              your advertising request.
+            </p>
+
+          </header>
+
+          <main class="form-main">
+
+            <form
+              method="POST"
+              action="/advertise/${encodeURIComponent(
+                organization.slug
+              )}/location/${location.id}/opportunity/${opportunity.id}/review"
+            >
+
+              <input
+                type="hidden"
+                name="organization_id"
+                value="${organization.id}"
+              >
+
+              <input
+                type="hidden"
+                name="location_id"
+                value="${location.id}"
+              >
+
+              <input
+                type="hidden"
+                name="opportunity_id"
+                value="${opportunity.id}"
+              >
+
+              <div class="form-layout">
+
+                <aside class="panel summary-panel">
+
+                  <div style="
+                    color:#176b3a;
+                    font-size:12px;
+                    font-weight:bold;
+                    letter-spacing:.06em;
+                    text-transform:uppercase;
+                    margin-bottom:8px;
+                  ">
+                    Selected Opportunity
+                  </div>
+
+                  <h2 style="
+                    margin:0;
+                    color:#17482f;
+                    font-size:23px;
+                    line-height:1.3;
+                  ">
+                    ${escapeHtml(
+                      opportunity.opportunity_name
+                    )}
+                  </h2>
+
+                  <div style="
+                    margin-top:7px;
+                    color:#52645a;
+                    font-size:15px;
+                    font-weight:600;
+                  ">
+                    ${escapeHtml(
+                      location.name
+                    )}
+                  </div>
+
+                  ${locationDetailHtml}
+
+                  <div style="
+                    margin-top:20px;
+                  ">
+
+                    <div class="summary-row">
+                      <div class="summary-label">
+                        Organization
+                      </div>
+
+                      <div class="summary-value">
+                        ${escapeHtml(
+                          organization.name
+                        )}
+                      </div>
+                    </div>
+
+                    <div class="summary-row">
+                      <div class="summary-label">
+                        Location
+                      </div>
+
+                      <div class="summary-value">
+                        ${escapeHtml(
+                          location.name
+                        )}
+                      </div>
+                    </div>
+
+                    <div class="summary-row">
+                      <div class="summary-label">
+                        Opportunity
+                      </div>
+
+                      <div class="summary-value">
+                        ${escapeHtml(
+                          opportunity.opportunity_name
+                        )}
+                      </div>
+                    </div>
+
+                    ${opportunityGroupHtml}
+                    ${placementHtml}
+                    ${categoryHtml}
+
+                    <div class="summary-row">
+                      <div class="summary-label">
+                        Investment
+                      </div>
+
+                      <div class="summary-value">
+                        ${escapeHtml(
+                          priceText
+                        )}
+
+                        ${
+                          pricingUnitText
+                            ? `
+                              <span style="
+                                color:#65776b;
+                                font-weight:normal;
+                              ">
+                                ${escapeHtml(
+                                  pricingUnitText
+                                )}
+                              </span>
+                            `
+                            : ""
+                        }
+                      </div>
+                    </div>
+
+                    <div class="summary-row">
+                      <div class="summary-label">
+                        Suggested Term
+                      </div>
+
+                      <div class="summary-value">
+                        ${escapeHtml(
+                          termText
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
+
+                </aside>
+
+                <section class="panel">
+
+                  <div class="form-section">
+
+                    <h2 style="
+                      margin:0 0 18px;
+                      color:#17482f;
+                      font-size:23px;
+                    ">
+                      Business Information
+                    </h2>
+
+                    <div class="field-grid">
+
+                      <div class="field full-width">
+                        <label for="business_name">
+                          Business Name
+                          <span class="required">*</span>
+                        </label>
+
+                        <input
+                          id="business_name"
+                          name="business_name"
+                          type="text"
+                          maxlength="160"
+                          autocomplete="organization"
+                          required
+                        >
+                      </div>
+
+                      <div class="field">
+                        <label for="contact_name">
+                          Primary Contact
+                          <span class="required">*</span>
+                        </label>
+
+                        <input
+                          id="contact_name"
+                          name="contact_name"
+                          type="text"
+                          maxlength="160"
+                          autocomplete="name"
+                          required
+                        >
+                      </div>
+
+                      <div class="field">
+                        <label for="email">
+                          Email
+                          <span class="required">*</span>
+                        </label>
+
+                        <input
+                          id="email"
+                          name="email"
+                          type="email"
+                          maxlength="220"
+                          autocomplete="email"
+                          required
+                        >
+                      </div>
+
+                      <div class="field">
+                        <label for="phone">
+                          Phone
+                          <span class="required">*</span>
+                        </label>
+
+                        <input
+                          id="phone"
+                          name="phone"
+                          type="tel"
+                          maxlength="40"
+                          autocomplete="tel"
+                          required
+                        >
+                      </div>
+
+                      <div class="field">
+                        <label for="website">
+                          Website
+                        </label>
+
+                        <input
+                          id="website"
+                          name="website"
+                          type="url"
+                          maxlength="500"
+                          placeholder="https://example.com"
+                          autocomplete="url"
+                        >
+                      </div>
+
+                      <div class="field full-width">
+                        <label for="business_category">
+                          Business Category
+                        </label>
+
+                        <select
+                          id="business_category"
+                          name="business_category"
+                        >
+                          <option value="">
+                            Select a category
+                          </option>
+
+                          <option value="Restaurant">
+                            Restaurant
+                          </option>
+
+                          <option value="Retail">
+                            Retail
+                          </option>
+
+                          <option value="Medical">
+                            Medical
+                          </option>
+
+                          <option value="Legal">
+                            Legal
+                          </option>
+
+                          <option value="Automotive">
+                            Automotive
+                          </option>
+
+                          <option value="Financial">
+                            Financial
+                          </option>
+
+                          <option value="Hospitality">
+                            Hospitality
+                          </option>
+
+                          <option value="Real Estate">
+                            Real Estate
+                          </option>
+
+                          <option value="Home Services">
+                            Home Services
+                          </option>
+
+                          <option value="Professional Services">
+                            Professional Services
+                          </option>
+
+                          <option value="Other">
+                            Other
+                          </option>
+                        </select>
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                  <div class="form-section">
+
+                    <h2 style="
+                      margin:0 0 7px;
+                      color:#17482f;
+                      font-size:23px;
+                    ">
+                      Campaign Information
+                    </h2>
+
+                    <p style="
+                      margin:0 0 18px;
+                      color:#65776b;
+                      font-size:14px;
+                      line-height:1.6;
+                    ">
+                      Provide the basic campaign details.
+                      Additional scheduling and setup will
+                      occur after approval.
+                    </p>
+
+                    <div class="field-grid">
+
+                      <div class="field full-width">
+                        <label for="campaign_name">
+                          Campaign Name
+                        </label>
+
+                        <input
+                          id="campaign_name"
+                          name="campaign_name"
+                          type="text"
+                          maxlength="180"
+                          placeholder="Example: Fall Sponsorship Campaign"
+                        >
+                      </div>
+
+                      <div class="field full-width">
+                        <label for="destination_url">
+                          Destination Website
+                          <span class="required">*</span>
+                        </label>
+
+                        <input
+                          id="destination_url"
+                          name="destination_url"
+                          type="url"
+                          maxlength="1000"
+                          placeholder="https://example.com"
+                          required
+                        >
+                      </div>
+
+                      <div class="field">
+                        <label for="call_to_action">
+                          Call to Action
+                        </label>
+
+                        <select
+                          id="call_to_action"
+                          name="call_to_action"
+                        >
+                          <option value="">
+                            Select an option
+                          </option>
+
+                          <option value="Learn More">
+                            Learn More
+                          </option>
+
+                          <option value="Shop Now">
+                            Shop Now
+                          </option>
+
+                          <option value="Book Now">
+                            Book Now
+                          </option>
+
+                          <option value="Call Today">
+                            Call Today
+                          </option>
+
+                          <option value="Order Online">
+                            Order Online
+                          </option>
+
+                          <option value="Get a Quote">
+                            Get a Quote
+                          </option>
+
+                          <option value="Visit Website">
+                            Visit Website
+                          </option>
+                        </select>
+                      </div>
+
+                      <div class="field">
+                        <label for="offer">
+                          Offer
+                        </label>
+
+                        <input
+                          id="offer"
+                          name="offer"
+                          type="text"
+                          maxlength="240"
+                          placeholder="Example: 10% off"
+                        >
+                      </div>
+
+                      <div class="field full-width">
+                        <label for="campaign_notes">
+                          Additional Information
+                        </label>
+
+                        <textarea
+                          id="campaign_notes"
+                          name="campaign_notes"
+                          maxlength="2000"
+                          placeholder="Anything else the organization should know about your request?"
+                        ></textarea>
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                  <label class="agreement">
+
+                    <input
+                      type="checkbox"
+                      name="approval_acknowledgement"
+                      value="yes"
+                      required
+                    >
+
+                    <span style="
+                      color:#52645a;
+                      font-size:14px;
+                      line-height:1.55;
+                    ">
+                      I understand that this advertising
+                      request is subject to approval by
+                      ${escapeHtml(
+                        organization.name
+                      )}.
+                    </span>
+
+                  </label>
+
+                  <div class="form-actions">
+
+                    <a
+                      href="/advertise/${encodeURIComponent(
+                        organization.slug
+                      )}/location/${location.id}"
+                      class="back-button"
+                    >
+                      ← Back
+                    </a>
+
+                    <button
+                      type="submit"
+                      class="continue-button"
+                    >
+                      Continue to Review →
+                    </button>
+
+                  </div>
+
+                </section>
+
+              </div>
+
+            </form>
+
+          </main>
+
+        </body>
+
+        </html>
+      `);
+
+    } catch (err) {
+      console.error(
+        "PUBLIC ADVERTISER INFORMATION ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load the advertiser information form."
+      );
+    }
+  }
+);
 app.get("/dashboard", requireLogin, async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
