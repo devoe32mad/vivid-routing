@@ -9836,129 +9836,378 @@ const statusStyle = status => {
 
               </div>
 
-              <section style="
-                display:grid;
-                grid-template-columns:
-                  repeat(
-                    auto-fit,
-                    minmax(190px,1fr)
-                  );
-                gap:18px;
-                margin-bottom:24px;
-              ">
+              <section class="dashboard-summary-grid">
 
-                <div class="
-                  marketplace-card
-                ">
-               <div class="
-  marketplace-label
-  summary-label
-">
-  <span>
-    Pending Review
-  </span>
+  <!-- TOTAL OPPORTUNITIES -->
 
-  ${infoIcon(
-    "Advertising requests waiting for the organization to approve or reject them."
-  )}
-</div>
+  <a
+    href="${marketplaceUrl("")}"
+    class="
+      marketplace-card
+      dashboard-summary-card
+    "
+  >
+    <div class="
+      marketplace-label
+      summary-label
+    ">
+      <span>
+        Total Opportunities
+      </span>
 
-                  <div style="
-                    font-size:34px;
-                    font-weight:bold;
-                    margin-top:8px;
-                  ">
-                    ${Number(
-                      summary.pending_count ||
-                      0
-                    )}
-                  </div>
-                </div>
+      ${infoIcon(
+        "The total number of active advertising opportunities created by the organization."
+      )}
+    </div>
 
-                <div class="
-                  marketplace-card
-                ">
-               <div class="
-  marketplace-label
-  summary-label
-">
-  <span>
-    Approved
-  </span>
+    <div class="dashboard-summary-number">
+      ${Number(
+        opportunitySummary.total_opportunities ||
+        0
+      )}
+    </div>
+  </a>
 
-  ${infoIcon(
-    "Requests approved by the organization that are ready for advertiser setup and campaign launch."
-  )}
-</div>
+  <!-- AVAILABLE -->
 
-                  <div style="
-                    font-size:34px;
-                    font-weight:bold;
-                    margin-top:8px;
-                  ">
-                    ${Number(
-                      summary.approved_count ||
-                      0
-                    )}
-                  </div>
-                </div>
+  <a
+    href="${marketplaceUrl("Available")}"
+    class="
+      marketplace-card
+      dashboard-summary-card
+    "
+  >
+    <div class="
+      marketplace-label
+      summary-label
+    ">
+      <span>
+        Available
+      </span>
 
-                <div class="
-                  marketplace-card
-                ">
-                <div class="
-  marketplace-label
-  summary-label
-">
-  <span>
-    Rejected
-  </span>
+      ${infoIcon(
+        "Advertising opportunities that are currently active and available for an advertiser to request."
+      )}
+    </div>
 
-  ${infoIcon(
-    "Advertising requests that were declined by the organization."
-  )}
-</div>
+    <div class="dashboard-summary-number">
+      ${Number(
+        opportunitySummary.available_count ||
+        0
+      )}
+    </div>
+  </a>
 
-                  <div style="
-                    font-size:34px;
-                    font-weight:bold;
-                    margin-top:8px;
-                  ">
-                    ${Number(
-                      summary.rejected_count ||
-                      0
-                    )}
-                  </div>
-                </div>
+  <!-- PENDING REVIEW -->
 
-                <div class="
-                  marketplace-card
-                ">
-<div class="
-  marketplace-label
-  summary-label
-">
-  <span>
-    Available Revenue
-  </span>
+  <a
+    href="${requestStatusUrl("Pending")}"
+    class="
+      marketplace-card
+      dashboard-summary-card
+      ${cardSelected("Pending")}
+    "
+  >
+    <div class="
+      marketplace-label
+      summary-label
+    ">
+      <span>
+        Pending Review
+      </span>
 
-  ${infoIcon(
-    "The total value of pending and approved advertising requests that have not yet become live campaigns."
-  )}
-</div>
+      ${infoIcon(
+        "Advertising requests waiting for the organization to approve or reject them."
+      )}
+    </div>
 
-                  <div style="
-                    font-size:34px;
-                    font-weight:bold;
-                    margin-top:8px;
-                  ">
-                    ${formatMoney(
-                      summary.pipeline_value
-                    )}
-                  </div>
-                </div>
+    <div class="dashboard-summary-number">
+      ${Number(
+        requestSummary.pending_count ||
+        0
+      )}
+    </div>
+  </a>
 
-              </section>
+  <!-- APPROVED -->
+
+  <a
+    href="${requestStatusUrl("Approved")}"
+    class="
+      marketplace-card
+      dashboard-summary-card
+      ${cardSelected("Approved")}
+    "
+  >
+    <div class="
+      marketplace-label
+      summary-label
+    ">
+      <span>
+        Approved
+      </span>
+
+      ${infoIcon(
+        "Advertising requests approved by the organization and ready for advertiser setup."
+      )}
+    </div>
+
+    <div class="dashboard-summary-number">
+      ${Number(
+        requestSummary.approved_count ||
+        0
+      )}
+    </div>
+  </a>
+
+  <!-- REJECTED -->
+
+  <a
+    href="${requestStatusUrl("Rejected")}"
+    class="
+      marketplace-card
+      dashboard-summary-card
+      ${cardSelected("Rejected")}
+    "
+  >
+    <div class="
+      marketplace-label
+      summary-label
+    ">
+      <span>
+        Rejected
+      </span>
+
+      ${infoIcon(
+        "Advertising requests declined by the organization."
+      )}
+    </div>
+
+    <div class="dashboard-summary-number">
+      ${Number(
+        requestSummary.rejected_count ||
+        0
+      )}
+    </div>
+  </a>
+
+  <!-- CLOSED -->
+
+  <a
+    href="${requestStatusUrl("Closed")}"
+    class="
+      marketplace-card
+      dashboard-summary-card
+      ${cardSelected("Closed")}
+    "
+  >
+    <div class="
+      marketplace-label
+      summary-label
+    ">
+      <span>
+        Closed
+      </span>
+
+      ${infoIcon(
+        "Approved requests that completed advertiser setup and became secured business."
+      )}
+    </div>
+
+    <div class="dashboard-summary-number">
+      ${Number(
+        requestSummary.closed_count ||
+        0
+      )}
+    </div>
+  </a>
+
+  <!-- TOTAL INVENTORY VALUE -->
+
+  <a
+    href="${marketplaceUrl("")}"
+    class="
+      marketplace-card
+      dashboard-summary-card
+      dashboard-revenue-card
+    "
+  >
+    <div class="
+      marketplace-label
+      summary-label
+    ">
+      <span>
+        Total Inventory Value
+      </span>
+
+      ${infoIcon(
+        "The combined listed value of all active advertising opportunities."
+      )}
+    </div>
+
+    <div class="dashboard-summary-revenue">
+      ${formatMoney(
+        opportunitySummary.total_inventory_value
+      )}
+    </div>
+  </a>
+
+  <!-- AVAILABLE REVENUE -->
+
+  <a
+    href="${marketplaceUrl("Available")}"
+    class="
+      marketplace-card
+      dashboard-summary-card
+      dashboard-revenue-card
+    "
+  >
+    <div class="
+      marketplace-label
+      summary-label
+    ">
+      <span>
+        Available Revenue
+      </span>
+
+      ${infoIcon(
+        "The combined value of all advertising opportunities that are currently available to sell."
+      )}
+    </div>
+
+    <div class="dashboard-summary-revenue">
+      ${formatMoney(
+        opportunitySummary.available_revenue
+      )}
+    </div>
+  </a>
+
+  <!-- PENDING REVENUE -->
+
+  <a
+    href="${requestStatusUrl("Pending")}"
+    class="
+      marketplace-card
+      dashboard-summary-card
+      dashboard-revenue-card
+      ${cardSelected("Pending")}
+    "
+  >
+    <div class="
+      marketplace-label
+      summary-label
+    ">
+      <span>
+        Pending Revenue
+      </span>
+
+      ${infoIcon(
+        "The combined value of advertising requests currently waiting for review."
+      )}
+    </div>
+
+    <div class="dashboard-summary-revenue">
+      ${formatMoney(
+        requestSummary.pending_revenue
+      )}
+    </div>
+  </a>
+
+  <!-- APPROVED REVENUE -->
+
+  <a
+    href="${requestStatusUrl("Approved")}"
+    class="
+      marketplace-card
+      dashboard-summary-card
+      dashboard-revenue-card
+      ${cardSelected("Approved")}
+    "
+  >
+    <div class="
+      marketplace-label
+      summary-label
+    ">
+      <span>
+        Approved Revenue
+      </span>
+
+      ${infoIcon(
+        "The combined value of requests approved by the organization and awaiting completion."
+      )}
+    </div>
+
+    <div class="dashboard-summary-revenue">
+      ${formatMoney(
+        requestSummary.approved_revenue
+      )}
+    </div>
+  </a>
+
+  <!-- REJECTED REVENUE -->
+
+  <a
+    href="${requestStatusUrl("Rejected")}"
+    class="
+      marketplace-card
+      dashboard-summary-card
+      dashboard-revenue-card
+      ${cardSelected("Rejected")}
+    "
+  >
+    <div class="
+      marketplace-label
+      summary-label
+    ">
+      <span>
+        Rejected Revenue
+      </span>
+
+      ${infoIcon(
+        "The combined value of advertising requests declined by the organization."
+      )}
+    </div>
+
+    <div class="dashboard-summary-revenue">
+      ${formatMoney(
+        requestSummary.rejected_revenue
+      )}
+    </div>
+  </a>
+
+  <!-- CLOSED REVENUE -->
+
+  <a
+    href="${requestStatusUrl("Closed")}"
+    class="
+      marketplace-card
+      dashboard-summary-card
+      dashboard-revenue-card
+      ${cardSelected("Closed")}
+    "
+  >
+    <div class="
+      marketplace-label
+      summary-label
+    ">
+      <span>
+        Closed Revenue
+      </span>
+
+      ${infoIcon(
+        "Revenue from requests that completed setup and became secured business."
+      )}
+    </div>
+
+    <div class="dashboard-summary-revenue">
+      ${formatMoney(
+        requestSummary.closed_revenue
+      )}
+    </div>
+  </a>
+
+</section>
+
 
               <section
                 class="marketplace-card"
