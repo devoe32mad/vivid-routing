@@ -11200,6 +11200,636 @@ ${infoIcon(
     }
   }
 );
+/*
+=========================================================
+ORGANIZATION ADVERTISING REQUEST DETAIL
+
+Single request review page.
+
+Sources of truth:
+
+organization_advertising_requests
+- advertiser submission
+- contact information
+- campaign information
+- submission date
+- request workflow information
+
+organization_opportunities
+- opportunity identity
+- current inventory status
+- current inventory price
+
+Supports:
+- Organization Portal users
+- Super Admin users
+=========================================================
+*/
+
+app.get(
+  "/org-advertising-request/:requestId",
+  async (req, res) => {
+    try {
+      const requestId = Number(
+        req.params.requestId
+      );
+
+      if (
+        !Number.isInteger(requestId) ||
+        requestId <= 0
+      ) {
+        return res.status(400).send(
+          "A valid advertising request is required."
+        );
+      }
+
+      let organizationId = null;
+
+      /*
+        Organization Portal access.
+      */
+      if (
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      /*
+        Super Admin access.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role ===
+          "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res.status(403).send(
+          "Advertising Request access denied."
+        );
+      }
+
+      const escapeHtml = value =>
+        String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+
+      const formatMoney = value =>
+        "$" +
+        Number(value || 0).toLocaleString(
+          "en-US",
+          {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          }
+        );
+
+      const formatDate = value => {
+        if (!value) {
+          return "—";
+        }
+
+        const date = new Date(value);
+
+        if (
+          Number.isNaN(date.getTime())
+        ) {
+          return "—";
+        }
+
+        return date.toLocaleDateString(
+          "en-US",
+          {
+            month: "short",
+            day: "numeric",
+            year: "numeric"
+          }
+        );
+      };
+
+      /*
+        One query supplies the complete detail page.
+
+        Request fields come from r.
+        Current opportunity fields come from oo.
+      */
+      const detailResult = await q(
+        `
+          SELECT
+            r.id AS request_id,
+            r.organization_id,
+            r.location_id,
+            r.opportunity_id,
+
+            o.name AS organization_name,
+            s.name AS location_name,
+
+            COALESCE(
+              oo.title,
+              r.opportunity_name
+            ) AS opportunity_name,
+
+            COALESCE(
+              oo.description,
+              r.opportunity_description
+            ) AS opportunity_description,
+
+            COALESCE(
+              oo.category,
+              r.opportunity_category
+            ) AS opportunity_category,
+
+            COALESCE(
+              oo.status,
+              r.status
+            ) AS opportunity_status,
+
+            r.status AS request_status,
+
+            COALESCE(
+              oo.annual_price,
+              oo.price,
+              r.price,
+              0
+            ) AS price,
+
+            COALESCE(
+              oo.pricing_unit,
+              r.pricing_unit
+            ) AS pricing_unit,
+
+            r.business_name,
+            r.contact_name,
+            r.email,
+            r.phone,
+            r.website,
+            r.business_category,
+
+            r.campaign_name,
+            r.destination_url,
+            r.campaign_notes,
+
+            r.setup_status,
+            r.internal_notes,
+            r.rejection_reason,
+
+            r.submitted_at,
+            r.approved_at,
+            r.rejected_at,
+            r.setup_started_at,
+            r.setup_completed_at
+
+          FROM organization_advertising_requests r
+
+          JOIN organizations o
+            ON o.id = r.organization_id
+
+          LEFT JOIN spaces s
+            ON s.id = r.location_id
+           AND s.organization_id =
+               r.organization_id
+
+          LEFT JOIN organization_opportunities oo
+            ON oo.id = r.opportunity_id
+           AND oo.organization_id =
+               r.organization_id
+           AND oo.space_id =
+               r.location_id
+
+          WHERE r.id = $1
+            AND r.organization_id = $2
+
+          LIMIT 1
+        `,
+        [
+          requestId,
+          organizationId
+        ]
+      );
+
+      const request =
+        detailResult.rows[0];
+
+      if (!request) {
+        return res.status(404).send(
+          "Advertising request not found."
+        );
+      }
+
+      const pricingUnit =
+        String(
+          request.pricing_unit || ""
+        )
+          .replace(/^Per\s+/i, "")
+          .trim();
+
+      const investmentLabel =
+        pricingUnit
+          ? `${formatMoney(
+              request.price
+            )} / ${escapeHtml(
+              pricingUnit
+            )}`
+          : formatMoney(
+              request.price
+            );
+
+      const status =
+        request.opportunity_status ||
+        request.request_status ||
+        "Pending";
+
+      const backUrl =
+        `/org-advertising-requests${
+          req.session.user?.role ===
+          "super_admin"
+            ? `?organization_id=${organizationId}`
+            : ""
+        }`;
+
+      return res.send(
+        marketplacePage(
+          `${request.business_name} Advertising Request`,
+          `
+            <div class="marketplace-topbar">
+
+              <div class="marketplace-brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Advertising Request
+              </h1>
+
+              <p class="marketplace-subtitle">
+                Review the advertiser submission and
+                selected advertising opportunity.
+              </p>
+
+            </div>
+
+            <main class="marketplace-wrap">
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:16px;
+                flex-wrap:wrap;
+                margin-bottom:24px;
+              ">
+
+                <div>
+                  <span class="marketplace-preview">
+                    ${escapeHtml(status)}
+                  </span>
+
+                  <h2 style="
+                    margin:8px 0 0;
+                    font-size:30px;
+                  ">
+                    ${escapeHtml(
+                      request.business_name
+                    )}
+                  </h2>
+                </div>
+
+                <a
+                  class="
+                    marketplace-btn
+                    secondary
+                  "
+                  href="${backUrl}"
+                >
+                  Back to Advertising Requests
+                </a>
+
+              </div>
+
+              <section
+                class="marketplace-grid"
+                style="
+                  grid-template-columns:
+                    repeat(
+                      auto-fit,
+                      minmax(300px,1fr)
+                    );
+                "
+              >
+
+                <article class="marketplace-card">
+
+                  <h2 style="margin-top:0;">
+                    Advertising Opportunity
+                  </h2>
+
+                  <div class="marketplace-label">
+                    Opportunity
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${escapeHtml(
+                      request.opportunity_name
+                    )}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Organization
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${escapeHtml(
+                      request.organization_name
+                    )}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Location
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${escapeHtml(
+                      request.location_name ||
+                      "Not assigned"
+                    )}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Investment
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${investmentLabel}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Current Opportunity Status
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${escapeHtml(status)}
+                  </div>
+
+                  ${
+                    request.opportunity_description
+                      ? `
+                          <div class="marketplace-label">
+                            Description
+                          </div>
+
+                          <div style="
+                            line-height:1.6;
+                            color:#52645a;
+                          ">
+                            ${escapeHtml(
+                              request.opportunity_description
+                            )}
+                          </div>
+                        `
+                      : ""
+                  }
+
+                </article>
+
+                <article class="marketplace-card">
+
+                  <h2 style="margin-top:0;">
+                    Business Information
+                  </h2>
+
+                  <div class="marketplace-label">
+                    Business
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${escapeHtml(
+                      request.business_name
+                    )}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Contact
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${escapeHtml(
+                      request.contact_name
+                    )}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Email
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${escapeHtml(
+                      request.email
+                    )}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Phone
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${escapeHtml(
+                      request.phone
+                    )}
+                  </div>
+
+                  ${
+                    request.website
+                      ? `
+                          <div class="marketplace-label">
+                            Website
+                          </div>
+
+                          <div class="marketplace-value">
+                            ${escapeHtml(
+                              request.website
+                            )}
+                          </div>
+                        `
+                      : ""
+                  }
+
+                  ${
+                    request.business_category
+                      ? `
+                          <div class="marketplace-label">
+                            Business Category
+                          </div>
+
+                          <div class="marketplace-value">
+                            ${escapeHtml(
+                              request.business_category
+                            )}
+                          </div>
+                        `
+                      : ""
+                  }
+
+                </article>
+
+                <article class="marketplace-card">
+
+                  <h2 style="margin-top:0;">
+                    Campaign Information
+                  </h2>
+
+                  <div class="marketplace-label">
+                    Campaign
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${escapeHtml(
+                      request.campaign_name ||
+                      "Not provided"
+                    )}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Destination URL
+                  </div>
+
+                  <div style="
+                    overflow-wrap:anywhere;
+                    line-height:1.5;
+                    margin-bottom:18px;
+                  ">
+                    ${escapeHtml(
+                      request.destination_url ||
+                      "Not provided"
+                    )}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Campaign Notes
+                  </div>
+
+                  <div style="
+                    line-height:1.6;
+                    color:#52645a;
+                  ">
+                    ${escapeHtml(
+                      request.campaign_notes ||
+                      "No campaign notes provided."
+                    )}
+                  </div>
+
+                </article>
+
+                <article class="marketplace-card">
+
+                  <h2 style="margin-top:0;">
+                    Request Workflow
+                  </h2>
+
+                  <div class="marketplace-label">
+                    Request ID
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${request.request_id}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Request Status
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${escapeHtml(
+                      request.request_status
+                    )}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Setup Status
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${escapeHtml(
+                      request.setup_status ||
+                      "Not Started"
+                    )}
+                  </div>
+
+                  <div class="marketplace-label">
+                    Submitted
+                  </div>
+
+                  <div class="marketplace-value">
+                    ${formatDate(
+                      request.submitted_at
+                    )}
+                  </div>
+
+                  ${
+                    request.approved_at
+                      ? `
+                          <div class="marketplace-label">
+                            Approved
+                          </div>
+
+                          <div class="marketplace-value">
+                            ${formatDate(
+                              request.approved_at
+                            )}
+                          </div>
+                        `
+                      : ""
+                  }
+
+                  ${
+                    request.rejected_at
+                      ? `
+                          <div class="marketplace-label">
+                            Rejected
+                          </div>
+
+                          <div class="marketplace-value">
+                            ${formatDate(
+                              request.rejected_at
+                            )}
+                          </div>
+                        `
+                      : ""
+                  }
+
+                </article>
+
+              </section>
+
+            </main>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "ORGANIZATION ADVERTISING REQUEST DETAIL ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load Advertising Request: " +
+        err.message
+      );
+    }
+  }
+);
 app.get(
   "/org-marketplace",
   async (req, res) => {
