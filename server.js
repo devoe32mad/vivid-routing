@@ -1640,22 +1640,16 @@ ON organization_opportunities
 /*
 =========================================================
 ORGANIZATION ADVERTISING REQUESTS
+Migration-safe request and advertiser setup foundation
 =========================================================
+*/
 
-Stores the advertiser's complete public submission.
+/*
+Create the full table for a brand-new database.
 
-This is the source record for:
-
-- Organization review
-- Location approval
-- Advertiser setup
-- QR setup
-- Campaign setup
-- Schedule setup
-
-No live Vivid Core records are created until the
-request reaches the approved setup workflow.
-=========================================================
+If the table already exists, PostgreSQL leaves it intact.
+The ALTER statements below then add every newer field
+that may be missing from an existing production database.
 */
 
 await q(`
@@ -1672,12 +1666,6 @@ await q(`
     opportunity_id INTEGER
       REFERENCES organization_opportunities(id),
 
-    /*
-    -------------------------------------------------------
-    ADVERTISER INFORMATION
-    -------------------------------------------------------
-    */
-
     business_name TEXT NOT NULL,
 
     contact_name TEXT NOT NULL,
@@ -1690,27 +1678,11 @@ await q(`
 
     business_category TEXT,
 
-    /*
-    -------------------------------------------------------
-    INITIAL CAMPAIGN INFORMATION
-    -------------------------------------------------------
-    */
-
     campaign_name TEXT,
 
     destination_url TEXT NOT NULL,
 
     campaign_notes TEXT,
-
-    /*
-    -------------------------------------------------------
-    OPPORTUNITY SNAPSHOT
-
-    These values preserve exactly what the advertiser
-    selected even if the organization later edits the
-    original Marketplace opportunity.
-    -------------------------------------------------------
-    */
 
     opportunity_name TEXT NOT NULL,
 
@@ -1730,73 +1702,7 @@ await q(`
 
     suggested_term_unit TEXT,
 
-    /*
-    -------------------------------------------------------
-    REQUEST WORKFLOW
-    -------------------------------------------------------
-    */
-
     status TEXT NOT NULL DEFAULT 'Pending',
-
-    assigned_organization_user_id INTEGER
-      REFERENCES organization_users(id),
-
-    internal_notes TEXT,
-
-    rejection_reason TEXT,
-
-    approved_by_organization_user_id INTEGER
-      REFERENCES organization_users(id),
-
-    approved_at TIMESTAMP,
-
-    rejected_at TIMESTAMP,
-
-    /*
-    -------------------------------------------------------
-    ADVERTISER SETUP WORKFLOW
-    -------------------------------------------------------
-    */
-
-    setup_status TEXT NOT NULL DEFAULT 'Not Started',
-
-    setup_token TEXT UNIQUE,
-
-    setup_token_expires_at TIMESTAMP,
-
-    setup_started_at TIMESTAMP,
-
-    setup_completed_at TIMESTAMP,
-
-    /*
-    -------------------------------------------------------
-    CREATED VIVID RECORDS
-
-    These remain NULL until the approved advertiser setup
-    process creates the permanent Vivid Core records.
-    -------------------------------------------------------
-    */
-
-    created_advertiser_id INTEGER
-      REFERENCES advertisers(id),
-
-    created_contract_id INTEGER
-      REFERENCES contracts(id),
-
-    created_campaign_id INTEGER
-      REFERENCES campaigns(id),
-
-    created_qr_id INTEGER
-      REFERENCES qr_codes(id),
-
-    created_schedule_id INTEGER
-      REFERENCES campaign_schedules(id),
-
-    /*
-    -------------------------------------------------------
-    AUDIT DATES
-    -------------------------------------------------------
-    */
 
     submitted_at TIMESTAMP
       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1811,6 +1717,117 @@ await q(`
 
 /*
 =========================================================
+UPGRADE EXISTING ADVERTISING REQUEST TABLE
+=========================================================
+
+These statements are safe to run on every deployment.
+They preserve all existing requests and only add fields
+that do not already exist.
+*/
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS assigned_organization_user_id INTEGER
+    REFERENCES organization_users(id)
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS internal_notes TEXT
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS rejection_reason TEXT
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS approved_by_organization_user_id INTEGER
+    REFERENCES organization_users(id)
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMP
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS setup_status TEXT
+    NOT NULL DEFAULT 'Not Started'
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS setup_token TEXT
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS setup_token_expires_at TIMESTAMP
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS setup_started_at TIMESTAMP
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS setup_completed_at TIMESTAMP
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS created_advertiser_id INTEGER
+    REFERENCES advertisers(id)
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS created_contract_id INTEGER
+    REFERENCES contracts(id)
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS created_campaign_id INTEGER
+    REFERENCES campaigns(id)
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS created_qr_id INTEGER
+    REFERENCES qr_codes(id)
+`);
+
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS created_schedule_id INTEGER
+    REFERENCES campaign_schedules(id)
+`);
+
+/*
+Normalize any legacy rows before indexes are created.
+*/
+
+await q(`
+  UPDATE organization_advertising_requests
+
+  SET setup_status = 'Not Started'
+
+  WHERE setup_status IS NULL
+     OR TRIM(setup_status) = ''
+`);
+
+/*
+=========================================================
 ADVERTISING REQUEST INDEXES
 =========================================================
 */
@@ -1818,6 +1835,7 @@ ADVERTISING REQUEST INDEXES
 await q(`
   CREATE INDEX IF NOT EXISTS
   idx_advertising_requests_organization
+
   ON organization_advertising_requests (
     organization_id
   )
@@ -1826,6 +1844,7 @@ await q(`
 await q(`
   CREATE INDEX IF NOT EXISTS
   idx_advertising_requests_location
+
   ON organization_advertising_requests (
     location_id
   )
@@ -1834,6 +1853,7 @@ await q(`
 await q(`
   CREATE INDEX IF NOT EXISTS
   idx_advertising_requests_opportunity
+
   ON organization_advertising_requests (
     opportunity_id
   )
@@ -1842,6 +1862,7 @@ await q(`
 await q(`
   CREATE INDEX IF NOT EXISTS
   idx_advertising_requests_status
+
   ON organization_advertising_requests (
     status
   )
@@ -1850,6 +1871,7 @@ await q(`
 await q(`
   CREATE INDEX IF NOT EXISTS
   idx_advertising_requests_setup_status
+
   ON organization_advertising_requests (
     setup_status
   )
@@ -1858,10 +1880,23 @@ await q(`
 await q(`
   CREATE INDEX IF NOT EXISTS
   idx_advertising_requests_email
+
   ON organization_advertising_requests (
     LOWER(email)
   )
 `);
+
+await q(`
+  CREATE UNIQUE INDEX IF NOT EXISTS
+  idx_advertising_requests_setup_token_unique
+
+  ON organization_advertising_requests (
+    setup_token
+  )
+
+  WHERE setup_token IS NOT NULL
+`);
+
 }
 
 function daysBetween(startDate, endDate) {
