@@ -2877,6 +2877,351 @@ app.get("/debug-qr-assignments/:qrId", requireLogin, async (req, res) => {
     res.status(500).send("DEBUG QR ASSIGNMENTS ERROR: " + err.message);
   }
 });
+/*
+=========================================================
+DEBUG — ADVERTISING REQUEST ACCESS AND INVENTORY CONTEXT
+
+Supports:
+- Organization Portal users
+- Super Admin users
+
+Remove after testing.
+=========================================================
+*/
+
+app.get(
+  "/debug-org-advertising-requests",
+  async (req, res) => {
+    try {
+      const orgSession =
+        req.session.orgUser || null;
+
+      const adminSession =
+        req.session.user || null;
+
+      let organizationId = null;
+      let accessSource = null;
+
+      /*
+        Organization user context.
+      */
+      if (orgSession?.organization_id) {
+        organizationId = Number(
+          orgSession.organization_id
+        );
+
+        accessSource =
+          "organization_session";
+      }
+
+      /*
+        Super Admin context.
+      */
+      if (
+        !organizationId &&
+        adminSession?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+
+        accessSource =
+          "super_admin_query_parameter";
+      }
+
+      const validOrganizationId =
+        Number.isInteger(organizationId) &&
+        organizationId > 0;
+
+      let organization = null;
+      let locations = [];
+      let opportunities = [];
+      let requests = [];
+      let opportunitySummary = null;
+      let requestSummary = null;
+
+      if (validOrganizationId) {
+        const organizationResult = await q(`
+          SELECT
+            id,
+            name,
+            customer_id,
+            is_active
+
+          FROM organizations
+
+          WHERE id = $1
+
+          LIMIT 1
+        `, [organizationId]);
+
+        organization =
+          organizationResult.rows[0] || null;
+
+        const locationsResult = await q(`
+          SELECT
+            id,
+            name,
+            organization_id,
+            is_archived
+
+          FROM spaces
+
+          WHERE organization_id = $1
+
+          ORDER BY name
+        `, [organizationId]);
+
+        locations =
+          locationsResult.rows;
+
+        const opportunitiesResult = await q(`
+          SELECT
+            oo.id,
+            oo.organization_id,
+            oo.space_id,
+            s.name AS location_name,
+            oo.title,
+            oo.status,
+            oo.is_active,
+            oo.price,
+            oo.annual_price,
+            oo.available_from,
+            oo.available_until
+
+          FROM organization_opportunities oo
+
+          LEFT JOIN spaces s
+            ON s.id = oo.space_id
+
+          WHERE oo.organization_id = $1
+
+          ORDER BY
+            s.name,
+            oo.title
+        `, [organizationId]);
+
+        opportunities =
+          opportunitiesResult.rows;
+
+        const requestsResult = await q(`
+          SELECT
+            r.id,
+            r.organization_id,
+            r.location_id,
+            r.opportunity_id,
+            r.business_name,
+            r.status,
+            r.price,
+            r.submitted_at
+
+          FROM organization_advertising_requests r
+
+          WHERE r.organization_id = $1
+
+          ORDER BY
+            r.submitted_at DESC,
+            r.id DESC
+
+          LIMIT 25
+        `, [organizationId]);
+
+        requests =
+          requestsResult.rows;
+
+        const opportunitySummaryResult =
+          await q(`
+            SELECT
+              COUNT(*) FILTER (
+                WHERE COALESCE(
+                  is_active,
+                  true
+                ) = true
+              )::integer
+                AS total_opportunities,
+
+              COUNT(*) FILTER (
+                WHERE COALESCE(
+                  is_active,
+                  true
+                ) = true
+
+                AND LOWER(
+                  COALESCE(status, '')
+                ) = 'available'
+              )::integer
+                AS available_opportunities,
+
+              COALESCE(
+                SUM(
+                  COALESCE(
+                    price,
+                    annual_price,
+                    0
+                  )
+                ) FILTER (
+                  WHERE COALESCE(
+                    is_active,
+                    true
+                  ) = true
+                ),
+                0
+              ) AS total_inventory_value,
+
+              COALESCE(
+                SUM(
+                  COALESCE(
+                    price,
+                    annual_price,
+                    0
+                  )
+                ) FILTER (
+                  WHERE COALESCE(
+                    is_active,
+                    true
+                  ) = true
+
+                  AND LOWER(
+                    COALESCE(status, '')
+                  ) = 'available'
+                ),
+                0
+              ) AS available_inventory_value
+
+            FROM organization_opportunities
+
+            WHERE organization_id = $1
+          `, [organizationId]);
+
+        opportunitySummary =
+          opportunitySummaryResult.rows[0] ||
+          null;
+
+        const requestSummaryResult =
+          await q(`
+            SELECT
+              COUNT(*)::integer
+                AS total_requests,
+
+              COUNT(*) FILTER (
+                WHERE LOWER(
+                  COALESCE(status, '')
+                ) = 'pending'
+              )::integer
+                AS pending_requests,
+
+              COUNT(*) FILTER (
+                WHERE LOWER(
+                  COALESCE(status, '')
+                ) = 'approved'
+              )::integer
+                AS approved_requests,
+
+              COUNT(*) FILTER (
+                WHERE LOWER(
+                  COALESCE(status, '')
+                ) = 'rejected'
+              )::integer
+                AS rejected_requests,
+
+              COUNT(*) FILTER (
+                WHERE LOWER(
+                  COALESCE(status, '')
+                ) = 'closed'
+              )::integer
+                AS closed_requests
+
+            FROM organization_advertising_requests
+
+            WHERE organization_id = $1
+          `, [organizationId]);
+
+        requestSummary =
+          requestSummaryResult.rows[0] ||
+          null;
+      }
+
+      return res.json({
+        debug_route:
+          "/debug-org-advertising-requests",
+
+        access: {
+          access_source: accessSource,
+          resolved_organization_id:
+            organizationId,
+          valid_organization_id:
+            validOrganizationId,
+
+          query_organization_id:
+            req.query.organization_id ||
+            null
+        },
+
+        sessions: {
+          organization_user: orgSession
+            ? {
+                id:
+                  orgSession.id || null,
+                user_id:
+                  orgSession.user_id || null,
+                organization_id:
+                  orgSession.organization_id ||
+                  null,
+                role:
+                  orgSession.role || null,
+                email:
+                  orgSession.email || null
+              }
+            : null,
+
+          platform_user: adminSession
+            ? {
+                id:
+                  adminSession.id || null,
+                role:
+                  adminSession.role || null,
+                email:
+                  adminSession.email || null
+              }
+            : null
+        },
+
+        organization,
+
+        counts: {
+          locations: locations.length,
+          opportunities:
+            opportunities.length,
+          requests: requests.length
+        },
+
+        opportunity_summary:
+          opportunitySummary,
+
+        request_summary:
+          requestSummary,
+
+        locations,
+
+        opportunities,
+
+        recent_requests: requests
+      });
+
+    } catch (err) {
+      console.error(
+        "DEBUG ADVERTISING REQUESTS ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        error:
+          "DEBUG ADVERTISING REQUESTS ERROR",
+        message: err.message
+      });
+    }
+  }
+);
 app.get("/debug-users-spaces", requireLogin, async (req, res) => {
   const users = await q(`
 SELECT id, email, role
