@@ -9664,52 +9664,82 @@ app.get(
 `);
       }
 
-    const requestsResult = await q(`
-  SELECT
-    r.id,
+const requestsResult = await q(
+  `
+    SELECT DISTINCT ON (
+      r.organization_id,
+      r.opportunity_id
+    )
+      r.id,
 
-    r.organization_id,
-    o.name AS organization_name,
+      r.organization_id,
+      o.name AS organization_name,
 
-    r.location_id,
-    s.name AS location_name,
+      r.location_id,
+      s.name AS location_name,
 
-    r.opportunity_id,
-    r.opportunity_name,
+      r.opportunity_id,
 
-    r.business_name,
-    r.contact_name,
-    r.email,
-    r.phone,
+      COALESCE(
+        oo.title,
+        r.opportunity_name
+      ) AS opportunity_name,
 
-    r.campaign_name,
+      r.business_name,
+      r.contact_name,
+      r.email,
+      r.phone,
 
-    r.price,
-    r.pricing_unit,
+      r.campaign_name,
 
-    r.status,
-    r.setup_status,
-    r.submitted_at
+      COALESCE(
+        oo.annual_price,
+        oo.price,
+        r.price,
+        0
+      ) AS price,
 
-  FROM organization_advertising_requests r
+      COALESCE(
+        oo.pricing_unit,
+        r.pricing_unit
+      ) AS pricing_unit,
 
-  JOIN organizations o
-    ON o.id = r.organization_id
+      COALESCE(
+        oo.status,
+        r.status
+      ) AS status,
 
-  LEFT JOIN spaces s
-    ON s.id = r.location_id
-   AND s.organization_id = r.organization_id
+      r.setup_status,
+      r.submitted_at
 
-  WHERE
-    ${whereParts.join(
-      "\nAND "
-    )}
+    FROM organization_advertising_requests r
 
-  ORDER BY
-    r.submitted_at DESC,
-    r.id DESC
-`, queryValues);
+    JOIN organizations o
+      ON o.id = r.organization_id
 
+    LEFT JOIN spaces s
+      ON s.id = r.location_id
+     AND s.organization_id =
+         r.organization_id
+
+    LEFT JOIN organization_opportunities oo
+      ON oo.id = r.opportunity_id
+     AND oo.organization_id =
+         r.organization_id
+     AND oo.space_id =
+         r.location_id
+
+    WHERE
+      ${whereParts.join("\nAND ")}
+
+    ORDER BY
+      r.organization_id,
+      r.opportunity_id,
+      r.submitted_at DESC,
+      r.id DESC
+  `,
+  queryValues
+);
       const requests =
         requestsResult.rows;
 
