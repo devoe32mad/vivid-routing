@@ -5095,7 +5095,12 @@ ${orgDateFilterForm({
     >
       Sponsorship Inventory
     </a>
-
+<a
+  class="btn"
+  href="/org-advertising-requests?organization_id=${org.id}"
+>
+  Advertising Requests
+</a>
   </div>
 
 </div>
