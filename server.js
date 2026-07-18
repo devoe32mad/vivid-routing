@@ -9176,45 +9176,177 @@ app.get(
         Summary metrics are organization-wide.
         They do not change with page filters.
       */
-      const summaryResult = await q(`
-        SELECT
-          COUNT(*) FILTER (
-            WHERE status = 'Pending'
-          )::integer
-            AS pending_count,
+      /*
+  Request counts and revenue by workflow status.
+*/
+const requestSummaryResult = await q(`
+  SELECT
+    COUNT(*) FILTER (
+      WHERE LOWER(
+        COALESCE(status, '')
+      ) = 'pending'
+    )::integer AS pending_count,
 
-          COUNT(*) FILTER (
-            WHERE status = 'Approved'
-          )::integer
-            AS approved_count,
+    COALESCE(
+      SUM(price) FILTER (
+        WHERE LOWER(
+          COALESCE(status, '')
+        ) = 'pending'
+      ),
+      0
+    ) AS pending_revenue,
 
-          COUNT(*) FILTER (
-            WHERE status = 'Rejected'
-          )::integer
-            AS rejected_count,
+    COUNT(*) FILTER (
+      WHERE LOWER(
+        COALESCE(status, '')
+      ) = 'approved'
+    )::integer AS approved_count,
 
+    COALESCE(
+      SUM(price) FILTER (
+        WHERE LOWER(
+          COALESCE(status, '')
+        ) = 'approved'
+      ),
+      0
+    ) AS approved_revenue,
+
+    COUNT(*) FILTER (
+      WHERE LOWER(
+        COALESCE(status, '')
+      ) = 'rejected'
+    )::integer AS rejected_count,
+
+    COALESCE(
+      SUM(price) FILTER (
+        WHERE LOWER(
+          COALESCE(status, '')
+        ) = 'rejected'
+      ),
+      0
+    ) AS rejected_revenue,
+
+    COUNT(*) FILTER (
+      WHERE LOWER(
+        COALESCE(status, '')
+      ) = 'closed'
+    )::integer AS closed_count,
+
+    COALESCE(
+      SUM(price) FILTER (
+        WHERE LOWER(
+          COALESCE(status, '')
+        ) = 'closed'
+      ),
+      0
+    ) AS closed_revenue
+
+  FROM organization_advertising_requests
+
+  WHERE organization_id = $1
+`, [organizationId]);
+
+const requestSummary =
+  requestSummaryResult.rows[0] || {};
+
+/*
+  Opportunity inventory counts and revenue.
+
+  Available means:
+  - Active
+  - Status is Available
+  - Availability period includes today
+*/
+const opportunitySummaryResult = await q(`
+  SELECT
+    COUNT(*) FILTER (
+      WHERE COALESCE(
+        oo.is_active,
+        true
+      ) = true
+    )::integer AS total_opportunities,
+
+    COALESCE(
+      SUM(
+        COALESCE(
+          oo.price,
+          oo.annual_price,
+          0
+        )
+      ) FILTER (
+        WHERE COALESCE(
+          oo.is_active,
+          true
+        ) = true
+      ),
+      0
+    ) AS total_inventory_value,
+
+    COUNT(*) FILTER (
+      WHERE COALESCE(
+        oo.is_active,
+        true
+      ) = true
+
+      AND LOWER(
+        COALESCE(
+          oo.status,
+          ''
+        )
+      ) = 'available'
+
+      AND (
+        oo.available_from IS NULL
+        OR oo.available_from <= CURRENT_DATE
+      )
+
+      AND (
+        oo.available_until IS NULL
+        OR oo.available_until >= CURRENT_DATE
+      )
+    )::integer AS available_count,
+
+    COALESCE(
+      SUM(
+        COALESCE(
+          oo.price,
+          oo.annual_price,
+          0
+        )
+      ) FILTER (
+        WHERE COALESCE(
+          oo.is_active,
+          true
+        ) = true
+
+        AND LOWER(
           COALESCE(
-            SUM(
-              CASE
-                WHEN status IN (
-                  'Pending',
-                  'Approved'
-                )
-                THEN price
-                ELSE 0
-              END
-            ),
-            0
-          ) AS pipeline_value
+            oo.status,
+            ''
+          )
+        ) = 'available'
 
-        FROM
-          organization_advertising_requests
+        AND (
+          oo.available_from IS NULL
+          OR oo.available_from <= CURRENT_DATE
+        )
 
-        WHERE organization_id = $1
-      `, [organizationId]);
+        AND (
+          oo.available_until IS NULL
+          OR oo.available_until >= CURRENT_DATE
+        )
+      ),
+      0
+    ) AS available_revenue
 
-      const summary =
-        summaryResult.rows[0] || {};
+  FROM organization_opportunities oo
+
+  WHERE oo.organization_id = $1
+`, [organizationId]);
+
+const opportunitySummary =
+  opportunitySummaryResult.rows[0] || {};
+      
 
       const formatMoney = value =>
         new Intl.NumberFormat(
@@ -9274,27 +9406,33 @@ const infoIcon = definition => `
     </span>
   </span>
 `;
-      const statusStyle = status => {
-        if (status === "Approved") {
-          return `
-            background:#dcfce7;
-            color:#166534;
-          `;
-        }
+const statusStyle = status => {
+  if (status === "Approved") {
+    return `
+      background:#dcfce7;
+      color:#166534;
+    `;
+  }
 
-        if (status === "Rejected") {
-          return `
-            background:#fee2e2;
-            color:#991b1b;
-          `;
-        }
+  if (status === "Rejected") {
+    return `
+      background:#fee2e2;
+      color:#991b1b;
+    `;
+  }
 
-        return `
-          background:#fef3c7;
-          color:#92400e;
-        `;
-      };
+  if (status === "Closed") {
+    return `
+      background:#dbeafe;
+      color:#1e40af;
+    `;
+  }
 
+  return `
+    background:#fef3c7;
+    color:#92400e;
+  `;
+};
       const statusOptions =
         allowedStatuses
           .map(status => `
