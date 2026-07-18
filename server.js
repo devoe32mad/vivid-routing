@@ -3872,7 +3872,7 @@ app.post("/org-login", async (req, res) => {
     }
 
     const user = result.rows[0];
-
+delete req.session.user;
     req.session.orgUser = {
       id: user.user_id,
       email: user.email,
