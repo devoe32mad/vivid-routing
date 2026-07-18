@@ -9717,173 +9717,161 @@ app.get(
         Summary metrics are organization-wide.
         They do not change with page filters.
       */
-      /*
-  Request counts and revenue by workflow status.
-*/
-const requestSummaryResult = await q(`
-  SELECT
-    COUNT(*) FILTER (
-      WHERE LOWER(
-        COALESCE(status, '')
-      ) = 'pending'
-    )::integer AS pending_count,
+  /*
+  ============================================================
+  ADVERTISING INVENTORY SUMMARY
+  ============================================================
 
-    COALESCE(
-      SUM(price) FILTER (
+  organization_opportunities is the single source of truth for:
+
+  - opportunity counts
+  - opportunity status
+  - inventory value
+  - revenue pipeline value
+
+  organization_advertising_requests is used only for the
+  individual request records shown below the dashboard.
+*/
+const opportunitySummaryResult = await q(
+  `
+    SELECT
+      COUNT(*)::integer
+        AS total_opportunities,
+
+      COUNT(*) FILTER (
+        WHERE LOWER(
+          COALESCE(status, 'available')
+        ) = 'available'
+      )::integer
+        AS available_count,
+
+      COUNT(*) FILTER (
         WHERE LOWER(
           COALESCE(status, '')
         ) = 'pending'
-      ),
-      0
-    ) AS pending_revenue,
+      )::integer
+        AS pending_count,
 
-    COUNT(*) FILTER (
-      WHERE LOWER(
-        COALESCE(status, '')
-      ) = 'approved'
-    )::integer AS approved_count,
-
-    COALESCE(
-      SUM(price) FILTER (
+      COUNT(*) FILTER (
         WHERE LOWER(
           COALESCE(status, '')
         ) = 'approved'
-      ),
-      0
-    ) AS approved_revenue,
+      )::integer
+        AS approved_count,
 
-    COUNT(*) FILTER (
-      WHERE LOWER(
-        COALESCE(status, '')
-      ) = 'rejected'
-    )::integer AS rejected_count,
-
-    COALESCE(
-      SUM(price) FILTER (
+      COUNT(*) FILTER (
         WHERE LOWER(
           COALESCE(status, '')
         ) = 'rejected'
-      ),
-      0
-    ) AS rejected_revenue,
+      )::integer
+        AS rejected_count,
 
-    COUNT(*) FILTER (
-      WHERE LOWER(
-        COALESCE(status, '')
-      ) = 'closed'
-    )::integer AS closed_count,
-
-    COALESCE(
-      SUM(price) FILTER (
+      COUNT(*) FILTER (
         WHERE LOWER(
           COALESCE(status, '')
         ) = 'closed'
-      ),
-      0
-    ) AS closed_revenue
+      )::integer
+        AS closed_count,
 
-  FROM organization_advertising_requests
-
-  WHERE organization_id = $1
-`, [organizationId]);
-
-const requestSummary =
-  requestSummaryResult.rows[0] || {};
-
-/*
-  Opportunity inventory counts and revenue.
-
-  Available means:
-  - Active
-  - Status is Available
-  - Availability period includes today
-*/
-const opportunitySummaryResult = await q(`
-  SELECT
-    COUNT(*) FILTER (
-      WHERE COALESCE(
-        oo.is_active,
-        true
-      ) = true
-    )::integer AS total_opportunities,
-
-    COALESCE(
-      SUM(
-        COALESCE(
-          oo.price,
-          oo.annual_price,
-          0
-        )
-      ) FILTER (
-        WHERE COALESCE(
-          oo.is_active,
-          true
-        ) = true
-      ),
-      0
-    ) AS total_inventory_value,
-
-    COUNT(*) FILTER (
-      WHERE COALESCE(
-        oo.is_active,
-        true
-      ) = true
-
-      AND LOWER(
-        COALESCE(
-          oo.status,
-          ''
-        )
-      ) = 'available'
-
-      AND (
-        oo.available_from IS NULL
-        OR oo.available_from <= CURRENT_DATE
-      )
-
-      AND (
-        oo.available_until IS NULL
-        OR oo.available_until >= CURRENT_DATE
-      )
-    )::integer AS available_count,
-
-    COALESCE(
-      SUM(
-        COALESCE(
-          oo.price,
-          oo.annual_price,
-          0
-        )
-      ) FILTER (
-        WHERE COALESCE(
-          oo.is_active,
-          true
-        ) = true
-
-        AND LOWER(
+      COALESCE(
+        SUM(
           COALESCE(
-            oo.status,
-            ''
+            annual_price,
+            price,
+            0
           )
-        ) = 'available'
+        ),
+        0
+      )
+        AS total_inventory_value,
 
-        AND (
-          oo.available_from IS NULL
-          OR oo.available_from <= CURRENT_DATE
-        )
+      COALESCE(
+        SUM(
+          COALESCE(
+            annual_price,
+            price,
+            0
+          )
+        ) FILTER (
+          WHERE LOWER(
+            COALESCE(status, 'available')
+          ) = 'available'
+        ),
+        0
+      )
+        AS available_revenue,
 
-        AND (
-          oo.available_until IS NULL
-          OR oo.available_until >= CURRENT_DATE
-        )
-      ),
-      0
-    ) AS available_revenue
+      COALESCE(
+        SUM(
+          COALESCE(
+            annual_price,
+            price,
+            0
+          )
+        ) FILTER (
+          WHERE LOWER(
+            COALESCE(status, '')
+          ) = 'pending'
+        ),
+        0
+      )
+        AS pending_revenue,
 
-  FROM organization_opportunities oo
+      COALESCE(
+        SUM(
+          COALESCE(
+            annual_price,
+            price,
+            0
+          )
+        ) FILTER (
+          WHERE LOWER(
+            COALESCE(status, '')
+          ) = 'approved'
+        ),
+        0
+      )
+        AS approved_revenue,
 
-  WHERE oo.organization_id = $1
-`, [organizationId]);
+      COALESCE(
+        SUM(
+          COALESCE(
+            annual_price,
+            price,
+            0
+          )
+        ) FILTER (
+          WHERE LOWER(
+            COALESCE(status, '')
+          ) = 'rejected'
+        ),
+        0
+      )
+        AS rejected_revenue,
+
+      COALESCE(
+        SUM(
+          COALESCE(
+            annual_price,
+            price,
+            0
+          )
+        ) FILTER (
+          WHERE LOWER(
+            COALESCE(status, '')
+          ) = 'closed'
+        ),
+        0
+      )
+        AS closed_revenue
+
+    FROM organization_opportunities
+
+    WHERE organization_id = $1
+      AND COALESCE(is_active, true) = true
+  `,
+  [organizationId]
+);
 
 const opportunitySummary =
   opportunitySummaryResult.rows[0] || {};
