@@ -20102,10 +20102,30 @@ if (duplicateRequest) {
         opportunity.suggested_term_unit || null
       ]);
 
-      const requestId =
-        insertResult.rows[0].id;
+const requestId =
+  insertResult.rows[0].id;
+
+await q(`
+  UPDATE organization_opportunities
+
+  SET
+    status = 'Pending',
+    updated_at = CURRENT_TIMESTAMP
+
+  WHERE id = $1
+    AND organization_id = $2
+    AND space_id = $3
+    AND COALESCE(is_active, true) = true
+`, [
+  opportunity.id,
+  organization.id,
+  location.id
+]);
+
 const requestReference =
-  `${organization.slug.toUpperCase()}-${String(requestId).padStart(6, "0")}`;
+  `${organization.slug.toUpperCase()}-${String(
+    requestId
+  ).padStart(6, "0")}`;
     return res.redirect(
   303,
   `/advertise/${encodeURIComponent(
