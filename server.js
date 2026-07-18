@@ -18204,7 +18204,105 @@ app.post(
           "This advertising opportunity is no longer available."
         );
       }
+/*
+=========================================================
+DUPLICATE ADVERTISING REQUEST SAFEGUARD
 
+Prevents the same request from being inserted more than
+once within 60 seconds.
+
+This protects against:
+
+- Double-clicks
+- Browser retries
+- Slow network resubmissions
+- Multiple rapid POST requests
+=========================================================
+*/
+
+const duplicateResult = await q(`
+  SELECT
+    id
+
+  FROM organization_advertising_requests
+
+  WHERE organization_id = $1
+    AND location_id = $2
+    AND opportunity_id = $3
+
+    AND LOWER(TRIM(email)) =
+        LOWER(TRIM($4))
+
+    AND LOWER(
+          TRIM(
+            COALESCE(
+              campaign_name,
+              ''
+            )
+          )
+        ) =
+        LOWER(
+          TRIM(
+            COALESCE(
+              $5,
+              ''
+            )
+          )
+        )
+
+    AND LOWER(
+          TRIM(
+            COALESCE(
+              destination_url,
+              ''
+            )
+          )
+        ) =
+        LOWER(
+          TRIM(
+            COALESCE(
+              $6,
+              ''
+            )
+          )
+        )
+
+    AND submitted_at >=
+        CURRENT_TIMESTAMP
+        - INTERVAL '60 seconds'
+
+  ORDER BY
+    submitted_at DESC,
+    id DESC
+
+  LIMIT 1
+`, [
+  organization.id,
+  location.id,
+  opportunity.id,
+  email,
+  campaignName || null,
+  destinationUrl
+]);
+
+const duplicateRequest =
+  duplicateResult.rows[0];
+
+if (duplicateRequest) {
+  const duplicateReference =
+    `${organization.slug.toUpperCase()}-${String(
+      duplicateRequest.id
+    ).padStart(6, "0")}`;
+
+  return res.redirect(
+    303,
+    `/advertise/${encodeURIComponent(
+      organization.slug
+    )}/request-submitted?request_reference=${encodeURIComponent(
+      duplicateReference
+    )}`
+  );
+}
       const insertResult = await q(`
         INSERT INTO organization_advertising_requests (
           organization_id,
