@@ -10492,7 +10492,7 @@ const statusStyle = status => {
 
     <div class="dashboard-summary-number">
       ${Number(
-        requestSummary.pending_count ||
+        opportunitySummary.pending_count||
         0
       )}
     </div>
@@ -10523,7 +10523,7 @@ const statusStyle = status => {
 
     <div class="dashboard-summary-number">
       ${Number(
-        requestSummary.approved_count ||
+       opportunitySummary.approved_count  ||
         0
       )}
     </div>
@@ -10554,7 +10554,7 @@ const statusStyle = status => {
 
     <div class="dashboard-summary-number">
       ${Number(
-        requestSummary.rejected_count ||
+        opportunitySummary.rejected_count||
         0
       )}
     </div>
@@ -10585,7 +10585,7 @@ const statusStyle = status => {
 
     <div class="dashboard-summary-number">
       ${Number(
-        requestSummary.closed_count ||
+        opportunitySummary.closed_count ||
         0
       )}
     </div>
