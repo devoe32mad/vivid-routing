@@ -1637,7 +1637,231 @@ ON organization_opportunities
     status
 )
 `);
+/*
+=========================================================
+ORGANIZATION ADVERTISING REQUESTS
+=========================================================
 
+Stores the advertiser's complete public submission.
+
+This is the source record for:
+
+- Organization review
+- Location approval
+- Advertiser setup
+- QR setup
+- Campaign setup
+- Schedule setup
+
+No live Vivid Core records are created until the
+request reaches the approved setup workflow.
+=========================================================
+*/
+
+await q(`
+  CREATE TABLE IF NOT EXISTS organization_advertising_requests (
+
+    id SERIAL PRIMARY KEY,
+
+    organization_id INTEGER NOT NULL
+      REFERENCES organizations(id),
+
+    location_id INTEGER NOT NULL
+      REFERENCES spaces(id),
+
+    opportunity_id INTEGER
+      REFERENCES organization_opportunities(id),
+
+    /*
+    -------------------------------------------------------
+    ADVERTISER INFORMATION
+    -------------------------------------------------------
+    */
+
+    business_name TEXT NOT NULL,
+
+    contact_name TEXT NOT NULL,
+
+    email TEXT NOT NULL,
+
+    phone TEXT NOT NULL,
+
+    website TEXT,
+
+    business_category TEXT,
+
+    /*
+    -------------------------------------------------------
+    INITIAL CAMPAIGN INFORMATION
+    -------------------------------------------------------
+    */
+
+    campaign_name TEXT,
+
+    destination_url TEXT NOT NULL,
+
+    campaign_notes TEXT,
+
+    /*
+    -------------------------------------------------------
+    OPPORTUNITY SNAPSHOT
+
+    These values preserve exactly what the advertiser
+    selected even if the organization later edits the
+    original Marketplace opportunity.
+    -------------------------------------------------------
+    */
+
+    opportunity_name TEXT NOT NULL,
+
+    opportunity_group TEXT,
+
+    placement TEXT,
+
+    opportunity_category TEXT,
+
+    opportunity_description TEXT,
+
+    price NUMERIC(12,2) NOT NULL DEFAULT 0,
+
+    pricing_unit TEXT,
+
+    suggested_term_length INTEGER,
+
+    suggested_term_unit TEXT,
+
+    /*
+    -------------------------------------------------------
+    REQUEST WORKFLOW
+    -------------------------------------------------------
+    */
+
+    status TEXT NOT NULL DEFAULT 'Pending',
+
+    assigned_organization_user_id INTEGER
+      REFERENCES organization_users(id),
+
+    internal_notes TEXT,
+
+    rejection_reason TEXT,
+
+    approved_by_organization_user_id INTEGER
+      REFERENCES organization_users(id),
+
+    approved_at TIMESTAMP,
+
+    rejected_at TIMESTAMP,
+
+    /*
+    -------------------------------------------------------
+    ADVERTISER SETUP WORKFLOW
+    -------------------------------------------------------
+    */
+
+    setup_status TEXT NOT NULL DEFAULT 'Not Started',
+
+    setup_token TEXT UNIQUE,
+
+    setup_token_expires_at TIMESTAMP,
+
+    setup_started_at TIMESTAMP,
+
+    setup_completed_at TIMESTAMP,
+
+    /*
+    -------------------------------------------------------
+    CREATED VIVID RECORDS
+
+    These remain NULL until the approved advertiser setup
+    process creates the permanent Vivid Core records.
+    -------------------------------------------------------
+    */
+
+    created_advertiser_id INTEGER
+      REFERENCES advertisers(id),
+
+    created_contract_id INTEGER
+      REFERENCES contracts(id),
+
+    created_campaign_id INTEGER
+      REFERENCES campaigns(id),
+
+    created_qr_id INTEGER
+      REFERENCES qr_codes(id),
+
+    created_schedule_id INTEGER
+      REFERENCES campaign_schedules(id),
+
+    /*
+    -------------------------------------------------------
+    AUDIT DATES
+    -------------------------------------------------------
+    */
+
+    submitted_at TIMESTAMP
+      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    created_at TIMESTAMP
+      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP
+      NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+/*
+=========================================================
+ADVERTISING REQUEST INDEXES
+=========================================================
+*/
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_advertising_requests_organization
+  ON organization_advertising_requests (
+    organization_id
+  )
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_advertising_requests_location
+  ON organization_advertising_requests (
+    location_id
+  )
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_advertising_requests_opportunity
+  ON organization_advertising_requests (
+    opportunity_id
+  )
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_advertising_requests_status
+  ON organization_advertising_requests (
+    status
+  )
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_advertising_requests_setup_status
+  ON organization_advertising_requests (
+    setup_status
+  )
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_advertising_requests_email
+  ON organization_advertising_requests (
+    LOWER(email)
+  )
+`);
 }
 
 function daysBetween(startDate, endDate) {
