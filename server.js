@@ -10654,12 +10654,12 @@ const statusStyle = status => {
   <!-- PENDING REVENUE -->
 
   <a
-    href="${requestStatusUrl("Pending")}"
+    href="${marketplaceUrl("Pending")}"
     class="
       marketplace-card
       dashboard-summary-card
       dashboard-revenue-card
-      ${cardSelected("Pending")}
+      
     "
   >
     <div class="
@@ -10670,9 +10670,9 @@ const statusStyle = status => {
         Pending Revenue
       </span>
 
-      ${infoIcon(
-        "The combined value of advertising requests currently waiting for review."
-      )}
+    ${infoIcon(
+  "Advertising opportunities currently reserved while an advertiser request is being reviewed."
+)}
     </div>
 
     <div class="dashboard-summary-revenue">
@@ -10685,12 +10685,12 @@ const statusStyle = status => {
   <!-- APPROVED REVENUE -->
 
   <a
-    href="${requestStatusUrl("Approved")}"
+    href="${marketplaceUrl("Approved")}"
     class="
       marketplace-card
       dashboard-summary-card
       dashboard-revenue-card
-      ${cardSelected("Approved")}
+      
     "
   >
     <div class="
@@ -10702,8 +10702,8 @@ const statusStyle = status => {
       </span>
 
       ${infoIcon(
-        "The combined value of requests approved by the organization and awaiting completion."
-      )}
+  "Advertising opportunities approved for an advertiser and awaiting final activation."
+)}
     </div>
 
     <div class="dashboard-summary-revenue">
@@ -10716,12 +10716,12 @@ const statusStyle = status => {
   <!-- REJECTED REVENUE -->
 
   <a
-    href="${requestStatusUrl("Rejected")}"
+    href="${marketplaceUrl("Rejected")}"
     class="
       marketplace-card
       dashboard-summary-card
       dashboard-revenue-card
-      ${cardSelected("Rejected")}
+      
     "
   >
     <div class="
@@ -10747,12 +10747,12 @@ const statusStyle = status => {
   <!-- CLOSED REVENUE -->
 
   <a
-    href="${requestStatusUrl("Closed")}"
+    href="${marketplaceUrl("Closed")}"
     class="
       marketplace-card
       dashboard-summary-card
       dashboard-revenue-card
-      ${cardSelected("Closed")}
+      
     "
   >
     <div class="
