@@ -9450,6 +9450,11 @@ const cardSelected = status =>
     </span>
   </span>
 `;
+      const formatMoney = value =>
+  "$" + Number(value || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  });
 const statusStyle = status => {
   if (status === "Approved") {
     return `
