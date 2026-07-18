@@ -3766,7 +3766,7 @@ app.post("/login", async (req, res) => {
       `);
 
     }
-
+delete req.session.orgUser;
  req.session.user = {
   id: user.rows[0].id,
   name: user.rows[0].name,
