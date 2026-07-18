@@ -10510,6 +10510,67 @@ const statusStyle = status => {
   outline:2px solid #2f855a;
   outline-offset:2px;
 }
+.dashboard-summary-grid {
+  display:grid;
+  grid-template-columns:
+    repeat(6, minmax(0, 1fr));
+  gap:16px;
+  margin-bottom:24px;
+}
+
+.dashboard-summary-card {
+  display:block;
+  min-width:0;
+  min-height:138px;
+  padding:22px;
+  color:inherit;
+  text-decoration:none;
+  transition:
+    transform .15s ease,
+    box-shadow .15s ease,
+    border-color .15s ease;
+}
+
+.dashboard-summary-card:hover {
+  transform:translateY(-2px);
+  box-shadow:
+    0 12px 30px
+    rgba(22, 63, 39, .13);
+}
+
+.dashboard-summary-card:focus {
+  outline:
+    3px solid
+    rgba(47, 133, 90, .28);
+  outline-offset:2px;
+}
+
+.dashboard-summary-selected {
+  border:
+    2px solid
+    #2f855a !important;
+  background:#f2faf4;
+}
+
+.dashboard-summary-number {
+  margin-top:13px;
+  color:#0b4a2d;
+  font-size:34px;
+  font-weight:800;
+  line-height:1;
+}
+
+.dashboard-summary-revenue {
+  margin-top:13px;
+  color:#0b4a2d;
+  font-size:27px;
+  font-weight:800;
+  line-height:1.1;
+}
+
+.dashboard-revenue-card {
+  background:#f9fcfa;
+}
               @media (
                 max-width:900px
               ) {
