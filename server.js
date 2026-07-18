@@ -9750,11 +9750,18 @@ const infoIcon = definition => `
                 <div class="
                   marketplace-card
                 ">
-                  <div class="
-                    marketplace-label
-                  ">
-                    Annual Pipeline
-                  </div>
+<div class="
+  marketplace-label
+  summary-label
+">
+  <span>
+    Available Revenue
+  </span>
+
+  ${infoIcon(
+    "The total value of pending and approved advertising requests that have not yet become live campaigns."
+  )}
+</div>
 
                   <div style="
                     font-size:34px;
