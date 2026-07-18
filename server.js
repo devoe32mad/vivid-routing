@@ -9347,65 +9347,89 @@ const opportunitySummaryResult = await q(`
 const opportunitySummary =
   opportunitySummaryResult.rows[0] || {};
       
+const requestsBaseParams = () => {
+  const params =
+    new URLSearchParams();
 
-      const formatMoney = value =>
-        new Intl.NumberFormat(
-          "en-US",
-          {
-            style: "currency",
-            currency: "USD",
-            maximumFractionDigits: 0
-          }
-        ).format(
-          Number(value || 0)
-        );
+  if (
+    req.session.user?.role ===
+    "super_admin"
+  ) {
+    params.set(
+      "organization_id",
+      String(organizationId)
+    );
+  }
 
-      const formatDate = value => {
-        if (!value) {
-          return "Not available";
-        }
+  if (cleanSearch) {
+    params.set(
+      "search",
+      cleanSearch
+    );
+  }
 
-        const parsedDate =
-          new Date(value);
+  if (selectedLocationId) {
+    params.set(
+      "location_id",
+      String(selectedLocationId)
+    );
+  }
 
-        if (
-          Number.isNaN(
-            parsedDate.getTime()
-          )
-        ) {
-          return "Not available";
-        }
+  return params;
+};
 
-        return parsedDate.toLocaleDateString(
-          "en-US",
-          {
-            month: "long",
-            day: "numeric",
-            year: "numeric"
-          }
-        );
-      };
-const infoIcon = definition => `
-  <span
-    class="info-tooltip"
-    tabindex="0"
-    aria-label="${escapeHtml(definition)}"
-  >
-    <span
-      class="info-tooltip-icon"
-      aria-hidden="true"
-    >
-      i
-    </span>
+const requestStatusUrl = status => {
+  const params =
+    requestsBaseParams();
 
-    <span
-      class="info-tooltip-content"
-      role="tooltip"
-    >
-      ${escapeHtml(definition)}
-    </span>
-  </span>
-`;
+  if (status && status !== "All") {
+    params.set(
+      "status",
+      status
+    );
+  }
+
+  const queryString =
+    params.toString();
+
+  return `/org-advertising-requests${
+    queryString
+      ? `?${queryString}`
+      : ""
+  }`;
+};
+
+const marketplaceUrl = status => {
+  const params =
+    new URLSearchParams();
+
+  params.set(
+    "organization_id",
+    String(organizationId)
+  );
+
+  if (selectedLocationId) {
+    params.set(
+      "location_id",
+      String(selectedLocationId)
+    );
+  }
+
+  if (status) {
+    params.set(
+      "status",
+      status
+    );
+  }
+
+  return `/org-marketplace?${params.toString()}`;
+};
+
+const cardSelected = status =>
+  selectedStatus === status
+    ? " dashboard-summary-selected"
+    : "";
+ 
 const statusStyle = status => {
   if (status === "Approved") {
     return `
