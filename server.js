@@ -10485,9 +10485,9 @@ const statusStyle = status => {
         Pending Review
       </span>
 
-      ${infoIcon(
-        "Advertising requests waiting for the organization to approve or reject them."
-      )}
+     ${infoIcon(
+  "Advertising opportunities currently reserved while an advertiser request is being reviewed."
+)}
     </div>
 
     <div class="dashboard-summary-number">
@@ -10516,9 +10516,9 @@ const statusStyle = status => {
         Approved
       </span>
 
-      ${infoIcon(
-        "Advertising requests approved by the organization and ready for advertiser setup."
-      )}
+${infoIcon(
+  "Advertising opportunities approved for an advertiser and awaiting final activation."
+)}
     </div>
 
     <div class="dashboard-summary-number">
@@ -10548,8 +10548,10 @@ const statusStyle = status => {
       </span>
 
       ${infoIcon(
-        "Advertising requests declined by the organization."
-      )}
+  "Advertising opportunities currently marked as rejected."
+)}
+        
+    
     </div>
 
     <div class="dashboard-summary-number">
@@ -10579,8 +10581,10 @@ const statusStyle = status => {
       </span>
 
       ${infoIcon(
-        "Approved requests that completed advertiser setup and became secured business."
-      )}
+  "Advertising opportunities that completed the sales and setup process."
+)}
+        
+      
     </div>
 
     <div class="dashboard-summary-number">
