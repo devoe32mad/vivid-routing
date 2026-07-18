@@ -9687,11 +9687,18 @@ const infoIcon = definition => `
                 <div class="
                   marketplace-card
                 ">
-                  <div class="
-                    marketplace-label
-                  ">
-                    Pending Requests
-                  </div>
+               <div class="
+  marketplace-label
+  summary-label
+">
+  <span>
+    Pending Review
+  </span>
+
+  ${infoIcon(
+    "Advertising requests waiting for the organization to approve or reject them."
+  )}
+</div>
 
                   <div style="
                     font-size:34px;
@@ -9708,11 +9715,18 @@ const infoIcon = definition => `
                 <div class="
                   marketplace-card
                 ">
-                  <div class="
-                    marketplace-label
-                  ">
-                    Approved
-                  </div>
+               <div class="
+  marketplace-label
+  summary-label
+">
+  <span>
+    Approved
+  </span>
+
+  ${infoIcon(
+    "Requests approved by the organization that are ready for advertiser setup and campaign launch."
+  )}
+</div>
 
                   <div style="
                     font-size:34px;
@@ -9729,11 +9743,18 @@ const infoIcon = definition => `
                 <div class="
                   marketplace-card
                 ">
-                  <div class="
-                    marketplace-label
-                  ">
-                    Rejected
-                  </div>
+                <div class="
+  marketplace-label
+  summary-label
+">
+  <span>
+    Rejected
+  </span>
+
+  ${infoIcon(
+    "Advertising requests that were declined by the organization."
+  )}
+</div>
 
                   <div style="
                     font-size:34px;
@@ -9972,6 +9993,111 @@ const infoIcon = definition => `
             </main>
 
             <style>
+            .summary-label {
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+
+.info-tooltip {
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  outline:none;
+}
+
+.info-tooltip-icon {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:17px;
+  height:17px;
+  border:1.5px solid #65776b;
+  border-radius:50%;
+  color:#65776b;
+  font-size:11px;
+  font-weight:bold;
+  font-family:Arial, sans-serif;
+  line-height:1;
+  cursor:help;
+  text-transform:none;
+  letter-spacing:0;
+}
+
+.info-tooltip-content {
+  position:absolute;
+  left:50%;
+  bottom:calc(100% + 10px);
+  z-index:100;
+
+  width:260px;
+  padding:11px 13px;
+
+  background:#24382c;
+  color:white;
+
+  border-radius:9px;
+  box-shadow:
+    0 8px 24px
+    rgba(0,0,0,.18);
+
+  font-size:13px;
+  font-weight:normal;
+  line-height:1.45;
+  letter-spacing:0;
+  text-transform:none;
+  text-align:left;
+
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+
+  transform:
+    translateX(-50%)
+    translateY(4px);
+
+  transition:
+    opacity .15s ease,
+    transform .15s ease,
+    visibility .15s ease;
+}
+
+.info-tooltip-content::after {
+  content:"";
+  position:absolute;
+  top:100%;
+  left:50%;
+  transform:translateX(-50%);
+
+  border-width:6px;
+  border-style:solid;
+  border-color:
+    #24382c
+    transparent
+    transparent
+    transparent;
+}
+
+.info-tooltip:hover
+.info-tooltip-content,
+.info-tooltip:focus
+.info-tooltip-content,
+.info-tooltip:focus-within
+.info-tooltip-content {
+  opacity:1;
+  visibility:visible;
+
+  transform:
+    translateX(-50%)
+    translateY(0);
+}
+
+.info-tooltip:focus
+.info-tooltip-icon {
+  outline:2px solid #2f855a;
+  outline-offset:2px;
+}
               @media (
                 max-width:900px
               ) {
