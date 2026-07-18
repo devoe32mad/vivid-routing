@@ -10470,7 +10470,7 @@ const statusStyle = status => {
   <!-- PENDING REVIEW -->
 
   <a
-    href="${requestStatusUrl("Pending")}"
+    href="${marketplaceUrl("Pending")}"
     class="
       marketplace-card
       dashboard-summary-card
@@ -10501,7 +10501,7 @@ const statusStyle = status => {
   <!-- APPROVED -->
 
   <a
-    href="${requestStatusUrl("Approved")}"
+    href="${marketplaceUrl("Approved")}"
     class="
       marketplace-card
       dashboard-summary-card
@@ -10532,7 +10532,7 @@ const statusStyle = status => {
   <!-- REJECTED -->
 
   <a
-    href="${requestStatusUrl("Rejected")}"
+    href="${marketplaceUrl("Rejected")}"
     class="
       marketplace-card
       dashboard-summary-card
@@ -10563,7 +10563,7 @@ const statusStyle = status => {
   <!-- CLOSED -->
 
   <a
-    href="${requestStatusUrl("Closed")}"
+    href="${marketplaceUrl("Closed")}"
     class="
       marketplace-card
       dashboard-summary-card
