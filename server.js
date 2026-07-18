@@ -8915,7 +8915,1054 @@ Separate from Vivid Core and Organization analytics.
 Version 1 presentation preview.
 =========================================================
 */
+/*
+=========================================================
+ORGANIZATION MARKETPLACE — ADVERTISING REQUESTS
+=========================================================
 
+GET:
+  /org-advertising-requests
+
+Purpose:
+- Displays requests submitted through Advertise With Us
+- Supports organization users and Super Admin
+- Reads Marketplace request data only
+- Does not create or modify Vivid Core records
+=========================================================
+*/
+
+app.get(
+  "/org-advertising-requests",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Organization Portal access.
+      */
+      if (
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      /*
+        Super Admin access.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role ===
+          "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res.status(403).send(
+          "Advertising Requests access denied."
+        );
+      }
+
+      const escapeHtml = value =>
+        String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+
+      const cleanSearch = String(
+        req.query.search || ""
+      )
+        .trim()
+        .slice(0, 200);
+
+      const requestedStatus = String(
+        req.query.status || "All"
+      ).trim();
+
+      const allowedStatuses = [
+        "All",
+        "Pending",
+        "Approved",
+        "Rejected"
+      ];
+
+      const selectedStatus =
+        allowedStatuses.includes(
+          requestedStatus
+        )
+          ? requestedStatus
+          : "All";
+
+      const requestedLocationId = Number(
+        req.query.location_id
+      );
+
+      const selectedLocationId =
+        Number.isInteger(
+          requestedLocationId
+        ) &&
+        requestedLocationId > 0
+          ? requestedLocationId
+          : null;
+
+      /*
+        Load organization.
+      */
+      const organizationResult = await q(`
+        SELECT
+          id,
+          name
+        FROM organizations
+        WHERE id = $1
+          AND COALESCE(
+            is_active,
+            true
+          ) = true
+        LIMIT 1
+      `, [organizationId]);
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res.status(404).send(
+          "Organization not found."
+        );
+      }
+
+      /*
+        Load organization locations for filter.
+      */
+      const locationsResult = await q(`
+        SELECT
+          id,
+          name
+        FROM spaces
+        WHERE organization_id = $1
+          AND COALESCE(
+            is_archived,
+            false
+          ) = false
+        ORDER BY name
+      `, [organizationId]);
+
+      const locations =
+        locationsResult.rows;
+
+      /*
+        Build request query safely.
+      */
+      const queryValues = [
+        organizationId
+      ];
+
+      const whereParts = [
+        "organization_id = $1"
+      ];
+
+      if (selectedStatus !== "All") {
+        queryValues.push(
+          selectedStatus
+        );
+
+        whereParts.push(
+          `status = $${queryValues.length}`
+        );
+      }
+
+      if (selectedLocationId) {
+        queryValues.push(
+          selectedLocationId
+        );
+
+        whereParts.push(
+          `location_id = $${queryValues.length}`
+        );
+      }
+
+      if (cleanSearch) {
+        queryValues.push(
+          `%${cleanSearch}%`
+        );
+
+        const searchParameter =
+          `$${queryValues.length}`;
+
+        whereParts.push(`
+          (
+            business_name
+              ILIKE ${searchParameter}
+
+            OR contact_name
+              ILIKE ${searchParameter}
+
+            OR email
+              ILIKE ${searchParameter}
+
+            OR campaign_name
+              ILIKE ${searchParameter}
+
+            OR opportunity_name
+              ILIKE ${searchParameter}
+
+            OR location_name
+              ILIKE ${searchParameter}
+          )
+        `);
+      }
+
+      const requestsResult = await q(`
+        SELECT
+          id,
+
+          organization_id,
+          organization_name,
+
+          location_id,
+          location_name,
+
+          opportunity_id,
+          opportunity_name,
+
+          business_name,
+          contact_name,
+          email,
+          phone,
+
+          campaign_name,
+
+          price,
+          pricing_unit,
+
+          status,
+          setup_status,
+          submitted_at
+
+        FROM
+          organization_advertising_requests
+
+        WHERE
+          ${whereParts.join(
+            "\nAND "
+          )}
+
+        ORDER BY
+          submitted_at DESC,
+          id DESC
+      `, queryValues);
+
+      const requests =
+        requestsResult.rows;
+
+      /*
+        Summary metrics are organization-wide.
+        They do not change with page filters.
+      */
+      const summaryResult = await q(`
+        SELECT
+          COUNT(*) FILTER (
+            WHERE status = 'Pending'
+          )::integer
+            AS pending_count,
+
+          COUNT(*) FILTER (
+            WHERE status = 'Approved'
+          )::integer
+            AS approved_count,
+
+          COUNT(*) FILTER (
+            WHERE status = 'Rejected'
+          )::integer
+            AS rejected_count,
+
+          COALESCE(
+            SUM(
+              CASE
+                WHEN status IN (
+                  'Pending',
+                  'Approved'
+                )
+                THEN price
+                ELSE 0
+              END
+            ),
+            0
+          ) AS pipeline_value
+
+        FROM
+          organization_advertising_requests
+
+        WHERE organization_id = $1
+      `, [organizationId]);
+
+      const summary =
+        summaryResult.rows[0] || {};
+
+      const formatMoney = value =>
+        new Intl.NumberFormat(
+          "en-US",
+          {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits: 0
+          }
+        ).format(
+          Number(value || 0)
+        );
+
+      const formatDate = value => {
+        if (!value) {
+          return "Not available";
+        }
+
+        const parsedDate =
+          new Date(value);
+
+        if (
+          Number.isNaN(
+            parsedDate.getTime()
+          )
+        ) {
+          return "Not available";
+        }
+
+        return parsedDate.toLocaleDateString(
+          "en-US",
+          {
+            month: "long",
+            day: "numeric",
+            year: "numeric"
+          }
+        );
+      };
+
+      const statusStyle = status => {
+        if (status === "Approved") {
+          return `
+            background:#dcfce7;
+            color:#166534;
+          `;
+        }
+
+        if (status === "Rejected") {
+          return `
+            background:#fee2e2;
+            color:#991b1b;
+          `;
+        }
+
+        return `
+          background:#fef3c7;
+          color:#92400e;
+        `;
+      };
+
+      const statusOptions =
+        allowedStatuses
+          .map(status => `
+            <option
+              value="${status}"
+              ${
+                selectedStatus === status
+                  ? "selected"
+                  : ""
+              }
+            >
+              ${status}
+            </option>
+          `)
+          .join("");
+
+      const locationOptions = [
+        `
+          <option value="">
+            All Locations
+          </option>
+        `,
+        ...locations.map(location => `
+          <option
+            value="${location.id}"
+            ${
+              Number(
+                selectedLocationId
+              ) === Number(location.id)
+                ? "selected"
+                : ""
+            }
+          >
+            ${escapeHtml(
+              location.name
+            )}
+          </option>
+        `)
+      ].join("");
+
+      const requestCards =
+        requests.length
+          ? requests
+              .map(request => {
+                const investmentLabel =
+                  request.pricing_unit
+                    ? `${formatMoney(
+                        request.price
+                      )} / ${escapeHtml(
+                        String(
+                          request.pricing_unit
+                        ).replace(
+                          /^Per\s+/i,
+                          ""
+                        )
+                      )}`
+                    : formatMoney(
+                        request.price
+                      );
+
+                return `
+                  <article
+                    class="marketplace-card"
+                    style="
+                      display:flex;
+                      flex-direction:column;
+                      min-height:390px;
+                    "
+                  >
+                    <div style="
+                      display:flex;
+                      justify-content:
+                        space-between;
+                      align-items:flex-start;
+                      gap:14px;
+                      margin-bottom:20px;
+                    ">
+
+                      <div>
+                        <div style="
+                          color:#65776b;
+                          font-size:12px;
+                          font-weight:bold;
+                          letter-spacing:.06em;
+                          text-transform:
+                            uppercase;
+                          margin-bottom:7px;
+                        ">
+                          Business
+                        </div>
+
+                        <h2 style="
+                          margin:0;
+                          color:#24382c;
+                          font-size:22px;
+                        ">
+                          ${escapeHtml(
+                            request.business_name
+                          )}
+                        </h2>
+                      </div>
+
+                      <span style="
+                        ${statusStyle(
+                          request.status
+                        )}
+                        padding:7px 11px;
+                        border-radius:999px;
+                        font-size:12px;
+                        font-weight:bold;
+                        white-space:nowrap;
+                      ">
+                        ${escapeHtml(
+                          request.status ||
+                          "Pending"
+                        )}
+                      </span>
+
+                    </div>
+
+                    <div class="
+                      marketplace-label
+                    ">
+                      Advertising Opportunity
+                    </div>
+
+                    <div class="
+                      marketplace-value
+                    ">
+                      ${escapeHtml(
+                        request.opportunity_name
+                      )}
+                    </div>
+
+                    <div class="
+                      marketplace-label
+                    ">
+                      Location
+                    </div>
+
+                    <div class="
+                      marketplace-value
+                    ">
+                      ${escapeHtml(
+                        request.location_name
+                      )}
+                    </div>
+
+                    <div class="
+                      marketplace-label
+                    ">
+                      Submitted
+                    </div>
+
+                    <div class="
+                      marketplace-value
+                    ">
+                      ${formatDate(
+                        request.submitted_at
+                      )}
+                    </div>
+
+                    <div class="
+                      marketplace-label
+                    ">
+                      Investment
+                    </div>
+
+                    <div class="
+                      marketplace-value
+                    ">
+                      ${investmentLabel}
+                    </div>
+
+                    <div class="
+                      marketplace-label
+                    ">
+                      Contact
+                    </div>
+
+                    <div class="
+                      marketplace-value
+                    ">
+                      ${escapeHtml(
+                        request.contact_name
+                      )}
+
+                      <div style="
+                        color:#65776b;
+                        font-size:13px;
+                        margin-top:3px;
+                        overflow-wrap:anywhere;
+                      ">
+                        ${escapeHtml(
+                          request.email
+                        )}
+                      </div>
+                    </div>
+
+                    <div style="
+                      margin-top:auto;
+                      padding-top:18px;
+                      border-top:
+                        1px solid #e7eee7;
+                    ">
+                      <a
+                        class="marketplace-btn"
+                        href="/org-advertising-request/${request.id}?organization_id=${organizationId}"
+                        style="
+                          display:block;
+                          margin:0;
+                          text-align:center;
+                        "
+                      >
+                        Open Request
+                      </a>
+                    </div>
+
+                  </article>
+                `;
+              })
+              .join("")
+          : `
+              <div
+                class="marketplace-card"
+                style="
+                  grid-column:1 / -1;
+                  text-align:center;
+                  padding:44px 28px;
+                "
+              >
+                <h2 style="
+                  margin:0 0 10px;
+                ">
+                  No Advertising Requests
+                </h2>
+
+                <p style="
+                  color:#65776b;
+                  line-height:1.6;
+                  margin:0;
+                ">
+                  No requests match the
+                  selected filters.
+                </p>
+              </div>
+            `;
+
+      const filterQuery = new URLSearchParams();
+
+      if (cleanSearch) {
+        filterQuery.set(
+          "search",
+          cleanSearch
+        );
+      }
+
+      if (selectedStatus !== "All") {
+        filterQuery.set(
+          "status",
+          selectedStatus
+        );
+      }
+
+      if (selectedLocationId) {
+        filterQuery.set(
+          "location_id",
+          String(
+            selectedLocationId
+          )
+        );
+      }
+
+      if (
+        req.session.user?.role ===
+          "super_admin"
+      ) {
+        filterQuery.set(
+          "organization_id",
+          String(organizationId)
+        );
+      }
+
+      const clearFiltersUrl =
+        `/org-advertising-requests${
+          req.session.user?.role ===
+          "super_admin"
+            ? `?organization_id=${organizationId}`
+            : ""
+        }`;
+
+      return res.send(
+        marketplacePage(
+          `${organization.name} Advertising Requests`,
+          `
+            <div class="
+              marketplace-topbar
+            ">
+              <div class="
+                marketplace-brand
+              ">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Advertising Requests
+              </h1>
+
+              <p class="
+                marketplace-subtitle
+              ">
+                Review and manage
+                advertising requests
+                submitted through
+                ${escapeHtml(
+                  organization.name
+                )}'s public Advertise
+                With Us page.
+              </p>
+            </div>
+
+            <main class="
+              marketplace-wrap
+            ">
+
+              <div style="
+                display:flex;
+                justify-content:
+                  space-between;
+                align-items:center;
+                gap:16px;
+                flex-wrap:wrap;
+                margin-bottom:24px;
+              ">
+
+                <div>
+                  <span class="
+                    marketplace-preview
+                  ">
+                    Revenue Pipeline
+                  </span>
+
+                  <h2 style="
+                    margin:8px 0 0;
+                  ">
+                    ${escapeHtml(
+                      organization.name
+                    )}
+                  </h2>
+                </div>
+
+                <div style="
+                  display:flex;
+                  gap:10px;
+                  flex-wrap:wrap;
+                ">
+                  <a
+                    class="
+                      marketplace-btn
+                      secondary
+                    "
+                    href="/org-marketplace?organization_id=${organizationId}"
+                  >
+                    Advertising Opportunities
+                  </a>
+
+                  <a
+                    class="
+                      marketplace-btn
+                      secondary
+                    "
+                    href="/org-organization/${organizationId}"
+                  >
+                    Back to Organization
+                  </a>
+                </div>
+
+              </div>
+
+              <section style="
+                display:grid;
+                grid-template-columns:
+                  repeat(
+                    auto-fit,
+                    minmax(190px,1fr)
+                  );
+                gap:18px;
+                margin-bottom:24px;
+              ">
+
+                <div class="
+                  marketplace-card
+                ">
+                  <div class="
+                    marketplace-label
+                  ">
+                    Pending Requests
+                  </div>
+
+                  <div style="
+                    font-size:34px;
+                    font-weight:bold;
+                    margin-top:8px;
+                  ">
+                    ${Number(
+                      summary.pending_count ||
+                      0
+                    )}
+                  </div>
+                </div>
+
+                <div class="
+                  marketplace-card
+                ">
+                  <div class="
+                    marketplace-label
+                  ">
+                    Approved
+                  </div>
+
+                  <div style="
+                    font-size:34px;
+                    font-weight:bold;
+                    margin-top:8px;
+                  ">
+                    ${Number(
+                      summary.approved_count ||
+                      0
+                    )}
+                  </div>
+                </div>
+
+                <div class="
+                  marketplace-card
+                ">
+                  <div class="
+                    marketplace-label
+                  ">
+                    Rejected
+                  </div>
+
+                  <div style="
+                    font-size:34px;
+                    font-weight:bold;
+                    margin-top:8px;
+                  ">
+                    ${Number(
+                      summary.rejected_count ||
+                      0
+                    )}
+                  </div>
+                </div>
+
+                <div class="
+                  marketplace-card
+                ">
+                  <div class="
+                    marketplace-label
+                  ">
+                    Annual Pipeline
+                  </div>
+
+                  <div style="
+                    font-size:34px;
+                    font-weight:bold;
+                    margin-top:8px;
+                  ">
+                    ${formatMoney(
+                      summary.pipeline_value
+                    )}
+                  </div>
+                </div>
+
+              </section>
+
+              <section
+                class="marketplace-card"
+                style="margin-bottom:24px;"
+              >
+
+                <form
+                  method="GET"
+                  action="/org-advertising-requests"
+                >
+
+                  ${
+                    req.session.user?.role ===
+                    "super_admin"
+                      ? `
+                          <input
+                            type="hidden"
+                            name="organization_id"
+                            value="${organizationId}"
+                          >
+                        `
+                      : ""
+                  }
+
+                  <div style="
+                    display:grid;
+                    grid-template-columns:
+                      minmax(240px,2fr)
+                      minmax(170px,1fr)
+                      minmax(220px,1fr)
+                      auto;
+                    gap:14px;
+                    align-items:end;
+                  ">
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-size:12px;
+                        font-weight:bold;
+                        color:#65776b;
+                        margin-bottom:7px;
+                      ">
+                        Search
+                      </label>
+
+                      <input
+                        type="search"
+                        name="search"
+                        value="${escapeHtml(
+                          cleanSearch
+                        )}"
+                        placeholder="Business, contact, email or campaign"
+                        style="
+                          width:100%;
+                          padding:12px 14px;
+                          border:
+                            1px solid #d7dfd8;
+                          border-radius:10px;
+                          font-size:15px;
+                          background:white;
+                          box-sizing:
+                            border-box;
+                        "
+                      >
+                    </div>
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-size:12px;
+                        font-weight:bold;
+                        color:#65776b;
+                        margin-bottom:7px;
+                      ">
+                        Status
+                      </label>
+
+                      <select
+                        name="status"
+                        style="
+                          width:100%;
+                          padding:12px 14px;
+                          border:
+                            1px solid #d7dfd8;
+                          border-radius:10px;
+                          font-size:15px;
+                          background:white;
+                          box-sizing:
+                            border-box;
+                        "
+                      >
+                        ${statusOptions}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style="
+                        display:block;
+                        font-size:12px;
+                        font-weight:bold;
+                        color:#65776b;
+                        margin-bottom:7px;
+                      ">
+                        Location
+                      </label>
+
+                      <select
+                        name="location_id"
+                        style="
+                          width:100%;
+                          padding:12px 14px;
+                          border:
+                            1px solid #d7dfd8;
+                          border-radius:10px;
+                          font-size:15px;
+                          background:white;
+                          box-sizing:
+                            border-box;
+                        "
+                      >
+                        ${locationOptions}
+                      </select>
+                    </div>
+
+                    <div style="
+                      display:flex;
+                      gap:9px;
+                    ">
+                      <button
+                        type="submit"
+                        class="marketplace-btn"
+                        style="
+                          border:0;
+                          cursor:pointer;
+                          margin:0;
+                        "
+                      >
+                        Apply
+                      </button>
+
+                      <a
+                        href="${clearFiltersUrl}"
+                        class="
+                          marketplace-btn
+                          secondary
+                        "
+                        style="margin:0;"
+                      >
+                        Clear
+                      </a>
+                    </div>
+
+                  </div>
+
+                </form>
+
+              </section>
+
+              <div style="
+                display:flex;
+                justify-content:
+                  space-between;
+                align-items:center;
+                gap:12px;
+                margin-bottom:16px;
+              ">
+                <h2 style="margin:0;">
+                  Requests
+                </h2>
+
+                <div style="
+                  color:#65776b;
+                  font-size:14px;
+                  font-weight:bold;
+                ">
+                  ${
+                    requests.length === 1
+                      ? "1 request"
+                      : `${requests.length} requests`
+                  }
+                </div>
+              </div>
+
+              <section
+                class="marketplace-grid"
+                style="
+                  margin:0;
+                  align-items:stretch;
+                "
+              >
+                ${requestCards}
+              </section>
+
+            </main>
+
+            <style>
+              @media (
+                max-width:900px
+              ) {
+                form > div {
+                  grid-template-columns:
+                    1fr !important;
+                }
+              }
+            </style>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "ORGANIZATION ADVERTISING REQUESTS ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load Advertising Requests: " +
+        err.message
+      );
+    }
+  }
+);
 app.get(
   "/org-marketplace",
   async (req, res) => {
