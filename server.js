@@ -12156,17 +12156,27 @@ qr.name AS qr_name
 </div>
                 </div>
 
-                <div>
-                
-                  <a
-                    class="marketplace-btn secondary"
-                    href="/org-organization/${organization.id}"
-                  >
-                    Back to ${organization.name}
-                  </a>
-                </div>
+            <div style="
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+">
 
-              </div>
+  <a
+    class="marketplace-btn"
+    href="/org-advertising-requests?organization_id=${organizationId}"
+  >
+    Advertising Requests
+  </a>
+
+  <a
+    class="marketplace-btn secondary"
+    href="/org-organization/${organization.id}"
+  >
+    Back to ${organization.name}
+  </a>
+
+</div>
 
               <div class="marketplace-card" style="margin-bottom:24px;">
 
