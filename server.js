@@ -10677,7 +10677,7 @@ const statusStyle = status => {
 
     <div class="dashboard-summary-revenue">
       ${formatMoney(
-        requestSummary.pending_revenue
+        opportunitySummary.pending_revenue
       )}
     </div>
   </a>
@@ -10708,7 +10708,7 @@ const statusStyle = status => {
 
     <div class="dashboard-summary-revenue">
       ${formatMoney(
-        requestSummary.approved_revenue
+        opportunitySummary.approved_revenue
       )}
     </div>
   </a>
@@ -10739,7 +10739,7 @@ const statusStyle = status => {
 
     <div class="dashboard-summary-revenue">
       ${formatMoney(
-        requestSummary.rejected_revenue
+        opportunitySummary.rejected_revenue
       )}
     </div>
   </a>
@@ -10770,7 +10770,7 @@ const statusStyle = status => {
 
     <div class="dashboard-summary-revenue">
       ${formatMoney(
-        requestSummary.closed_revenue
+        opportunitySummary.closed_revenue
       )}
     </div>
   </a>
