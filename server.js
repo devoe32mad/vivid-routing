@@ -10263,7 +10263,7 @@ const statusStyle = status => {
                     ">
                       <a
                         class="marketplace-btn"
-                        href="/org-advertising-request/${request.opportunity_id}?organization_id=${organizationId}"
+                        href="/org-advertising-request/${request.id}?organization_id=${organizationId}"
                         style="
                           display:block;
                           margin:0;
