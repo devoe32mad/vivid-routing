@@ -2113,6 +2113,202 @@ app.get("/db-test", async (req, res) => {
   const result = await q("SELECT NOW()");
   res.json(result.rows[0]);
 });
+// ============================================================
+// ONE-TIME MARKETPLACE INVENTORY STATUS REPAIR
+// Remove this route after it has been run successfully.
+// ============================================================
+app.get(
+  "/debug-repair-opportunity-statuses",
+  requireLogin,
+  async (req, res) => {
+    try {
+      if (
+        !req.session.user ||
+        req.session.user.role !== "super_admin"
+      ) {
+        return res.status(403).json({
+          error: "Super Admin access required"
+        });
+      }
+
+      const organizationId =
+        Number(req.query.organization_id);
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res.status(400).json({
+          error:
+            "A valid organization_id is required"
+        });
+      }
+
+      // Reset active opportunities based on their request history.
+      //
+      // Priority:
+      // Approved request = Approved
+      // Pending request  = Pending
+      // Closed request   = Closed
+      // Otherwise        = Available
+      //
+      // Rejected requests do not remove inventory.
+      const repairResult = await q(
+        `
+        UPDATE organization_opportunities oo
+        SET
+          status = CASE
+            WHEN EXISTS (
+              SELECT 1
+              FROM organization_advertising_requests ar
+              WHERE ar.organization_id = oo.organization_id
+                AND ar.opportunity_id = oo.id
+                AND LOWER(
+                  COALESCE(ar.status, '')
+                ) = 'approved'
+            )
+              THEN 'Approved'
+
+            WHEN EXISTS (
+              SELECT 1
+              FROM organization_advertising_requests ar
+              WHERE ar.organization_id = oo.organization_id
+                AND ar.opportunity_id = oo.id
+                AND LOWER(
+                  COALESCE(ar.status, '')
+                ) = 'pending'
+            )
+              THEN 'Pending'
+
+            WHEN EXISTS (
+              SELECT 1
+              FROM organization_advertising_requests ar
+              WHERE ar.organization_id = oo.organization_id
+                AND ar.opportunity_id = oo.id
+                AND LOWER(
+                  COALESCE(ar.status, '')
+                ) = 'closed'
+            )
+              THEN 'Closed'
+
+            ELSE 'Available'
+          END,
+
+          updated_at = CURRENT_TIMESTAMP
+
+        WHERE oo.organization_id = $1
+          AND COALESCE(oo.is_active, true) = true
+
+        RETURNING
+          oo.id,
+          oo.title,
+          oo.status,
+          COALESCE(
+            oo.annual_price,
+            oo.price,
+            0
+          ) AS inventory_value
+        `,
+        [organizationId]
+      );
+
+      const summaryResult = await q(
+        `
+        SELECT
+          COUNT(*)::int AS total_opportunities,
+
+          COUNT(*) FILTER (
+            WHERE LOWER(
+              COALESCE(status, 'available')
+            ) = 'available'
+          )::int AS available_opportunities,
+
+          COUNT(*) FILTER (
+            WHERE LOWER(status) = 'pending'
+          )::int AS pending_opportunities,
+
+          COUNT(*) FILTER (
+            WHERE LOWER(status) = 'approved'
+          )::int AS approved_opportunities,
+
+          COUNT(*) FILTER (
+            WHERE LOWER(status) = 'closed'
+          )::int AS closed_opportunities,
+
+          COALESCE(
+            SUM(
+              COALESCE(annual_price, price, 0)
+            ),
+            0
+          ) AS total_inventory_value,
+
+          COALESCE(
+            SUM(
+              COALESCE(annual_price, price, 0)
+            ) FILTER (
+              WHERE LOWER(
+                COALESCE(status, 'available')
+              ) = 'available'
+            ),
+            0
+          ) AS available_inventory_value,
+
+          COALESCE(
+            SUM(
+              COALESCE(annual_price, price, 0)
+            ) FILTER (
+              WHERE LOWER(status) = 'pending'
+            ),
+            0
+          ) AS pending_inventory_value,
+
+          COALESCE(
+            SUM(
+              COALESCE(annual_price, price, 0)
+            ) FILTER (
+              WHERE LOWER(status) = 'approved'
+            ),
+            0
+          ) AS approved_inventory_value,
+
+          COALESCE(
+            SUM(
+              COALESCE(annual_price, price, 0)
+            ) FILTER (
+              WHERE LOWER(status) = 'closed'
+            ),
+            0
+          ) AS closed_inventory_value
+
+        FROM organization_opportunities
+        WHERE organization_id = $1
+          AND COALESCE(is_active, true) = true
+        `,
+        [organizationId]
+      );
+
+      return res.json({
+        success: true,
+        organization_id: organizationId,
+        repaired_count: repairResult.rows.length,
+        summary: summaryResult.rows[0],
+        opportunities: repairResult.rows
+      });
+    } catch (err) {
+      console.error(
+        "OPPORTUNITY STATUS REPAIR ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+        error:
+          "OPPORTUNITY STATUS REPAIR ERROR",
+        message: err.message
+      });
+    }
+  }
+);
 app.get("/debug-clear-location-end-date/:locationId", requireLogin, requireSuperAdmin, async (req, res) => {
   try {
     const locationId = Number(req.params.locationId);
