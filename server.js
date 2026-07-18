@@ -9996,6 +9996,21 @@ const cardSelected = status =>
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   });
+      const formatDate = value => {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+};
 const statusStyle = status => {
   if (status === "Approved") {
     return `
