@@ -8988,12 +8988,13 @@ app.get(
         req.query.status || "All"
       ).trim();
 
-      const allowedStatuses = [
-        "All",
-        "Pending",
-        "Approved",
-        "Rejected"
-      ];
+    const allowedStatuses = [
+  "All",
+  "Pending",
+  "Approved",
+  "Rejected",
+  "Closed"
+];
 
       const selectedStatus =
         allowedStatuses.includes(
