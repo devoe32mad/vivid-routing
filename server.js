@@ -10733,8 +10733,8 @@ const statusStyle = status => {
       </span>
 
       ${infoIcon(
-        "The combined value of advertising requests declined by the organization."
-      )}
+  "Advertising opportunities currently marked as rejected."
+)}
     </div>
 
     <div class="dashboard-summary-revenue">
@@ -10764,8 +10764,8 @@ const statusStyle = status => {
       </span>
 
       ${infoIcon(
-        "Revenue from requests that completed setup and became secured business."
-      )}
+  "Advertising opportunities that completed the sales and setup process."
+)}
     </div>
 
     <div class="dashboard-summary-revenue">
