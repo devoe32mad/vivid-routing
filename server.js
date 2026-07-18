@@ -17701,12 +17701,31 @@ const normalizeWebsiteUrl = value => {
 
               </div>
 
-              <form
-                method="POST"
-                action="/advertise/${encodeURIComponent(
-                  organization.slug
-                )}/location/${location.id}/opportunity/${opportunity.id}/submit"
-              >
+           <form
+  id="advertisingRequestForm"
+  method="POST"
+  action="/advertise/${encodeURIComponent(
+    organization.slug
+  )}/location/${location.id}/opportunity/${opportunity.id}/submit"
+  onsubmit="
+    const submitButton =
+      this.querySelector('.submit-button');
+
+    if (this.dataset.submitting === 'true') {
+      return false;
+    }
+
+    this.dataset.submitting = 'true';
+
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent =
+        'Submitting Request...';
+    }
+
+    return true;
+  "
+>
 
                 <input
                   type="hidden"
