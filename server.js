@@ -9066,8 +9066,8 @@ app.get(
       ];
 
       const whereParts = [
-        "organization_id = $1"
-      ];
+  "r.organization_id = $1"
+];
 
       if (selectedStatus !== "All") {
         queryValues.push(
@@ -9075,8 +9075,8 @@ app.get(
         );
 
         whereParts.push(
-          `status = $${queryValues.length}`
-        );
+  `r.status = $${queryValues.length}`
+);
       }
 
       if (selectedLocationId) {
@@ -9085,8 +9085,10 @@ app.get(
         );
 
         whereParts.push(
-          `location_id = $${queryValues.length}`
-        );
+  `r.location_id = $${queryValues.length}`
+);
+          
+      
       }
 
       if (cleanSearch) {
@@ -9097,68 +9099,74 @@ app.get(
         const searchParameter =
           `$${queryValues.length}`;
 
-        whereParts.push(`
-          (
-            business_name
-              ILIKE ${searchParameter}
+     whereParts.push(`
+  (
+    r.business_name
+      ILIKE ${searchParameter}
 
-            OR contact_name
-              ILIKE ${searchParameter}
+    OR r.contact_name
+      ILIKE ${searchParameter}
 
-            OR email
-              ILIKE ${searchParameter}
+    OR r.email
+      ILIKE ${searchParameter}
 
-            OR campaign_name
-              ILIKE ${searchParameter}
+    OR r.campaign_name
+      ILIKE ${searchParameter}
 
-            OR opportunity_name
-              ILIKE ${searchParameter}
+    OR r.opportunity_name
+      ILIKE ${searchParameter}
 
-            OR location_name
-              ILIKE ${searchParameter}
-          )
-        `);
+    OR s.name
+      ILIKE ${searchParameter}
+  )
+`);
       }
 
-      const requestsResult = await q(`
-        SELECT
-          id,
+    const requestsResult = await q(`
+  SELECT
+    r.id,
 
-          organization_id,
-          organization_name,
+    r.organization_id,
+    o.name AS organization_name,
 
-          location_id,
-          location_name,
+    r.location_id,
+    s.name AS location_name,
 
-          opportunity_id,
-          opportunity_name,
+    r.opportunity_id,
+    r.opportunity_name,
 
-          business_name,
-          contact_name,
-          email,
-          phone,
+    r.business_name,
+    r.contact_name,
+    r.email,
+    r.phone,
 
-          campaign_name,
+    r.campaign_name,
 
-          price,
-          pricing_unit,
+    r.price,
+    r.pricing_unit,
 
-          status,
-          setup_status,
-          submitted_at
+    r.status,
+    r.setup_status,
+    r.submitted_at
 
-        FROM
-          organization_advertising_requests
+  FROM organization_advertising_requests r
 
-        WHERE
-          ${whereParts.join(
-            "\nAND "
-          )}
+  JOIN organizations o
+    ON o.id = r.organization_id
 
-        ORDER BY
-          submitted_at DESC,
-          id DESC
-      `, queryValues);
+  LEFT JOIN spaces s
+    ON s.id = r.location_id
+   AND s.organization_id = r.organization_id
+
+  WHERE
+    ${whereParts.join(
+      "\nAND "
+    )}
+
+  ORDER BY
+    r.submitted_at DESC,
+    r.id DESC
+`, queryValues);
 
       const requests =
         requestsResult.rows;
