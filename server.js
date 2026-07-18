@@ -2731,6 +2731,82 @@ app.get(
     }
   }
 );
+/*
+=========================================================
+TEMPORARY ADVERTISING REQUEST TEST
+Remove after the Organization Requests page is built.
+=========================================================
+*/
+
+app.get(
+  "/debug-advertising-requests",
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const result = await q(`
+        SELECT
+          ar.id,
+          ar.organization_id,
+          o.name AS organization_name,
+
+          ar.location_id,
+          s.name AS location_name,
+
+          ar.opportunity_id,
+          ar.opportunity_name,
+          ar.opportunity_group,
+          ar.placement,
+
+          ar.business_name,
+          ar.contact_name,
+          ar.email,
+          ar.phone,
+          ar.website,
+          ar.business_category,
+
+          ar.campaign_name,
+          ar.destination_url,
+          ar.campaign_notes,
+
+          ar.price,
+          ar.pricing_unit,
+          ar.suggested_term_length,
+          ar.suggested_term_unit,
+
+          ar.status,
+          ar.setup_status,
+          ar.submitted_at
+
+        FROM organization_advertising_requests ar
+
+        JOIN organizations o
+          ON o.id = ar.organization_id
+
+        JOIN spaces s
+          ON s.id = ar.location_id
+
+        ORDER BY
+          ar.submitted_at DESC,
+          ar.id DESC
+
+        LIMIT 25
+      `);
+
+      return res.json(result.rows);
+
+    } catch (err) {
+      console.error(
+        "DEBUG ADVERTISING REQUESTS ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "DEBUG ADVERTISING REQUESTS ERROR: " +
+        err.message
+      );
+    }
+  }
+);
 app.get("/debug-conversions", async (req, res) => {
   const result = await q(`
     SELECT id, qr_id, campaign_id, type, value, created_at
