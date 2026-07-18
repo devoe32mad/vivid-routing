@@ -9252,7 +9252,27 @@ app.get(
           }
         );
       };
+const infoIcon = definition => `
+  <span
+    class="info-tooltip"
+    tabindex="0"
+    aria-label="${escapeHtml(definition)}"
+  >
+    <span
+      class="info-tooltip-icon"
+      aria-hidden="true"
+    >
+      i
+    </span>
 
+    <span
+      class="info-tooltip-content"
+      role="tooltip"
+    >
+      ${escapeHtml(definition)}
+    </span>
+  </span>
+`;
       const statusStyle = status => {
         if (status === "Approved") {
           return `
