@@ -8548,7 +8548,340 @@ ${orgDateFilterForm({
 ORGANIZATION USERS
 =========================================================
 */
+/*
+=========================================================
+ADD ORGANIZATION USER FORM
+=========================================================
+*/
 
+app.get(
+  "/org-users/new",
+  requireOrganizationPermission("manage_users"),
+  async (req, res) => {
+    try {
+      const organizationId = Number(
+        req.session.orgUser.organization_id
+      );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send("Valid organization is required.");
+      }
+
+      const organizationResult = await q(
+        `
+          SELECT
+            id,
+            name
+          FROM organizations
+          WHERE id = $1
+            AND COALESCE(is_active, true) = true
+          LIMIT 1
+        `,
+        [organizationId]
+      );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res
+          .status(404)
+          .send("Organization not found.");
+      }
+
+      const locationsResult = await q(
+        `
+          SELECT
+            id,
+            name,
+            location
+          FROM spaces
+          WHERE organization_id = $1
+            AND COALESCE(is_archived, false) = false
+          ORDER BY name ASC
+        `,
+        [organizationId]
+      );
+
+      const locationOptions =
+        locationsResult.rows
+          .map((location) => {
+            const locationDescription =
+              location.location
+                ? ` — ${escapeHtml(location.location)}`
+                : "";
+
+            return `
+              <label style="
+                display:flex;
+                align-items:flex-start;
+                gap:10px;
+                padding:12px;
+                margin:0;
+                border:1px solid #DCE5DC;
+                border-radius:10px;
+                background:#FFFFFF;
+                cursor:pointer;
+              ">
+                <input
+                  type="checkbox"
+                  name="location_ids"
+                  value="${location.id}"
+                  style="
+                    width:auto;
+                    margin-top:3px;
+                  "
+                />
+
+                <span>
+                  <strong>
+                    ${escapeHtml(location.name)}
+                  </strong>
+
+                  <span style="
+                    color:#64748B;
+                    font-size:13px;
+                  ">
+                    ${locationDescription}
+                  </span>
+                </span>
+              </label>
+            `;
+          })
+          .join("");
+
+      res.send(
+        orgPage(
+          `Add ${organization.name} User`,
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Add User</h1>
+
+              <p class="subtitle">
+                Give a team member access to
+                ${escapeHtml(organization.name)}.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div style="margin-bottom:20px;">
+                <a
+                  class="btn secondary"
+                  href="/org-users"
+                >
+                  Back to Users
+                </a>
+              </div>
+
+              <form
+                method="POST"
+                action="/org-users"
+              >
+                <div class="card">
+
+                  <h2 style="margin-top:0;">
+                    User Information
+                  </h2>
+
+                  <label for="name">
+                    Full Name
+                  </label>
+
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    maxlength="150"
+                    required
+                  />
+
+                  <label for="email">
+                    Email Address
+                  </label>
+
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    maxlength="255"
+                    required
+                  />
+
+                  <label for="password">
+                    Temporary Password
+                  </label>
+
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    minlength="8"
+                    required
+                  />
+
+                  <p style="
+                    margin-top:-8px;
+                    color:#64748B;
+                    font-size:13px;
+                  ">
+                    The user can use this password for
+                    their initial Organization Portal login.
+                  </p>
+
+                  <label for="role">
+                    Role
+                  </label>
+
+                  <select
+                    id="role"
+                    name="role"
+                    required
+                    onchange="updateLocationVisibility()"
+                  >
+                    <option value="">
+                      Select a role
+                    </option>
+
+                    <option value="organization_admin">
+                      Organization Administrator
+                    </option>
+
+                    <option value="location_manager">
+                      Location Manager
+                    </option>
+
+                    <option value="standard_user">
+                      Standard User
+                    </option>
+
+                    <option value="read_only">
+                      Read Only
+                    </option>
+                  </select>
+
+                </div>
+
+                <div
+                  id="locationAssignmentCard"
+                  class="card"
+                  style="
+                    margin-top:20px;
+                    display:none;
+                  "
+                >
+                  <h2 style="margin-top:0;">
+                    Location Access
+                  </h2>
+
+                  <p style="
+                    color:#64748B;
+                    margin-bottom:18px;
+                  ">
+                    Select every location this user
+                    should be able to access.
+                  </p>
+
+                  <div style="
+                    display:grid;
+                    grid-template-columns:
+                      repeat(auto-fit, minmax(260px, 1fr));
+                    gap:10px;
+                  ">
+                    ${
+                      locationOptions ||
+                      `
+                        <p style="color:#64748B;">
+                          No active locations are available.
+                        </p>
+                      `
+                    }
+                  </div>
+                </div>
+
+                <div style="
+                  display:flex;
+                  justify-content:flex-end;
+                  gap:12px;
+                  margin-top:20px;
+                ">
+                  <a
+                    class="btn secondary"
+                    href="/org-users"
+                  >
+                    Cancel
+                  </a>
+
+                  <button
+                    class="btn"
+                    type="submit"
+                  >
+                    Add User
+                  </button>
+                </div>
+
+              </form>
+            </div>
+
+            <script>
+              function updateLocationVisibility() {
+                const role =
+                  document.getElementById("role").value;
+
+                const locationCard =
+                  document.getElementById(
+                    "locationAssignmentCard"
+                  );
+
+                const requiresLocations = [
+                  "location_manager",
+                  "standard_user",
+                  "read_only"
+                ].includes(role);
+
+                locationCard.style.display =
+                  requiresLocations
+                    ? "block"
+                    : "none";
+
+                if (!requiresLocations) {
+                  document
+                    .querySelectorAll(
+                      'input[name="location_ids"]'
+                    )
+                    .forEach((checkbox) => {
+                      checkbox.checked = false;
+                    });
+                }
+              }
+
+              updateLocationVisibility();
+            </script>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "ADD ORGANIZATION USER FORM ERROR:",
+        err
+      );
+
+      res.status(500).send(
+        "ADD ORGANIZATION USER FORM ERROR: " +
+          err.message
+      );
+    }
+  }
+);
 app.get(
   "/org-users",
   requireOrganizationPermission("manage_users"),
