@@ -12253,17 +12253,46 @@ const opportunityResult = await q(`
                       Select School 
                     </div>
 
-                  <select style="
-  width:100%;
-  padding:12px 14px;
-  border:1px solid #d7dfd8;
-  border-radius:10px;
-  font-size:15px;
-  background:white;
-  box-sizing:border-box;
-">
-${locationOptions}
-</select>
+                  <form
+  method="GET"
+  action="/org-marketplace"
+  style="margin:0;"
+>
+  <input
+    type="hidden"
+    name="organization_id"
+    value="${organizationId}"
+  >
+
+  ${
+    selectedStatus !== "All"
+      ? `
+          <input
+            type="hidden"
+            name="status"
+            value="${selectedStatus}"
+          >
+        `
+      : ""
+  }
+
+  <select
+    name="location_id"
+    onchange="this.form.submit()"
+    style="
+      width:100%;
+      padding:12px 14px;
+      border:1px solid #d7dfd8;
+      border-radius:10px;
+      font-size:15px;
+      background:white;
+      box-sizing:border-box;
+      margin:0;
+    "
+  >
+    ${locationOptions}
+  </select>
+</form>
 
                   </div>
 
@@ -12287,9 +12316,21 @@ ${locationOptions}
 </a>
                 </div>
 
-                <h2 style="margin:0 0 18px;">
-                  Available Sponsorships
-                </h2>
+                <h2 style="margin:0 0 6px;">
+  ${
+    selectedStatus === "All"
+      ? "All Sponsorships"
+      : `${selectedStatus} Sponsorships`
+  }
+</h2>
+
+<div style="
+  color:#65776b;
+  margin-bottom:18px;
+">
+  ${selectedLocationName}
+</div>
+      
 
                 <div class="marketplace-grid" style="margin:0;">
                   ${opportunityCards}
