@@ -8882,6 +8882,668 @@ app.get(
     }
   }
 );
+/*
+=========================================================
+SAVE ORGANIZATION USER
+=========================================================
+*/
+
+app.post(
+  "/org-users",
+  requireOrganizationPermission("manage_users"),
+  async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+      const organizationId = Number(
+        req.session.orgUser.organization_id
+      );
+
+      const name = String(
+        req.body.name || ""
+      ).trim();
+
+      const email = String(
+        req.body.email || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const password = String(
+        req.body.password || ""
+      );
+
+      const role = String(
+        req.body.role || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      /*
+        Express returns either:
+
+        - one string when one checkbox is selected
+        - an array when several are selected
+        - undefined when none are selected
+
+        Normalize all three possibilities into an array.
+      */
+      const submittedLocationIds =
+        req.body.location_ids === undefined
+          ? []
+          : Array.isArray(req.body.location_ids)
+            ? req.body.location_ids
+            : [req.body.location_ids];
+
+      const locationIds = [
+        ...new Set(
+          submittedLocationIds
+            .map(value => Number(value))
+            .filter(
+              value =>
+                Number.isInteger(value) &&
+                value > 0
+            )
+        )
+      ];
+
+      /*
+      =====================================================
+      VALIDATION
+      =====================================================
+      */
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send("Valid organization is required.");
+      }
+
+      if (!name) {
+        return res
+          .status(400)
+          .send(`
+            Full Name is required.
+            <br><br>
+            <a href="/org-users/new">Back to Add User</a>
+          `);
+      }
+
+      if (
+        !email ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+      ) {
+        return res
+          .status(400)
+          .send(`
+            A valid email address is required.
+            <br><br>
+            <a href="/org-users/new">Back to Add User</a>
+          `);
+      }
+
+      const allowedRoles = [
+        "organization_admin",
+        "location_manager",
+        "standard_user",
+        "read_only"
+      ];
+
+      if (!allowedRoles.includes(role)) {
+        return res
+          .status(400)
+          .send(`
+            A valid organization role is required.
+            <br><br>
+            <a href="/org-users/new">Back to Add User</a>
+          `);
+      }
+
+      const requiresLocations = [
+        "location_manager",
+        "standard_user",
+        "read_only"
+      ].includes(role);
+
+      if (
+        requiresLocations &&
+        locationIds.length === 0
+      ) {
+        return res
+          .status(400)
+          .send(`
+            Select at least one location for this role.
+            <br><br>
+            <a href="/org-users/new">Back to Add User</a>
+          `);
+      }
+
+      /*
+        The current Vivid login system compares passwords
+        directly in SQL, so this route must use the same
+        password format until password hashing is migrated
+        across every login route together.
+      */
+      if (password.length < 8) {
+        return res
+          .status(400)
+          .send(`
+            Temporary Password must contain at least 8 characters.
+            <br><br>
+            <a href="/org-users/new">Back to Add User</a>
+          `);
+      }
+
+      await client.query("BEGIN");
+
+      /*
+      =====================================================
+      CONFIRM ORGANIZATION
+      =====================================================
+      */
+
+      const organizationResult =
+        await client.query(
+          `
+            SELECT
+              id,
+              name
+            FROM organizations
+            WHERE id = $1
+              AND COALESCE(is_active, true) = true
+            LIMIT 1
+          `,
+          [organizationId]
+        );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(404)
+          .send("Organization not found.");
+      }
+
+      /*
+      =====================================================
+      VALIDATE LOCATION OWNERSHIP
+      =====================================================
+
+      Do not trust location IDs submitted by the browser.
+      Every selected location must belong to this organization.
+      */
+
+      if (requiresLocations) {
+        const validLocationsResult =
+          await client.query(
+            `
+              SELECT id
+              FROM spaces
+              WHERE organization_id = $1
+                AND id = ANY($2::int[])
+                AND COALESCE(is_archived, false) = false
+            `,
+            [
+              organizationId,
+              locationIds
+            ]
+          );
+
+        const validLocationIds =
+          validLocationsResult.rows.map(
+            row => Number(row.id)
+          );
+
+        if (
+          validLocationIds.length !==
+          locationIds.length
+        ) {
+          await client.query("ROLLBACK");
+
+          return res
+            .status(400)
+            .send(`
+              One or more selected locations are invalid.
+              <br><br>
+              <a href="/org-users/new">Back to Add User</a>
+            `);
+        }
+      }
+
+      /*
+      =====================================================
+      FIND OR CREATE GLOBAL USER
+      =====================================================
+      */
+
+      const existingUserResult =
+        await client.query(
+          `
+            SELECT
+              id,
+              name,
+              email
+            FROM users
+            WHERE LOWER(email) = LOWER($1)
+            LIMIT 1
+            FOR UPDATE
+          `,
+          [email]
+        );
+
+      let userId;
+      let existingVividUser = false;
+
+      if (existingUserResult.rows.length) {
+        userId = Number(
+          existingUserResult.rows[0].id
+        );
+
+        existingVividUser = true;
+      } else {
+        const newUserResult =
+          await client.query(
+            `
+              INSERT INTO users (
+                name,
+                email,
+                password,
+                role
+              )
+              VALUES (
+                $1,
+                $2,
+                $3,
+                'organization_user'
+              )
+              RETURNING id
+            `,
+            [
+              name,
+              email,
+              password
+            ]
+          );
+
+        userId = Number(
+          newUserResult.rows[0].id
+        );
+      }
+
+      /*
+      =====================================================
+      PREVENT DUPLICATE ORGANIZATION MEMBERSHIP
+      =====================================================
+      */
+
+      const existingMembershipResult =
+        await client.query(
+          `
+            SELECT
+              id,
+              is_active
+            FROM organization_users
+            WHERE organization_id = $1
+              AND user_id = $2
+            LIMIT 1
+            FOR UPDATE
+          `,
+          [
+            organizationId,
+            userId
+          ]
+        );
+
+      if (existingMembershipResult.rows.length) {
+        await client.query("ROLLBACK");
+
+        const membership =
+          existingMembershipResult.rows[0];
+
+        const membershipMessage =
+          membership.is_active
+            ? `${escapeHtml(email)} already belongs to ${escapeHtml(
+                organization.name
+              )}.`
+            : `${escapeHtml(email)} previously belonged to ${escapeHtml(
+                organization.name
+              )} and is currently inactive. Use Edit User to reactivate the account.`;
+
+        return res
+          .status(409)
+          .send(`
+            <div style="
+              max-width:650px;
+              margin:50px auto;
+              padding:28px;
+              font-family:Arial,sans-serif;
+            ">
+              <h2>User Already Connected</h2>
+
+              <p>
+                ${membershipMessage}
+              </p>
+
+              <a href="/org-users">
+                Back to Users
+              </a>
+            </div>
+          `);
+      }
+
+      /*
+      =====================================================
+      CREATE ORGANIZATION MEMBERSHIP
+      =====================================================
+      */
+
+      const membershipResult =
+        await client.query(
+          `
+            INSERT INTO organization_users (
+              organization_id,
+              user_id,
+              role,
+              is_active
+            )
+            VALUES (
+              $1,
+              $2,
+              $3,
+              true
+            )
+            RETURNING id
+          `,
+          [
+            organizationId,
+            userId,
+            role
+          ]
+        );
+
+      const organizationUserId =
+        Number(
+          membershipResult.rows[0].id
+        );
+
+      /*
+      =====================================================
+      CREATE LOCATION ACCESS
+      =====================================================
+
+      Organization Administrators receive organization-wide
+      access through their role and do not require rows in
+      location_users.
+      */
+
+      if (requiresLocations) {
+        const locationRole =
+          role === "location_manager"
+            ? "manager"
+            : role === "standard_user"
+              ? "standard_user"
+              : "read_only";
+
+        const canManage =
+          role === "location_manager";
+
+        const canViewReports =
+          role !== "read_only";
+
+        for (const spaceId of locationIds) {
+          await client.query(
+            `
+              INSERT INTO location_users (
+                organization_id,
+                space_id,
+                user_id,
+                role,
+                can_manage_contracts,
+                can_manage_pricing,
+                can_view_reports,
+                is_active
+              )
+              VALUES (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                true
+              )
+            `,
+            [
+              organizationId,
+              spaceId,
+              userId,
+              locationRole,
+              canManage,
+              canManage,
+              canViewReports
+            ]
+          );
+        }
+      }
+
+      /*
+      =====================================================
+      CREATE DEFAULT NOTIFICATION PREFERENCES
+      =====================================================
+      */
+
+      const defaultNotifications = [
+        "advertising_request_submitted",
+        "advertising_request_approved",
+        "contract_expiring",
+        "campaign_started",
+        "campaign_ended"
+      ];
+
+      for (
+        const notificationKey
+        of defaultNotifications
+      ) {
+        await client.query(
+          `
+            INSERT INTO organization_user_notifications (
+              organization_user_id,
+              notification_key,
+              is_enabled
+            )
+            VALUES (
+              $1,
+              $2,
+              true
+            )
+            ON CONFLICT (
+              organization_user_id,
+              notification_key
+            )
+            DO NOTHING
+          `,
+          [
+            organizationUserId,
+            notificationKey
+          ]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      /*
+      =====================================================
+      SUCCESS
+      =====================================================
+      */
+
+      return res.send(
+        orgPage(
+          "Organization User Added",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>User Added</h1>
+
+              <p class="subtitle">
+                Organization access was created successfully.
+              </p>
+            </div>
+
+            <div class="wrap">
+              <div
+                class="card"
+                style="
+                  max-width:700px;
+                  margin:30px auto;
+                "
+              >
+                <h2 style="margin-top:0;">
+                  ${escapeHtml(name)}
+                </h2>
+
+                <p>
+                  <strong>Email:</strong>
+                  ${escapeHtml(email)}
+                </p>
+
+                <p>
+                  <strong>Organization:</strong>
+                  ${escapeHtml(organization.name)}
+                </p>
+
+                <p>
+                  <strong>Role:</strong>
+                  ${escapeHtml(
+                    role
+                      .split("_")
+                      .map(
+                        word =>
+                          word.charAt(0).toUpperCase() +
+                          word.slice(1)
+                      )
+                      .join(" ")
+                  )}
+                </p>
+
+                ${
+                  existingVividUser
+                    ? `
+                      <div
+                        style="
+                          background:#EFF6FF;
+                          border-left:5px solid #2563EB;
+                          padding:16px;
+                          border-radius:10px;
+                          margin:20px 0;
+                        "
+                      >
+                        <strong>
+                          Existing Vivid account connected
+                        </strong>
+
+                        <p style="margin-bottom:0;">
+                          This person already had a Vivid
+                          account. Their existing password
+                          was preserved, and access to
+                          ${escapeHtml(organization.name)}
+                          was added.
+                        </p>
+                      </div>
+                    `
+                    : `
+                      <div
+                        style="
+                          background:#ECFDF5;
+                          border-left:5px solid #16A34A;
+                          padding:16px;
+                          border-radius:10px;
+                          margin:20px 0;
+                        "
+                      >
+                        <strong>
+                          New Vivid account created
+                        </strong>
+
+                        <p style="margin-bottom:0;">
+                          Give the user the temporary
+                          password entered on the form.
+                        </p>
+                      </div>
+                    `
+                }
+
+                <div style="
+                  display:flex;
+                  gap:12px;
+                  flex-wrap:wrap;
+                  margin-top:24px;
+                ">
+                  <a
+                    class="btn"
+                    href="/org-users"
+                  >
+                    Back to Users
+                  </a>
+
+                  <a
+                    class="btn secondary"
+                    href="/org-users/new"
+                  >
+                    Add Another User
+                  </a>
+                </div>
+              </div>
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackErr) {
+        console.error(
+          "ORGANIZATION USER ROLLBACK ERROR:",
+          rollbackErr
+        );
+      }
+
+      console.error(
+        "SAVE ORGANIZATION USER ERROR:",
+        err
+      );
+
+      if (err.code === "23505") {
+        return res
+          .status(409)
+          .send(`
+            This user or location assignment already exists.
+            <br><br>
+            <a href="/org-users">Back to Users</a>
+          `);
+      }
+
+      return res
+        .status(500)
+        .send(
+          "SAVE ORGANIZATION USER ERROR: " +
+            err.message
+        );
+    } finally {
+      client.release();
+    }
+  }
+);
 app.get(
   "/org-users",
   requireOrganizationPermission("manage_users"),
