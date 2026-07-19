@@ -8432,7 +8432,7 @@ app.get("/org-pricing", async (req, res) => {
 
         <p>
           This page will manage organization pricing by location, placement,
-          contract type, and advertising Opportunity.
+          contract type, and advertising opportunity.
         </p>
 
         <a class="btn secondary" href="/org-dashboard">
@@ -16427,7 +16427,7 @@ SELECT
               </h1>
 
               <p class="marketplace-subtitle">
-                Update this sponsorship opportunity in
+                Update this advertising opportunity in
                 ${opportunity.location_name}'s inventory.
               </p>
 
@@ -16517,7 +16517,7 @@ SELECT
                         font-weight:bold;
                         margin-bottom:7px;
                       ">
-                        Sponsorship Opportunity
+                        Advertising Opportunity
                       </label>
 
                       <input
@@ -16559,7 +16559,7 @@ SELECT
                       <textarea
                         name="description"
                         rows="6"
-                        placeholder="Describe the sponsorship opportunity."
+                        placeholder="Describe the advertising opportunity."
                         style="
                           width:100%;
                           padding:11px;
@@ -16941,7 +16941,7 @@ const suggestedTermUnit = String(
 
       if (!title) {
         return res.status(400).send(
-          "Sponsorship Opportunity is required."
+          "Advertising Opportunity is required."
         );
       }
 
@@ -17066,7 +17066,7 @@ if (!allowedTermUnits.includes(suggestedTermUnit)) {
 
       if (!current) {
         return res.status(404).send(
-          "Active sponsorship opportunity not found."
+          "Active advertising opportunity not found."
         );
       }
 
@@ -17123,7 +17123,7 @@ if (!allowedTermUnits.includes(suggestedTermUnit)) {
 
       if (duplicateResult.rows[0]) {
         return res.status(409).send(`
-          Another active sponsorship opportunity with
+          Another active advertising opportunity with
           this name already exists at
           ${current.location_name}.
           <br><br>
