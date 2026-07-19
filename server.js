@@ -8432,7 +8432,7 @@ app.get("/org-pricing", async (req, res) => {
 
         <p>
           This page will manage organization pricing by location, placement,
-          contract type, and sponsorship opportunity.
+          contract type, and advertising Opportunity.
         </p>
 
         <a class="btn secondary" href="/org-dashboard">
@@ -12229,7 +12229,7 @@ const opportunityResult = await q(`
         </div>
 
         <div class="marketplace-label">
-          Sponsorship Opportunity
+          Advertising Opportunity
         </div>
 
         <div class="marketplace-value">
@@ -15535,7 +15535,7 @@ app.get(
   </h1>
 
   <p class="marketplace-subtitle">
-    Add a sponsorship opportunity to
+    Add a advertising opportunity to
     ${location.name}'s inventory.
   </p>
 
@@ -15624,7 +15624,7 @@ app.get(
         font-weight:bold;
         margin-bottom:7px;
       ">
-        Sponsorship Opportunity
+        Advertising Opportunity
       </label>
 
       <input
@@ -15665,7 +15665,7 @@ app.get(
       <textarea
         name="description"
         rows="6"
-        placeholder="Describe the sponsorship opportunity."
+        placeholder="Describe the advertising opportunity."
         style="
           width:100%;
           padding:11px;
@@ -15982,7 +15982,7 @@ app.post(
 
       if (!title) {
         return res.status(400).send(
-          "Sponsorship Opportunity is required."
+          "Advertising Opportunity is required."
         );
       }
 
@@ -16176,7 +16176,7 @@ app.post(
 
       if (duplicateResult.rows[0]) {
         return res.status(409).send(`
-          An active sponsorship opportunity with this
+          An active advertising opportunity with this
           name already exists at ${location.name}.
           <br><br>
 
@@ -16375,7 +16375,7 @@ SELECT
 
       if (!opportunity) {
         return res.status(404).send(
-          "Active sponsorship opportunity not found."
+          "Active advertising opportunity not found."
         );
       }
 
