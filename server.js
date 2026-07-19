@@ -12245,7 +12245,7 @@ const opportunityResult = await q(`
         </div>
 
 <div class="marketplace-label">
-  Sponsorship Price
+  Investment
 </div>
 
 <div class="marketplace-value">
@@ -15686,7 +15686,7 @@ app.get(
     font-weight:bold;
     margin-bottom:7px;
   ">
-    Sponsorship Price
+    Investment
   </label>
 
   <input
@@ -15991,7 +15991,7 @@ app.post(
         price < 0
       ) {
         return res.status(400).send(
-          "Sponsorship Price must be a valid amount."
+          "Investment must be a valid amount."
         );
       }
 
@@ -16580,7 +16580,7 @@ SELECT
     font-weight:bold;
     margin-bottom:7px;
   ">
-    Sponsorship Price
+    Investment
   </label>
 
   <input
@@ -16950,7 +16950,7 @@ const suggestedTermUnit = String(
   price < 0
 ) {
   return res.status(400).send(
-    "Sponsorship Price must be a valid amount."
+    "Investment must be a valid amount."
   );
 }
 
