@@ -4420,18 +4420,80 @@ delete req.session.user;
   Organization-level admins land on their
   Organization Executive Dashboard.
 */
+const organizationRole = String(
+  user.organization_role || ""
+).toLowerCase();
+
+/*
+  Organization-wide roles land on the
+  Organization Executive Dashboard.
+*/
 if (
-  ["owner", "organization_admin", "district_admin"].includes(
-    String(user.organization_role || "").toLowerCase()
-  )
+  [
+    "owner",
+    "organization_admin",
+    "district_admin"
+  ].includes(organizationRole)
 ) {
   return res.redirect(
     `/org-organization/${user.organization_id}`
   );
 }
 
+/*
+  Location-level roles land on one of their
+  assigned locations.
+*/
+if (
+  [
+    "location_manager",
+    "standard_user",
+    "read_only"
+  ].includes(organizationRole)
+) {
+  const locationResult = await q(
+    `
+      SELECT
+        lu.space_id
+      FROM location_users lu
+      INNER JOIN spaces s
+        ON s.id = lu.space_id
+       AND s.organization_id = lu.organization_id
+      WHERE lu.organization_id = $1
+        AND lu.user_id = $2
+        AND COALESCE(lu.is_active, true) = true
+        AND COALESCE(s.is_archived, false) = false
+      ORDER BY s.name ASC
+      LIMIT 1
+    `,
+    [
+      user.organization_id,
+      user.user_id
+    ]
+  );
+
+  const assignedLocation =
+    locationResult.rows[0];
+
+  if (!assignedLocation) {
+    return res.status(403).send(`
+      This user does not have an active location assignment.
+      <br><br>
+      Please contact your Organization Administrator.
+      <br><br>
+      <a href="/org-login">
+        Back to Organization Login
+      </a>
+    `);
+  }
+
+  return res.redirect(
+    `/org-location/${assignedLocation.space_id}`
+  );
+}
+
 return res.status(403).send(
-  "This Organization Portal role does not have a valid landing page yet."
+  "This Organization Portal role is not recognized."
 );
 
   } catch (err) {
