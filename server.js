@@ -1101,6 +1101,30 @@ function organizationRoleHasPermission(
 
   return permissions[permissionKey] === true;
 }
+function requireOrganizationPermission(permissionKey) {
+  return (req, res, next) => {
+
+    if (!req.session.orgUser) {
+      return res.redirect("/org-login");
+    }
+
+    const role =
+      req.session.orgUser.organization_role;
+
+    if (
+      !organizationRoleHasPermission(
+        role,
+        permissionKey
+      )
+    ) {
+      return res
+        .status(403)
+        .send("Access denied");
+    }
+
+    next();
+  };
+}
 function requireAdmin(req, res, next) {
 
   if (!req.session.user) {
