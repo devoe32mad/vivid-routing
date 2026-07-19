@@ -983,6 +983,124 @@ function requireOrgLogin(req, res, next) {
 
   next();
 }
+/*
+=========================================================
+ORGANIZATION ROLES AND PERMISSIONS
+=========================================================
+*/
+
+const ORGANIZATION_ROLE_PERMISSIONS = {
+  owner: {
+    view_dashboard: true,
+    view_all_locations: true,
+    manage_users: true,
+    manage_permissions: true,
+    manage_locations: true,
+    manage_advertisers: true,
+    manage_opportunities: true,
+    manage_requests: true,
+    approve_requests: true,
+    view_analytics: true,
+    export_reports: true,
+    manage_settings: true
+  },
+
+  organization_admin: {
+    view_dashboard: true,
+    view_all_locations: true,
+    manage_users: true,
+    manage_permissions: true,
+    manage_locations: true,
+    manage_advertisers: true,
+    manage_opportunities: true,
+    manage_requests: true,
+    approve_requests: true,
+    view_analytics: true,
+    export_reports: true,
+    manage_settings: true
+  },
+
+  district_admin: {
+    view_dashboard: true,
+    view_all_locations: true,
+    manage_users: true,
+    manage_permissions: true,
+    manage_locations: true,
+    manage_advertisers: true,
+    manage_opportunities: true,
+    manage_requests: true,
+    approve_requests: true,
+    view_analytics: true,
+    export_reports: true,
+    manage_settings: true
+  },
+
+  location_manager: {
+    view_dashboard: true,
+    view_all_locations: false,
+    manage_users: false,
+    manage_permissions: false,
+    manage_locations: false,
+    manage_advertisers: true,
+    manage_opportunities: true,
+    manage_requests: true,
+    approve_requests: true,
+    view_analytics: true,
+    export_reports: true,
+    manage_settings: false
+  },
+
+  standard_user: {
+    view_dashboard: true,
+    view_all_locations: false,
+    manage_users: false,
+    manage_permissions: false,
+    manage_locations: false,
+    manage_advertisers: false,
+    manage_opportunities: false,
+    manage_requests: false,
+    approve_requests: false,
+    view_analytics: true,
+    export_reports: true,
+    manage_settings: false
+  },
+
+  read_only: {
+    view_dashboard: true,
+    view_all_locations: false,
+    manage_users: false,
+    manage_permissions: false,
+    manage_locations: false,
+    manage_advertisers: false,
+    manage_opportunities: false,
+    manage_requests: false,
+    approve_requests: false,
+    view_analytics: true,
+    export_reports: false,
+    manage_settings: false
+  }
+};
+
+function getOrganizationRolePermissions(role) {
+  const normalizedRole = String(
+    role || "read_only"
+  ).trim().toLowerCase();
+
+  return (
+    ORGANIZATION_ROLE_PERMISSIONS[normalizedRole] ||
+    ORGANIZATION_ROLE_PERMISSIONS.read_only
+  );
+}
+
+function organizationRoleHasPermission(
+  role,
+  permissionKey
+) {
+  const permissions =
+    getOrganizationRolePermissions(role);
+
+  return permissions[permissionKey] === true;
+}
 function requireAdmin(req, res, next) {
 
   if (!req.session.user) {
