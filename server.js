@@ -12058,8 +12058,11 @@ const opportunityResult = await q(`
           line-height:1.55;
           margin-bottom:0;
         ">
-          No advertising opportunities have been created
-          for this location yet.
+          ${
+  selectedStatus === "All"
+    ? `No advertising opportunities have been created for this location yet.`
+    : `No ${selectedStatus.toLowerCase()} sponsorship opportunities were found for this location.`
+}
         </p>
       </div>
     `
