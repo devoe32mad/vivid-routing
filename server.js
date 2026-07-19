@@ -11911,9 +11911,42 @@ app.get(
 
 const locations = locationsResult.rows;
 
+/*
+  Status filter sent from the Advertising Requests
+  dashboard summary cards.
+*/
+const requestedStatus = String(
+  req.query.status || "All"
+).trim();
+
+const allowedStatuses = [
+  "All",
+  "Available",
+  "Pending",
+  "Approved",
+  "Rejected",
+  "Closed"
+];
+
+const selectedStatus =
+  allowedStatuses.includes(requestedStatus)
+    ? requestedStatus
+    : "All";
+
+const requestedLocationId = Number(
+  req.query.location_id
+);
+
 const selectedLocationId =
-  Number(req.query.location_id) ||
-  Number(locations[0]?.id);
+  Number.isInteger(requestedLocationId) &&
+  requestedLocationId > 0 &&
+  locations.some(
+    location =>
+      Number(location.id) ===
+      requestedLocationId
+  )
+    ? requestedLocationId
+    : Number(locations[0]?.id);
 
 const selectedLocation =
   locations.find(
