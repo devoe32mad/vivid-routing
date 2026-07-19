@@ -268,10 +268,15 @@ ${body}
 </body>
 </html>`;
 }
+/* =========================================================
+   ORGANIZATION PORTAL NAVIGATION
+========================================================= */
+
 function organizationNav({
   organizationId,
   organizationName,
-  activePage = ""
+  activePage = "",
+  userName = ""
 }) {
   const navItem = (
     label,
@@ -282,7 +287,7 @@ function organizationNav({
       href="${href}"
       style="
         display:inline-block;
-        padding:11px 16px;
+        padding:11px 15px;
         border-radius:10px;
         text-decoration:none;
         font-weight:bold;
@@ -292,6 +297,7 @@ function organizationNav({
             ? "#123d25"
             : "#2f7d46"
         };
+        white-space:nowrap;
       "
     >
       ${label}
@@ -312,22 +318,62 @@ function organizationNav({
         max-width:1250px;
         margin:0 auto;
       ">
+
         <div style="
-          font-size:12px;
-          text-transform:uppercase;
-          letter-spacing:1px;
-          color:#65776b;
-          font-weight:bold;
-          margin-bottom:10px;
+          display:flex;
+          justify-content:space-between;
+          align-items:flex-start;
+          gap:20px;
+          flex-wrap:wrap;
         ">
-          ${organizationName}
+
+          <div>
+            <div style="
+              font-size:20px;
+              font-weight:bold;
+              color:#073b22;
+            ">
+              ${organizationName}
+            </div>
+
+            <div style="
+              font-size:12px;
+              color:#65776b;
+              margin-top:3px;
+            ">
+              Organization Portal
+            </div>
+          </div>
+
+          ${
+            userName
+              ? `
+                  <div style="
+                    color:#315b4c;
+                    font-size:14px;
+                    font-weight:bold;
+                  ">
+                    ${userName}
+                  </div>
+                `
+              : ""
+          }
+
         </div>
 
         <div style="
           display:flex;
           gap:10px;
           flex-wrap:wrap;
+          margin-top:14px;
         ">
+
+          ${navItem(
+            "Executive Dashboard",
+            `/org-organization/${organizationId}`,
+            "dashboard"
+          )}
+
           ${navItem(
             "Locations",
             `/org-locations?organization_id=${organizationId}`,
@@ -351,11 +397,14 @@ function organizationNav({
             `/org-advertising-requests?organization_id=${organizationId}`,
             "requests"
           )}
+
         </div>
+
       </div>
     </div>
   `;
 }
+
 function marketplacePage(title, body) {
   return `<!DOCTYPE html>
 <html>
