@@ -12302,7 +12302,7 @@ const opportunityResult = await q(`
       font-size:13px;
     "
   >
-    Edit Sponsorship
+    Edit Opportunity
   </a>
 
 </div>
@@ -16414,7 +16414,7 @@ SELECT
 
       return res.send(
         marketplacePage(
-          `Edit Sponsorship - ${opportunity.location_name}`,
+          Edit Opportunity- ${opportunity.location_name}`,
           `
             <div class="marketplace-topbar">
 
@@ -16423,7 +16423,7 @@ SELECT
               </div>
 
               <h1>
-                Edit Sponsorship
+                Edit Opportunity
               </h1>
 
               <p class="marketplace-subtitle">
@@ -17128,7 +17128,7 @@ if (!allowedTermUnits.includes(suggestedTermUnit)) {
           ${current.location_name}.
           <br><br>
           <a href="/org-opportunity/edit/${opportunityId}?organization_id=${organizationId}">
-            Back to Edit Sponsorship
+            Back to Edit Opportunity
           </a>
         `);
       }
