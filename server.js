@@ -268,6 +268,94 @@ ${body}
 </body>
 </html>`;
 }
+function organizationNav({
+  organizationId,
+  organizationName,
+  activePage = ""
+}) {
+  const navItem = (
+    label,
+    href,
+    key
+  ) => `
+    <a
+      href="${href}"
+      style="
+        display:inline-block;
+        padding:11px 16px;
+        border-radius:10px;
+        text-decoration:none;
+        font-weight:bold;
+        color:white;
+        background:${
+          activePage === key
+            ? "#123d25"
+            : "#2f7d46"
+        };
+      "
+    >
+      ${label}
+    </a>
+  `;
+
+  return `
+    <div style="
+      background:white;
+      border-bottom:1px solid #dfe7df;
+      box-shadow:0 4px 14px rgba(0,0,0,.06);
+      padding:16px 40px;
+      position:sticky;
+      top:0;
+      z-index:100;
+    ">
+      <div style="
+        max-width:1250px;
+        margin:0 auto;
+      ">
+        <div style="
+          font-size:12px;
+          text-transform:uppercase;
+          letter-spacing:1px;
+          color:#65776b;
+          font-weight:bold;
+          margin-bottom:10px;
+        ">
+          ${organizationName}
+        </div>
+
+        <div style="
+          display:flex;
+          gap:10px;
+          flex-wrap:wrap;
+        ">
+          ${navItem(
+            "Locations",
+            `/org-locations?organization_id=${organizationId}`,
+            "locations"
+          )}
+
+          ${navItem(
+            "Advertisers",
+            `/org-advertisers?organization_id=${organizationId}`,
+            "advertisers"
+          )}
+
+          ${navItem(
+            "Sponsorship Inventory",
+            `/org-marketplace?organization_id=${organizationId}`,
+            "marketplace"
+          )}
+
+          ${navItem(
+            "Advertising Requests",
+            `/org-advertising-requests?organization_id=${organizationId}`,
+            "requests"
+          )}
+        </div>
+      </div>
+    </div>
+  `;
+}
 function marketplacePage(title, body) {
   return `<!DOCTYPE html>
 <html>
