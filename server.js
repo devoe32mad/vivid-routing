@@ -8532,33 +8532,316 @@ ${orgDateFilterForm({
     }
   }
 );
-app.get("/org-users", async (req, res) => {
-  res.send(orgPage("Organization Users", `
-    <div class="topbar">
-      <div class="brand">Vivid Organizations</div>
-      <h1>Users</h1>
-      <p class="subtitle">Manage organization users, hierarchy, and permissions.</p>
-    </div>
+/*
+=========================================================
+ORGANIZATION USERS
+=========================================================
+*/
 
-    <div class="wrap">
+app.get(
+  "/org-users",
+  requireOrganizationPermission("manage_users"),
+  async (req, res) => {
+    try {
+      const organizationId = Number(
+        req.session.orgUser.organization_id
+      );
 
-      <div class="card">
-        <h2>Organization Users</h2>
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send("Valid organization is required.");
+      }
 
-        <p>
-          This page will manage district, corporate, principals, ADs,
-          GMs, facilities managers, finance users, and local managers.
-        </p>
+      const organizationResult = await q(
+        `
+          SELECT
+            id,
+            name
+          FROM organizations
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [organizationId]
+      );
 
-        <a class="btn secondary" href="/org-dashboard">
-          Back to Organization Dashboard
-        </a>
+      if (!organizationResult.rows.length) {
+        return res
+          .status(404)
+          .send("Organization not found.");
+      }
 
-      </div>
+      const organization =
+        organizationResult.rows[0];
 
-    </div>
-  `));
-});
+      const usersResult = await q(
+        `
+          SELECT
+            ou.id AS organization_user_id,
+            ou.user_id,
+            ou.role,
+            ou.is_active,
+            u.name,
+            u.email,
+            COALESCE(
+              STRING_AGG(
+                DISTINCT s.name,
+                ', '
+                ORDER BY s.name
+              ) FILTER (
+                WHERE s.id IS NOT NULL
+              ),
+              ''
+            ) AS location_names
+          FROM organization_users ou
+          INNER JOIN users u
+            ON u.id = ou.user_id
+          LEFT JOIN location_users lu
+            ON lu.user_id = ou.user_id
+            AND lu.organization_id = ou.organization_id
+            AND lu.is_active = true
+          LEFT JOIN spaces s
+            ON s.id = lu.space_id
+            AND s.organization_id = ou.organization_id
+          WHERE ou.organization_id = $1
+          GROUP BY
+            ou.id,
+            ou.user_id,
+            ou.role,
+            ou.is_active,
+            u.name,
+            u.email
+          ORDER BY
+            ou.is_active DESC,
+            u.name ASC,
+            u.email ASC
+        `,
+        [organizationId]
+      );
+
+      const roleLabels = {
+        owner: "Organization Administrator",
+        organization_admin:
+          "Organization Administrator",
+        district_admin:
+          "Organization Administrator",
+        location_manager: "Location Manager",
+        standard_user: "Standard User",
+        read_only: "Read Only"
+      };
+
+      const userRows = usersResult.rows
+        .map((user) => {
+          const normalizedRole = String(
+            user.role || "read_only"
+          ).toLowerCase();
+
+          const roleLabel =
+            roleLabels[normalizedRole] ||
+            "Read Only";
+
+          const hasAllLocations =
+            organizationRoleHasPermission(
+              normalizedRole,
+              "view_all_locations"
+            );
+
+          const locations = hasAllLocations
+            ? "All Locations"
+            : user.location_names ||
+              "No Locations Assigned";
+
+          const status = user.is_active
+            ? "Active"
+            : "Inactive";
+
+          const statusBackground = user.is_active
+            ? "#DCFCE7"
+            : "#E5E7EB";
+
+          const statusColor = user.is_active
+            ? "#166534"
+            : "#4B5563";
+
+          return `
+            <tr>
+              <td>
+                <strong>
+                  ${escapeHtml(
+                    user.name || "Unnamed User"
+                  )}
+                </strong>
+                <div style="
+                  margin-top:4px;
+                  color:#64748B;
+                  font-size:13px;
+                ">
+                  ${escapeHtml(user.email || "")}
+                </div>
+              </td>
+
+              <td>
+                ${escapeHtml(roleLabel)}
+              </td>
+
+              <td>
+                ${escapeHtml(locations)}
+              </td>
+
+              <td>
+                <span style="
+                  display:inline-block;
+                  padding:6px 10px;
+                  border-radius:999px;
+                  background:${statusBackground};
+                  color:${statusColor};
+                  font-size:12px;
+                  font-weight:700;
+                ">
+                  ${status}
+                </span>
+              </td>
+
+              <td style="white-space:nowrap;">
+                <a
+                  class="btn secondary"
+                  href="/org-user/${user.organization_user_id}/edit"
+                  style="
+                    padding:8px 12px;
+                    margin:0;
+                  "
+                >
+                  Edit
+                </a>
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+
+      const emptyState = `
+        <tr>
+          <td
+            colspan="5"
+            style="
+              text-align:center;
+              padding:35px;
+              color:#64748B;
+            "
+          >
+            No organization users have been added.
+          </td>
+        </tr>
+      `;
+
+      res.send(
+        orgPage(
+          `${organization.name} Users`,
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Users</h1>
+
+              <p class="subtitle">
+                Manage who can access
+                ${escapeHtml(organization.name)}.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:16px;
+                flex-wrap:wrap;
+                margin-bottom:18px;
+              ">
+                <a
+                  class="btn secondary"
+                  href="/org-organization/${organizationId}"
+                >
+                  Back to ${escapeHtml(
+                    organization.name
+                  )}
+                </a>
+
+                <a
+                  class="btn"
+                  href="/org-users/new"
+                >
+                  Add User
+                </a>
+              </div>
+
+              <div class="card">
+                <div style="overflow-x:auto;">
+                  <table style="
+                    width:100%;
+                    border-collapse:collapse;
+                  ">
+                    <thead>
+                      <tr style="
+                        text-align:left;
+                        border-bottom:1px solid #DCE5DC;
+                      ">
+                        <th style="padding:14px 12px;">
+                          User
+                        </th>
+
+                        <th style="padding:14px 12px;">
+                          Role
+                        </th>
+
+                        <th style="padding:14px 12px;">
+                          Locations
+                        </th>
+
+                        <th style="padding:14px 12px;">
+                          Status
+                        </th>
+
+                        <th style="padding:14px 12px;">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      ${
+                        userRows ||
+                        emptyState
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "ORGANIZATION USERS ERROR:",
+        err
+      );
+
+      res.status(500).send(
+        "ORGANIZATION USERS ERROR: " +
+          err.message
+      );
+    }
+  }
+);
+  
 app.get("/org-pricing", async (req, res) => {
   res.send(orgPage("Organization Pricing", `
     <div class="topbar">
