@@ -1321,6 +1321,10 @@ CREATE TABLE IF NOT EXISTS organization_user_notifications (
   )
 `);
   await q(`
+  ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS name TEXT
+`);
+  await q(`
   ALTER TABLE qr_campaigns
   ADD COLUMN IF NOT EXISTS contract_days INT
 `);
