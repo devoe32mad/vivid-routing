@@ -11981,51 +11981,67 @@ if (
   Number.isInteger(selectedLocationId) &&
   selectedLocationId > 0
 ) {
-  const opportunityResult = await q(`
-    SELECT
+  const opportunityParams = [
+  organizationId,
+  selectedLocationId
+];
+
+let opportunityStatusCondition = "";
+
+if (selectedStatus !== "All") {
+  opportunityParams.push(selectedStatus);
+
+  opportunityStatusCondition = `
+    AND oo.status = $${opportunityParams.length}
+  `;
+}
+
+const opportunityResult = await q(`
+  SELECT
     oo.id,
-oo.organization_id,
-oo.space_id,
-oo.qr_id,
+    oo.organization_id,
+    oo.space_id,
+    oo.qr_id,
 
-oo.title,
-oo.description,
-oo.category,
+    oo.title,
+    oo.description,
+    oo.category,
 
-oo.annual_price,
-oo.price,
-oo.pricing_unit,
-oo.suggested_term_length,
-oo.suggested_term_unit,
+    oo.annual_price,
+    oo.price,
+    oo.pricing_unit,
+    oo.suggested_term_length,
+    oo.suggested_term_unit,
 
-oo.status,
-oo.display_order,
-oo.is_active,
+    oo.status,
+    oo.display_order,
+    oo.is_active,
 
-s.name AS location_name,
-qr.name AS qr_name
+    s.name AS location_name,
+    qr.name AS qr_name
 
-    FROM organization_opportunities oo
+  FROM organization_opportunities oo
 
-    JOIN spaces s
-      ON s.id = oo.space_id
-     AND s.organization_id = oo.organization_id
+  JOIN spaces s
+    ON s.id = oo.space_id
+   AND s.organization_id = oo.organization_id
 
-    LEFT JOIN qr_codes qr
-      ON qr.id = oo.qr_id
+  LEFT JOIN qr_codes qr
+    ON qr.id = oo.qr_id
 
-    WHERE oo.organization_id = $1
-      AND oo.space_id = $2
-      AND COALESCE(oo.is_active, true) = true
-      AND COALESCE(s.is_archived, false) = false
+  WHERE oo.organization_id = $1
+    AND oo.space_id = $2
+    AND COALESCE(oo.is_active, true) = true
+    AND COALESCE(s.is_archived, false) = false
 
-    ORDER BY
-      oo.display_order,
-      oo.title
-  `, [
-    organizationId,
-    selectedLocationId
-  ]);
+    ${opportunityStatusCondition}
+
+  ORDER BY
+    oo.display_order,
+    oo.title
+`, opportunityParams);
+
+
 
   opportunities = opportunityResult.rows;
 }
