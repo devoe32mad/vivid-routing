@@ -404,7 +404,55 @@ function organizationNav({
     </div>
   `;
 }
+function statusBadge(status) {
+  const s = String(status || "").toLowerCase();
 
+  let background = "#E8F5E9";
+  let color = "#166534";
+
+  switch (s) {
+    case "available":
+      background = "#DCFCE7";
+      color = "#166534";
+      break;
+
+    case "pending":
+      background = "#FEF3C7";
+      color = "#92400E";
+      break;
+
+    case "approved":
+      background = "#DBEAFE";
+      color = "#1E40AF";
+      break;
+
+    case "rejected":
+      background = "#FEE2E2";
+      color = "#991B1B";
+      break;
+
+    case "closed":
+      background = "#E5E7EB";
+      color = "#374151";
+      break;
+  }
+
+  return `
+    <span
+      style="
+        display:inline-block;
+        padding:7px 14px;
+        border-radius:999px;
+        font-weight:bold;
+        font-size:14px;
+        background:${background};
+        color:${color};
+      "
+    >
+      ${status}
+    </span>
+  `;
+}
 function marketplacePage(title, body) {
   return `<!DOCTYPE html>
 <html>
