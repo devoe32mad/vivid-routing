@@ -394,7 +394,7 @@ function organizationNav({
           )}
 
           ${navItem(
-            "Sponsorship Inventory",
+            "Advertising Inventory",
             `/org-marketplace?organization_id=${organizationId}`,
             "marketplace"
           )}
@@ -13813,7 +13813,7 @@ const opportunityResult = await q(`
 </div>
 
             <h1>
-  Sponsorship Inventory
+  Advertising Inventory
 </h1>
 
             <p class="marketplace-subtitle">
@@ -13840,7 +13840,7 @@ const opportunityResult = await q(`
 </span>
 
                   <h2 style="margin:0 0 6px;">
-  Sponsorship Inventory
+  Advertising Inventory
 </h2>
 
            <div style="
@@ -14756,7 +14756,7 @@ app.get(
 
               <p class="marketplace-subtitle">
                 Add multiple opportunities to
-                ${location.name}'s sponsorship inventory.
+                ${location.name}'s advertising inventory.
               </p>
 
             </div>
@@ -14862,7 +14862,7 @@ app.get(
                   margin:0 0 20px;
                 ">
                   Vivid will validate every row before any
-                  opportunity is added to Sponsorship Inventory.
+                  opportunity is added to Advertising Inventory.
                 </p>
 
                 <div class="workflow-grid">
@@ -14957,7 +14957,7 @@ app.get(
                     class="marketplace-btn secondary"
                     href="/org-marketplace?organization_id=${organizationId}&location_id=${location.id}"
                   >
-                    Back to Sponsorship Inventory
+                    Back to Advertising Inventory
                   </a>
 
                 </div>
@@ -15256,7 +15256,7 @@ worksheet.eachRow(
                   class="marketplace-btn secondary"
                   href="/org-marketplace?organization_id=${organizationId}&location_id=${location.id}"
                 >
-                  Back to Sponsorship Inventory
+                  Back to Advertising Inventory
                 </a>
 
               </div>
@@ -15507,7 +15507,7 @@ app.get(
                   class="marketplace-btn secondary"
                   href="/org-marketplace?organization_id=${organizationId}&location_id=${location.id}"
                 >
-                  Back to Sponsorship Inventory
+                  Back to Advertising Inventory
                 </a>
 
               </div>
@@ -17674,7 +17674,7 @@ app.post(
           <br><br>
 
           <a href="/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}">
-            Back to Sponsorship Inventory
+            Back to Advertising Inventory
           </a>
         `);
       }
