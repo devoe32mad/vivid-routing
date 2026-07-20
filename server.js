@@ -2603,6 +2603,53 @@ app.get("/db-test", async (req, res) => {
 // Remove this route after it has been run successfully.
 // ============================================================
 app.get(
+  "/debug-latest-marketplace-space",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const result = await q(`
+        SELECT
+          ar.id AS request_id,
+          ar.organization_id,
+          ar.location_id,
+          ar.opportunity_id,
+
+          o.name AS organization_name,
+
+          s.name AS location_name,
+          s.location AS market,
+
+          oo.id AS opportunity_record_id,
+          oo.title AS opportunity_title,
+          oo.description AS opportunity_description,
+          oo.category AS opportunity_category
+
+        FROM organization_advertising_requests ar
+
+        LEFT JOIN organizations o
+          ON o.id = ar.organization_id
+
+        LEFT JOIN spaces s
+          ON s.id = ar.location_id
+
+        LEFT JOIN organization_opportunities oo
+          ON oo.id = ar.opportunity_id
+
+        ORDER BY ar.id DESC
+
+        LIMIT 1
+      `);
+
+      return res.json(result.rows[0] || null);
+
+    } catch (err) {
+      return res.status(500).send(
+        "DEBUG MARKETPLACE SPACE ERROR: " + err.message
+      );
+    }
+  }
+);
+app.get(
   "/debug-repair-opportunity-statuses",
   requireLogin,
   async (req, res) => {
