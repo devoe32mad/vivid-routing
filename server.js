@@ -29107,7 +29107,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
 </p>
 <label>Estimated Impressions</label>
 <input name="annual_impressions" type="number" value="146000" />
-      <button class="btn" type="submit">Create Vivid Tracking Link</button>
+      <button class="btn" type="submit">Connect Existing QR Code</button>
 <script>
 const liveDate = document.querySelector('[name="live_date"]');
 const endDate = document.querySelector('[name="end_date"]');
