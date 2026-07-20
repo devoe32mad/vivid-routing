@@ -2154,11 +2154,80 @@ await q(`
   ADD COLUMN IF NOT EXISTS created_schedule_id INTEGER
     REFERENCES campaign_schedules(id)
 `);
+/*
+=========================================================
+ORGANIZATION CAMPAIGN RELATIONSHIPS
+=========================================================
 
+Creates the permanent relationship between:
+
+Organization
+Advertising Request
+Advertising Opportunity
+Campaign
+
+These fields apply only when a campaign originates through
+the Organization advertising workflow. Independent Vivid
+campaigns may leave them NULL.
+=========================================================
+*/
+
+await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS organization_id INTEGER
+    REFERENCES organizations(id)
+`);
+
+await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS organization_request_id INTEGER
+    REFERENCES organization_advertising_requests(id)
+`);
+
+await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS organization_opportunity_id INTEGER
+    REFERENCES organization_opportunities(id)
+`);
+  
 /*
 Normalize any legacy rows before indexes are created.
 */
+/*
+=========================================================
+ORGANIZATION CAMPAIGN RELATIONSHIPS
+=========================================================
 
+Creates the permanent relationship between:
+
+Organization
+Advertising Request
+Advertising Opportunity
+Campaign
+
+These fields apply only when a campaign originates through
+the Organization advertising workflow. Independent Vivid
+campaigns may leave them NULL.
+=========================================================
+*/
+
+await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS organization_id INTEGER
+    REFERENCES organizations(id)
+`);
+
+await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS organization_request_id INTEGER
+    REFERENCES organization_advertising_requests(id)
+`);
+
+await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS organization_opportunity_id INTEGER
+    REFERENCES organization_opportunities(id)
+`);
 await q(`
   UPDATE organization_advertising_requests
 
@@ -2173,7 +2242,38 @@ await q(`
 ADVERTISING REQUEST INDEXES
 =========================================================
 */
+/*
+=========================================================
+ORGANIZATION CAMPAIGN RELATIONSHIP INDEXES
+=========================================================
+*/
 
+await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_campaigns_organization_id
+
+  ON campaigns (
+    organization_id
+  )
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_campaigns_organization_request_id
+
+  ON campaigns (
+    organization_request_id
+  )
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_campaigns_organization_opportunity_id
+
+  ON campaigns (
+    organization_opportunity_id
+  )
+`);
 await q(`
   CREATE INDEX IF NOT EXISTS
   idx_advertising_requests_organization
