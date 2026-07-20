@@ -14554,6 +14554,501 @@ app.get(
     }
   }
 );
+/*
+=========================================================
+APPROVE ORGANIZATION ADVERTISING REQUEST
+=========================================================
+
+Approval:
+
+1. Confirms organization access.
+2. Loads and locks the advertising request.
+3. Finds or creates the advertiser's Vivid Core user.
+4. Generates a secure account-setup token.
+5. Marks the request Approved.
+6. Preserves organization, location, opportunity and QR.
+=========================================================
+*/
+
+app.post(
+  "/org-advertising-request/:requestId/approve",
+  async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+      const requestId = Number(req.params.requestId);
+
+      if (
+        !Number.isInteger(requestId) ||
+        requestId <= 0
+      ) {
+        return res
+          .status(400)
+          .send("A valid advertising request is required.");
+      }
+
+      let organizationId = null;
+      let approvingOrganizationUserId = null;
+
+      /*
+        Organization Portal user.
+      */
+      if (req.session.orgUser?.organization_id) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+
+        approvingOrganizationUserId = Number(
+          req.session.orgUser.organization_user_id ||
+          req.session.orgUser.id
+        );
+
+        const role =
+          req.session.orgUser.organization_role;
+
+        if (
+          !organizationRoleHasPermission(
+            role,
+            "approve_requests"
+          )
+        ) {
+          return res
+            .status(403)
+            .send("You do not have permission to approve requests.");
+        }
+      }
+
+      /*
+        Super Admin.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.body.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(403)
+          .send("Advertising Request approval denied.");
+      }
+
+      await client.query("BEGIN");
+
+      /*
+        Lock the request so it cannot be approved twice
+        by two users clicking at the same time.
+      */
+      const requestResult = await client.query(
+        `
+          SELECT
+            r.*,
+            o.name AS organization_name,
+            s.name AS location_name,
+            oo.title AS current_opportunity_name,
+            oo.qr_id AS opportunity_qr_id
+
+          FROM organization_advertising_requests r
+
+          JOIN organizations o
+            ON o.id = r.organization_id
+
+          JOIN spaces s
+            ON s.id = r.location_id
+           AND s.organization_id = r.organization_id
+
+          LEFT JOIN organization_opportunities oo
+            ON oo.id = r.opportunity_id
+           AND oo.organization_id = r.organization_id
+           AND oo.space_id = r.location_id
+
+          WHERE r.id = $1
+            AND r.organization_id = $2
+
+          FOR UPDATE OF r
+        `,
+        [
+          requestId,
+          organizationId
+        ]
+      );
+
+      const advertisingRequest =
+        requestResult.rows[0];
+
+      if (!advertisingRequest) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(404)
+          .send("Advertising request not found.");
+      }
+
+      if (
+        String(advertisingRequest.status)
+          .toLowerCase() === "approved"
+      ) {
+        await client.query("ROLLBACK");
+
+        return res.redirect(
+          `/org-advertising-request/${requestId}${
+            req.session.user?.role === "super_admin"
+              ? `?organization_id=${organizationId}`
+              : ""
+          }`
+        );
+      }
+
+      if (
+        String(advertisingRequest.status)
+          .toLowerCase() !== "pending"
+      ) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(400)
+          .send(
+            `Only Pending requests may be approved. Current status: ${advertisingRequest.status}`
+          );
+      }
+
+      const advertiserEmail = String(
+        advertisingRequest.email || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!advertiserEmail) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(400)
+          .send("The request does not contain a valid advertiser email.");
+      }
+
+      /*
+        Find an existing Vivid account first.
+      */
+      const existingUserResult =
+        await client.query(
+          `
+            SELECT
+              id,
+              name,
+              email,
+              role
+
+            FROM users
+
+            WHERE LOWER(TRIM(email)) = $1
+
+            LIMIT 1
+          `,
+          [advertiserEmail]
+        );
+
+      let vividUserId =
+        existingUserResult.rows[0]?.id || null;
+
+      /*
+        Create the Vivid Core customer account only when
+        the email does not already exist.
+
+        The random password prevents login until the
+        advertiser completes secure password setup.
+      */
+      if (!vividUserId) {
+        const lockedTemporaryPassword =
+          crypto.randomBytes(32).toString("hex");
+
+        const newUserResult =
+          await client.query(
+            `
+              INSERT INTO users (
+                name,
+                email,
+                password,
+                role,
+                created_at
+              )
+
+              VALUES (
+                $1,
+                $2,
+                $3,
+                'customer',
+                CURRENT_TIMESTAMP
+              )
+
+              RETURNING id
+            `,
+            [
+              advertisingRequest.contact_name ||
+                advertisingRequest.business_name,
+              advertiserEmail,
+              lockedTemporaryPassword
+            ]
+          );
+
+        vividUserId =
+          newUserResult.rows[0].id;
+      }
+
+      /*
+        Generate a secure setup token.
+
+        Store the hash in the database. The raw token is
+        used only in the setup URL.
+      */
+      const rawSetupToken =
+        crypto.randomBytes(32).toString("hex");
+
+      const hashedSetupToken =
+        crypto
+          .createHash("sha256")
+          .update(rawSetupToken)
+          .digest("hex");
+
+      const setupTokenExpiresAt =
+        new Date(
+          Date.now() +
+          7 * 24 * 60 * 60 * 1000
+        );
+
+      await client.query(
+        `
+          UPDATE organization_advertising_requests
+
+          SET
+            status = 'Approved',
+
+            approved_by_organization_user_id = $1,
+
+            approved_at = CURRENT_TIMESTAMP,
+
+            rejected_at = NULL,
+
+            rejection_reason = NULL,
+
+            setup_status = 'Account Setup Required',
+
+            setup_token = $2,
+
+            setup_token_expires_at = $3,
+
+            created_vivid_user_id = $4,
+
+            created_qr_id = COALESCE(
+              created_qr_id,
+              $5
+            ),
+
+            updated_at = CURRENT_TIMESTAMP
+
+          WHERE id = $6
+            AND organization_id = $7
+        `,
+        [
+          Number.isInteger(
+            approvingOrganizationUserId
+          )
+            ? approvingOrganizationUserId
+            : null,
+
+          hashedSetupToken,
+
+          setupTokenExpiresAt,
+
+          vividUserId,
+
+          advertisingRequest.opportunity_qr_id ||
+            null,
+
+          requestId,
+
+          organizationId
+        ]
+      );
+
+      /*
+        Reserve the approved opportunity.
+      */
+      if (advertisingRequest.opportunity_id) {
+        await client.query(
+          `
+            UPDATE organization_opportunities
+
+            SET
+              status = 'Reserved',
+              updated_at = CURRENT_TIMESTAMP
+
+            WHERE id = $1
+              AND organization_id = $2
+              AND space_id = $3
+          `,
+          [
+            advertisingRequest.opportunity_id,
+            organizationId,
+            advertisingRequest.location_id
+          ]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      const setupUrl =
+        `${BASE_URL}/vivid-account-setup/${rawSetupToken}`;
+
+      /*
+        Email delivery comes next.
+
+        For now this confirmation page lets us test the
+        complete approval and token-generation process
+        safely before connecting email.
+      */
+      return res.send(
+        marketplacePage(
+          "Advertising Request Approved",
+          `
+            <div class="marketplace-topbar">
+              <div class="marketplace-brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Request Approved
+              </h1>
+
+              <p class="marketplace-subtitle">
+                The advertiser's Vivid account and secure
+                setup invitation are ready.
+              </p>
+            </div>
+
+            <main class="marketplace-wrap">
+
+              <section
+                class="marketplace-card"
+                style="
+                  max-width:800px;
+                  margin:0 auto;
+                  border-left:6px solid #2f7d46;
+                "
+              >
+                <h2 style="margin-top:0;">
+                  ${escapeHtml(
+                    advertisingRequest.business_name
+                  )}
+                </h2>
+
+                <p>
+                  <strong>Organization:</strong>
+                  ${escapeHtml(
+                    advertisingRequest.organization_name
+                  )}
+                </p>
+
+                <p>
+                  <strong>Location:</strong>
+                  ${escapeHtml(
+                    advertisingRequest.location_name
+                  )}
+                </p>
+
+                <p>
+                  <strong>Advertiser Email:</strong>
+                  ${escapeHtml(advertiserEmail)}
+                </p>
+
+                <p>
+                  <strong>Vivid User ID:</strong>
+                  ${vividUserId}
+                </p>
+
+                <div style="
+                  margin:24px 0;
+                  padding:18px;
+                  background:#f4f7f1;
+                  border-radius:14px;
+                ">
+                  <strong>
+                    Temporary Setup Link
+                  </strong>
+
+                  <div style="
+                    margin-top:10px;
+                    overflow-wrap:anywhere;
+                  ">
+                    <a href="${setupUrl}">
+                      ${setupUrl}
+                    </a>
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                    margin-top:10px;
+                  ">
+                    This link expires in seven days.
+                  </div>
+                </div>
+
+                <a
+                  class="marketplace-btn"
+                  href="/org-advertising-request/${requestId}${
+                    req.session.user?.role === "super_admin"
+                      ? `?organization_id=${organizationId}`
+                      : ""
+                  }"
+                >
+                  Return to Request
+                </a>
+
+                <a
+                  class="marketplace-btn secondary"
+                  href="/org-advertising-requests${
+                    req.session.user?.role === "super_admin"
+                      ? `?organization_id=${organizationId}`
+                      : ""
+                  }"
+                >
+                  Advertising Requests
+                </a>
+              </section>
+
+            </main>
+          `
+        )
+      );
+
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (_) {}
+
+      console.error(
+        "APPROVE ADVERTISING REQUEST ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to approve Advertising Request: " +
+          err.message
+        );
+
+    } finally {
+      client.release();
+    }
+  }
+);
 app.get(
   "/org-marketplace",
   async (req, res) => {
