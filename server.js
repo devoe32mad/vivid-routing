@@ -28099,7 +28099,10 @@ app.post("/admin/edit-organization/:id", requireLogin, async (req, res) => {
           source_space.name AS space_name,
           source_space.location AS market,
 
-          oo.description AS opportunity_description
+          COALESCE(
+  NULLIF(TRIM(oo.description), ''),
+  NULLIF(TRIM(oo.title), '')
+) AS opportunity_description
 
         FROM organization_advertising_requests ar
 
