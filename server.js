@@ -1231,7 +1231,11 @@ await q(`
 ORGANIZATION USER PERMISSIONS
 =========================================================
 */
-
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS created_location_id INTEGER
+    REFERENCES spaces(id)
+`);
 await q(`
 CREATE TABLE IF NOT EXISTS organization_user_permissions (
 
