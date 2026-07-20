@@ -1087,7 +1087,25 @@ const ORGANIZATION_ROLE_PERMISSIONS = {
     manage_settings: false
   }
 };
+function normalizeOrganizationRole(role) {
+  const normalizedRole = String(role || "")
+    .trim()
+    .toLowerCase();
 
+  if (
+    normalizedRole === "owner" ||
+    normalizedRole === "district_admin" ||
+    normalizedRole === "organization_admin"
+  ) {
+    return "organization_admin";
+  }
+
+  if (normalizedRole === "location_manager") {
+    return "location_manager";
+  }
+
+  return "read_only";
+}
 function getOrganizationRolePermissions(role) {
   const normalizedRole = String(
     role || "read_only"
