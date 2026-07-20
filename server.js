@@ -28878,133 +28878,553 @@ endDate.addEventListener('change', updateContractDays);
     res.send("IMPORT QR PAGE ERROR: " + err.message);
   }
 });
-app.get("/admin/new-qr", async (req, res) => {
-  const isSuperAdmin =
-  req.session.user.role === "super_admin";
-  
-  const spaces = await q(
-  isSuperAdmin
-    ? `
-      SELECT *
-  FROM spaces
-WHERE COALESCE(is_archived, false) = false
-ORDER BY id
-`
-: `
-  SELECT *
-  FROM spaces
-  WHERE user_id = $1
-    AND COALESCE(is_archived, false) = false
-  ORDER BY id
-`,
-isSuperAdmin ? [] : [req.session.user.id]
-);
-res.send(page("Add QR", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Add QR Code</h1></div><div class="wrap"><form method="POST" action="/admin/new-qr"><label>Select Location</label><select name="space_id">${spaces.rows.map(s => `<option value="${s.id}">${s.name} (${s.location})</option>`).join("")}</select><label>QR Name</label><input name="name" placeholder="Car Line QR" /><label>Description</label><input name="description" /><label>QR Cost ($)</label>
-<input type="number" name="annual_cost" value="800" />
-
-<label>Live Date</label>
-<input type="date" name="live_date" />
-
-<label>End Date</label>
-<input type="date" name="end_date" />
-<div id="contractDays" style="margin-top:10px;font-weight:600;color:#40624f;">
-  Contract Days: 0
-</div>
-<p style="font-size:14px;color:#40624f;margin-top:6px;">
-Contract Days will be calculated automatically from Live Date to End Date.
-</p>
-
-<label>Estimated Impressions</label><input type="number" name="annual_impressions" value="146000" /><button class="btn" type="submit">Create QR</button><script>
-const liveDate = document.querySelector('[name="live_date"]');
-const endDate = document.querySelector('[name="end_date"]');
-const contractDays = document.getElementById('contractDays');
-
-function updateContractDays() {
-  if (!liveDate.value || !endDate.value) {
-    contractDays.innerHTML = 'Contract Days: 0';
-    return;
-  }
-
-  const start = new Date(liveDate.value);
-  const end = new Date(endDate.value);
-  const diff = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
-
-  contractDays.innerHTML = 'Contract Days: ' + (diff > 0 ? diff : 0);
-}
-
-liveDate.addEventListener('change', updateContractDays);
-endDate.addEventListener('change', updateContractDays);
-</script></form></div>`));
-});
-  app.post("/admin/import-qr", requireLogin, async (req, res) => {
+app.get("/admin/new-qr", requireLogin, async (req, res) => {
   try {
+    const currentUser = req.session.user;
+    const isSuperAdmin =
+      currentUser.role === "super_admin";
 
-    const result = await q(
-      `
-INSERT INTO qr_codes (
-  space_id,
-  name,
-  description,
-  annual_cost,
-  annual_impressions,
-  is_imported
-)
-VALUES ($1,$2,$3,$4,$5,true)
-RETURNING * 
-      `,
-    [
-  Number(req.body.space_id),
-  req.body.name,
-  req.body.destination_url,
-  Number(req.body.annual_cost || 800),
-  Number(req.body.annual_impressions || 146000)
-]  
+    const requestedSpaceId =
+      Number(req.query.space_id);
+
+    /*
+    =========================================================
+    MARKETPLACE-AWARE QR SETUP
+    =========================================================
+
+    The advertiser has already confirmed and created the
+    Vivid location. We now load the approved Marketplace
+    request connected to that newly created location.
+    =========================================================
+    */
+
+    let marketplaceRequest = null;
+
+    if (
+      Number.isInteger(requestedSpaceId) &&
+      requestedSpaceId > 0 &&
+      !isSuperAdmin
+    ) {
+      const marketplaceResult = await q(
+        `
+          SELECT
+            ar.id AS request_id,
+            ar.organization_id,
+            ar.created_location_id,
+
+            created_space.name AS location_name,
+            created_space.location AS market,
+
+            oo.title AS opportunity_title,
+
+            COALESCE(
+              NULLIF(TRIM(oo.description), ''),
+              NULLIF(TRIM(oo.title), '')
+            ) AS advertising_space_description,
+
+            COALESCE(
+              oo.price,
+              oo.annual_price,
+              0
+            ) AS marketplace_price
+
+          FROM organization_advertising_requests ar
+
+          JOIN spaces created_space
+            ON created_space.id = ar.created_location_id
+           AND created_space.user_id = $1
+
+          LEFT JOIN organization_opportunities oo
+            ON oo.id = ar.opportunity_id
+           AND oo.organization_id = ar.organization_id
+
+          WHERE ar.created_vivid_user_id = $1
+            AND ar.created_location_id = $2
+            AND ar.status = 'Approved'
+
+          ORDER BY
+            ar.approved_at DESC NULLS LAST,
+            ar.id DESC
+
+          LIMIT 1
+        `,
+        [
+          currentUser.id,
+          requestedSpaceId
+        ]
+      );
+
+      marketplaceRequest =
+        marketplaceResult.rows[0] || null;
+    }
+
+    /*
+    =========================================================
+    MARKETPLACE QR SCREEN
+    =========================================================
+    */
+
+    if (marketplaceRequest) {
+      const placementName =
+        marketplaceRequest.opportunity_title || "";
+
+      const spaceDescription =
+        marketplaceRequest.advertising_space_description || "";
+
+      const marketplacePrice =
+        Number(
+          marketplaceRequest.marketplace_price || 0
+        );
+
+      return res.send(
+        page(
+          "Add Advertising Placement",
+          `
+            <div class="topbar">
+              <div class="brand">Vivid Spots</div>
+
+              <h1>
+                Add Advertising Placement
+              </h1>
+            </div>
+
+            <div class="wrap">
+
+              <div
+                style="
+                  margin-bottom:24px;
+                  padding:16px 18px;
+                  background:#f4f7f1;
+                  border-left:5px solid #2f7d46;
+                  border-radius:10px;
+                "
+              >
+                <strong>
+                  Imported from your approved advertising request
+                </strong>
+
+                <div
+                  style="
+                    margin-top:6px;
+                    color:#52645a;
+                    line-height:1.5;
+                  "
+                >
+                  Complete the advertising dates and review the
+                  placement information below.
+                </div>
+              </div>
+
+              <form
+                method="POST"
+                action="/admin/new-qr"
+              >
+
+                <input
+                  type="hidden"
+                  name="marketplace_request_id"
+                  value="${marketplaceRequest.request_id}"
+                />
+
+                <input
+                  type="hidden"
+                  name="space_id"
+                  value="${marketplaceRequest.created_location_id}"
+                />
+
+                <p>
+                  <strong>Location:</strong>
+                  ${escapeHtml(
+                    marketplaceRequest.location_name || ""
+                  )}
+                  ${
+                    marketplaceRequest.market
+                      ? `(${escapeHtml(
+                          marketplaceRequest.market
+                        )})`
+                      : ""
+                  }
+                </p>
+
+                <label>
+                  Advertising Placement Name
+                </label>
+
+                <input
+                  name="name"
+                  value="${escapeHtml(placementName)}"
+                  required
+                />
+
+                <label>
+                  Advertising Space Description
+                </label>
+
+                <input
+                  name="description"
+                  value="${escapeHtml(spaceDescription)}"
+                />
+
+                <label>
+                  Advertising Investment ($)
+                </label>
+
+                <input
+                  type="number"
+                  name="annual_cost"
+                  value="${marketplacePrice}"
+                  min="0"
+                  step="0.01"
+                  required
+                />
+
+                <input
+                  type="hidden"
+                  name="total_cost"
+                  value="${marketplacePrice}"
+                />
+
+                <label>Live Date</label>
+
+                <input
+                  type="date"
+                  name="live_date"
+                  required
+                />
+
+                <label>End Date</label>
+
+                <input
+                  type="date"
+                  name="end_date"
+                  required
+                />
+
+                <div
+                  id="contractDays"
+                  style="
+                    margin-top:10px;
+                    font-weight:600;
+                    color:#40624f;
+                  "
+                >
+                  Contract Days: 0
+                </div>
+
+                <p
+                  style="
+                    font-size:14px;
+                    color:#40624f;
+                    margin-top:6px;
+                  "
+                >
+                  Contract Days will be calculated automatically
+                  from Live Date through End Date.
+                </p>
+
+                <label>Estimated Impressions</label>
+
+                <input
+                  type="number"
+                  name="annual_impressions"
+                  value="146000"
+                  min="0"
+                />
+
+                <button
+                  class="btn"
+                  type="submit"
+                >
+                  Save &amp; Continue
+                </button>
+
+                <script>
+                  const liveDate =
+                    document.querySelector(
+                      '[name="live_date"]'
+                    );
+
+                  const endDate =
+                    document.querySelector(
+                      '[name="end_date"]'
+                    );
+
+                  const contractDays =
+                    document.getElementById(
+                      'contractDays'
+                    );
+
+                  function updateContractDays() {
+                    if (
+                      !liveDate.value ||
+                      !endDate.value
+                    ) {
+                      contractDays.innerHTML =
+                        'Contract Days: 0';
+
+                      return;
+                    }
+
+                    const start =
+                      new Date(
+                        liveDate.value + 'T00:00:00'
+                      );
+
+                    const end =
+                      new Date(
+                        endDate.value + 'T00:00:00'
+                      );
+
+                    const diff =
+                      Math.floor(
+                        (end - start) /
+                        (1000 * 60 * 60 * 24)
+                      ) + 1;
+
+                    contractDays.innerHTML =
+                      'Contract Days: ' +
+                      (diff > 0 ? diff : 0);
+                  }
+
+                  liveDate.addEventListener(
+                    'change',
+                    updateContractDays
+                  );
+
+                  endDate.addEventListener(
+                    'change',
+                    updateContractDays
+                  );
+                </script>
+
+              </form>
+            </div>
+          `
+        )
+      );
+    }
+
+    /*
+    =========================================================
+    STANDARD VIVID QR SCREEN
+    =========================================================
+
+    Preserve the normal setup process for users who did not
+    enter through Marketplace.
+    =========================================================
+    */
+
+    const spaces = await q(
+      isSuperAdmin
+        ? `
+            SELECT *
+            FROM spaces
+            WHERE COALESCE(is_archived, false) = false
+            ORDER BY id
+          `
+        : `
+            SELECT *
+            FROM spaces
+            WHERE user_id = $1
+              AND COALESCE(is_archived, false) = false
+            ORDER BY id
+          `,
+      isSuperAdmin
+        ? []
+        : [currentUser.id]
     );
 
-    const qr = result.rows[0];
+    const locationOptions =
+      spaces.rows
+        .map(
+          space => `
+            <option
+              value="${space.id}"
+              ${
+                Number(space.id) === requestedSpaceId
+                  ? "selected"
+                  : ""
+              }
+            >
+              ${escapeHtml(space.name)}
+              ${
+                space.location
+                  ? `(${escapeHtml(space.location)})`
+                  : ""
+              }
+            </option>
+          `
+        )
+        .join("");
 
-res.send(`
-  <div style="max-width:720px;margin:40px auto;padding:28px;border-radius:18px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.08);font-family:Arial,sans-serif;color:#003c2f;">
-    <h2 style="margin-top:0;">✅ Vivid Tracking Link Created</h2>
+    return res.send(
+      page(
+        "Add QR",
+        `
+          <div class="topbar">
+            <div class="brand">Vivid Spots</div>
+            <h1>Add QR Code</h1>
+          </div>
 
-<p>Your Vivid tracking link has been created successfully.</p>
+          <div class="wrap">
 
-<p>
-  <strong>Important:</strong> To enable Vivid tracking, update your existing QR code destination to the Vivid Tracking URL below.
-</p>
+            <form
+              method="POST"
+              action="/admin/new-qr"
+            >
 
-<p>
-  <strong>Vivid Tracking URL:</strong><br>
-<input type="text" readonly value="${process.env.BASE_URL || "https://vivid-routing-production.up.railway.app"}/r/${qr.id}" style="width:100%;padding:12px;border:1px solid #cfd8d3;border-radius:8px;font-size:16px;">
-</p>
-<p style="font-size:14px;color:#2f855a;margin-top:8px;">
-✓ Once your QR provider points to this URL, all scans will be tracked automatically.
-</p>
-<p>
-  <strong>Current Destination URL:</strong><br>
-  ${req.body.destination_url}
-</p>
+              <label>Select Location</label>
 
-<p>
-  <strong>Next Steps:</strong><br>
-  1. Copy the Vivid Tracking URL above.<br>
-  2. Log into your current QR code provider.<br>
-  3. Replace the old destination URL with the Vivid Tracking URL.<br>
-  4. Scan the original QR code to confirm tracking.
-</p>
+              <select name="space_id" required>
+                ${locationOptions}
+              </select>
 
-<p>Vivid will record each scan and automatically forward visitors to the final destination URL.</p>
-<a href="${process.env.BASE_URL || "https://vivid-routing-production.up.railway.app"}/r/${qr.id}" target="_blank" style="background:#0b3d2e;color:white;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold;">Test Tracking Link</a>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;">
-      <a href="/admin/new-campaign" style="background:#2f855a;color:white;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold;">Create Campaign</a>
-      <a href="/my-setup" style="background:#eef5f0;color:#003c2f;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold;">Back to My Setup</a>
-    </div>
-  </div>
-`);
+              <label>QR Name</label>
+
+              <input
+                name="name"
+                placeholder="Car Line QR"
+                required
+              />
+
+              <label>Description</label>
+              <input name="description" />
+
+              <label>QR Cost ($)</label>
+
+              <input
+                type="number"
+                name="annual_cost"
+                value="800"
+              />
+
+              <label>Live Date</label>
+
+              <input
+                type="date"
+                name="live_date"
+              />
+
+              <label>End Date</label>
+
+              <input
+                type="date"
+                name="end_date"
+              />
+
+              <div
+                id="contractDays"
+                style="
+                  margin-top:10px;
+                  font-weight:600;
+                  color:#40624f;
+                "
+              >
+                Contract Days: 0
+              </div>
+
+              <p
+                style="
+                  font-size:14px;
+                  color:#40624f;
+                  margin-top:6px;
+                "
+              >
+                Contract Days will be calculated automatically
+                from Live Date to End Date.
+              </p>
+
+              <label>Estimated Impressions</label>
+
+              <input
+                type="number"
+                name="annual_impressions"
+                value="146000"
+              />
+
+              <button
+                class="btn"
+                type="submit"
+              >
+                Create QR
+              </button>
+
+              <script>
+                const liveDate =
+                  document.querySelector(
+                    '[name="live_date"]'
+                  );
+
+                const endDate =
+                  document.querySelector(
+                    '[name="end_date"]'
+                  );
+
+                const contractDays =
+                  document.getElementById(
+                    'contractDays'
+                  );
+
+                function updateContractDays() {
+                  if (
+                    !liveDate.value ||
+                    !endDate.value
+                  ) {
+                    contractDays.innerHTML =
+                      'Contract Days: 0';
+
+                    return;
+                  }
+
+                  const start =
+                    new Date(
+                      liveDate.value + 'T00:00:00'
+                    );
+
+                  const end =
+                    new Date(
+                      endDate.value + 'T00:00:00'
+                    );
+
+                  const diff =
+                    Math.floor(
+                      (end - start) /
+                      (1000 * 60 * 60 * 24)
+                    ) + 1;
+
+                  contractDays.innerHTML =
+                    'Contract Days: ' +
+                    (diff > 0 ? diff : 0);
+                }
+
+                liveDate.addEventListener(
+                  'change',
+                  updateContractDays
+                );
+
+                endDate.addEventListener(
+                  'change',
+                  updateContractDays
+                );
+              </script>
+
+            </form>
+          </div>
+        `
+      )
+    );
   } catch (err) {
-    res.send("IMPORT QR ERROR: " + err.message);
+    console.error(
+      "NEW QR FORM ERROR:",
+      err
+    );
+
+    return res.status(500).send(
+      "NEW QR FORM ERROR: " + err.message
+    );
   }
 });
+
 app.post("/admin/new-qr", requireLogin, async (req, res) => {
   try {
     const spaceId = Number(req.body.space_id);
