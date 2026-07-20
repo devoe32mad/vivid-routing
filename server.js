@@ -28762,6 +28762,248 @@ res.send(
     res.send("EDIT QR ERROR: " + err.message);
   }
 });
+app.get(
+  "/admin/qr-setup-choice",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const currentUser = req.session.user;
+
+      const spaceId =
+        Number(req.query.space_id);
+
+      const marketplaceRequestId =
+        Number(req.query.marketplace_request_id);
+
+      if (
+        !Number.isInteger(spaceId) ||
+        spaceId <= 0 ||
+        !Number.isInteger(marketplaceRequestId) ||
+        marketplaceRequestId <= 0
+      ) {
+        return res.status(400).send(
+          "A valid advertising setup request is required."
+        );
+      }
+
+      /*
+      =========================================================
+      VERIFY MARKETPLACE SETUP ACCESS
+      =========================================================
+      */
+
+      const setupResult = await q(
+        `
+          SELECT
+            ar.id AS request_id,
+            ar.created_location_id,
+
+            s.name AS location_name,
+            s.location AS market,
+
+            o.name AS organization_name,
+
+            COALESCE(
+              NULLIF(TRIM(oo.description), ''),
+              NULLIF(TRIM(oo.title), '')
+            ) AS placement_name
+
+          FROM organization_advertising_requests ar
+
+          JOIN spaces s
+            ON s.id = ar.created_location_id
+           AND s.user_id = $1
+
+          JOIN organizations o
+            ON o.id = ar.organization_id
+
+          LEFT JOIN organization_opportunities oo
+            ON oo.id = ar.opportunity_id
+           AND oo.organization_id = ar.organization_id
+
+          WHERE ar.id = $2
+            AND ar.created_vivid_user_id = $1
+            AND ar.created_location_id = $3
+            AND ar.status = 'Approved'
+
+          LIMIT 1
+        `,
+        [
+          currentUser.id,
+          marketplaceRequestId,
+          spaceId
+        ]
+      );
+
+      const setup =
+        setupResult.rows[0] || null;
+
+      if (!setup) {
+        return res.status(403).send(
+          "This advertising setup request is not available for your account."
+        );
+      }
+
+      const queryString =
+        `space_id=${encodeURIComponent(spaceId)}` +
+        `&marketplace_request_id=${encodeURIComponent(
+          marketplaceRequestId
+        )}`;
+
+      return res.send(
+        page(
+          "Choose QR Setup",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Spots
+              </div>
+
+              <h1>
+                Choose Your QR Setup
+              </h1>
+            </div>
+
+            <div class="wrap">
+
+              <div
+                style="
+                  margin-bottom:24px;
+                  padding:16px 18px;
+                  background:#f4f7f1;
+                  border-left:5px solid #2f7d46;
+                  border-radius:10px;
+                "
+              >
+                <strong>
+                  ${escapeHtml(
+                    setup.placement_name ||
+                    "Advertising Placement"
+                  )}
+                </strong>
+
+                <div
+                  style="
+                    margin-top:6px;
+                    color:#52645a;
+                    line-height:1.5;
+                  "
+                >
+                  ${escapeHtml(
+                    setup.location_name || ""
+                  )}
+                  ${
+                    setup.market
+                      ? ` — ${escapeHtml(setup.market)}`
+                      : ""
+                  }
+                </div>
+              </div>
+
+              <h2 style="margin-bottom:8px;">
+                How would you like to use Vivid?
+              </h2>
+
+              <p
+                style="
+                  color:#52645a;
+                  line-height:1.6;
+                  margin-bottom:24px;
+                "
+              >
+                Choose whether you need a new QR code or want
+                to connect one you already use.
+              </p>
+
+              <div
+                style="
+                  display:grid;
+                  grid-template-columns:
+                    repeat(auto-fit, minmax(280px, 1fr));
+                  gap:20px;
+                "
+              >
+
+                <section
+                  style="
+                    background:white;
+                    border:1px solid #dbe5dd;
+                    border-radius:16px;
+                    padding:24px;
+                  "
+                >
+                  <h2 style="margin-top:0;">
+                    Create a New QR Code
+                  </h2>
+
+                  <p
+                    style="
+                      color:#52645a;
+                      line-height:1.6;
+                      min-height:76px;
+                    "
+                  >
+                    Generate a new Vivid QR code to send to
+                    your printer, designer, or sign company.
+                  </p>
+
+                  <a
+                    class="btn"
+                    href="/admin/new-qr?${queryString}"
+                  >
+                    Create New QR Code
+                  </a>
+                </section>
+
+                <section
+                  style="
+                    background:white;
+                    border:1px solid #dbe5dd;
+                    border-radius:16px;
+                    padding:24px;
+                  "
+                >
+                  <h2 style="margin-top:0;">
+                    Connect an Existing QR Code
+                  </h2>
+
+                  <p
+                    style="
+                      color:#52645a;
+                      line-height:1.6;
+                      min-height:76px;
+                    "
+                  >
+                    Keep your current QR code and connect it
+                    to Vivid for tracking and measurement.
+                  </p>
+
+                  <a
+                    class="btn"
+                    href="/admin/import-qr?${queryString}"
+                  >
+                    Connect Existing QR Code
+                  </a>
+                </section>
+
+              </div>
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "QR SETUP CHOICE ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "QR SETUP CHOICE ERROR: " +
+        err.message
+      );
+    }
+  }
+);
 app.get("/admin/import-qr", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
