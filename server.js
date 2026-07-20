@@ -29120,7 +29120,11 @@ Your Website
   Contract Days: 0
 </div>
 <p style="font-size:14px;color:#40624f;margin-top:14px;">
-  After creating your Vivid Tracking Link, update your existing QR code's destination URL to the Vivid Tracking URL provided on the next screen.
+  After clicking "Connect Existing QR Code," Vivid will generate your unique Vivid Tracking URL.
+
+Copy that URL and update the destination inside your existing QR code provider.
+
+Your QR code does not change—only where it sends visitors.
 </p>
 <label>Estimated Impressions</label>
 <input name="annual_impressions" type="number" value="146000" />
