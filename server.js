@@ -14598,10 +14598,27 @@ app.post(
           req.session.orgUser.organization_id
         );
 
-        approvingOrganizationUserId = Number(
-          req.session.orgUser.organization_user_id ||
-          req.session.orgUser.id
-        );
+        const approvingUserResult =
+  await client.query(
+    `
+      SELECT id
+      FROM organization_users
+      WHERE organization_id = $1
+        AND user_id = $2
+        AND COALESCE(is_active, true) = true
+      LIMIT 1
+    `,
+    [
+      organizationId,
+      Number(req.session.orgUser.id)
+    ]
+  );
+
+approvingOrganizationUserId =
+  approvingUserResult.rows[0]?.id || null;
+          
+          
+        
 
         const role =
           req.session.orgUser.organization_role;
