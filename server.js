@@ -20781,7 +20781,21 @@ app.get(
           s.id,
           s.name,
           s.location
-
+HAVING COUNT(
+  oo.id
+) FILTER (
+  WHERE
+    COALESCE(oo.is_active, true) = true
+    AND oo.status = 'Available'
+    AND (
+      oo.available_from IS NULL
+      OR oo.available_from <= CURRENT_DATE
+    )
+    AND (
+      oo.available_until IS NULL
+      OR oo.available_until >= CURRENT_DATE
+    )
+) > 0
         ORDER BY
           s.name
       `, [organization.id]);
