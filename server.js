@@ -2126,7 +2126,11 @@ await q(`
   ADD COLUMN IF NOT EXISTS created_advertiser_id INTEGER
     REFERENCES advertisers(id)
 `);
-
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD COLUMN IF NOT EXISTS created_vivid_user_id INTEGER
+    REFERENCES users(id)
+`);
 await q(`
   ALTER TABLE organization_advertising_requests
   ADD COLUMN IF NOT EXISTS created_contract_id INTEGER
