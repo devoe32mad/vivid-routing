@@ -1117,14 +1117,35 @@ function getOrganizationRolePermissions(role) {
   );
 }
 
-function organizationRoleHasPermission(
-  role,
-  permissionKey
-) {
-  const permissions =
-    getOrganizationRolePermissions(role);
+function organizationRoleHasPermission(role, permissionKey) {
 
-  return permissions[permissionKey] === true;
+  role = normalizeOrganizationRole(role);
+
+  if (role === "organization_admin") {
+    return true;
+  }
+
+  if (role === "location_manager") {
+
+    const allowed = [
+      "view_dashboard",
+      "manage_advertisers",
+      "manage_opportunities",
+      "manage_requests",
+      "approve_requests",
+      "view_analytics",
+      "export_reports"
+    ];
+
+    return allowed.includes(permissionKey);
+  }
+
+  const readOnly = [
+    "view_dashboard",
+    "view_analytics"
+  ];
+
+  return readOnly.includes(permissionKey);
 }
 function requireOrganizationPermission(permissionKey) {
   return (req, res, next) => {
