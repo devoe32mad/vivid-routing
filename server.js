@@ -28299,73 +28299,261 @@ app.post("/admin/edit-organization/:id", requireLogin, async (req, res) => {
 });
 
 app.post("/admin/new-location", requireLogin, async (req, res) => {
-  console.log("NEW LOCATION POST", new Date().toISOString(), req.body);
+  console.log(
+    "NEW LOCATION POST",
+    new Date().toISOString(),
+    req.body
+  );
 
   try {
     const currentUser = req.session.user;
-    const organizationId = Number(req.body.organization_id);
-const existingLocation = await q(`
-  SELECT id
-  FROM spaces
-  WHERE user_id = $1
-    AND organization_id = $2
-    AND LOWER(name) = LOWER($3)
-    AND COALESCE(is_archived,false) = false
-  LIMIT 1
-`, [
-  currentUser.id,
-  organizationId,
-  req.body.name
-]);
 
-if (existingLocation.rows[0]) {
-  return res.redirect(`/admin/new-qr?space_id=${existingLocation.rows[0].id}`);
-}
-    const allowedOrg = await q(`
-      SELECT 1
-      FROM organization_users
-      WHERE organization_id = $1
-        AND user_id = $2
-        AND COALESCE(is_active,true) = true
-      LIMIT 1
-    `, [
-      organizationId,
-      currentUser.id
-    ]);
+    const organizationId =
+      Number(req.body.organization_id);
 
-    if (!allowedOrg.rows[0]) {
-      return res.status(403).send("You do not have access to this organization.");
+    const marketplaceRequestId =
+      Number(req.body.marketplace_request_id);
+
+    const name =
+      String(req.body.name || "").trim();
+
+    const market =
+      String(req.body.location || "").trim();
+
+    const description =
+      String(req.body.description || "").trim();
+
+    if (
+      !Number.isInteger(organizationId) ||
+      organizationId <= 0
+    ) {
+      return res.status(400).send(
+        "A valid organization is required."
+      );
     }
 
-    await q(`
-      INSERT INTO spaces (
-        user_id,
-        organization_id,
-        name,
-        location
-      )
-      VALUES ($1,$2,$3,$4)
-    `, [
-      currentUser.id,
-      organizationId,
-      req.body.name,
-      req.body.location
-    ]);
+    if (!name) {
+      return res.status(400).send(
+        "Location name is required."
+      );
+    }
 
-    res.send(successPage(
-      "Location Created Successfully",
-      "Your location has been saved.",
-      "Create a QR code for this location.",
+    let approvedMarketplaceRequest = null;
+
+    /*
+    =========================================================
+    MARKETPLACE AUTHORIZATION
+    =========================================================
+
+    Marketplace advertisers are not required to be normal
+    organization users for CCPS, Marriott, etc.
+
+    Their approved request authorizes creation of this specific
+    location under the selected organization.
+    =========================================================
+    */
+
+    if (
+      Number.isInteger(marketplaceRequestId) &&
+      marketplaceRequestId > 0
+    ) {
+      const requestResult = await q(
+        `
+          SELECT
+            ar.id,
+            ar.organization_id,
+            ar.location_id,
+            ar.opportunity_id,
+            ar.created_location_id
+
+          FROM organization_advertising_requests ar
+
+          WHERE ar.id = $1
+            AND ar.created_vivid_user_id = $2
+            AND ar.organization_id = $3
+            AND ar.status = 'Approved'
+
+          LIMIT 1
+        `,
+        [
+          marketplaceRequestId,
+          currentUser.id,
+          organizationId
+        ]
+      );
+
+      approvedMarketplaceRequest =
+        requestResult.rows[0] || null;
+
+      if (!approvedMarketplaceRequest) {
+        return res.status(403).send(
+          "This Marketplace setup request is not valid for your account."
+        );
+      }
+    } else {
+      /*
+      Normal Vivid users must retain the existing organization
+      membership requirement.
+      */
+
+      const allowedOrg = await q(
+        `
+          SELECT 1
+
+          FROM organization_users
+
+          WHERE organization_id = $1
+            AND user_id = $2
+            AND COALESCE(is_active, true) = true
+
+          LIMIT 1
+        `,
+        [
+          organizationId,
+          currentUser.id
+        ]
+      );
+
+      if (!allowedOrg.rows[0]) {
+        return res.status(403).send(
+          "You do not have access to this organization."
+        );
+      }
+    }
+
+    /*
+    =========================================================
+    DUPLICATE SAFEGUARD
+    =========================================================
+    */
+
+    const existingLocationResult = await q(
+      `
+        SELECT id
+
+        FROM spaces
+
+        WHERE user_id = $1
+          AND organization_id = $2
+          AND LOWER(TRIM(name)) =
+              LOWER(TRIM($3))
+          AND COALESCE(is_archived, false) = false
+
+        LIMIT 1
+      `,
       [
-        { label: "Create QR Code", href: "/admin/new-qr" },
-        { label: "Back to My Setup", href: "/my-setup" }
+        currentUser.id,
+        organizationId,
+        name
       ]
-    ));
+    );
 
+    const existingLocation =
+      existingLocationResult.rows[0] || null;
+
+    if (existingLocation) {
+      if (approvedMarketplaceRequest) {
+        await q(
+          `
+            UPDATE organization_advertising_requests
+
+            SET
+              created_location_id = $1,
+              setup_status = 'Location Created',
+              updated_at = CURRENT_TIMESTAMP
+
+            WHERE id = $2
+          `,
+          [
+            existingLocation.id,
+            marketplaceRequestId
+          ]
+        );
+      }
+
+      return res.redirect(
+        `/admin/new-qr?space_id=${existingLocation.id}`
+      );
+    }
+
+    /*
+    =========================================================
+    CREATE THE ADVERTISER'S VIVID LOCATION
+    =========================================================
+    */
+
+    const createdLocationResult = await q(
+      `
+        INSERT INTO spaces (
+          user_id,
+          organization_id,
+          name,
+          location,
+          description
+        )
+
+        VALUES ($1, $2, $3, $4, $5)
+
+        RETURNING id
+      `,
+      [
+        currentUser.id,
+        organizationId,
+        name,
+        market || null,
+        description || null
+      ]
+    );
+
+    const createdLocationId =
+      createdLocationResult.rows[0].id;
+
+    /*
+    Preserve the connection between the advertising request
+    and the newly created advertiser location.
+    */
+
+    if (approvedMarketplaceRequest) {
+      await q(
+        `
+          UPDATE organization_advertising_requests
+
+          SET
+            created_location_id = $1,
+            setup_status = 'Location Created',
+            updated_at = CURRENT_TIMESTAMP
+
+          WHERE id = $2
+            AND created_vivid_user_id = $3
+        `,
+        [
+          createdLocationId,
+          marketplaceRequestId,
+          currentUser.id
+        ]
+      );
+    }
+
+    /*
+    Move directly into the next existing Vivid setup step.
+    */
+
+    return res.redirect(
+      `/admin/new-qr?space_id=${createdLocationId}`
+    );
   } catch (err) {
-    res.send("ERROR: " + err.message);
+    console.error(
+      "NEW LOCATION POST ERROR:",
+      err
+    );
+
+    return res.status(500).send(
+      "NEW LOCATION ERROR: " + err.message
+    );
   }
 });
+  
+
 app.get("/admin/edit-qr/:qrId", requireLogin, async (req, res) => {
   const currentUser = req.session.user;
   const isSuperAdmin = currentUser.role === "super_admin";
