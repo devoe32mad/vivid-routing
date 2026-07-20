@@ -29551,15 +29551,35 @@ if (
       spaceId,
       qrName,
       description,
-      Number(req.body.annual_cost || req.body.total_cost || 800),
-      Number(req.body.total_cost || req.body.annual_cost || 800),
+      annualCost,
+annualCost,
+      
       liveDate,
       endDate,
       Number(req.body.annual_impressions || 146000)
     ]);
 
     const qrId = newQr.rows[0].id;
+if (approvedMarketplaceRequest) {
+  await q(
+    `
+      UPDATE organization_advertising_requests
 
+      SET
+        created_qr_id = $1,
+        setup_status = 'QR Created',
+        updated_at = CURRENT_TIMESTAMP
+
+      WHERE id = $2
+        AND created_vivid_user_id = $3
+    `,
+    [
+      qrId,
+      marketplaceRequestId,
+      currentUser.id
+    ]
+  );
+}
     res.send(successPage(
       "QR Code Created Successfully",
       "Your QR code has been created and is ready to track scans.",
