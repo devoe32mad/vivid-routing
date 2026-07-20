@@ -29561,7 +29561,7 @@ app.get("/admin/new-qr", requireLogin, async (req, res) => {
               <label>Description</label>
               <input name="description" />
 
-              <label>QR Cost ($)</label>
+              <label> Advertising Investment($)</label>
 
               <input
                 type="number"
