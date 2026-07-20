@@ -28684,7 +28684,7 @@ const campaigns = await q(
 
     <div class="wrap">
       <form method="POST" action="/admin/edit-qr/${qr.id}">
-        <label>QR Name</label>
+        <label>Advertising Placement Name</label>
         <input name="name" value="${qr.name || ""}" />
        ${qr.is_imported ? `
   <label>Current Destination URL</label>
@@ -29061,7 +29061,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
     <p>Already have a QR code in use? Enter the destination URL and Vivid will create a trackable version for analytics and reporting.</p>
 
     <ol>
-      <li>Enter a QR Name.</li>
+      <li>Enter an Advertising Placement Name.</li>
       <li>Select the Location.</li>
       <li>Enter the Existing Destination URL.</li>
       <li>Click Import Existing QR.</li>
@@ -29074,7 +29074,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
   <div class="card" style="max-width:700px;">
     <form method="POST" action="/admin/import-qr">
 
-      <label>QR Name</label>
+      <label>Advertising Placement Name</label>
       <input name="name" required />
 
       <label>Location</label>
@@ -29550,7 +29550,7 @@ app.get("/admin/new-qr", requireLogin, async (req, res) => {
                 ${locationOptions}
               </select>
 
-              <label>QR Name</label>
+              <label>Advertising Placement Name</label>
 
               <input
                 name="name"
