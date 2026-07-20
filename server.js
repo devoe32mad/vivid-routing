@@ -28536,8 +28536,10 @@ app.post("/admin/new-location", requireLogin, async (req, res) => {
       }
 
       return res.redirect(
-        `/admin/new-qr?space_id=${existingLocation.id}`
-      );
+  `/admin/qr-setup-choice` +
+  `?space_id=${existingLocation.id}` +
+  `&marketplace_request_id=${marketplaceRequestId}`
+);
     }
 
     /*
