@@ -9909,7 +9909,980 @@ app.get(
     }
   }
 );
-  
+  /*
+=========================================================
+EDIT ORGANIZATION USER FORM
+=========================================================
+*/
+
+app.get(
+  "/org-user/:organizationUserId/edit",
+  requireOrganizationPermission("manage_users"),
+  async (req, res) => {
+    try {
+      const organizationId = Number(
+        req.session.orgUser.organization_id
+      );
+
+      const organizationUserId = Number(
+        req.params.organizationUserId
+      );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !Number.isInteger(organizationUserId) ||
+        organizationUserId <= 0
+      ) {
+        return res
+          .status(400)
+          .send("Valid organization and user are required.");
+      }
+
+      /*
+      =====================================================
+      LOAD ORGANIZATION
+      =====================================================
+      */
+
+      const organizationResult = await q(
+        `
+          SELECT
+            id,
+            name
+          FROM organizations
+          WHERE id = $1
+            AND COALESCE(is_active, true) = true
+          LIMIT 1
+        `,
+        [organizationId]
+      );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res
+          .status(404)
+          .send("Organization not found.");
+      }
+
+      /*
+      =====================================================
+      LOAD ORGANIZATION USER
+      =====================================================
+      */
+
+      const userResult = await q(
+        `
+          SELECT
+            ou.id AS organization_user_id,
+            ou.user_id,
+            ou.role,
+            ou.is_active,
+            u.name,
+            u.email
+          FROM organization_users ou
+          INNER JOIN users u
+            ON u.id = ou.user_id
+          WHERE ou.id = $1
+            AND ou.organization_id = $2
+          LIMIT 1
+        `,
+        [
+          organizationUserId,
+          organizationId
+        ]
+      );
+
+      const user = userResult.rows[0];
+
+      if (!user) {
+        return res
+          .status(404)
+          .send("Organization user not found.");
+      }
+
+      const normalizedRole = String(
+        user.role || "read_only"
+      )
+        .trim()
+        .toLowerCase();
+
+      const isOwner =
+        normalizedRole === "owner";
+
+      /*
+      =====================================================
+      LOAD LOCATIONS AND CURRENT ASSIGNMENTS
+      =====================================================
+      */
+
+      const locationsResult = await q(
+        `
+          SELECT
+            s.id,
+            s.name,
+            s.location,
+            CASE
+              WHEN lu.id IS NOT NULL THEN true
+              ELSE false
+            END AS is_assigned
+          FROM spaces s
+          LEFT JOIN location_users lu
+            ON lu.space_id = s.id
+            AND lu.organization_id = $1
+            AND lu.user_id = $2
+            AND COALESCE(lu.is_active, true) = true
+          WHERE s.organization_id = $1
+            AND COALESCE(s.is_archived, false) = false
+          ORDER BY s.name ASC
+        `,
+        [
+          organizationId,
+          user.user_id
+        ]
+      );
+
+      const locationOptions =
+        locationsResult.rows
+          .map((location) => {
+            const locationDescription =
+              location.location
+                ? ` — ${escapeHtml(location.location)}`
+                : "";
+
+            return `
+              <label style="
+                display:flex;
+                align-items:flex-start;
+                gap:10px;
+                padding:12px;
+                margin:0;
+                border:1px solid #DCE5DC;
+                border-radius:10px;
+                background:#FFFFFF;
+                cursor:pointer;
+              ">
+                <input
+                  type="checkbox"
+                  name="location_ids"
+                  value="${location.id}"
+                  ${
+                    location.is_assigned
+                      ? "checked"
+                      : ""
+                  }
+                  style="
+                    width:auto;
+                    margin-top:3px;
+                  "
+                />
+
+                <span>
+                  <strong>
+                    ${escapeHtml(location.name)}
+                  </strong>
+
+                  <span style="
+                    color:#64748B;
+                    font-size:13px;
+                  ">
+                    ${locationDescription}
+                  </span>
+                </span>
+              </label>
+            `;
+          })
+          .join("");
+
+      /*
+      =====================================================
+      ROLE OPTIONS
+      =====================================================
+      */
+
+      const roleOption = (
+        value,
+        label
+      ) => `
+        <option
+          value="${value}"
+          ${
+            normalizedRole === value
+              ? "selected"
+              : ""
+          }
+        >
+          ${label}
+        </option>
+      `;
+
+      const roleField = isOwner
+        ? `
+          <label>Role</label>
+
+          <input
+            type="text"
+            value="Organization Owner"
+            disabled
+          />
+
+          <input
+            type="hidden"
+            name="role"
+            value="owner"
+          />
+
+          <p style="
+            margin-top:-8px;
+            color:#64748B;
+            font-size:13px;
+          ">
+            The organization owner role cannot be changed.
+          </p>
+        `
+        : `
+          <label for="role">
+            Role
+          </label>
+
+          <select
+            id="role"
+            name="role"
+            required
+            onchange="updateLocationVisibility()"
+          >
+            ${roleOption(
+              "organization_admin",
+              "Organization Administrator"
+            )}
+
+            ${roleOption(
+              "location_manager",
+              "Location Manager"
+            )}
+
+            ${roleOption(
+              "standard_user",
+              "Standard User"
+            )}
+
+            ${roleOption(
+              "read_only",
+              "Read Only"
+            )}
+          </select>
+        `;
+
+      /*
+      =====================================================
+      STATUS FIELD
+      =====================================================
+      */
+
+      const statusField = isOwner
+        ? `
+          <label>Status</label>
+
+          <input
+            type="text"
+            value="Active"
+            disabled
+          />
+
+          <input
+            type="hidden"
+            name="is_active"
+            value="true"
+          />
+
+          <p style="
+            margin-top:-8px;
+            color:#64748B;
+            font-size:13px;
+          ">
+            The organization owner cannot be deactivated.
+          </p>
+        `
+        : `
+          <label for="is_active">
+            Status
+          </label>
+
+          <select
+            id="is_active"
+            name="is_active"
+            required
+          >
+            <option
+              value="true"
+              ${
+                user.is_active
+                  ? "selected"
+                  : ""
+              }
+            >
+              Active
+            </option>
+
+            <option
+              value="false"
+              ${
+                !user.is_active
+                  ? "selected"
+                  : ""
+              }
+            >
+              Inactive
+            </option>
+          </select>
+        `;
+
+      res.send(
+        orgPage(
+          `Edit ${user.name || "Organization User"}`,
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Edit User</h1>
+
+              <p class="subtitle">
+                Update access for
+                ${escapeHtml(
+                  user.name || user.email
+                )}.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div style="margin-bottom:20px;">
+                <a
+                  class="btn secondary"
+                  href="/org-users"
+                >
+                  Back to Users
+                </a>
+              </div>
+
+              <form
+                method="POST"
+                action="/org-user/${organizationUserId}/edit"
+              >
+
+                <div class="card">
+
+                  <h2 style="margin-top:0;">
+                    User Information
+                  </h2>
+
+                  <label for="name">
+                    Full Name
+                  </label>
+
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    maxlength="150"
+                    value="${escapeHtml(user.name || "")}"
+                    required
+                  />
+
+                  <label for="email">
+                    Email Address
+                  </label>
+
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    maxlength="255"
+                    value="${escapeHtml(user.email || "")}"
+                    required
+                  />
+
+                  ${roleField}
+
+                  ${statusField}
+
+                </div>
+
+                <div
+                  id="locationAssignmentCard"
+                  class="card"
+                  style="
+                    margin-top:20px;
+                    display:none;
+                  "
+                >
+                  <h2 style="margin-top:0;">
+                    Location Access
+                  </h2>
+
+                  <p style="
+                    color:#64748B;
+                    margin-bottom:18px;
+                  ">
+                    Select every location this user
+                    should be able to access.
+                  </p>
+
+                  <div style="
+                    display:grid;
+                    grid-template-columns:
+                      repeat(auto-fit, minmax(260px, 1fr));
+                    gap:10px;
+                  ">
+                    ${
+                      locationOptions ||
+                      `
+                        <p style="color:#64748B;">
+                          No active locations are available.
+                        </p>
+                      `
+                    }
+                  </div>
+                </div>
+
+                <div style="
+                  display:flex;
+                  justify-content:flex-end;
+                  gap:12px;
+                  margin-top:20px;
+                ">
+                  <a
+                    class="btn secondary"
+                    href="/org-users"
+                  >
+                    Cancel
+                  </a>
+
+                  <button
+                    class="btn"
+                    type="submit"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+
+              </form>
+            </div>
+
+            <script>
+              function updateLocationVisibility() {
+                const roleElement =
+                  document.getElementById("role");
+
+                const locationCard =
+                  document.getElementById(
+                    "locationAssignmentCard"
+                  );
+
+                if (!roleElement || !locationCard) {
+                  return;
+                }
+
+                const requiresLocations = [
+                  "location_manager",
+                  "standard_user",
+                  "read_only"
+                ].includes(roleElement.value);
+
+                locationCard.style.display =
+                  requiresLocations
+                    ? "block"
+                    : "none";
+
+                if (!requiresLocations) {
+                  document
+                    .querySelectorAll(
+                      'input[name="location_ids"]'
+                    )
+                    .forEach((checkbox) => {
+                      checkbox.checked = false;
+                    });
+                }
+              }
+
+              updateLocationVisibility();
+            </script>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "EDIT ORGANIZATION USER FORM ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "EDIT ORGANIZATION USER FORM ERROR: " +
+            err.message
+        );
+    }
+  }
+);
+
+/*
+=========================================================
+UPDATE ORGANIZATION USER
+=========================================================
+*/
+
+app.post(
+  "/org-user/:organizationUserId/edit",
+  requireOrganizationPermission("manage_users"),
+  async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+      const organizationId = Number(
+        req.session.orgUser.organization_id
+      );
+
+      const organizationUserId = Number(
+        req.params.organizationUserId
+      );
+
+      const name = String(
+        req.body.name || ""
+      ).trim();
+
+      const email = String(
+        req.body.email || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      let role = String(
+        req.body.role || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      let isActive =
+        String(req.body.is_active || "false")
+          .trim()
+          .toLowerCase() === "true";
+
+      const submittedLocationIds =
+        req.body.location_ids === undefined
+          ? []
+          : Array.isArray(req.body.location_ids)
+            ? req.body.location_ids
+            : [req.body.location_ids];
+
+      const locationIds = [
+        ...new Set(
+          submittedLocationIds
+            .map(value => Number(value))
+            .filter(
+              value =>
+                Number.isInteger(value) &&
+                value > 0
+            )
+        )
+      ];
+
+      /*
+      =====================================================
+      BASIC VALIDATION
+      =====================================================
+      */
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !Number.isInteger(organizationUserId) ||
+        organizationUserId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Valid organization and user are required."
+          );
+      }
+
+      if (!name) {
+        return res
+          .status(400)
+          .send(`
+            Full Name is required.
+            <br><br>
+            <a href="/org-user/${organizationUserId}/edit">
+              Back to Edit User
+            </a>
+          `);
+      }
+
+      if (
+        !email ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+      ) {
+        return res
+          .status(400)
+          .send(`
+            A valid email address is required.
+            <br><br>
+            <a href="/org-user/${organizationUserId}/edit">
+              Back to Edit User
+            </a>
+          `);
+      }
+
+      await client.query("BEGIN");
+
+      /*
+      =====================================================
+      LOAD AND LOCK MEMBERSHIP
+      =====================================================
+      */
+
+      const membershipResult =
+        await client.query(
+          `
+            SELECT
+              ou.id,
+              ou.user_id,
+              ou.role,
+              ou.is_active
+            FROM organization_users ou
+            WHERE ou.id = $1
+              AND ou.organization_id = $2
+            LIMIT 1
+            FOR UPDATE
+          `,
+          [
+            organizationUserId,
+            organizationId
+          ]
+        );
+
+      const membership =
+        membershipResult.rows[0];
+
+      if (!membership) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(404)
+          .send("Organization user not found.");
+      }
+
+      const userId = Number(
+        membership.user_id
+      );
+
+      const currentRole = String(
+        membership.role || "read_only"
+      )
+        .trim()
+        .toLowerCase();
+
+      const isOwner =
+        currentRole === "owner";
+
+      /*
+        Protect the organization owner from accidental
+        role changes or deactivation.
+      */
+
+      if (isOwner) {
+        role = "owner";
+        isActive = true;
+      }
+
+      const allowedRoles = [
+        "organization_admin",
+        "location_manager",
+        "standard_user",
+        "read_only"
+      ];
+
+      if (
+        !isOwner &&
+        !allowedRoles.includes(role)
+      ) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(400)
+          .send(`
+            A valid organization role is required.
+            <br><br>
+            <a href="/org-user/${organizationUserId}/edit">
+              Back to Edit User
+            </a>
+          `);
+      }
+
+      const requiresLocations =
+        !isOwner &&
+        [
+          "location_manager",
+          "standard_user",
+          "read_only"
+        ].includes(role);
+
+      if (
+        requiresLocations &&
+        locationIds.length === 0
+      ) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(400)
+          .send(`
+            Select at least one location for this role.
+            <br><br>
+            <a href="/org-user/${organizationUserId}/edit">
+              Back to Edit User
+            </a>
+          `);
+      }
+
+      /*
+      =====================================================
+      VALIDATE EMAIL UNIQUENESS
+      =====================================================
+      */
+
+      const duplicateEmailResult =
+        await client.query(
+          `
+            SELECT id
+            FROM users
+            WHERE LOWER(email) = LOWER($1)
+              AND id <> $2
+            LIMIT 1
+          `,
+          [
+            email,
+            userId
+          ]
+        );
+
+      if (duplicateEmailResult.rows.length) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(409)
+          .send(`
+            Another Vivid user already uses this email address.
+            <br><br>
+            <a href="/org-user/${organizationUserId}/edit">
+              Back to Edit User
+            </a>
+          `);
+      }
+
+      /*
+      =====================================================
+      VALIDATE LOCATION OWNERSHIP
+      =====================================================
+      */
+
+      if (requiresLocations) {
+        const validLocationsResult =
+          await client.query(
+            `
+              SELECT id
+              FROM spaces
+              WHERE organization_id = $1
+                AND id = ANY($2::int[])
+                AND COALESCE(is_archived, false) = false
+            `,
+            [
+              organizationId,
+              locationIds
+            ]
+          );
+
+        const validLocationIds =
+          validLocationsResult.rows.map(
+            row => Number(row.id)
+          );
+
+        if (
+          validLocationIds.length !==
+          locationIds.length
+        ) {
+          await client.query("ROLLBACK");
+
+          return res
+            .status(400)
+            .send(`
+              One or more selected locations are invalid.
+              <br><br>
+              <a href="/org-user/${organizationUserId}/edit">
+                Back to Edit User
+              </a>
+            `);
+        }
+      }
+
+      /*
+      =====================================================
+      UPDATE GLOBAL USER
+      =====================================================
+      */
+
+      await client.query(
+        `
+          UPDATE users
+          SET
+            name = $1,
+            email = $2
+          WHERE id = $3
+        `,
+        [
+          name,
+          email,
+          userId
+        ]
+      );
+
+      /*
+      =====================================================
+      UPDATE ORGANIZATION MEMBERSHIP
+      =====================================================
+      */
+
+      await client.query(
+        `
+          UPDATE organization_users
+          SET
+            role = $1,
+            is_active = $2
+          WHERE id = $3
+            AND organization_id = $4
+        `,
+        [
+          role,
+          isActive,
+          organizationUserId,
+          organizationId
+        ]
+      );
+
+      /*
+      =====================================================
+      REBUILD LOCATION ASSIGNMENTS
+      =====================================================
+      */
+
+      await client.query(
+        `
+          DELETE FROM location_users
+          WHERE organization_id = $1
+            AND user_id = $2
+        `,
+        [
+          organizationId,
+          userId
+        ]
+      );
+
+      if (requiresLocations) {
+        const locationRole =
+          role === "location_manager"
+            ? "manager"
+            : role === "standard_user"
+              ? "standard_user"
+              : "read_only";
+
+        const canManage =
+          role === "location_manager";
+
+        const canViewReports =
+          role !== "read_only";
+
+        for (const spaceId of locationIds) {
+          await client.query(
+            `
+              INSERT INTO location_users (
+                organization_id,
+                space_id,
+                user_id,
+                role,
+                can_manage_contracts,
+                can_manage_pricing,
+                can_view_reports,
+                is_active
+              )
+              VALUES (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                true
+              )
+            `,
+            [
+              organizationId,
+              spaceId,
+              userId,
+              locationRole,
+              canManage,
+              canManage,
+              canViewReports
+            ]
+          );
+        }
+      }
+
+      await client.query("COMMIT");
+
+      return res.redirect("/org-users");
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackErr) {
+        console.error(
+          "UPDATE ORGANIZATION USER ROLLBACK ERROR:",
+          rollbackErr
+        );
+      }
+
+      console.error(
+        "UPDATE ORGANIZATION USER ERROR:",
+        err
+      );
+
+      if (err.code === "23505") {
+        return res
+          .status(409)
+          .send(`
+            This email address or location assignment
+            already exists.
+            <br><br>
+            <a href="/org-users">
+              Back to Users
+            </a>
+          `);
+      }
+
+      return res
+        .status(500)
+        .send(
+          "UPDATE ORGANIZATION USER ERROR: " +
+            err.message
+        );
+    } finally {
+      client.release();
+    }
+  }
+);
 app.get("/org-pricing", async (req, res) => {
   res.send(orgPage("Organization Pricing", `
     <div class="topbar">
