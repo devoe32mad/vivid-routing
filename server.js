@@ -29064,7 +29064,18 @@ app.get("/admin/new-qr", requireLogin, async (req, res) => {
                   name="description"
                   value="${escapeHtml(spaceDescription)}"
                 />
-
+<p
+  style="
+    font-size:14px;
+    color:#65776b;
+    margin-top:6px;
+    margin-bottom:18px;
+    line-height:1.5;
+  "
+>
+  Optional. This description is for your reference and can be edited
+  to help you identify this advertising placement.
+</p>
                 <label>
                   Advertising Investment ($)
                 </label>
