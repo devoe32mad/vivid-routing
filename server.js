@@ -29091,7 +29091,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
       <p style="font-size:14px;color:#40624f;margin-top:6px;">
   Paste the URL your current QR code redirects to. Vivid will create a tracking link that forwards visitors to this destination.
 </p>
-<label>Total QR Cost</label>
+<label>Advertising Investment</label>
 <input name="total_cost" type="number" value="800" />
 
 <label>Live Date</label>
