@@ -29044,12 +29044,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
   <div class="brand">Vivid Spots</div>
   <h1>
     Add Advertising Placement with an Existing QR Code
-    <a class="btn secondary"
-       href="#"
-       onclick="const p=document.getElementById('importHelpPanel'); if(p){p.style.display=p.style.display==='none'?'block':'none';} return false;"
-       style="margin-left:15px;font-size:14px;">
-       Help
-    </a>
+
   </h1>
 </div>
 
