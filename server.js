@@ -28013,69 +28013,287 @@ app.post("/admin/edit-organization/:id", requireLogin, async (req, res) => {
     res.status(500).send("UPDATE ORGANIZATION ERROR: " + err.message);
   }
 });
-app.get("/admin/new-location", requireLogin, async (req, res) => {
+
+  app.get("/admin/new-location", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
 
-    const orgs = await q(`
-      SELECT
-        o.id,
-        o.name
-      FROM organization_users ou
-      JOIN organizations o
-        ON o.id = ou.organization_id
-      WHERE ou.user_id = $1
-        AND COALESCE(ou.is_active,true) = true
-        AND COALESCE(o.is_active,true) = true
-      ORDER BY o.name
-    `, [currentUser.id]);
+    /*
+    =========================================================
+    MARKETPLACE LOCATION PREFILL
+    =========================================================
+
+    Find the advertiser's most recent approved Marketplace
+    request that has not yet created a Vivid location.
+
+    Marketplace source mapping:
+
+    Organization = organizations.name
+    Name         = selected Marketplace location / space name
+    Market       = selected Marketplace location market
+    Description  = selected opportunity description
+    =========================================================
+    */
+
+    const marketplaceRequestResult = await q(
+      `
+        SELECT
+          ar.id AS request_id,
+          ar.organization_id,
+          ar.location_id AS source_space_id,
+          ar.opportunity_id,
+
+          o.name AS organization_name,
+
+          source_space.name AS space_name,
+          source_space.location AS market,
+
+          oo.description AS opportunity_description
+
+        FROM organization_advertising_requests ar
+
+        JOIN organizations o
+          ON o.id = ar.organization_id
+
+        JOIN spaces source_space
+          ON source_space.id = ar.location_id
+         AND source_space.organization_id = ar.organization_id
+
+        LEFT JOIN organization_opportunities oo
+          ON oo.id = ar.opportunity_id
+         AND oo.organization_id = ar.organization_id
+         AND oo.space_id = ar.location_id
+
+        WHERE ar.created_vivid_user_id = $1
+          AND ar.status = 'Approved'
+          AND ar.created_location_id IS NULL
+
+        ORDER BY
+          ar.approved_at DESC NULLS LAST,
+          ar.id DESC
+
+        LIMIT 1
+      `,
+      [currentUser.id]
+    );
+
+    const marketplaceRequest =
+      marketplaceRequestResult.rows[0] || null;
+
+    /*
+    =========================================================
+    MARKETPLACE ONBOARDING VERSION
+    =========================================================
+    */
+
+    if (marketplaceRequest) {
+      return res.send(
+        page(
+          "Add Location",
+          `
+            <div class="topbar">
+              <div class="brand">Vivid Spots</div>
+              <h1>Add Location / Space</h1>
+            </div>
+
+            <div class="wrap">
+
+              <div
+                style="
+                  margin-bottom:24px;
+                  padding:16px 18px;
+                  background:#f4f7f1;
+                  border-left:5px solid #2f7d46;
+                  border-radius:10px;
+                "
+              >
+                <strong>
+                  Imported from your approved advertising request
+                </strong>
+
+                <div
+                  style="
+                    margin-top:6px;
+                    color:#52645a;
+                    line-height:1.5;
+                  "
+                >
+                  Review the advertising location below and
+                  click Save &amp; Continue.
+                </div>
+              </div>
+
+              <form method="POST" action="/admin/new-location">
+
+                <input
+                  type="hidden"
+                  name="marketplace_request_id"
+                  value="${marketplaceRequest.request_id}"
+                />
+
+                <input
+                  type="hidden"
+                  name="organization_id"
+                  value="${marketplaceRequest.organization_id}"
+                />
+
+                <p>
+                  <strong>Advertising Organization:</strong>
+                  ${escapeHtml(
+                    marketplaceRequest.organization_name || ""
+                  )}
+                </p>
+
+                <label>Name</label>
+
+                <input
+                  name="name"
+                  value="${escapeHtml(
+                    marketplaceRequest.space_name || ""
+                  )}"
+                  required
+                />
+
+                <label>Market</label>
+
+                <input
+                  name="location"
+                  value="${escapeHtml(
+                    marketplaceRequest.market || ""
+                  )}"
+                  placeholder="Naples, FL"
+                />
+
+                <label>Advertising Space Description</label>
+
+                <input
+                  name="description"
+                  value="${escapeHtml(
+                    marketplaceRequest.opportunity_description || ""
+                  )}"
+                />
+
+                <button class="btn" type="submit">
+                  Save &amp; Continue
+                </button>
+
+              </form>
+            </div>
+          `
+        )
+      );
+    }
+
+    /*
+    =========================================================
+    NORMAL VIVID LOCATION CREATION
+    =========================================================
+
+    Preserve the existing behavior for customers who did not
+    arrive through Marketplace.
+    =========================================================
+    */
+
+    const orgs = await q(
+      `
+        SELECT
+          o.id,
+          o.name
+
+        FROM organization_users ou
+
+        JOIN organizations o
+          ON o.id = ou.organization_id
+
+        WHERE ou.user_id = $1
+          AND COALESCE(ou.is_active, true) = true
+          AND COALESCE(o.is_active, true) = true
+
+        ORDER BY o.name
+      `,
+      [currentUser.id]
+    );
 
     let organizationField = "";
 
     if (orgs.rows.length === 1) {
       organizationField = `
-        <input type="hidden" name="organization_id" value="${orgs.rows[0].id}" />
-        <p><strong>Organization:</strong> ${orgs.rows[0].name}</p>
+        <input
+          type="hidden"
+          name="organization_id"
+          value="${orgs.rows[0].id}"
+        />
+
+        <p>
+          <strong>Organization:</strong>
+          ${escapeHtml(orgs.rows[0].name)}
+        </p>
       `;
     } else {
       organizationField = `
         <label>Organization</label>
+
         <select name="organization_id" required>
-          ${orgs.rows.map(o => `
-            <option value="${o.id}">${o.name}</option>
-          `).join("")}
+          ${orgs.rows
+            .map(
+              organization => `
+                <option value="${organization.id}">
+                  ${escapeHtml(organization.name)}
+                </option>
+              `
+            )
+            .join("")}
         </select>
       `;
     }
 
-    res.send(page("Add Location", `
-      <div class="topbar">
-        <div class="brand">Vivid Spots</div>
-        <h1>Add Location / Space</h1>
-      </div>
+    return res.send(
+      page(
+        "Add Location",
+        `
+          <div class="topbar">
+            <div class="brand">Vivid Spots</div>
+            <h1>Add Location / Space</h1>
+          </div>
 
-      <div class="wrap">
-        <form method="POST" action="/admin/new-location">
-          ${organizationField}
+          <div class="wrap">
+            <form method="POST" action="/admin/new-location">
 
-          <label>Name</label>
-          <input name="name" required />
+              ${organizationField}
 
-          <label>Market</label>
-          <input name="location" placeholder="Naples, FL" />
+              <label>Name</label>
+              <input name="name" required />
 
-          <label>Description</label>
-          <input name="description" />
+              <label>Market</label>
+              <input
+                name="location"
+                placeholder="Naples, FL"
+              />
 
-          <button class="btn" type="submit">Create Location</button>
-        </form>
-      </div>
-    `));
+              <label>Description</label>
+              <input name="description" />
 
+              <button class="btn" type="submit">
+                Create Location
+              </button>
+
+            </form>
+          </div>
+        `
+      )
+    );
   } catch (err) {
-    res.send("NEW LOCATION FORM ERROR: " + err.message);
+    console.error(
+      "NEW LOCATION FORM ERROR:",
+      err
+    );
+
+    return res.status(500).send(
+      "NEW LOCATION FORM ERROR: " + err.message
+    );
   }
 });
+
 app.post("/admin/new-location", requireLogin, async (req, res) => {
   console.log("NEW LOCATION POST", new Date().toISOString(), req.body);
 
