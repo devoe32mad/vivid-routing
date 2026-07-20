@@ -29043,7 +29043,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
      <div class="topbar">
   <div class="brand">Vivid Spots</div>
   <h1>
-    Convert Existing QR to Vivid Tracking
+    Add Advertising Placement with an Existing QR Code
     <a class="btn secondary"
        href="#"
        onclick="const p=document.getElementById('importHelpPanel'); if(p){p.style.display=p.style.display==='none'?'block':'none';} return false;"
@@ -29534,7 +29534,7 @@ app.get("/admin/new-qr", requireLogin, async (req, res) => {
         `
           <div class="topbar">
             <div class="brand">Vivid Spots</div>
-            <h1>Add QR Code</h1>
+            <h1>Add Advertising Placement with a New QR Code</h1>
           </div>
 
           <div class="wrap">
