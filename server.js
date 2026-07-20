@@ -29054,22 +29054,44 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
 </div>
 
 <div class="wrap">
+<div class="note">
 
-  <div id="importHelpPanel" style="display:none;background:#fff;padding:20px;margin-bottom:20px;border-radius:10px;">
-    <h3>How Import Existing QR Works</h3>
+<h3>How Vivid Connects to Your Existing QR Code</h3>
 
-    <p>Already have a QR code in use? Enter the destination URL and Vivid will create a trackable version for analytics and reporting.</p>
+<p>
+Already using a QR code? Great. You do <strong>not</strong> need to replace it.
+Simply tell Vivid where your QR code currently sends visitors.
+</p>
 
-    <ol>
-      <li>Enter an Advertising Placement Name.</li>
-      <li>Select the Location.</li>
-      <li>Enter the Existing Destination URL.</li>
-      <li>Click Import Existing QR.</li>
-      <li>Download and use the new Vivid-tracked QR going forward.</li>
-    </ol>
+<ol>
+    <li>Enter the website your current QR code opens today.</li>
 
-    <p><strong>Important:</strong> Existing printed QR codes cannot be tracked unless they point to a Vivid tracking URL.</p>
-  </div>
+    <li>Vivid will create a unique <strong>Vivid Tracking URL</strong>.</li>
+
+    <li>Update your existing QR code provider so your QR code points to the new Vivid Tracking URL.</li>
+
+    <li>Your customers will continue scanning the same QR code they've always used.</li>
+
+    <li>Vivid measures scans, clicks, conversions, revenue and ROI before sending visitors to your website.</li>
+</ol>
+
+<div style="background:#f7f7f7;border:1px solid #ddd;border-radius:8px;padding:18px;margin:20px 0;font-family:monospace;text-align:center;line-height:1.8;">
+
+Your Existing QR Code
+
+↓<br>
+
+Vivid Tracking URL
+
+↓<br>
+
+Your Website
+
+</div>
+
+<p><strong>Important:</strong> Your printed or digital QR code does not change. Only the destination URL is updated.</p>
+
+</div>
 
   <div class="card" style="max-width:700px;">
     <form method="POST" action="/admin/import-qr">
