@@ -28603,8 +28603,10 @@ app.post("/admin/new-location", requireLogin, async (req, res) => {
     */
 
     return res.redirect(
-      `/admin/new-qr?space_id=${createdLocationId}`
-    );
+  `/admin/qr-setup-choice` +
+  `?space_id=${createdLocationId}` +
+  `&marketplace_request_id=${marketplaceRequestId}`
+);
   } catch (err) {
     console.error(
       "NEW LOCATION POST ERROR:",
