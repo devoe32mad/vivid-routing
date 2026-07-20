@@ -14436,9 +14436,107 @@ app.get(
 
                 </article>
 
-              </section>
+                            </section>
+
+              ${
+                request.request_status === "Pending"
+                  ? `
+                    <section
+                      class="marketplace-card"
+                      style="
+                        margin-top:22px;
+                        border-left:6px solid #2f7d46;
+                      "
+                    >
+                      <h2 style="margin-top:0;">
+                        Review Decision
+                      </h2>
+
+                      <p style="
+                        color:#52645a;
+                        line-height:1.6;
+                      ">
+                        Approving this request will create or connect
+                        the advertiser's Vivid Core account and generate
+                        a secure setup link.
+                      </p>
+
+                      <div style="
+                        display:flex;
+                        gap:12px;
+                        flex-wrap:wrap;
+                        margin-top:18px;
+                      ">
+                        <form
+                          method="POST"
+                          action="/org-advertising-request/${request.request_id}/approve"
+                          style="margin:0;"
+                        >
+                          <input
+                            type="hidden"
+                            name="organization_id"
+                            value="${organizationId}"
+                          >
+
+                          <button
+                            type="submit"
+                            class="marketplace-btn"
+                            onclick="return confirm('Approve this advertising request and create the advertiser Vivid account?')"
+                          >
+                            Approve Request
+                          </button>
+                        </form>
+
+                        <form
+                          method="POST"
+                          action="/org-advertising-request/${request.request_id}/reject"
+                          style="margin:0;"
+                        >
+                          <input
+                            type="hidden"
+                            name="organization_id"
+                            value="${organizationId}"
+                          >
+
+                          <button
+                            type="submit"
+                            class="marketplace-btn secondary"
+                            onclick="return confirm('Reject this advertising request?')"
+                          >
+                            Reject Request
+                          </button>
+                        </form>
+                      </div>
+                    </section>
+                  `
+                  : `
+                    <section
+                      class="marketplace-card"
+                      style="
+                        margin-top:22px;
+                        border-left:6px solid #2f7d46;
+                      "
+                    >
+                      <h2 style="margin-top:0;">
+                        Request Decision
+                      </h2>
+
+                      <p style="
+                        margin-bottom:0;
+                        color:#52645a;
+                      ">
+                        This request is currently
+                        <strong>
+                          ${escapeHtml(request.request_status)}
+                        </strong>.
+                      </p>
+                    </section>
+                  `
+              }
 
             </main>
+
+        
           `
         )
       );
