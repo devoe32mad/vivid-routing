@@ -29427,12 +29427,82 @@ app.get("/admin/new-qr", requireLogin, async (req, res) => {
 
 app.post("/admin/new-qr", requireLogin, async (req, res) => {
   try {
-    const spaceId = Number(req.body.space_id);
-    const qrName = req.body.name || "";
-    const description = req.body.description || "";
-    const liveDate = req.body.live_date || "";
-    const endDate = req.body.end_date || "";
+    const currentUser = req.session.user;
 
+const spaceId =
+  Number(req.body.space_id);
+
+const marketplaceRequestId =
+  Number(req.body.marketplace_request_id);
+
+const qrName =
+  String(req.body.name || "").trim();
+
+const description =
+  String(req.body.description || "").trim();
+
+const liveDate =
+  String(req.body.live_date || "").trim();
+
+const endDate =
+  String(req.body.end_date || "").trim();
+
+const annualCost =
+  Number(
+    req.body.annual_cost ||
+    req.body.total_cost ||
+    0
+  );
+let approvedMarketplaceRequest = null;
+
+if (
+  Number.isInteger(marketplaceRequestId) &&
+  marketplaceRequestId > 0
+) {
+  const marketplaceRequestResult = await q(
+    `
+      SELECT
+        ar.id,
+        ar.created_location_id,
+        ar.created_qr_id
+
+      FROM organization_advertising_requests ar
+
+      WHERE ar.id = $1
+        AND ar.created_vivid_user_id = $2
+        AND ar.created_location_id = $3
+        AND ar.status = 'Approved'
+
+      LIMIT 1
+    `,
+    [
+      marketplaceRequestId,
+      currentUser.id,
+      spaceId
+    ]
+  );
+
+  approvedMarketplaceRequest =
+    marketplaceRequestResult.rows[0] || null;
+
+  if (!approvedMarketplaceRequest) {
+    return res.status(403).send(
+      "This advertising setup request is not valid for your account."
+    );
+  }
+
+  if (!liveDate || !endDate) {
+    return res.status(400).send(
+      "Live Date and End Date are required."
+    );
+  }
+
+  if (new Date(endDate) < new Date(liveDate)) {
+    return res.status(400).send(
+      "End Date must be on or after Live Date."
+    );
+  }
+}
     const existing = await q(`
       SELECT id
       FROM qr_codes
