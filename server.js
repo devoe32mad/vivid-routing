@@ -15782,6 +15782,200 @@ const opportunityResult = await q(`
     }
   }
 );
+/*
+=========================================================
+VIVID ACCOUNT SETUP HANDOFF
+=========================================================
+
+Purpose:
+
+- Receives the secure setup token created during
+  Marketplace approval.
+- Validates the approved advertising request.
+- Signs the advertiser into the connected Vivid Core account.
+- Sends the advertiser to the existing Launch Checklist.
+
+This route does not create QR codes, campaigns,
+assignments, schedules, or other Vivid Core records.
+=========================================================
+*/
+
+app.get(
+  "/vivid-account-setup/:token",
+  async (req, res) => {
+    try {
+      const rawToken = String(
+        req.params.token || ""
+      ).trim();
+
+      if (!rawToken) {
+        return res.status(400).send(
+          "A valid account setup link is required."
+        );
+      }
+
+      /*
+        The approval route stores only the SHA-256 hash,
+        never the raw token.
+      */
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(rawToken)
+        .digest("hex");
+
+      /*
+        Load the approved Marketplace request and the
+        connected Vivid Core user.
+
+        The token must:
+        - match
+        - belong to an approved request
+        - have a connected Vivid user
+        - not be expired
+      */
+      const setupResult = await q(
+        `
+          SELECT
+            r.id AS request_id,
+            r.organization_id,
+            r.location_id,
+            r.opportunity_id,
+            r.created_vivid_user_id,
+            r.setup_status,
+            r.setup_token_expires_at,
+
+            u.id AS vivid_user_id,
+            u.name AS vivid_user_name,
+            u.email AS vivid_user_email,
+            u.role AS vivid_user_role,
+            u.customer_id AS vivid_customer_id
+
+          FROM organization_advertising_requests r
+
+          JOIN users u
+            ON u.id = r.created_vivid_user_id
+
+          WHERE r.setup_token = $1
+            AND LOWER(TRIM(r.status)) = 'approved'
+            AND r.created_vivid_user_id IS NOT NULL
+            AND r.setup_token_expires_at IS NOT NULL
+            AND r.setup_token_expires_at > CURRENT_TIMESTAMP
+
+          LIMIT 1
+        `,
+        [hashedToken]
+      );
+
+      const setup = setupResult.rows[0];
+
+      if (!setup) {
+        return res.status(400).send(`
+          <div style="
+            max-width:700px;
+            margin:60px auto;
+            padding:30px;
+            font-family:Arial,sans-serif;
+          ">
+            <h1>Setup Link Unavailable</h1>
+
+            <p>
+              This setup link is invalid or has expired.
+            </p>
+
+            <p>
+              Please contact the organization that approved
+              your advertising request for a new setup link.
+            </p>
+          </div>
+        `);
+      }
+
+      /*
+        Use the same Vivid Core session structure already
+        used by the normal login route.
+      */
+      delete req.session.orgUser;
+
+      req.session.user = {
+        id: setup.vivid_user_id,
+        name: setup.vivid_user_name,
+        email: setup.vivid_user_email,
+        role: setup.vivid_user_role,
+        customer_id: setup.vivid_customer_id
+      };
+
+      /*
+        Preserve only lightweight Marketplace context
+        separately from the normal Vivid Core user session.
+
+        We will use this later for form defaults.
+        It does not change Vivid Core behavior.
+      */
+      req.session.marketplaceSetup = {
+        request_id: setup.request_id,
+        organization_id: setup.organization_id,
+        location_id: setup.location_id,
+        opportunity_id: setup.opportunity_id
+      };
+
+      /*
+        Record that the advertiser entered Vivid Core.
+
+        Do not mark setup complete yet.
+      */
+      await q(
+        `
+          UPDATE organization_advertising_requests
+
+          SET
+            setup_status = 'In Progress',
+            setup_started_at = COALESCE(
+              setup_started_at,
+              CURRENT_TIMESTAMP
+            ),
+            updated_at = CURRENT_TIMESTAMP
+
+          WHERE id = $1
+            AND created_vivid_user_id = $2
+        `,
+        [
+          setup.request_id,
+          setup.vivid_user_id
+        ]
+      );
+
+      /*
+        Save the session before redirecting so the existing
+        requireLogin middleware sees the new Vivid user.
+      */
+      req.session.save(err => {
+        if (err) {
+          console.error(
+            "VIVID ACCOUNT SETUP SESSION ERROR:",
+            err
+          );
+
+          return res.status(500).send(
+            "Unable to begin account setup."
+          );
+        }
+
+        return res.redirect("/my-setup");
+      });
+
+    } catch (err) {
+      console.error(
+        "VIVID ACCOUNT SETUP ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to begin Vivid account setup: " +
+        err.message
+      );
+    }
+  }
+);
 app.get(
   "/org-opportunities/bulk-template",
   async (req, res) => {
