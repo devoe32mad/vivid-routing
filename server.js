@@ -29119,7 +29119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
   `));
 });
-app.get("/admin/new-campaign", async (req, res) => {
+app.get("/admin/new-campaign", requireLogin, async (req, res) => {
   const users = await q(`
   SELECT id, email
   FROM users
