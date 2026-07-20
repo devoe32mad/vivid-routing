@@ -14589,7 +14589,7 @@ app.post(
 
       let organizationId = null;
       let approvingOrganizationUserId = null;
-
+await client.query("BEGIN");
       /*
         Organization Portal user.
       */
@@ -14656,7 +14656,7 @@ approvingOrganizationUserId =
           .send("Advertising Request approval denied.");
       }
 
-      await client.query("BEGIN");
+      
 
       /*
         Lock the request so it cannot be approved twice
