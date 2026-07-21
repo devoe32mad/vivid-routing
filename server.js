@@ -12663,19 +12663,7 @@ app.get(
 
       const workbook =
         new ExcelJS.Workbook();
-const listsSheet = workbook.addWorksheet("_Lists");
 
-listsSheet.getCell("A1").value = "Roles";
-listsSheet.getCell("A2").value = "Organization Admin";
-listsSheet.getCell("A3").value = "Location Manager";
-listsSheet.getCell("A4").value = "Location User";
-listsSheet.getCell("A5").value = "Read Only";
-
-listsSheet.state = "veryHidden";
-    workbook.definedNames.add(
-  "'_Lists'!$A$2:$A$5",
-  "=AllowedRoles"
-);
       workbook.creator =
         "Vivid Organizations";
 
