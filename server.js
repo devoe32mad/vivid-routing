@@ -386,7 +386,11 @@ function organizationNav({
             `/org-locations?organization_id=${organizationId}`,
             "locations"
           )}
-
+${navItem(
+  "Users",
+  `/org-users`,
+  "users"
+)}
           ${navItem(
             "Advertisers",
             `/org-advertisers?organization_id=${organizationId}`,
