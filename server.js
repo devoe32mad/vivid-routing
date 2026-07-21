@@ -12130,7 +12130,246 @@ app.post(
 ORGANIZATION OPERATIONS
 =========================================================
 */
+/*
+=========================================================
+ORGANIZATION BULK IMPORT
+=========================================================
+*/
 
+app.get(
+  "/org-bulk-import",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      if (req.session.user?.role === "super_admin") {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      if (
+        !organizationId &&
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(403)
+          .send("Bulk Import access denied.");
+      }
+
+      const organizationResult = await q(
+        `
+          SELECT
+            id,
+            name
+
+          FROM organizations
+
+          WHERE id = $1
+            AND COALESCE(is_active, true) = true
+
+          LIMIT 1
+        `,
+        [organizationId]
+      );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res
+          .status(404)
+          .send("Organization not found.");
+      }
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        "";
+
+      return res.send(
+        orgPage(
+          `Bulk Import - ${organization.name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(organization.name),
+              activePage: "operations",
+              userName: escapeHtml(userName)
+            })}
+
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Bulk Import</h1>
+
+              <p class="subtitle">
+                Choose the organization data you want to import.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <a
+                class="btn secondary"
+                href="/org-operations?organization_id=${organizationId}"
+              >
+                Back to Operations
+              </a>
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(auto-fit, minmax(260px, 1fr));
+                gap:18px;
+                margin-top:22px;
+              ">
+
+                <a
+                  href="/org-import-locations-assets?organization_id=${organizationId}"
+                  style="
+                    background:white;
+                    border-radius:18px;
+                    padding:24px;
+                    box-shadow:0 8px 22px rgba(0,0,0,.08);
+                    text-decoration:none;
+                    color:#073b22;
+                    display:block;
+                  "
+                >
+                  <div style="
+                    font-size:21px;
+                    font-weight:bold;
+                    margin-bottom:8px;
+                  ">
+                    Locations & Advertising Assets
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    line-height:1.5;
+                  ">
+                    Add locations and their advertising spaces
+                    from one Excel workbook.
+                  </div>
+
+                  <div style="
+                    margin-top:18px;
+                    color:#176b3a;
+                    font-weight:bold;
+                  ">
+                    Start Import →
+                  </div>
+                </a>
+
+                <div class="card">
+                  <div style="
+                    font-size:21px;
+                    font-weight:bold;
+                    margin-bottom:8px;
+                  ">
+                    Users
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    line-height:1.5;
+                  ">
+                    Add organization and location users.
+                  </div>
+
+                  <div style="
+                    margin-top:18px;
+                    color:#65776b;
+                    font-weight:bold;
+                  ">
+                    Coming Soon
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    font-size:21px;
+                    font-weight:bold;
+                    margin-bottom:8px;
+                  ">
+                    Advertisers
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    line-height:1.5;
+                  ">
+                    Add advertiser records and contact details.
+                  </div>
+
+                  <div style="
+                    margin-top:18px;
+                    color:#65776b;
+                    font-weight:bold;
+                  ">
+                    Coming Soon
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    font-size:21px;
+                    font-weight:bold;
+                    margin-bottom:8px;
+                  ">
+                    Advertising Opportunities
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    line-height:1.5;
+                  ">
+                    Add multiple advertising opportunities.
+                  </div>
+
+                  <div style="
+                    margin-top:18px;
+                    color:#65776b;
+                    font-weight:bold;
+                  ">
+                    Coming Soon
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "ORGANIZATION BULK IMPORT ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "ORGANIZATION BULK IMPORT ERROR: " +
+          err.message
+        );
+    }
+  }
+);
 app.get(
   "/org-operations",
   async (req, res) => {
