@@ -1429,7 +1429,46 @@ await q(`
     ALTER TABLE spaces
     ADD COLUMN IF NOT EXISTS organization_id INTEGER
   `);
+/*
+=========================================================
+BULK IMPORT LOCATION FIELDS
+=========================================================
+*/
 
+await q(`
+  ALTER TABLE spaces
+  ADD COLUMN IF NOT EXISTS address TEXT
+`);
+
+await q(`
+  ALTER TABLE spaces
+  ADD COLUMN IF NOT EXISTS city TEXT
+`);
+
+await q(`
+  ALTER TABLE spaces
+  ADD COLUMN IF NOT EXISTS state TEXT
+`);
+
+await q(`
+  ALTER TABLE spaces
+  ADD COLUMN IF NOT EXISTS zip_code TEXT
+`);
+
+await q(`
+  ALTER TABLE spaces
+  ADD COLUMN IF NOT EXISTS phone TEXT
+`);
+
+await q(`
+  ALTER TABLE spaces
+  ADD COLUMN IF NOT EXISTS website TEXT
+`);
+
+await q(`
+  ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS phone TEXT
+`);
   await q(`
     ALTER TABLE campaigns
     ADD COLUMN IF NOT EXISTS advertiser_id INTEGER
