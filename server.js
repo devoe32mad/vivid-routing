@@ -4763,6 +4763,226 @@ app.get(
     }
   }
 );
+/*
+=========================================================
+SAVE ORGANIZATION INVITATION PASSWORD
+=========================================================
+*/
+
+app.post(
+  "/org-invitation/:token",
+  async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+      const rawToken = String(
+        req.params.token || ""
+      ).trim();
+
+      const password = String(
+        req.body.password || ""
+      );
+
+      const confirmPassword = String(
+        req.body.confirm_password || ""
+      );
+
+      if (!rawToken) {
+        return res
+          .status(400)
+          .send("Invalid invitation.");
+      }
+
+      if (password.length < 8) {
+        return res
+          .status(400)
+          .send(`
+            Password must contain at least 8 characters.
+            <br><br>
+            <a href="/org-invitation/${encodeURIComponent(rawToken)}">
+              Back to Create Password
+            </a>
+          `);
+      }
+
+      if (password !== confirmPassword) {
+        return res
+          .status(400)
+          .send(`
+            Passwords do not match.
+            <br><br>
+            <a href="/org-invitation/${encodeURIComponent(rawToken)}">
+              Back to Create Password
+            </a>
+          `);
+      }
+
+      const tokenHash =
+        crypto
+          .createHash("sha256")
+          .update(rawToken)
+          .digest("hex");
+
+      await client.query("BEGIN");
+
+      const invitationResult =
+        await client.query(
+          `
+            SELECT
+              oui.id,
+              oui.user_id,
+              oui.organization_id,
+              oui.email,
+              u.name,
+              o.name AS organization_name
+
+            FROM organization_user_invitations oui
+
+            INNER JOIN users u
+              ON u.id = oui.user_id
+
+            INNER JOIN organizations o
+              ON o.id = oui.organization_id
+
+            WHERE oui.token_hash = $1
+              AND oui.revoked_at IS NULL
+              AND oui.accepted_at IS NULL
+              AND oui.expires_at > CURRENT_TIMESTAMP
+
+            LIMIT 1
+
+            FOR UPDATE
+          `,
+          [tokenHash]
+        );
+
+      const invitation =
+        invitationResult.rows[0];
+
+      if (!invitation) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(404)
+          .send(`
+            <h2>Invitation Expired</h2>
+
+            <p>
+              This invitation is no longer valid.
+            </p>
+
+            <a href="/org-login">
+              Go to Organization Login
+            </a>
+          `);
+      }
+
+      await client.query(
+        `
+          UPDATE users
+
+          SET
+            password = $1,
+            account_status = 'active',
+            password_created_at = CURRENT_TIMESTAMP
+
+          WHERE id = $2
+        `,
+        [
+          password,
+          invitation.user_id
+        ]
+      );
+
+      await client.query(
+        `
+          UPDATE organization_user_invitations
+
+          SET accepted_at = CURRENT_TIMESTAMP
+
+          WHERE id = $1
+        `,
+        [invitation.id]
+      );
+
+      await client.query("COMMIT");
+
+      return res.send(
+        orgPage(
+          "Account Created",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Account Created</h1>
+
+              <p class="subtitle">
+                Your Organization Portal account is ready.
+              </p>
+            </div>
+
+            <div class="wrap">
+              <div
+                class="card"
+                style="
+                  max-width:650px;
+                  margin:30px auto;
+                "
+              >
+                <h2 style="margin-top:0;">
+                  Welcome, ${escapeHtml(invitation.name)}
+                </h2>
+
+                <p>
+                  Your password has been created and your
+                  account for
+                  <strong>
+                    ${escapeHtml(invitation.organization_name)}
+                  </strong>
+                  is now active.
+                </p>
+
+                <a
+                  class="btn"
+                  href="/org-login"
+                >
+                  Go to Organization Login
+                </a>
+              </div>
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackErr) {
+        console.error(
+          "INVITATION PASSWORD ROLLBACK ERROR:",
+          rollbackErr
+        );
+      }
+
+      console.error(
+        "SAVE INVITATION PASSWORD ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "SAVE INVITATION PASSWORD ERROR: " +
+          err.message
+        );
+
+    } finally {
+      client.release();
+    }
+  }
+);
 app.get("/org-login", (req, res) => {
   res.send(orgPage("Organization Login", `
     <div class="topbar">
