@@ -13797,7 +13797,33 @@ app.post(
 
       const locationNames =
         new Map();
+const existingLocationsResult =
+  await q(
+    `
+      SELECT
+        id,
+        name
 
+      FROM spaces
+
+      WHERE organization_id = $1
+        AND COALESCE(is_archived, false) = false
+    `,
+    [organizationId]
+  );
+
+const existingLocationNames =
+  new Map(
+    existingLocationsResult.rows.map(
+      location => [
+        normalize(location.name),
+        {
+          id: Number(location.id),
+          name: location.name
+        }
+      ]
+    )
+  );
       const allowedRoles = new Set([
         "organization admin",
         "location manager",
@@ -14081,16 +14107,19 @@ app.post(
             );
           }
 
-          if (
-            locationName &&
-            !locationNames.has(
-              normalize(locationName)
-            )
-          ) {
-            errors.push(
-              `Advertising Assets row ${rowNumber}: Location "${locationName}" was not found on the Locations sheet.`
-            );
-          }
+if (
+  locationName &&
+  !locationNames.has(
+    normalize(locationName)
+  ) &&
+  !existingLocationNames.has(
+    normalize(locationName)
+  )
+) {
+  errors.push(
+    `Advertising Assets row ${rowNumber}: Location "${locationName}" was not found in this workbook or in the organization.`
+  );
+}
 
           let annualPrice = null;
 
@@ -14261,16 +14290,19 @@ app.post(
             );
           }
 
-          if (
-            locationName &&
-            !locationNames.has(
-              normalize(locationName)
-            )
-          ) {
-            errors.push(
-              `Location Users row ${rowNumber}: Location "${locationName}" was not found on the Locations sheet.`
-            );
-          }
+        if (
+  locationName &&
+  !locationNames.has(
+    normalize(locationName)
+  ) &&
+  !existingLocationNames.has(
+    normalize(locationName)
+  )
+) {
+  errors.push(
+    `Location Users row ${rowNumber}: Location "${locationName}" was not found in this workbook or in the organization.`
+  );
+}
 
           if (
             !allowedStatuses.has(
