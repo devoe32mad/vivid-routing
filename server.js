@@ -12672,10 +12672,10 @@ listsSheet.getCell("A4").value = "Location User";
 listsSheet.getCell("A5").value = "Read Only";
 
 listsSheet.state = "veryHidden";
-   workbook.definedNames.add(
-  "AllowedRoles",
-  "'_Lists'!$A$2:$A$5"
-);   
+    workbook.definedNames.add(
+  "'_Lists'!$A$2:$A$5",
+  "AllowedRoles"
+);
       workbook.creator =
         "Vivid Organizations";
 
