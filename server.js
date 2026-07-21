@@ -14305,7 +14305,16 @@ app.post(
         req.session.orgUser?.name ||
         req.session.orgUser?.email ||
         "";
-
+if (errors.length === 0) {
+  req.session.pendingLocationsAssetsImport = {
+    organizationId,
+    locations,
+    assets,
+    users
+  };
+} else {
+  delete req.session.pendingLocationsAssetsImport;
+}
       return res.send(
         orgPage(
           `Import Preview - ${organization.name}`,
