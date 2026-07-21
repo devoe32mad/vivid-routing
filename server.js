@@ -9039,26 +9039,21 @@ app.get(
                     required
                   />
 
-                  <label for="password">
-                    Temporary Password
-                  </label>
+                  <div style="
+  background:#F0FDF4;
+  border-left:5px solid #16A34A;
+  padding:16px;
+  border-radius:10px;
+  margin:10px 0 18px;
+  line-height:1.5;
+">
+  <strong>Account Setup Email</strong>
 
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    minlength="8"
-                    required
-                  />
-
-                  <p style="
-                    margin-top:-8px;
-                    color:#64748B;
-                    font-size:13px;
-                  ">
-                    The user can use this password for
-                    their initial Organization Portal login.
-                  </p>
+  <p style="margin:6px 0 0;">
+    Vivid will email this user a secure link so they can
+    create their own password and access the Organization Portal.
+  </p>
+</div>
 
                   <label for="role">
                     Role
@@ -9231,9 +9226,9 @@ app.post(
         .trim()
         .toLowerCase();
 
-      const password = String(
-        req.body.password || ""
-      );
+      
+        
+      
 
       const role = String(
         req.body.role || ""
@@ -9343,21 +9338,7 @@ app.post(
           `);
       }
 
-      /*
-        The current Vivid login system compares passwords
-        directly in SQL, so this route must use the same
-        password format until password hashing is migrated
-        across every login route together.
-      */
-      if (password.length < 8) {
-        return res
-          .status(400)
-          .send(`
-            Temporary Password must contain at least 8 characters.
-            <br><br>
-            <a href="/org-users/new">Back to Add User</a>
-          `);
-      }
+      
 
       await client.query("BEGIN");
 
