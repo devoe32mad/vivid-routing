@@ -13238,9 +13238,11 @@ listsSheet.state = "veryHidden";
         {
           type: "list",
           allowBlank: false,
-          formulae: [
-            '"Location Manager,Location User"'
-          ],
+        formulae: [
+  "'_Lists'!$A$2:$A$5"
+],
+            
+          
           showErrorMessage: true,
           errorTitle:
             "Invalid Role",
