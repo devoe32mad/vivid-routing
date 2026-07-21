@@ -13243,8 +13243,10 @@ listsSheet.state = "veryHidden";
           type: "list",
           allowBlank: false,
         formulae: [
-  "AllowedRoles"
+  '"Organization Admin,Location Manager,Location User,Read Only"'
 ],
+  
+
             
           
           showErrorMessage: true,
