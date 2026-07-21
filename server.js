@@ -4593,6 +4593,176 @@ return res.redirect("/my-setup");
   }
 
 });
+/*
+=========================================================
+ORGANIZATION INVITATION
+=========================================================
+*/
+
+app.get(
+  "/org-invitation/:token",
+  async (req, res) => {
+    try {
+
+      const rawToken = req.params.token;
+
+      const tokenHash =
+        crypto
+          .createHash("sha256")
+          .update(rawToken)
+          .digest("hex");
+
+      const invitation = await q(
+        `
+        SELECT
+          oui.*,
+          u.name,
+          u.email,
+          o.name AS organization_name
+
+        FROM organization_user_invitations oui
+
+        JOIN users u
+          ON u.id = oui.user_id
+
+        JOIN organizations o
+          ON o.id = oui.organization_id
+
+        WHERE oui.token_hash = $1
+
+          AND oui.revoked_at IS NULL
+
+          AND oui.accepted_at IS NULL
+
+          AND oui.expires_at > NOW()
+
+        LIMIT 1
+        `,
+        [tokenHash]
+      );
+
+      if (!invitation.rows.length) {
+
+        return res.status(404).send(`
+          <h2>
+            Invitation Expired
+          </h2>
+
+          <p>
+            This invitation is no longer valid.
+          </p>
+        `);
+
+      }
+
+      const invite =
+        invitation.rows[0];
+
+      res.send(
+        orgPage(
+          "Create Password",
+          `
+          <div class="topbar">
+
+            <div class="brand">
+              Vivid Organizations
+            </div>
+
+            <h1>Create Your Password</h1>
+
+            <p class="subtitle">
+
+              ${escapeHtml(invite.organization_name)}
+
+            </p>
+
+          </div>
+
+          <div class="wrap">
+
+            <div
+              class="card"
+              style="
+                max-width:650px;
+                margin:30px auto;
+              "
+            >
+
+              <h2>
+
+                Welcome
+                ${escapeHtml(invite.name)}
+
+              </h2>
+
+              <p>
+
+                ${escapeHtml(invite.email)}
+
+              </p>
+
+              <form
+                method="POST"
+                action="/org-invitation/${rawToken}"
+              >
+
+                <label>
+
+                  Create Password
+
+                </label>
+
+                <input
+                  type="password"
+                  name="password"
+                  required
+                  minlength="8"
+                >
+
+                <label>
+
+                  Confirm Password
+
+                </label>
+
+                <input
+                  type="password"
+                  name="confirm_password"
+                  required
+                  minlength="8"
+                >
+
+                <button
+                  class="btn"
+                  style="margin-top:20px;"
+                >
+
+                  Create Account
+
+                </button>
+
+              </form>
+
+            </div>
+
+          </div>
+          `
+        )
+      );
+
+    }
+
+    catch (err) {
+
+      console.error(err);
+
+      res
+        .status(500)
+        .send(err.message);
+
+    }
+  }
+);
 app.get("/org-login", (req, res) => {
   res.send(orgPage("Organization Login", `
     <div class="topbar">
