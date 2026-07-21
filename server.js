@@ -9451,32 +9451,30 @@ app.post(
         existingVividUser = true;
       } else {
         const newUserResult =
-          await client.query(
-            `
-              INSERT INTO users (
-                name,
-                email,
-                password,
-                role
-              )
-              VALUES (
-                $1,
-                $2,
-                $3,
-                'organization_user'
-              )
-              RETURNING id
-            `,
-            [
-              name,
-              email,
-              password
-            ]
-          );
-
-        userId = Number(
-          newUserResult.rows[0].id
-        );
+  await client.query(
+    `
+      INSERT INTO users (
+        name,
+        email,
+        password,
+        role,
+        account_status
+      )
+      VALUES (
+        $1,
+        $2,
+        NULL,
+        'organization_user',
+        'pending'
+      )
+      RETURNING id
+    `,
+    [
+      name,
+      email
+    ]
+  );
+         
       }
 
       /*
@@ -9678,7 +9676,87 @@ app.post(
           ]
         );
       }
+/*
+=====================================================
+CREATE ORGANIZATION USER INVITATION
+=====================================================
+*/
 
+const rawInvitationToken =
+  crypto.randomBytes(32).toString("hex");
+
+const invitationTokenHash =
+  crypto
+    .createHash("sha256")
+    .update(rawInvitationToken)
+    .digest("hex");
+
+const invitationExpiresAt =
+  new Date(
+    Date.now() +
+    7 * 24 * 60 * 60 * 1000
+  );
+
+const invitedByUserId =
+  req.session.orgUser?.user_id
+    ? Number(req.session.orgUser.user_id)
+    : null;
+
+/*
+  Revoke any previous unused invitations for this
+  organization and user before creating a new one.
+*/
+await client.query(
+  `
+    UPDATE organization_user_invitations
+
+    SET revoked_at = CURRENT_TIMESTAMP
+
+    WHERE organization_id = $1
+      AND user_id = $2
+      AND accepted_at IS NULL
+      AND revoked_at IS NULL
+  `,
+  [
+    organizationId,
+    userId
+  ]
+);
+
+await client.query(
+  `
+    INSERT INTO organization_user_invitations (
+      organization_id,
+      user_id,
+      organization_user_id,
+      invited_by_user_id,
+      email,
+      token_hash,
+      expires_at
+    )
+    VALUES (
+      $1,
+      $2,
+      $3,
+      $4,
+      $5,
+      $6,
+      $7
+    )
+  `,
+  [
+    organizationId,
+    userId,
+    organizationUserId,
+    invitedByUserId,
+    email,
+    invitationTokenHash,
+    invitationExpiresAt
+  ]
+);
+
+const invitationUrl =
+  `${BASE_URL}/org-invitation/${rawInvitationToken}`;
       await client.query("COMMIT");
 
       /*
@@ -9765,24 +9843,39 @@ app.post(
                       </div>
                     `
                     : `
-                      <div
-                        style="
-                          background:#ECFDF5;
-                          border-left:5px solid #16A34A;
-                          padding:16px;
-                          border-radius:10px;
-                          margin:20px 0;
-                        "
-                      >
-                        <strong>
-                          New Vivid account created
-                        </strong>
+              <div
+  style="
+    background:#ECFDF5;
+    border-left:5px solid #16A34A;
+    padding:16px;
+    border-radius:10px;
+    margin:20px 0;
+  "
+>
+  <strong>
+    Invitation Created
+  </strong>
 
-                        <p style="margin-bottom:0;">
-                          Give the user the temporary
-                          password entered on the form.
-                        </p>
-                      </div>
+  <p>
+    A secure account setup invitation has been
+    created for ${escapeHtml(email)}.
+  </p>
+
+  <p style="margin-bottom:8px;">
+    Email delivery will be connected next.
+  </p>
+
+  <a
+    href="${invitationUrl}"
+    style="
+      display:inline-block;
+      margin-top:8px;
+      overflow-wrap:anywhere;
+    "
+  >
+    Open Account Setup Link
+  </a>
+</div>        
                     `
                 }
 
