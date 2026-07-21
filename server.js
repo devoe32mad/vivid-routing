@@ -12674,7 +12674,7 @@ listsSheet.getCell("A5").value = "Read Only";
 listsSheet.state = "veryHidden";
     workbook.definedNames.add(
   "'_Lists'!$A$2:$A$5",
-  "AllowedRoles"
+  "=AllowedRoles"
 );
       workbook.creator =
         "Vivid Organizations";
