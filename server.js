@@ -6577,149 +6577,298 @@ ${orgDateFilterForm({
   fromDate,
   toDate
 })}
-          <div style="
-            display:grid;
-            grid-template-columns:repeat(auto-fit,minmax(185px,1fr));
-            gap:15px;
-            margin:22px 0 34px;
-          ">
+         <h2 style="margin:22px 0 5px;">
+  Advertising Business
+</h2>
 
-            <a
-              href="/org-locations?organization_id=${org.id}"
-              style="text-decoration:none;color:inherit;"
-            >
-              <div class="card" style="margin:0;height:100%;">
-                <div style="font-size:13px;color:#65776b;">
-                  Locations
-                </div>
-                <div style="font-size:30px;font-weight:bold;margin-top:7px;">
-                  ${locations.length.toLocaleString()}
-                </div>
-              </div>
-            </a>
+<div style="color:#65776b;margin-bottom:16px;">
+  Current advertising inventory, pipeline, and advertiser results.
+</div>
 
-            <div class="card" style="margin:0;">
-              <div style="font-size:13px;color:#65776b;">
-                QR Placements
-              </div>
-              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
-                ${totals.qrPlacements.toLocaleString()}
-              </div>
-            </div>
+<div style="
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:15px;
+  margin:0 0 30px;
+">
 
-            <a
-  href="/org-advertisers?organization_id=${org.id}"
-  style="
-    text-decoration:none;
-    color:inherit;
-    display:block;
-  "
->
-  <div class="card" style="margin:0;">
-    <div style="font-size:13px;color:#65776b;">
-      Advertisers
+  <a
+    href="/org-business-breakdown?organization_id=${org.id}&metric=available"
+    style="text-decoration:none;color:inherit;display:block;"
+  >
+    <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
+      <div style="font-size:15px;font-weight:bold;">
+        Available Advertising
+      </div>
+
+      <div style="
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:14px;
+        margin-top:16px;
+      ">
+        <div>
+          <div style="font-size:12px;color:#65776b;">
+            Available Spots
+          </div>
+          <div style="font-size:28px;font-weight:bold;margin-top:5px;">
+            ${availableSpots.toLocaleString()}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:12px;color:#65776b;">
+            Available Revenue
+          </div>
+          <div style="font-size:25px;font-weight:bold;margin-top:5px;">
+            ${money(availableRevenue)}
+          </div>
+        </div>
+      </div>
+
+      <div style="
+        margin-top:17px;
+        padding-top:11px;
+        border-top:1px solid #e7eee7;
+        font-size:12px;
+        color:#176b3a;
+        font-weight:bold;
+      ">
+        View by Location →
+      </div>
     </div>
+  </a>
 
+  <a
+    href="/org-business-breakdown?organization_id=${org.id}&metric=pending"
+    style="text-decoration:none;color:inherit;display:block;"
+  >
+    <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
+      <div style="font-size:15px;font-weight:bold;">
+        Pending Advertising
+      </div>
+
+      <div style="
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:14px;
+        margin-top:16px;
+      ">
+        <div>
+          <div style="font-size:12px;color:#65776b;">
+            Pending Spots
+          </div>
+          <div style="font-size:28px;font-weight:bold;margin-top:5px;">
+            ${pendingSpots.toLocaleString()}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:12px;color:#65776b;">
+            Pending Revenue
+          </div>
+          <div style="font-size:25px;font-weight:bold;margin-top:5px;">
+            ${money(pendingRevenue)}
+          </div>
+        </div>
+      </div>
+
+      <div style="
+        margin-top:17px;
+        padding-top:11px;
+        border-top:1px solid #e7eee7;
+        font-size:12px;
+        color:#176b3a;
+        font-weight:bold;
+      ">
+        View by Location →
+      </div>
+    </div>
+  </a>
+
+  <a
+    href="/org-business-breakdown?organization_id=${org.id}&metric=active"
+    style="text-decoration:none;color:inherit;display:block;"
+  >
+    <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
+      <div style="font-size:15px;font-weight:bold;">
+        Active Advertising
+      </div>
+
+      <div style="
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:14px;
+        margin-top:16px;
+      ">
+        <div>
+          <div style="font-size:12px;color:#65776b;">
+            Active Spots
+          </div>
+          <div style="font-size:28px;font-weight:bold;margin-top:5px;">
+            ${totals.qrPlacements.toLocaleString()}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:12px;color:#65776b;">
+            Active Revenue
+          </div>
+          <div style="font-size:25px;font-weight:bold;margin-top:5px;">
+            ${money(totals.placementValue)}
+          </div>
+        </div>
+      </div>
+
+      <div style="
+        margin-top:17px;
+        padding-top:11px;
+        border-top:1px solid #e7eee7;
+        font-size:12px;
+        color:#176b3a;
+        font-weight:bold;
+      ">
+        View by Location →
+      </div>
+    </div>
+  </a>
+
+  <a
+    href="/org-business-breakdown?organization_id=${org.id}&metric=advertiser-revenue${dateQueryString ? `&${dateQueryString}` : ""}"
+    style="text-decoration:none;color:inherit;display:block;"
+  >
+    <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
+      <div style="font-size:15px;font-weight:bold;">
+        Advertiser Revenue Generated
+      </div>
+
+      <div style="font-size:29px;font-weight:bold;margin-top:20px;">
+        ${money(totals.conversionValue)}
+      </div>
+
+      <div style="font-size:12px;color:#65776b;margin-top:8px;">
+        Revenue attributed through Vivid
+      </div>
+
+      <div style="
+        margin-top:17px;
+        padding-top:11px;
+        border-top:1px solid #e7eee7;
+        font-size:12px;
+        color:#176b3a;
+        font-weight:bold;
+      ">
+        View by Location →
+      </div>
+    </div>
+  </a>
+
+</div>
+
+<h2 style="margin:0 0 14px;">
+  Organization Overview
+</h2>
+
+<div style="
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(175px,1fr));
+  gap:15px;
+  margin:0 0 30px;
+">
+
+  <a
+    href="/org-locations?organization_id=${org.id}"
+    style="text-decoration:none;color:inherit;"
+  >
+    <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
+      <div style="font-size:13px;color:#65776b;">Locations</div>
+      <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+        ${locations.length.toLocaleString()}
+      </div>
+    </div>
+  </a>
+
+  <a
+    href="/org-advertisers?organization_id=${org.id}"
+    style="text-decoration:none;color:inherit;"
+  >
+    <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
+      <div style="font-size:13px;color:#65776b;">Advertisers</div>
+      <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+        ${advertiserCount.toLocaleString()}
+      </div>
+    </div>
+  </a>
+
+  <a
+    href="/org-contracts?organization_id=${org.id}"
+    style="text-decoration:none;color:inherit;"
+  >
+    <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
+      <div style="font-size:13px;color:#65776b;">Active Contracts</div>
+      <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+        ${activeContracts.toLocaleString()}
+      </div>
+    </div>
+  </a>
+
+  <a
+    href="/org-operations?organization_id=${org.id}"
+    style="text-decoration:none;color:inherit;"
+  >
+    <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
+      <div style="font-size:13px;color:#65776b;">Operations</div>
+      <div style="font-size:22px;font-weight:bold;margin-top:11px;">
+        Open Operations →
+      </div>
+    </div>
+  </a>
+
+</div>
+
+<h2 style="margin:0 0 14px;">
+  Performance
+</h2>
+
+<div style="
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(175px,1fr));
+  gap:15px;
+  margin:0 0 34px;
+">
+
+  <div class="card" style="margin:0;">
+    <div style="font-size:13px;color:#65776b;">Active Campaigns</div>
     <div style="font-size:30px;font-weight:bold;margin-top:7px;">
-      ${advertiserCount.toLocaleString()}
+      ${totals.activeCampaigns.toLocaleString()}
     </div>
   </div>
-</a>
 
-            <div class="card" style="margin:0;">
-              <div style="font-size:13px;color:#65776b;">
-                Active Contracts
-              </div>
-              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
-                ${activeContracts.toLocaleString()}
-              </div>
-            </div>
+  <div class="card" style="margin:0;">
+    <div style="font-size:13px;color:#65776b;">Scans</div>
+    <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+      ${totals.scans.toLocaleString()}
+    </div>
+  </div>
 
-            <div class="card" style="margin:0;">
-              <div style="font-size:13px;color:#65776b;">
-                Placement Value
-              </div>
-              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
-                ${money(totals.placementValue)}
-              </div>
-            </div>
+  <div class="card" style="margin:0;">
+    <div style="font-size:13px;color:#65776b;">Intent</div>
+    <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+      ${totals.intent.toLocaleString()}
+    </div>
+  </div>
 
-            <div class="card" style="margin:0;">
-              <div style="font-size:13px;color:#65776b;">
-                Annual Impressions
-              </div>
-              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
-                ${totals.impressions.toLocaleString()}
-              </div>
-            </div>
+  <div class="card" style="margin:0;">
+    <div style="font-size:13px;color:#65776b;">Conversions</div>
+    <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+      ${totals.conversions.toLocaleString()}
+    </div>
+  </div>
 
-            <div class="card" style="margin:0;">
-              <div style="font-size:13px;color:#65776b;">
-                Active Campaigns
-              </div>
-              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
-                ${totals.activeCampaigns.toLocaleString()}
-              </div>
-            </div>
+</div> 
+          
 
-            <div class="card" style="margin:0;">
-              <div style="font-size:13px;color:#65776b;">
-                Scans
-              </div>
-              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
-                ${totals.scans.toLocaleString()}
-              </div>
-            </div>
-
-            <div class="card" style="margin:0;">
-              <div style="font-size:13px;color:#65776b;">
-                Intent
-              </div>
-              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
-                ${totals.intent.toLocaleString()}
-              </div>
-            </div>
-
-            <div class="card" style="margin:0;">
-              <div style="font-size:13px;color:#65776b;">
-                Conversions
-              </div>
-              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
-                ${totals.conversions.toLocaleString()}
-              </div>
-            </div>
-
-            <div class="card" style="margin:0;">
-              <div style="font-size:13px;color:#65776b;">
-                Revenue Generated
-              </div>
-              <div style="font-size:30px;font-weight:bold;margin-top:7px;">
-                ${money(totals.conversionValue)}
-              </div>
-            </div>
-
-          </div>
-
-          <div style="
-            display:flex;
-            justify-content:space-between;
-            align-items:end;
-            gap:18px;
-            flex-wrap:wrap;
-            margin-bottom:15px;
-          ">
-            <div>
-              <h2 style="margin:0 0 5px;">
-                Locations
-              </h2>
-
-              <div style="color:#65776b;">
-                Select a location to view its QR placements and performance.
-              </div>
-            </div>
-          </div>
-
-         <div
+            
   class="org-location-grid"
   style="
    display:grid;
