@@ -12598,6 +12598,718 @@ app.get(
     }
   }
 );
+/*
+=========================================================
+DOWNLOAD LOCATIONS & ASSETS IMPORT TEMPLATE
+=========================================================
+*/
+
+app.get(
+  "/org-locations-assets-template",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      if (
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      if (
+        !organizationId &&
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(403)
+          .send("Template access denied.");
+      }
+
+      const organizationResult = await q(
+        `
+          SELECT
+            id,
+            name
+
+          FROM organizations
+
+          WHERE id = $1
+            AND COALESCE(is_active, true) = true
+
+          LIMIT 1
+        `,
+        [organizationId]
+      );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res
+          .status(404)
+          .send("Organization not found.");
+      }
+
+      const workbook =
+        new ExcelJS.Workbook();
+
+      workbook.creator =
+        "Vivid Organizations";
+
+      workbook.created =
+        new Date();
+
+      workbook.modified =
+        new Date();
+
+      workbook.properties = {
+        title:
+          `${organization.name} Import Template`,
+        subject:
+          "Locations, Advertising Assets and Location Users",
+        company:
+          "Vivid"
+      };
+
+      /*
+      =====================================================
+      SHARED STYLING
+      =====================================================
+      */
+
+      const headerFill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: {
+          argb: "FF123F2A"
+        }
+      };
+
+      const headerFont = {
+        bold: true,
+        color: {
+          argb: "FFFFFFFF"
+        }
+      };
+
+      const sectionFill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: {
+          argb: "FFE8F1EB"
+        }
+      };
+
+      function styleHeaderRow(
+        worksheet,
+        rowNumber = 1
+      ) {
+        const row =
+          worksheet.getRow(rowNumber);
+
+        row.height = 24;
+
+        row.eachCell(cell => {
+          cell.fill = headerFill;
+          cell.font = headerFont;
+          cell.alignment = {
+            vertical: "middle",
+            horizontal: "left",
+            wrapText: true
+          };
+
+          cell.border = {
+            bottom: {
+              style: "thin",
+              color: {
+                argb: "FFB9C9BE"
+              }
+            }
+          };
+        });
+      }
+
+      function addTableFormatting(
+        worksheet,
+        columnCount
+      ) {
+        worksheet.views = [
+          {
+            state: "frozen",
+            ySplit: 1
+          }
+        ];
+
+        worksheet.autoFilter = {
+          from: {
+            row: 1,
+            column: 1
+          },
+          to: {
+            row: 1,
+            column: columnCount
+          }
+        };
+      }
+
+      /*
+      =====================================================
+      INSTRUCTIONS SHEET
+      =====================================================
+      */
+
+      const instructionsSheet =
+        workbook.addWorksheet(
+          "Instructions",
+          {
+            properties: {
+              tabColor: {
+                argb: "FF123F2A"
+              }
+            }
+          }
+        );
+
+      instructionsSheet.columns = [
+        {
+          key: "item",
+          width: 28
+        },
+        {
+          key: "details",
+          width: 95
+        }
+      ];
+
+      instructionsSheet.mergeCells(
+        "A1:B1"
+      );
+
+      instructionsSheet.getCell("A1").value =
+        "Vivid Organization Import Template";
+
+      instructionsSheet.getCell("A1").font = {
+        bold: true,
+        size: 18,
+        color: {
+          argb: "FFFFFFFF"
+        }
+      };
+
+      instructionsSheet.getCell("A1").fill =
+        headerFill;
+
+      instructionsSheet.getCell("A1").alignment = {
+        vertical: "middle",
+        horizontal: "left"
+      };
+
+      instructionsSheet.getRow(1).height = 34;
+
+      instructionsSheet.mergeCells(
+        "A2:B2"
+      );
+
+      instructionsSheet.getCell("A2").value =
+        organization.name;
+
+      instructionsSheet.getCell("A2").font = {
+        bold: true,
+        size: 14
+      };
+
+      instructionsSheet.getCell("A2").fill =
+        sectionFill;
+
+      instructionsSheet.getRow(2).height = 26;
+
+      const instructions = [
+        [
+          "Purpose",
+          "Use this workbook to import multiple locations, advertising assets and location users into Vivid."
+        ],
+        [
+          "Import Order",
+          "Complete Locations first, then Advertising Assets, then Location Users."
+        ],
+        [
+          "Required Fields",
+          "Required columns are marked with an asterisk (*). Rows missing required information will not pass validation."
+        ],
+        [
+          "Location Matching",
+          "The Location Name entered on the Advertising Assets and Location Users sheets must exactly match a Location Name on the Locations sheet."
+        ],
+        [
+          "Email Addresses",
+          "Each user must have a valid and unique email address."
+        ],
+        [
+          "Status Values",
+          "Use Active or Inactive where a status field is provided."
+        ],
+        [
+          "Prices",
+          "Enter annual prices as numbers only. Do not include dollar signs or commas."
+        ],
+        [
+          "Do Not Rename Sheets",
+          "The worksheet names must remain Instructions, Locations, Advertising Assets and Location Users."
+        ],
+        [
+          "Do Not Rename Columns",
+          "Column headings must remain unchanged so Vivid can read the workbook correctly."
+        ],
+        [
+          "Preview First",
+          "Uploading the workbook does not immediately create records. Vivid will validate and preview the import before confirmation."
+        ]
+      ];
+
+      let instructionRow = 4;
+
+      for (
+        const [item, details]
+        of instructions
+      ) {
+        instructionsSheet
+          .getCell(
+            instructionRow,
+            1
+          )
+          .value = item;
+
+        instructionsSheet
+          .getCell(
+            instructionRow,
+            1
+          )
+          .font = {
+            bold: true
+          };
+
+        instructionsSheet
+          .getCell(
+            instructionRow,
+            1
+          )
+          .fill = sectionFill;
+
+        instructionsSheet
+          .getCell(
+            instructionRow,
+            2
+          )
+          .value = details;
+
+        instructionsSheet
+          .getCell(
+            instructionRow,
+            2
+          )
+          .alignment = {
+            vertical: "top",
+            wrapText: true
+          };
+
+        instructionRow++;
+      }
+
+      /*
+      =====================================================
+      LOCATIONS SHEET
+      =====================================================
+      */
+
+      const locationsSheet =
+        workbook.addWorksheet(
+          "Locations",
+          {
+            properties: {
+              tabColor: {
+                argb: "FF4F81BD"
+              }
+            }
+          }
+        );
+
+      locationsSheet.columns = [
+        {
+          header: "Location Name *",
+          key: "location_name",
+          width: 34
+        },
+        {
+          header: "Address",
+          key: "address",
+          width: 32
+        },
+        {
+          header: "City",
+          key: "city",
+          width: 20
+        },
+        {
+          header: "State",
+          key: "state",
+          width: 12
+        },
+        {
+          header: "ZIP Code",
+          key: "zip_code",
+          width: 14
+        },
+        {
+          header: "Phone",
+          key: "phone",
+          width: 18
+        },
+        {
+          header: "Website",
+          key: "website",
+          width: 34
+        },
+        {
+          header: "Status",
+          key: "status",
+          width: 14
+        }
+      ];
+
+      styleHeaderRow(
+        locationsSheet
+      );
+
+      addTableFormatting(
+        locationsSheet,
+        locationsSheet.columns.length
+      );
+
+      locationsSheet.addRow({
+        location_name:
+          "Example Location",
+        address:
+          "123 Main Street",
+        city:
+          "Naples",
+        state:
+          "FL",
+        zip_code:
+          "34102",
+        phone:
+          "239-555-0100",
+        website:
+          "https://example.com",
+        status:
+          "Active"
+      });
+
+      locationsSheet.getColumn(
+        "zip_code"
+      ).numFmt = "@";
+
+      locationsSheet.getColumn(
+        "phone"
+      ).numFmt = "@";
+
+      locationsSheet.dataValidations.add(
+        "H2:H5000",
+        {
+          type: "list",
+          allowBlank: true,
+          formulae: [
+            '"Active,Inactive"'
+          ],
+          showErrorMessage: true,
+          errorTitle:
+            "Invalid Status",
+          error:
+            "Choose Active or Inactive."
+        }
+      );
+
+      /*
+      =====================================================
+      ADVERTISING ASSETS SHEET
+      =====================================================
+      */
+
+      const assetsSheet =
+        workbook.addWorksheet(
+          "Advertising Assets",
+          {
+            properties: {
+              tabColor: {
+                argb: "FFF4B183"
+              }
+            }
+          }
+        );
+
+      assetsSheet.columns = [
+        {
+          header: "Location Name *",
+          key: "location_name",
+          width: 34
+        },
+        {
+          header: "Asset Name *",
+          key: "asset_name",
+          width: 34
+        },
+        {
+          header: "Category",
+          key: "category",
+          width: 22
+        },
+        {
+          header: "Description",
+          key: "description",
+          width: 48
+        },
+        {
+          header: "Annual Price",
+          key: "annual_price",
+          width: 18
+        },
+        {
+          header: "Status",
+          key: "status",
+          width: 14
+        }
+      ];
+
+      styleHeaderRow(
+        assetsSheet
+      );
+
+      addTableFormatting(
+        assetsSheet,
+        assetsSheet.columns.length
+      );
+
+      assetsSheet.addRow({
+        location_name:
+          "Example Location",
+        asset_name:
+          "Football Stadium Sponsorship",
+        category:
+          "Athletics",
+        description:
+          "Annual sponsorship opportunity located at the football stadium.",
+        annual_price:
+          1500,
+        status:
+          "Active"
+      });
+
+      assetsSheet.getColumn(
+        "annual_price"
+      ).numFmt =
+        '$#,##0.00';
+
+      assetsSheet.dataValidations.add(
+        "F2:F10000",
+        {
+          type: "list",
+          allowBlank: true,
+          formulae: [
+            '"Active,Inactive"'
+          ],
+          showErrorMessage: true,
+          errorTitle:
+            "Invalid Status",
+          error:
+            "Choose Active or Inactive."
+        }
+      );
+
+      /*
+      =====================================================
+      LOCATION USERS SHEET
+      =====================================================
+      */
+
+      const usersSheet =
+        workbook.addWorksheet(
+          "Location Users",
+          {
+            properties: {
+              tabColor: {
+                argb: "FFA9D18E"
+              }
+            }
+          }
+        );
+
+      usersSheet.columns = [
+        {
+          header: "First Name *",
+          key: "first_name",
+          width: 20
+        },
+        {
+          header: "Last Name *",
+          key: "last_name",
+          width: 22
+        },
+        {
+          header: "Email *",
+          key: "email",
+          width: 34
+        },
+        {
+          header: "Role *",
+          key: "role",
+          width: 24
+        },
+        {
+          header: "Location Name *",
+          key: "location_name",
+          width: 34
+        },
+        {
+          header: "Phone",
+          key: "phone",
+          width: 18
+        },
+        {
+          header: "Status",
+          key: "status",
+          width: 14
+        }
+      ];
+
+      styleHeaderRow(
+        usersSheet
+      );
+
+      addTableFormatting(
+        usersSheet,
+        usersSheet.columns.length
+      );
+
+      usersSheet.addRow({
+        first_name:
+          "Jane",
+        last_name:
+          "Smith",
+        email:
+          "jane.smith@example.com",
+        role:
+          "Location Manager",
+        location_name:
+          "Example Location",
+        phone:
+          "239-555-0101",
+        status:
+          "Active"
+      });
+
+      usersSheet.getColumn(
+        "email"
+      ).numFmt = "@";
+
+      usersSheet.getColumn(
+        "phone"
+      ).numFmt = "@";
+
+      usersSheet.dataValidations.add(
+        "D2:D5000",
+        {
+          type: "list",
+          allowBlank: false,
+          formulae: [
+            '"Location Manager,Location User"'
+          ],
+          showErrorMessage: true,
+          errorTitle:
+            "Invalid Role",
+          error:
+            "Choose Location Manager or Location User."
+        }
+      );
+
+      usersSheet.dataValidations.add(
+        "G2:G5000",
+        {
+          type: "list",
+          allowBlank: true,
+          formulae: [
+            '"Active,Inactive"'
+          ],
+          showErrorMessage: true,
+          errorTitle:
+            "Invalid Status",
+          error:
+            "Choose Active or Inactive."
+        }
+      );
+
+      /*
+      =====================================================
+      FILE RESPONSE
+      =====================================================
+      */
+
+      const safeOrganizationName =
+        String(organization.name)
+          .replace(
+            /[^a-z0-9]+/gi,
+            "-"
+          )
+          .replace(
+            /^-+|-+$/g,
+            ""
+          )
+          .toLowerCase();
+
+      const fileName =
+        `${safeOrganizationName || "organization"}-vivid-import-template.xlsx`;
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${fileName}"`
+      );
+
+      await workbook.xlsx.write(
+        res
+      );
+
+      return res.end();
+    } catch (err) {
+      console.error(
+        "LOCATIONS ASSETS TEMPLATE ERROR:",
+        err
+      );
+
+      if (!res.headersSent) {
+        return res
+          .status(500)
+          .send(
+            "LOCATIONS ASSETS TEMPLATE ERROR: " +
+            err.message
+          );
+      }
+    }
+  }
+);
 app.get("/org-pricing", async (req, res) => {
   res.send(orgPage("Organization Pricing", `
     <div class="topbar">
