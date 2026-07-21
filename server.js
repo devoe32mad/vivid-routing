@@ -2635,8 +2635,15 @@ app.get("/init-db", async (req, res) => {
 });
 /*
 =========================================================
-SUPER ADMIN — LOCATION MERGE PREVIEW
-Read-only. Makes no database changes.
+INTERNAL ADMIN TOOL — LOCATION MERGE PREVIEW
+
+Used to inspect duplicate locations before a controlled
+database cleanup or future merge action.
+
+Read-only:
+- Makes no database changes
+- Not linked in customer-facing navigation
+- Accessible only to the embedded Vivid admin account
 =========================================================
 */
 
