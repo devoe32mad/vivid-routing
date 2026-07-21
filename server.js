@@ -6577,6 +6577,7 @@ ${orgDateFilterForm({
   fromDate,
   toDate
 })}
+        <div
          <h2 style="margin:22px 0 5px;">
   Advertising Business
 </h2>
@@ -6812,17 +6813,7 @@ ${orgDateFilterForm({
     </div>
   </a>
 
-  <a
-    href="/org-operations?organization_id=${org.id}"
-    style="text-decoration:none;color:inherit;"
-  >
-    <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
-      <div style="font-size:13px;color:#65776b;">Operations</div>
-      <div style="font-size:22px;font-weight:bold;margin-top:11px;">
-        Open Operations →
-      </div>
-    </div>
-  </a>
+  
 
 </div>
 
