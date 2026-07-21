@@ -13226,24 +13226,30 @@ app.get(
       ).numFmt = "@";
 
       usersSheet.dataValidations.add(
-        "D2:D5000",
-        {
-          type: "list",
-          allowBlank: false,
-        formulae: [
-  '"Organization Admin,Location Manager,Location User,Read Only"'
-],
-  
+  "D2:D5000",
+  {
+    type: "list",
+    allowBlank: false,
 
-            
-          
-          showErrorMessage: true,
-          errorTitle:
-            "Invalid Role",
-          error:
-            "Choose Location Manager or Location User."
-        }
-      );
+    formulae: [
+      '"Organization Admin,Location Manager,Location User,Read Only"'
+    ],
+
+    showInputMessage: true,
+    promptTitle: "User Role",
+    prompt:
+      "Organization Admin = Full organization access.\n\n" +
+      "Location Manager = Full access to assigned location(s).\n\n" +
+      "Location User = Standard access to assigned location(s).\n\n" +
+      "Read Only = View dashboards and reports only.",
+
+    showErrorMessage: true,
+    errorTitle: "Invalid Role",
+    error:
+      "Please choose one of the four available roles."
+  }
+);
+   
 
       usersSheet.dataValidations.add(
         "G2:G5000",
