@@ -408,7 +408,11 @@ ${navItem(
             `/org-advertising-requests?organization_id=${organizationId}`,
             "requests"
           )}
-
+${navItem(
+  "Operations",
+  `/org-operations?organization_id=${organizationId}`,
+  "operations"
+)}
         </div>
 
       </div>
@@ -12118,6 +12122,240 @@ app.post(
         );
     } finally {
       client.release();
+    }
+  }
+);
+/*
+=========================================================
+ORGANIZATION OPERATIONS
+=========================================================
+*/
+
+app.get(
+  "/org-operations",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      // Super Admin uses the selected organization.
+      if (req.session.user?.role === "super_admin") {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      // Organization users use their authenticated organization.
+      if (
+        !organizationId &&
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(403)
+          .send("Operations access denied.");
+      }
+
+      const organizationResult = await q(
+        `
+          SELECT
+            id,
+            name
+
+          FROM organizations
+
+          WHERE id = $1
+            AND COALESCE(is_active, true) = true
+
+          LIMIT 1
+        `,
+        [organizationId]
+      );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res
+          .status(404)
+          .send("Organization not found.");
+      }
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        "";
+
+      return res.send(
+        orgPage(
+          `Operations - ${organization.name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(organization.name),
+              activePage: "operations",
+              userName: escapeHtml(userName)
+            })}
+
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Operations</h1>
+
+              <p class="subtitle">
+                Import, export and manage organization data.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(auto-fit, minmax(240px, 1fr));
+                gap:18px;
+              ">
+
+                <a
+                  href="/org-bulk-import?organization_id=${organizationId}"
+                  style="
+                    background:white;
+                    border-radius:18px;
+                    padding:24px;
+                    box-shadow:0 8px 22px rgba(0,0,0,.08);
+                    text-decoration:none;
+                    color:#073b22;
+                    display:block;
+                  "
+                >
+                  <div style="
+                    font-size:21px;
+                    font-weight:bold;
+                    margin-bottom:8px;
+                  ">
+                    Bulk Import
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    line-height:1.5;
+                  ">
+                    Import locations, advertising assets,
+                    users and other organization records.
+                  </div>
+
+                  <div style="
+                    margin-top:18px;
+                    color:#176b3a;
+                    font-weight:bold;
+                  ">
+                    Open Bulk Import →
+                  </div>
+                </a>
+
+                <div class="card">
+                  <div style="
+                    font-size:21px;
+                    font-weight:bold;
+                    margin-bottom:8px;
+                  ">
+                    Bulk Export
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    line-height:1.5;
+                  ">
+                    Export organization records and reports.
+                  </div>
+
+                  <div style="
+                    margin-top:18px;
+                    color:#65776b;
+                    font-weight:bold;
+                  ">
+                    Coming Soon
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    font-size:21px;
+                    font-weight:bold;
+                    margin-bottom:8px;
+                  ">
+                    Import History
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    line-height:1.5;
+                  ">
+                    Review previous uploads and import results.
+                  </div>
+
+                  <div style="
+                    margin-top:18px;
+                    color:#65776b;
+                    font-weight:bold;
+                  ">
+                    Coming Soon
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    font-size:21px;
+                    font-weight:bold;
+                    margin-bottom:8px;
+                  ">
+                    Activity Log
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    line-height:1.5;
+                  ">
+                    Review important organization changes.
+                  </div>
+
+                  <div style="
+                    margin-top:18px;
+                    color:#65776b;
+                    font-weight:bold;
+                  ">
+                    Coming Soon
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "ORGANIZATION OPERATIONS ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "ORGANIZATION OPERATIONS ERROR: " +
+          err.message
+        );
     }
   }
 );
