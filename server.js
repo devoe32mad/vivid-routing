@@ -2633,6 +2633,473 @@ app.get("/init-db", async (req, res) => {
     res.status(500).send("INIT DB ERROR: " + err.message);
   }
 });
+/*
+=========================================================
+SUPER ADMIN — LOCATION MERGE PREVIEW
+Read-only. Makes no database changes.
+=========================================================
+*/
+
+app.get(
+  "/admin/location-merge",
+  requireLogin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const fromLocationId = Number(
+        req.query.from_id
+      );
+
+      const toLocationId = Number(
+        req.query.to_id
+      );
+
+      if (
+        !Number.isInteger(fromLocationId) ||
+        fromLocationId <= 0 ||
+        !Number.isInteger(toLocationId) ||
+        toLocationId <= 0 ||
+        fromLocationId === toLocationId
+      ) {
+        return res.status(400).send(`
+          A valid duplicate location and surviving
+          location are required.
+
+          <br><br>
+
+          Example:
+
+          <br>
+
+          /admin/location-merge?from_id=38&to_id=36
+        `);
+      }
+
+      const escapeHtml = value =>
+        String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+
+      /*
+      =====================================================
+      LOAD BOTH LOCATIONS
+      =====================================================
+      */
+
+      const locationsResult = await q(
+        `
+          SELECT
+            s.id,
+            s.name,
+            s.location,
+            s.organization_id,
+            s.is_archived,
+            o.name AS organization_name
+
+          FROM spaces s
+
+          LEFT JOIN organizations o
+            ON o.id = s.organization_id
+
+          WHERE s.id = ANY($1::int[])
+
+          ORDER BY s.id
+        `,
+        [
+          [
+            fromLocationId,
+            toLocationId
+          ]
+        ]
+      );
+
+      const fromLocation =
+        locationsResult.rows.find(
+          row =>
+            Number(row.id) ===
+            fromLocationId
+        );
+
+      const toLocation =
+        locationsResult.rows.find(
+          row =>
+            Number(row.id) ===
+            toLocationId
+        );
+
+      if (!fromLocation || !toLocation) {
+        return res.status(404).send(
+          "One or both locations were not found."
+        );
+      }
+
+      if (
+        Number(fromLocation.organization_id) !==
+        Number(toLocation.organization_id)
+      ) {
+        return res.status(400).send(
+          "Locations from different organizations cannot be merged."
+        );
+      }
+
+      /*
+      =====================================================
+      COUNT CONNECTED RECORDS
+      =====================================================
+      */
+
+      const countsResult = await q(
+        `
+          SELECT
+            locations.location_id,
+
+            (
+              SELECT COUNT(*)::int
+
+              FROM qr_codes qr
+
+              WHERE qr.space_id =
+                    locations.location_id
+            ) AS qr_placements,
+
+            (
+              SELECT COUNT(*)::int
+
+              FROM location_users lu
+
+              WHERE lu.space_id =
+                    locations.location_id
+            ) AS location_users,
+
+            (
+              SELECT COUNT(*)::int
+
+              FROM organization_opportunities oo
+
+              WHERE oo.space_id =
+                    locations.location_id
+            ) AS opportunities,
+
+            (
+              SELECT COUNT(*)::int
+
+              FROM contract_items ci
+
+              WHERE ci.space_id =
+                    locations.location_id
+            ) AS contract_items,
+
+            (
+              SELECT COUNT(*)::int
+
+              FROM organization_advertising_requests ar
+
+              WHERE ar.location_id =
+                    locations.location_id
+            ) AS advertising_requests,
+
+            (
+              SELECT COUNT(*)::int
+
+              FROM organization_advertising_requests ar
+
+              WHERE ar.created_location_id =
+                    locations.location_id
+            ) AS created_locations
+
+          FROM UNNEST(
+            $1::int[]
+          ) AS locations(location_id)
+        `,
+        [
+          [
+            fromLocationId,
+            toLocationId
+          ]
+        ]
+      );
+
+      const fromCounts =
+        countsResult.rows.find(
+          row =>
+            Number(row.location_id) ===
+            fromLocationId
+        ) || {};
+
+      const toCounts =
+        countsResult.rows.find(
+          row =>
+            Number(row.location_id) ===
+            toLocationId
+        ) || {};
+
+      const countRow = (
+        label,
+        fromValue,
+        toValue
+      ) => `
+        <tr>
+          <td style="
+            padding:13px;
+            font-weight:700;
+            text-align:left;
+          ">
+            ${escapeHtml(label)}
+          </td>
+
+          <td style="
+            padding:13px;
+            text-align:center;
+          ">
+            ${Number(fromValue || 0)}
+          </td>
+
+          <td style="
+            padding:13px;
+            text-align:center;
+          ">
+            ${Number(toValue || 0)}
+          </td>
+        </tr>
+      `;
+
+      return res.send(
+        page(
+          "Location Merge Preview",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Admin
+              </div>
+
+              <h1>
+                Location Merge Preview
+              </h1>
+
+              <p class="subtitle">
+                Review connected records before merging
+                duplicate locations.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div class="note">
+                <strong>
+                  No records have been changed.
+                </strong>
+
+                This page is a read-only preview.
+              </div>
+
+              <div
+                class="cards"
+                style="
+                  grid-template-columns:
+                    repeat(
+                      2,
+                      minmax(0, 1fr)
+                    );
+                "
+              >
+
+                <div class="card">
+                  <div class="label">
+                    Duplicate Location
+                  </div>
+
+                  <div
+                    class="num"
+                    style="font-size:24px;"
+                  >
+                    ${escapeHtml(
+                      fromLocation.name
+                    )}
+                  </div>
+
+                  <p>
+                    Location ID:
+                    ${fromLocation.id}
+                  </p>
+
+                  <p>
+                    ${escapeHtml(
+                      fromLocation.location || ""
+                    )}
+                  </p>
+
+                  <p>
+                    Organization:
+                    ${escapeHtml(
+                      fromLocation.organization_name || ""
+                    )}
+                  </p>
+
+                  <p>
+                    Archived:
+                    ${
+                      fromLocation.is_archived
+                        ? "Yes"
+                        : "No"
+                    }
+                  </p>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Surviving Location
+                  </div>
+
+                  <div
+                    class="num"
+                    style="font-size:24px;"
+                  >
+                    ${escapeHtml(
+                      toLocation.name
+                    )}
+                  </div>
+
+                  <p>
+                    Location ID:
+                    ${toLocation.id}
+                  </p>
+
+                  <p>
+                    ${escapeHtml(
+                      toLocation.location || ""
+                    )}
+                  </p>
+
+                  <p>
+                    Organization:
+                    ${escapeHtml(
+                      toLocation.organization_name || ""
+                    )}
+                  </p>
+
+                  <p>
+                    Archived:
+                    ${
+                      toLocation.is_archived
+                        ? "Yes"
+                        : "No"
+                    }
+                  </p>
+                </div>
+
+              </div>
+
+              <h2>
+                Connected Records
+              </h2>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th style="text-align:left;">
+                      Record Type
+                    </th>
+
+                    <th>
+                      Duplicate ID
+                      ${fromLocationId}
+                    </th>
+
+                    <th>
+                      Surviving ID
+                      ${toLocationId}
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  ${countRow(
+                    "Advertising Placements",
+                    fromCounts.qr_placements,
+                    toCounts.qr_placements
+                  )}
+
+                  ${countRow(
+                    "Location Users",
+                    fromCounts.location_users,
+                    toCounts.location_users
+                  )}
+
+                  ${countRow(
+                    "Advertising Opportunities",
+                    fromCounts.opportunities,
+                    toCounts.opportunities
+                  )}
+
+                  ${countRow(
+                    "Contract Items",
+                    fromCounts.contract_items,
+                    toCounts.contract_items
+                  )}
+
+                  ${countRow(
+                    "Advertising Requests",
+                    fromCounts.advertising_requests,
+                    toCounts.advertising_requests
+                  )}
+
+                  ${countRow(
+                    "Advertiser-Created Locations",
+                    fromCounts.created_locations,
+                    toCounts.created_locations
+                  )}
+                </tbody>
+              </table>
+
+              <div style="
+                display:flex;
+                gap:12px;
+                flex-wrap:wrap;
+                margin-top:24px;
+              ">
+                <a
+                  class="btn"
+                  href="/org-organization/${fromLocation.organization_id}?organization_id=${fromLocation.organization_id}"
+                >
+                  Back to Organization
+                </a>
+
+                <a
+                  class="btn secondary"
+                  href="/org-location/${toLocationId}?organization_id=${fromLocation.organization_id}"
+                >
+                  Open Surviving Location
+                </a>
+
+                <a
+                  class="btn secondary"
+                  href="/org-location/${fromLocationId}?organization_id=${fromLocation.organization_id}"
+                >
+                  Open Duplicate Location
+                </a>
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "LOCATION MERGE PREVIEW ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "LOCATION MERGE PREVIEW ERROR: " +
+        err.message
+      );
+    }
+  }
+);
 app.get("/platform-admin", requireLogin, requireSuperAdmin, async (req, res) => {
   res.send(page("Platform Admin", `
     <div class="topbar">
