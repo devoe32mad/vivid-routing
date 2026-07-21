@@ -1286,6 +1286,72 @@ CREATE TABLE IF NOT EXISTS organization_user_notifications (
 
 )
 `);
+  /*
+=========================================================
+ORGANIZATION USER INVITATIONS
+=========================================================
+*/
+
+await q(`
+  CREATE TABLE IF NOT EXISTS organization_user_invitations (
+    id SERIAL PRIMARY KEY,
+
+    organization_id INTEGER NOT NULL
+      REFERENCES organizations(id)
+      ON DELETE CASCADE,
+
+    user_id INTEGER NOT NULL
+      REFERENCES users(id)
+      ON DELETE CASCADE,
+
+    organization_user_id INTEGER
+      REFERENCES organization_users(id)
+      ON DELETE CASCADE,
+
+    invited_by_user_id INTEGER
+      REFERENCES users(id)
+      ON DELETE SET NULL,
+
+    email TEXT NOT NULL,
+
+    token_hash TEXT NOT NULL UNIQUE,
+
+    expires_at TIMESTAMP NOT NULL,
+
+    accepted_at TIMESTAMP,
+
+    revoked_at TIMESTAMP,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+  await q(`
+  CREATE INDEX IF NOT EXISTS
+    idx_org_user_invitations_email
+  ON organization_user_invitations (
+    LOWER(email)
+  )
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+    idx_org_user_invitations_active
+  ON organization_user_invitations (
+    organization_id,
+    user_id,
+    expires_at
+  )
+`);
+ await q(`
+  ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS account_status TEXT
+  DEFAULT 'active'
+`);
+
+await q(`
+  ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS password_created_at TIMESTAMP
+`); 
   await q(`
     CREATE TABLE IF NOT EXISTS advertisers (
       id SERIAL PRIMARY KEY,
