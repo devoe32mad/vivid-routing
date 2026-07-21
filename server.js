@@ -12625,6 +12625,362 @@ app.get("/org-pricing", async (req, res) => {
     </div>
   `));
 });
+/*
+=========================================================
+IMPORT LOCATIONS & ADVERTISING ASSETS
+=========================================================
+*/
+
+app.get(
+  "/org-import-locations-assets",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Super Admin uses the organization selected
+        in the query string.
+      */
+      if (
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      /*
+        Organization Portal users always use the
+        organization stored in their session.
+      */
+      if (
+        !organizationId &&
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(403)
+          .send("Import access denied.");
+      }
+
+      const organizationResult = await q(
+        `
+          SELECT
+            id,
+            name
+
+          FROM organizations
+
+          WHERE id = $1
+            AND COALESCE(is_active, true) = true
+
+          LIMIT 1
+        `,
+        [organizationId]
+      );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res
+          .status(404)
+          .send("Organization not found.");
+      }
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        "";
+
+      return res.send(
+        orgPage(
+          `Import Locations - ${organization.name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(organization.name),
+              activePage: "operations",
+              userName: escapeHtml(userName)
+            })}
+
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Locations & Advertising Assets
+              </h1>
+
+              <p class="subtitle">
+                Add multiple locations, advertising assets
+                and assigned users from one Excel workbook.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <a
+                class="btn secondary"
+                href="/org-bulk-import?organization_id=${organizationId}"
+              >
+                Back to Bulk Import
+              </a>
+
+              <div
+                class="card"
+                style="
+                  max-width:950px;
+                  margin:24px auto 20px;
+                  padding:26px;
+                "
+              >
+                <h2 style="margin-top:0;">
+                  Import Process
+                </h2>
+
+                <p style="
+                  color:#65776b;
+                  line-height:1.55;
+                  margin-bottom:22px;
+                ">
+                  Download the Vivid template, enter your
+                  locations, advertising assets and users,
+                  then upload the completed workbook.
+                </p>
+
+                <div style="
+                  display:grid;
+                  grid-template-columns:
+                    repeat(auto-fit, minmax(145px, 1fr));
+                  gap:12px;
+                  margin-top:20px;
+                ">
+
+                  <div style="
+                    background:#f7faf6;
+                    border:1px solid #e1ebe0;
+                    border-radius:14px;
+                    padding:16px;
+                    text-align:center;
+                    font-weight:bold;
+                  ">
+                    1. Download Template
+                  </div>
+
+                  <div style="
+                    background:#f7faf6;
+                    border:1px solid #e1ebe0;
+                    border-radius:14px;
+                    padding:16px;
+                    text-align:center;
+                    font-weight:bold;
+                  ">
+                    2. Complete Workbook
+                  </div>
+
+                  <div style="
+                    background:#f7faf6;
+                    border:1px solid #e1ebe0;
+                    border-radius:14px;
+                    padding:16px;
+                    text-align:center;
+                    font-weight:bold;
+                  ">
+                    3. Upload File
+                  </div>
+
+                  <div style="
+                    background:#f7faf6;
+                    border:1px solid #e1ebe0;
+                    border-radius:14px;
+                    padding:16px;
+                    text-align:center;
+                    font-weight:bold;
+                  ">
+                    4. Validate
+                  </div>
+
+                  <div style="
+                    background:#f7faf6;
+                    border:1px solid #e1ebe0;
+                    border-radius:14px;
+                    padding:16px;
+                    text-align:center;
+                    font-weight:bold;
+                  ">
+                    5. Preview
+                  </div>
+
+                  <div style="
+                    background:#f7faf6;
+                    border:1px solid #e1ebe0;
+                    border-radius:14px;
+                    padding:16px;
+                    text-align:center;
+                    font-weight:bold;
+                  ">
+                    6. Confirm Import
+                  </div>
+
+                </div>
+              </div>
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(auto-fit, minmax(300px, 1fr));
+                gap:18px;
+                max-width:950px;
+                margin:0 auto;
+              ">
+
+                <div class="card" style="padding:26px;">
+
+                  <div style="
+                    font-size:12px;
+                    color:#65776b;
+                    font-weight:bold;
+                    letter-spacing:1px;
+                    text-transform:uppercase;
+                  ">
+                    Step 1
+                  </div>
+
+                  <h2 style="margin:8px 0 10px;">
+                    Download Template
+                  </h2>
+
+                  <p style="
+                    color:#65776b;
+                    line-height:1.55;
+                  ">
+                    Use the official Vivid workbook so every
+                    location, asset and user is mapped correctly.
+                  </p>
+
+                  <a
+                    class="btn"
+                    href="/org-locations-assets-template?organization_id=${organizationId}"
+                  >
+                    Download Excel Template
+                  </a>
+
+                </div>
+
+                <div class="card" style="padding:26px;">
+
+                  <div style="
+                    font-size:12px;
+                    color:#65776b;
+                    font-weight:bold;
+                    letter-spacing:1px;
+                    text-transform:uppercase;
+                  ">
+                    Step 2
+                  </div>
+
+                  <h2 style="margin:8px 0 10px;">
+                    Upload Completed Workbook
+                  </h2>
+
+                  <p style="
+                    color:#65776b;
+                    line-height:1.55;
+                  ">
+                    Vivid will validate every row and show a
+                    preview before anything is imported.
+                  </p>
+
+                  <form
+                    method="POST"
+                    action="/org-locations-assets-upload"
+                    enctype="multipart/form-data"
+                  >
+                    <input
+                      type="hidden"
+                      name="organization_id"
+                      value="${organizationId}"
+                    >
+
+                    <label style="
+                      display:block;
+                      font-weight:bold;
+                      margin-top:12px;
+                    ">
+                      Select Excel Workbook
+                    </label>
+
+                    <input
+                      type="file"
+                      name="workbook"
+                      accept=".xlsx"
+                      required
+                    >
+
+                    <button
+                      class="btn"
+                      type="submit"
+                    >
+                      Upload and Preview
+                    </button>
+                  </form>
+
+                </div>
+
+              </div>
+
+              <div
+                class="note"
+                style="
+                  max-width:915px;
+                  margin:22px auto;
+                "
+              >
+                <strong>
+                  Nothing will be imported immediately.
+                </strong>
+
+                <div style="
+                  margin-top:7px;
+                  line-height:1.55;
+                ">
+                  Vivid will first check the workbook for missing
+                  information, duplicate records, invalid email
+                  addresses and incorrect values. You will review
+                  the results before confirming the import.
+                </div>
+              </div>
+
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "IMPORT LOCATIONS ASSETS PAGE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "IMPORT LOCATIONS ASSETS PAGE ERROR: " +
+          err.message
+        );
+    }
+  }
+);
 app.get("/org-revenue", async (req, res) => {
   res.send(orgPage("Organization Revenue", `
     <div class="topbar">
