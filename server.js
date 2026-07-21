@@ -14447,14 +14447,18 @@ if (errors.length === 0) {
                         No validation errors were found.
                       </p>
 
-                      <button
-                        class="btn"
-                        type="button"
-                        disabled
-                        title="The final database import is the next build step."
-                      >
-                        Confirm Import — Next Step
-                      </button>
+                      <form
+  method="POST"
+  action="/org-locations-assets-confirm"
+  style="margin:0;"
+>
+  <button
+    class="btn"
+    type="submit"
+  >
+    Confirm Import
+  </button>
+</form>
                     </div>
                   `
               }
