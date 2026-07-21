@@ -13703,6 +13703,899 @@ app.get(
     }
   }
 );
+/*
+=========================================================
+UPLOAD AND PREVIEW LOCATIONS / ASSETS WORKBOOK
+=========================================================
+*/
+
+app.post(
+  "/org-locations-assets-upload",
+  importUpload.single("workbook"),
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      if (
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.body.organization_id
+        );
+      }
+
+      if (
+        !organizationId &&
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(403)
+          .send("Import access denied.");
+      }
+
+      if (!req.file?.buffer) {
+        return res
+          .status(400)
+          .send("Please select an Excel workbook.");
+      }
+
+      const organizationResult = await q(
+        `
+          SELECT id, name
+          FROM organizations
+          WHERE id = $1
+            AND COALESCE(is_active, true) = true
+          LIMIT 1
+        `,
+        [organizationId]
+      );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res
+          .status(404)
+          .send("Organization not found.");
+      }
+
+      const workbook =
+        new ExcelJS.Workbook();
+
+      await workbook.xlsx.load(
+        req.file.buffer
+      );
+
+      const locationsSheet =
+        workbook.getWorksheet("Locations");
+
+      const assetsSheet =
+        workbook.getWorksheet(
+          "Advertising Assets"
+        );
+
+      const usersSheet =
+        workbook.getWorksheet(
+          "Location Users"
+        );
+
+      const errors = [];
+      const warnings = [];
+
+      const locations = [];
+      const assets = [];
+      const users = [];
+
+      const locationNames =
+        new Map();
+
+      const allowedRoles = new Set([
+        "organization admin",
+        "location manager",
+        "location user",
+        "read only"
+      ]);
+
+      const allowedStatuses =
+        new Set([
+          "active",
+          "inactive"
+        ]);
+
+      function cleanValue(value) {
+        if (
+          value === null ||
+          value === undefined
+        ) {
+          return "";
+        }
+
+        if (
+          typeof value === "object" &&
+          value.text
+        ) {
+          return String(value.text).trim();
+        }
+
+        if (
+          typeof value === "object" &&
+          Array.isArray(value.richText)
+        ) {
+          return value.richText
+            .map(item => item.text || "")
+            .join("")
+            .trim();
+        }
+
+        return String(value).trim();
+      }
+
+      function normalize(value) {
+        return cleanValue(value)
+          .toLowerCase();
+      }
+
+      function validEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+          email
+        );
+      }
+
+      /*
+      =====================================================
+      REQUIRED WORKSHEETS
+      =====================================================
+      */
+
+      if (!locationsSheet) {
+        errors.push(
+          'Missing worksheet: "Locations".'
+        );
+      }
+
+      if (!assetsSheet) {
+        errors.push(
+          'Missing worksheet: "Advertising Assets".'
+        );
+      }
+
+      if (!usersSheet) {
+        errors.push(
+          'Missing worksheet: "Location Users".'
+        );
+      }
+
+      if (errors.length > 0) {
+        return res
+          .status(400)
+          .send(
+            `
+              <h1>Workbook Validation Failed</h1>
+
+              <ul>
+                ${errors
+                  .map(
+                    error =>
+                      `<li>${escapeHtml(error)}</li>`
+                  )
+                  .join("")}
+              </ul>
+
+              <a href="/org-import-locations-assets?organization_id=${organizationId}">
+                Return to Import
+              </a>
+            `
+          );
+      }
+
+      /*
+      =====================================================
+      LOCATIONS
+      =====================================================
+      */
+
+      locationsSheet.eachRow(
+        {
+          includeEmpty: false
+        },
+        (row, rowNumber) => {
+          if (rowNumber === 1) {
+            return;
+          }
+
+          const locationName =
+            cleanValue(
+              row.getCell(1).value
+            );
+
+          const address =
+            cleanValue(
+              row.getCell(2).value
+            );
+
+          const city =
+            cleanValue(
+              row.getCell(3).value
+            );
+
+          const state =
+            cleanValue(
+              row.getCell(4).value
+            );
+
+          const zipCode =
+            cleanValue(
+              row.getCell(5).value
+            );
+
+          const phone =
+            cleanValue(
+              row.getCell(6).value
+            );
+
+          const website =
+            cleanValue(
+              row.getCell(7).value
+            );
+
+          const status =
+            cleanValue(
+              row.getCell(8).value
+            ) || "Active";
+
+          const rowIsEmpty =
+            !locationName &&
+            !address &&
+            !city &&
+            !state &&
+            !zipCode &&
+            !phone &&
+            !website;
+
+          if (rowIsEmpty) {
+            return;
+          }
+
+          if (!locationName) {
+            errors.push(
+              `Locations row ${rowNumber}: Location Name is required.`
+            );
+
+            return;
+          }
+
+          const locationKey =
+            normalize(locationName);
+
+          if (
+            locationNames.has(locationKey)
+          ) {
+            errors.push(
+              `Locations row ${rowNumber}: Duplicate location "${locationName}".`
+            );
+
+            return;
+          }
+
+          if (
+            !allowedStatuses.has(
+              normalize(status)
+            )
+          ) {
+            errors.push(
+              `Locations row ${rowNumber}: Status must be Active or Inactive.`
+            );
+          }
+
+          locationNames.set(
+            locationKey,
+            locationName
+          );
+
+          locations.push({
+            rowNumber,
+            locationName,
+            address,
+            city,
+            state,
+            zipCode,
+            phone,
+            website,
+            status
+          });
+        }
+      );
+
+      /*
+      =====================================================
+      ADVERTISING ASSETS
+      =====================================================
+      */
+
+      assetsSheet.eachRow(
+        {
+          includeEmpty: false
+        },
+        (row, rowNumber) => {
+          if (rowNumber === 1) {
+            return;
+          }
+
+          const locationName =
+            cleanValue(
+              row.getCell(1).value
+            );
+
+          const assetName =
+            cleanValue(
+              row.getCell(2).value
+            );
+
+          const category =
+            cleanValue(
+              row.getCell(3).value
+            );
+
+          const description =
+            cleanValue(
+              row.getCell(4).value
+            );
+
+          const annualPriceRaw =
+            row.getCell(5).value;
+
+          const status =
+            cleanValue(
+              row.getCell(6).value
+            ) || "Active";
+
+          const rowIsEmpty =
+            !locationName &&
+            !assetName &&
+            !category &&
+            !description &&
+            !annualPriceRaw;
+
+          if (rowIsEmpty) {
+            return;
+          }
+
+          if (!locationName) {
+            errors.push(
+              `Advertising Assets row ${rowNumber}: Location Name is required.`
+            );
+          }
+
+          if (!assetName) {
+            errors.push(
+              `Advertising Assets row ${rowNumber}: Asset Name is required.`
+            );
+          }
+
+          if (
+            locationName &&
+            !locationNames.has(
+              normalize(locationName)
+            )
+          ) {
+            errors.push(
+              `Advertising Assets row ${rowNumber}: Location "${locationName}" was not found on the Locations sheet.`
+            );
+          }
+
+          let annualPrice = null;
+
+          if (
+            annualPriceRaw !== null &&
+            annualPriceRaw !== undefined &&
+            annualPriceRaw !== ""
+          ) {
+            annualPrice =
+              Number(annualPriceRaw);
+
+            if (
+              !Number.isFinite(
+                annualPrice
+              ) ||
+              annualPrice < 0
+            ) {
+              errors.push(
+                `Advertising Assets row ${rowNumber}: Annual Price must be a valid positive number.`
+              );
+            }
+          }
+
+          if (
+            !allowedStatuses.has(
+              normalize(status)
+            )
+          ) {
+            errors.push(
+              `Advertising Assets row ${rowNumber}: Status must be Active or Inactive.`
+            );
+          }
+
+          assets.push({
+            rowNumber,
+            locationName,
+            assetName,
+            category,
+            description,
+            annualPrice,
+            status
+          });
+        }
+      );
+
+      /*
+      =====================================================
+      LOCATION USERS
+      =====================================================
+      */
+
+      const userEmails =
+        new Set();
+
+      usersSheet.eachRow(
+        {
+          includeEmpty: false
+        },
+        (row, rowNumber) => {
+          if (rowNumber === 1) {
+            return;
+          }
+
+          const firstName =
+            cleanValue(
+              row.getCell(1).value
+            );
+
+          const lastName =
+            cleanValue(
+              row.getCell(2).value
+            );
+
+          const email =
+            cleanValue(
+              row.getCell(3).value
+            );
+
+          const role =
+            cleanValue(
+              row.getCell(4).value
+            );
+
+          const locationName =
+            cleanValue(
+              row.getCell(5).value
+            );
+
+          const phone =
+            cleanValue(
+              row.getCell(6).value
+            );
+
+          const status =
+            cleanValue(
+              row.getCell(7).value
+            ) || "Active";
+
+          const rowIsEmpty =
+            !firstName &&
+            !lastName &&
+            !email &&
+            !role &&
+            !locationName &&
+            !phone;
+
+          if (rowIsEmpty) {
+            return;
+          }
+
+          if (!firstName) {
+            errors.push(
+              `Location Users row ${rowNumber}: First Name is required.`
+            );
+          }
+
+          if (!lastName) {
+            errors.push(
+              `Location Users row ${rowNumber}: Last Name is required.`
+            );
+          }
+
+          if (!email) {
+            errors.push(
+              `Location Users row ${rowNumber}: Email is required.`
+            );
+          } else if (
+            !validEmail(email)
+          ) {
+            errors.push(
+              `Location Users row ${rowNumber}: "${email}" is not a valid email address.`
+            );
+          }
+
+          const emailKey =
+            normalize(email);
+
+          if (
+            emailKey &&
+            userEmails.has(emailKey)
+          ) {
+            errors.push(
+              `Location Users row ${rowNumber}: Duplicate email "${email}".`
+            );
+          }
+
+          if (emailKey) {
+            userEmails.add(emailKey);
+          }
+
+          if (
+            !allowedRoles.has(
+              normalize(role)
+            )
+          ) {
+            errors.push(
+              `Location Users row ${rowNumber}: Invalid role "${role}".`
+            );
+          }
+
+          if (
+            normalize(role) !==
+              "organization admin" &&
+            !locationName
+          ) {
+            errors.push(
+              `Location Users row ${rowNumber}: Location Name is required for this role.`
+            );
+          }
+
+          if (
+            locationName &&
+            !locationNames.has(
+              normalize(locationName)
+            )
+          ) {
+            errors.push(
+              `Location Users row ${rowNumber}: Location "${locationName}" was not found on the Locations sheet.`
+            );
+          }
+
+          if (
+            !allowedStatuses.has(
+              normalize(status)
+            )
+          ) {
+            errors.push(
+              `Location Users row ${rowNumber}: Status must be Active or Inactive.`
+            );
+          }
+
+          users.push({
+            rowNumber,
+            firstName,
+            lastName,
+            email,
+            role,
+            locationName,
+            phone,
+            status
+          });
+        }
+      );
+
+      /*
+      =====================================================
+      PREVIEW PAGE
+      =====================================================
+      */
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        "";
+
+      return res.send(
+        orgPage(
+          `Import Preview - ${organization.name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(
+                  organization.name
+                ),
+              activePage: "operations",
+              userName:
+                escapeHtml(userName)
+            })}
+
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Import Preview</h1>
+
+              <p class="subtitle">
+                Review the workbook results before importing.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <a
+                class="btn secondary"
+                href="/org-import-locations-assets?organization_id=${organizationId}"
+              >
+                Cancel and Return
+              </a>
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(auto-fit, minmax(190px, 1fr));
+                gap:16px;
+                margin:22px 0;
+              ">
+
+                <div class="card">
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                  ">
+                    ${locations.length}
+                  </div>
+                  <div>Locations</div>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                  ">
+                    ${assets.length}
+                  </div>
+                  <div>Advertising Assets</div>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                  ">
+                    ${users.length}
+                  </div>
+                  <div>Users</div>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                  ">
+                    ${errors.length}
+                  </div>
+                  <div>Errors</div>
+                </div>
+
+              </div>
+
+              ${
+                errors.length
+                  ? `
+                    <div class="card" style="
+                      border:1px solid #c94a4a;
+                      margin-bottom:20px;
+                    ">
+                      <h2 style="
+                        color:#a52d2d;
+                        margin-top:0;
+                      ">
+                        Workbook Errors
+                      </h2>
+
+                      <p>
+                        Correct these items and upload the workbook again.
+                      </p>
+
+                      <ul style="
+                        line-height:1.7;
+                      ">
+                        ${errors
+                          .map(
+                            error =>
+                              `<li>${escapeHtml(error)}</li>`
+                          )
+                          .join("")}
+                      </ul>
+                    </div>
+                  `
+                  : `
+                    <div class="card" style="
+                      border:1px solid #55a06b;
+                      margin-bottom:20px;
+                    ">
+                      <h2 style="
+                        color:#176b3a;
+                        margin-top:0;
+                      ">
+                        Workbook Validated
+                      </h2>
+
+                      <p>
+                        No validation errors were found.
+                      </p>
+
+                      <button
+                        class="btn"
+                        type="button"
+                        disabled
+                        title="The final database import is the next build step."
+                      >
+                        Confirm Import — Next Step
+                      </button>
+                    </div>
+                  `
+              }
+
+              <div class="card">
+                <h2>Locations</h2>
+
+                ${
+                  locations.length
+                    ? `
+                      <table style="
+                        width:100%;
+                        border-collapse:collapse;
+                      ">
+                        <thead>
+                          <tr>
+                            <th align="left">Row</th>
+                            <th align="left">Location</th>
+                            <th align="left">City</th>
+                            <th align="left">State</th>
+                            <th align="left">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${locations
+                            .map(
+                              item => `
+                                <tr>
+                                  <td>${item.rowNumber}</td>
+                                  <td>${escapeHtml(item.locationName)}</td>
+                                  <td>${escapeHtml(item.city)}</td>
+                                  <td>${escapeHtml(item.state)}</td>
+                                  <td>${escapeHtml(item.status)}</td>
+                                </tr>
+                              `
+                            )
+                            .join("")}
+                        </tbody>
+                      </table>
+                    `
+                    : `<p>No locations found.</p>`
+                }
+              </div>
+
+              <div class="card" style="margin-top:18px;">
+                <h2>Advertising Assets</h2>
+
+                ${
+                  assets.length
+                    ? `
+                      <table style="
+                        width:100%;
+                        border-collapse:collapse;
+                      ">
+                        <thead>
+                          <tr>
+                            <th align="left">Row</th>
+                            <th align="left">Location</th>
+                            <th align="left">Asset</th>
+                            <th align="left">Price</th>
+                            <th align="left">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${assets
+                            .map(
+                              item => `
+                                <tr>
+                                  <td>${item.rowNumber}</td>
+                                  <td>${escapeHtml(item.locationName)}</td>
+                                  <td>${escapeHtml(item.assetName)}</td>
+                                  <td>${
+                                    item.annualPrice === null
+                                      ? ""
+                                      : `$${Number(item.annualPrice).toLocaleString()}`
+                                  }</td>
+                                  <td>${escapeHtml(item.status)}</td>
+                                </tr>
+                              `
+                            )
+                            .join("")}
+                        </tbody>
+                      </table>
+                    `
+                    : `<p>No advertising assets found.</p>`
+                }
+              </div>
+
+              <div class="card" style="margin-top:18px;">
+                <h2>Location Users</h2>
+
+                ${
+                  users.length
+                    ? `
+                      <table style="
+                        width:100%;
+                        border-collapse:collapse;
+                      ">
+                        <thead>
+                          <tr>
+                            <th align="left">Row</th>
+                            <th align="left">Name</th>
+                            <th align="left">Email</th>
+                            <th align="left">Role</th>
+                            <th align="left">Location</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${users
+                            .map(
+                              item => `
+                                <tr>
+                                  <td>${item.rowNumber}</td>
+                                  <td>
+                                    ${escapeHtml(item.firstName)}
+                                    ${escapeHtml(item.lastName)}
+                                  </td>
+                                  <td>${escapeHtml(item.email)}</td>
+                                  <td>${escapeHtml(item.role)}</td>
+                                  <td>${escapeHtml(item.locationName)}</td>
+                                </tr>
+                              `
+                            )
+                            .join("")}
+                        </tbody>
+                      </table>
+                    `
+                    : `<p>No users found.</p>`
+                }
+              </div>
+
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "LOCATIONS ASSETS UPLOAD ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "LOCATIONS ASSETS UPLOAD ERROR: " +
+          err.message
+        );
+    }
+  }
+);
 app.get("/org-revenue", async (req, res) => {
   res.send(orgPage("Organization Revenue", `
     <div class="topbar">
