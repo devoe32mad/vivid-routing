@@ -12210,12 +12210,9 @@ app.get(
           SELECT
             id,
             name
-
           FROM organizations
-
           WHERE id = $1
             AND COALESCE(is_active, true) = true
-
           LIMIT 1
         `,
         [organizationId]
@@ -12255,7 +12252,7 @@ app.get(
               <h1>Bulk Import</h1>
 
               <p class="subtitle">
-                Choose the organization data you want to import.
+                Configure your organization from one Excel workbook.
               </p>
             </div>
 
@@ -12269,123 +12266,198 @@ app.get(
               </a>
 
               <div style="
-                display:grid;
-                grid-template-columns:
-                  repeat(auto-fit, minmax(260px, 1fr));
-                gap:18px;
                 margin-top:22px;
+                background:white;
+                border-radius:18px;
+                padding:30px;
+                box-shadow:0 8px 22px rgba(0,0,0,.08);
               ">
 
-                <a
-                  href="/org-import-locations-assets?organization_id=${organizationId}"
-                  style="
-                    background:white;
-                    border-radius:18px;
-                    padding:24px;
-                    box-shadow:0 8px 22px rgba(0,0,0,.08);
-                    text-decoration:none;
-                    color:#073b22;
-                    display:block;
-                  "
-                >
+                <div style="
+                  display:flex;
+                  align-items:flex-start;
+                  justify-content:space-between;
+                  gap:24px;
+                  flex-wrap:wrap;
+                ">
+
                   <div style="
-                    font-size:21px;
-                    font-weight:bold;
-                    margin-bottom:8px;
+                    flex:1;
+                    min-width:280px;
                   ">
-                    Locations & Advertising Assets
+
+                    <div style="
+                      font-size:26px;
+                      line-height:1.2;
+                      font-weight:bold;
+                      color:#073b22;
+                      margin-bottom:10px;
+                    ">
+                      Organization Setup
+                    </div>
+
+                    <div style="
+                      color:#65776b;
+                      font-size:17px;
+                      line-height:1.6;
+                      max-width:720px;
+                    ">
+                      Upload one Excel workbook to add locations,
+                      advertising assets, organization users and
+                      location assignments.
+                    </div>
+
                   </div>
 
                   <div style="
-                    color:#65776b;
-                    line-height:1.5;
-                  ">
-                    Add locations and their advertising spaces
-                    from one Excel workbook.
-                  </div>
-
-                  <div style="
-                    margin-top:18px;
+                    background:#e8f1eb;
                     color:#176b3a;
                     font-weight:bold;
+                    border-radius:999px;
+                    padding:9px 15px;
+                    white-space:nowrap;
                   ">
-                    Start Import →
-                  </div>
-                </a>
-
-                <div class="card">
-                  <div style="
-                    font-size:21px;
-                    font-weight:bold;
-                    margin-bottom:8px;
-                  ">
-                    Users
+                    Ready
                   </div>
 
-                  <div style="
-                    color:#65776b;
-                    line-height:1.5;
-                  ">
-                    Add organization and location users.
-                  </div>
-
-                  <div style="
-                    margin-top:18px;
-                    color:#65776b;
-                    font-weight:bold;
-                  ">
-                    Coming Soon
-                  </div>
                 </div>
 
-                <div class="card">
+                <div style="
+                  display:grid;
+                  grid-template-columns:
+                    repeat(auto-fit, minmax(210px, 1fr));
+                  gap:14px;
+                  margin-top:26px;
+                ">
+
                   <div style="
-                    font-size:21px;
-                    font-weight:bold;
-                    margin-bottom:8px;
+                    border:1px solid #dce6df;
+                    border-radius:14px;
+                    padding:18px;
+                    background:#f9fbf9;
                   ">
-                    Advertisers
+                    <div style="
+                      font-size:18px;
+                      font-weight:bold;
+                      color:#073b22;
+                      margin-bottom:6px;
+                    ">
+                      ✓ Locations
+                    </div>
+
+                    <div style="
+                      color:#65776b;
+                      line-height:1.5;
+                    ">
+                      Add organization locations and their
+                      contact information.
+                    </div>
                   </div>
 
                   <div style="
-                    color:#65776b;
-                    line-height:1.5;
+                    border:1px solid #dce6df;
+                    border-radius:14px;
+                    padding:18px;
+                    background:#f9fbf9;
                   ">
-                    Add advertiser records and contact details.
+                    <div style="
+                      font-size:18px;
+                      font-weight:bold;
+                      color:#073b22;
+                      margin-bottom:6px;
+                    ">
+                      ✓ Advertising Assets
+                    </div>
+
+                    <div style="
+                      color:#65776b;
+                      line-height:1.5;
+                    ">
+                      Add the advertising spaces available at
+                      each location.
+                    </div>
                   </div>
 
                   <div style="
-                    margin-top:18px;
-                    color:#65776b;
-                    font-weight:bold;
+                    border:1px solid #dce6df;
+                    border-radius:14px;
+                    padding:18px;
+                    background:#f9fbf9;
                   ">
-                    Coming Soon
+                    <div style="
+                      font-size:18px;
+                      font-weight:bold;
+                      color:#073b22;
+                      margin-bottom:6px;
+                    ">
+                      ✓ Users
+                    </div>
+
+                    <div style="
+                      color:#65776b;
+                      line-height:1.5;
+                    ">
+                      Add organization and location users with
+                      their assigned roles.
+                    </div>
                   </div>
+
+                  <div style="
+                    border:1px solid #dce6df;
+                    border-radius:14px;
+                    padding:18px;
+                    background:#f9fbf9;
+                  ">
+                    <div style="
+                      font-size:18px;
+                      font-weight:bold;
+                      color:#073b22;
+                      margin-bottom:6px;
+                    ">
+                      ✓ Location Access
+                    </div>
+
+                    <div style="
+                      color:#65776b;
+                      line-height:1.5;
+                    ">
+                      Assign location managers and other users
+                      to the correct locations.
+                    </div>
+                  </div>
+
                 </div>
 
-                <div class="card">
-                  <div style="
-                    font-size:21px;
-                    font-weight:bold;
-                    margin-bottom:8px;
-                  ">
-                    Advertising Opportunities
-                  </div>
+                <div style="
+                  display:flex;
+                  align-items:center;
+                  justify-content:space-between;
+                  gap:18px;
+                  flex-wrap:wrap;
+                  margin-top:28px;
+                  padding-top:24px;
+                  border-top:1px solid #e2e8e4;
+                ">
 
                   <div style="
                     color:#65776b;
                     line-height:1.5;
                   ">
-                    Add multiple advertising opportunities.
+                    Download the template, complete the workbook,
+                    upload it and review the preview before confirming.
                   </div>
 
-                  <div style="
-                    margin-top:18px;
-                    color:#65776b;
-                    font-weight:bold;
-                  ">
-                    Coming Soon
-                  </div>
+                  <a
+                    href="/org-import-locations-assets?organization_id=${organizationId}"
+                    class="btn"
+                    style="
+                      text-decoration:none;
+                      white-space:nowrap;
+                    "
+                  >
+                    Start Organization Import →
+                  </a>
+
                 </div>
 
               </div>
@@ -12409,6 +12481,8 @@ app.get(
     }
   }
 );
+
+
 app.get(
   "/org-operations",
   async (req, res) => {
