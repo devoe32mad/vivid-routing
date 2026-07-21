@@ -8921,18 +8921,42 @@ app.get(
       }
 
       const locationsResult = await q(
-        `
-          SELECT
-            id,
-            name,
-            location
-          FROM spaces
-          WHERE organization_id = $1
-            AND COALESCE(is_archived, false) = false
-          ORDER BY name ASC
-        `,
-        [organizationId]
-      );
+  `
+    SELECT
+      id,
+      name,
+      location
+    FROM (
+      SELECT
+        s.id,
+        s.name,
+        s.location,
+
+        ROW_NUMBER() OVER (
+          PARTITION BY
+            LOWER(TRIM(s.name)),
+            LOWER(
+              TRIM(
+                COALESCE(s.location, '')
+              )
+            )
+          ORDER BY s.id ASC
+        ) AS duplicate_number
+
+      FROM spaces s
+
+      WHERE s.organization_id = $1
+        AND COALESCE(s.is_archived, false) = false
+    ) locations
+
+    WHERE duplicate_number = 1
+
+    ORDER BY name ASC
+  `,
+  [organizationId]
+);
+    
+  
 
       const locationOptions =
         locationsResult.rows
