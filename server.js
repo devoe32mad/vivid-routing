@@ -14680,6 +14680,1250 @@ if (errors.length === 0) {
     }
   }
 );
+/*
+=========================================================
+CONFIRM LOCATIONS / ASSETS / USERS IMPORT
+=========================================================
+*/
+
+app.post(
+  "/org-locations-assets-confirm",
+  async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+      const pending =
+        req.session.pendingLocationsAssetsImport;
+
+      if (!pending) {
+        return res
+          .status(400)
+          .send(`
+            <div style="
+              max-width:700px;
+              margin:50px auto;
+              padding:28px;
+              font-family:Arial,sans-serif;
+            ">
+              <h2>No Import Waiting</h2>
+
+              <p>
+                There is no validated workbook waiting
+                to be imported.
+              </p>
+
+              <a href="/org-operations">
+                Return to Operations
+              </a>
+            </div>
+          `);
+      }
+
+      const organizationId =
+        Number(pending.organizationId);
+
+      const locations =
+        Array.isArray(pending.locations)
+          ? pending.locations
+          : [];
+
+      const assets =
+        Array.isArray(pending.assets)
+          ? pending.assets
+          : [];
+
+      const users =
+        Array.isArray(pending.users)
+          ? pending.users
+          : [];
+
+      /*
+      =====================================================
+      VERIFY CURRENT USER MAY IMPORT THIS ORGANIZATION
+      =====================================================
+      */
+
+      const isSuperAdmin =
+        req.session.user?.role === "super_admin";
+
+      const orgUserOrganizationId =
+        Number(
+          req.session.orgUser?.organization_id
+        );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send("Invalid import organization.");
+      }
+
+      if (
+        !isSuperAdmin &&
+        orgUserOrganizationId !== organizationId
+      ) {
+        return res
+          .status(403)
+          .send("Import access denied.");
+      }
+
+      if (
+        !isSuperAdmin &&
+        !req.session.orgUser
+      ) {
+        return res.redirect("/org-login");
+      }
+
+      await client.query("BEGIN");
+
+      /*
+      =====================================================
+      CONFIRM ORGANIZATION
+      =====================================================
+      */
+
+      const organizationResult =
+        await client.query(
+          `
+            SELECT
+              id,
+              name
+
+            FROM organizations
+
+            WHERE id = $1
+              AND COALESCE(
+                is_active,
+                true
+              ) = true
+
+            LIMIT 1
+
+            FOR UPDATE
+          `,
+          [organizationId]
+        );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        throw new Error(
+          "Organization not found or inactive."
+        );
+      }
+
+      const createdBy =
+        req.session.orgUser?.user_id ||
+        req.session.user?.id ||
+        null;
+
+      function normalizeImportValue(value) {
+        return String(value || "")
+          .trim()
+          .toLowerCase();
+      }
+
+      function isActiveStatus(status) {
+        return (
+          normalizeImportValue(status) !==
+          "inactive"
+        );
+      }
+
+      function locationDisplay(item) {
+        return [
+          String(item.city || "").trim(),
+          String(item.state || "").trim()
+        ]
+          .filter(Boolean)
+          .join(", ");
+      }
+
+      const results = {
+        locationsCreated: 0,
+        locationsUpdated: 0,
+
+        assetsCreated: 0,
+        assetsUpdated: 0,
+
+        usersCreated: 0,
+        existingUsersLinked: 0,
+
+        membershipsCreated: 0,
+        membershipsUpdated: 0,
+
+        locationLinksCreated: 0,
+        locationLinksUpdated: 0
+      };
+
+      /*
+      =====================================================
+      LOCATION LOOKUP MAP
+
+      Includes existing locations and then receives newly
+      created locations during this transaction.
+      =====================================================
+      */
+
+      const existingLocationsResult =
+        await client.query(
+          `
+            SELECT
+              id,
+              name
+
+            FROM spaces
+
+            WHERE organization_id = $1
+          `,
+          [organizationId]
+        );
+
+      const locationMap =
+        new Map(
+          existingLocationsResult.rows.map(
+            location => [
+              normalizeImportValue(
+                location.name
+              ),
+              {
+                id: Number(location.id),
+                name: location.name
+              }
+            ]
+          )
+        );
+
+      /*
+      =====================================================
+      1. LOCATIONS
+
+      Existing location:
+      update its imported profile fields.
+
+      New location:
+      create it.
+
+      Match:
+      organization + normalized location name.
+      =====================================================
+      */
+
+      for (const item of locations) {
+        const locationName =
+          String(
+            item.locationName || ""
+          ).trim();
+
+        if (!locationName) {
+          throw new Error(
+            `Location row ${item.rowNumber || "unknown"} does not contain a location name.`
+          );
+        }
+
+        const locationKey =
+          normalizeImportValue(
+            locationName
+          );
+
+        const active =
+          isActiveStatus(item.status);
+
+        const existingLocation =
+          locationMap.get(locationKey);
+
+        if (existingLocation) {
+          await client.query(
+            `
+              UPDATE spaces
+
+              SET
+                location = $1,
+                address = $2,
+                city = $3,
+                state = $4,
+                zip_code = $5,
+                phone = $6,
+                website = $7,
+                is_archived = $8,
+                archived_at =
+                  CASE
+                    WHEN $8 = true
+                    THEN COALESCE(
+                      archived_at,
+                      CURRENT_TIMESTAMP
+                    )
+                    ELSE NULL
+                  END
+
+              WHERE id = $9
+                AND organization_id = $10
+            `,
+            [
+              locationDisplay(item) || null,
+              item.address || null,
+              item.city || null,
+              item.state || null,
+              item.zipCode || null,
+              item.phone || null,
+              item.website || null,
+              !active,
+              existingLocation.id,
+              organizationId
+            ]
+          );
+
+          results.locationsUpdated += 1;
+
+          continue;
+        }
+
+        const newLocationResult =
+          await client.query(
+            `
+              INSERT INTO spaces (
+                user_id,
+                organization_id,
+                name,
+                location,
+                address,
+                city,
+                state,
+                zip_code,
+                phone,
+                website,
+                is_archived,
+                archived_at,
+                live_date,
+                created_at
+              )
+
+              VALUES (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                $8,
+                $9,
+                $10,
+                $11,
+                CASE
+                  WHEN $11 = true
+                  THEN CURRENT_TIMESTAMP
+                  ELSE NULL
+                END,
+                CURRENT_DATE,
+                CURRENT_TIMESTAMP
+              )
+
+              RETURNING
+                id,
+                name
+            `,
+            [
+              createdBy,
+              organizationId,
+              locationName,
+              locationDisplay(item) || null,
+              item.address || null,
+              item.city || null,
+              item.state || null,
+              item.zipCode || null,
+              item.phone || null,
+              item.website || null,
+              !active
+            ]
+          );
+
+        const newLocation =
+          newLocationResult.rows[0];
+
+        locationMap.set(
+          locationKey,
+          {
+            id: Number(newLocation.id),
+            name: newLocation.name
+          }
+        );
+
+        results.locationsCreated += 1;
+      }
+
+      /*
+      =====================================================
+      2. ADVERTISING ASSETS
+
+      Match:
+      organization + location + normalized asset name.
+
+      Existing asset:
+      update imported fields.
+
+      New asset:
+      create it.
+      =====================================================
+      */
+
+      for (const item of assets) {
+        const locationName =
+          String(
+            item.locationName || ""
+          ).trim();
+
+        const assetName =
+          String(
+            item.assetName || ""
+          ).trim();
+
+        const location =
+          locationMap.get(
+            normalizeImportValue(
+              locationName
+            )
+          );
+
+        if (!location) {
+          throw new Error(
+            `Advertising asset row ${item.rowNumber || "unknown"} references an unavailable location: ${locationName}`
+          );
+        }
+
+        if (!assetName) {
+          throw new Error(
+            `Advertising asset row ${item.rowNumber || "unknown"} does not contain an asset name.`
+          );
+        }
+
+        const active =
+          isActiveStatus(item.status);
+
+        const annualPrice =
+          item.annualPrice === null ||
+          item.annualPrice === undefined ||
+          item.annualPrice === ""
+            ? 0
+            : Number(item.annualPrice);
+
+        if (
+          !Number.isFinite(annualPrice) ||
+          annualPrice < 0
+        ) {
+          throw new Error(
+            `Advertising asset row ${item.rowNumber || "unknown"} contains an invalid annual price.`
+          );
+        }
+
+        const existingAssetResult =
+          await client.query(
+            `
+              SELECT id
+
+              FROM organization_opportunities
+
+              WHERE organization_id = $1
+                AND space_id = $2
+                AND LOWER(
+                  TRIM(title)
+                ) = LOWER(
+                  TRIM($3)
+                )
+
+              LIMIT 1
+
+              FOR UPDATE
+            `,
+            [
+              organizationId,
+              location.id,
+              assetName
+            ]
+          );
+
+        const existingAsset =
+          existingAssetResult.rows[0];
+
+        if (existingAsset) {
+          await client.query(
+            `
+              UPDATE organization_opportunities
+
+              SET
+                description = $1,
+                category = $2,
+                annual_price = $3,
+                price = $3,
+                pricing_unit = 'Per Year',
+                suggested_term_length = 12,
+                suggested_term_unit = 'Months',
+                status = $4,
+                is_active = $5,
+                updated_at = CURRENT_TIMESTAMP
+
+              WHERE id = $6
+                AND organization_id = $7
+                AND space_id = $8
+            `,
+            [
+              item.description || null,
+              item.category || null,
+              annualPrice,
+              active
+                ? "Available"
+                : "Closed",
+              active,
+              existingAsset.id,
+              organizationId,
+              location.id
+            ]
+          );
+
+          results.assetsUpdated += 1;
+
+          continue;
+        }
+
+        await client.query(
+          `
+            INSERT INTO organization_opportunities (
+              organization_id,
+              space_id,
+              qr_id,
+              title,
+              description,
+              category,
+              annual_price,
+              price,
+              pricing_unit,
+              suggested_term_length,
+              suggested_term_unit,
+              status,
+              display_order,
+              is_active,
+              created_by,
+              created_at,
+              updated_at
+            )
+
+            VALUES (
+              $1,
+              $2,
+              NULL,
+              $3,
+              $4,
+              $5,
+              $6,
+              $6,
+              'Per Year',
+              12,
+              'Months',
+              $7,
+              1,
+              $8,
+              $9,
+              CURRENT_TIMESTAMP,
+              CURRENT_TIMESTAMP
+            )
+          `,
+          [
+            organizationId,
+            location.id,
+            assetName,
+            item.description || null,
+            item.category || null,
+            annualPrice,
+            active
+              ? "Available"
+              : "Closed",
+            active,
+            createdBy
+          ]
+        );
+
+        results.assetsCreated += 1;
+      }
+
+      /*
+      =====================================================
+      3. USERS
+      4. ORGANIZATION MEMBERSHIPS
+      5. LOCATION ACCESS
+      =====================================================
+      */
+
+      const roleMap = {
+        "organization admin":
+          "organization_admin",
+
+        "location manager":
+          "location_manager",
+
+        "location user":
+          "standard_user",
+
+        "read only":
+          "read_only"
+      };
+
+      for (const item of users) {
+        const firstName =
+          String(
+            item.firstName || ""
+          ).trim();
+
+        const lastName =
+          String(
+            item.lastName || ""
+          ).trim();
+
+        const fullName =
+          `${firstName} ${lastName}`.trim();
+
+        const email =
+          String(
+            item.email || ""
+          )
+            .trim()
+            .toLowerCase();
+
+        const importedRole =
+          normalizeImportValue(
+            item.role
+          );
+
+        const organizationRole =
+          roleMap[importedRole];
+
+        const active =
+          isActiveStatus(item.status);
+
+        if (!fullName || !email) {
+          throw new Error(
+            `User row ${item.rowNumber || "unknown"} is missing a name or email.`
+          );
+        }
+
+        if (!organizationRole) {
+          throw new Error(
+            `User row ${item.rowNumber || "unknown"} contains an invalid role.`
+          );
+        }
+
+        /*
+        Find or create the underlying Vivid user.
+        */
+
+        const existingUserResult =
+          await client.query(
+            `
+              SELECT
+                id,
+                name,
+                email
+
+              FROM users
+
+              WHERE LOWER(
+                TRIM(email)
+              ) = $1
+
+              LIMIT 1
+
+              FOR UPDATE
+            `,
+            [email]
+          );
+
+        let userId = null;
+        let existingVividUser = false;
+
+        if (
+          existingUserResult.rows.length > 0
+        ) {
+          userId = Number(
+            existingUserResult.rows[0].id
+          );
+
+          existingVividUser = true;
+
+          await client.query(
+            `
+              UPDATE users
+
+              SET
+                name =
+                  CASE
+                    WHEN NULLIF(
+                      TRIM(name),
+                      ''
+                    ) IS NULL
+                    THEN $1
+                    ELSE name
+                  END,
+
+                phone =
+                  COALESCE(
+                    NULLIF(
+                      TRIM($2),
+                      ''
+                    ),
+                    phone
+                  )
+
+              WHERE id = $3
+            `,
+            [
+              fullName,
+              item.phone || null,
+              userId
+            ]
+          );
+        } else {
+          const newUserResult =
+            await client.query(
+              `
+                INSERT INTO users (
+                  name,
+                  email,
+                  password,
+                  role,
+                  account_status,
+                  phone,
+                  created_at
+                )
+
+                VALUES (
+                  $1,
+                  $2,
+                  NULL,
+                  'organization_user',
+                  'pending',
+                  $3,
+                  CURRENT_TIMESTAMP
+                )
+
+                RETURNING id
+              `,
+              [
+                fullName,
+                email,
+                item.phone || null
+              ]
+            );
+
+          userId =
+            Number(
+              newUserResult.rows[0].id
+            );
+
+          results.usersCreated += 1;
+        }
+
+        /*
+        Create or update organization membership.
+        */
+
+        const membershipResult =
+          await client.query(
+            `
+              INSERT INTO organization_users (
+                organization_id,
+                user_id,
+                role,
+                is_active,
+                created_at
+              )
+
+              VALUES (
+                $1,
+                $2,
+                $3,
+                $4,
+                CURRENT_TIMESTAMP
+              )
+
+              ON CONFLICT (
+                organization_id,
+                user_id
+              )
+
+              DO UPDATE SET
+                role =
+                  EXCLUDED.role,
+
+                is_active =
+                  EXCLUDED.is_active
+
+              RETURNING
+                id,
+                (
+                  xmax = 0
+                ) AS was_inserted
+            `,
+            [
+              organizationId,
+              userId,
+              organizationRole,
+              active
+            ]
+          );
+
+        const organizationUser =
+          membershipResult.rows[0];
+
+        const organizationUserId =
+          Number(
+            organizationUser.id
+          );
+
+        if (
+          organizationUser.was_inserted === true ||
+          organizationUser.was_inserted === "true"
+        ) {
+          results.membershipsCreated += 1;
+        } else {
+          results.membershipsUpdated += 1;
+        }
+
+        if (existingVividUser) {
+          results.existingUsersLinked += 1;
+        }
+
+        /*
+        Organization administrators have organization-wide
+        access and do not require location_users rows.
+        */
+
+        if (
+          organizationRole ===
+          "organization_admin"
+        ) {
+          continue;
+        }
+
+        const locationName =
+          String(
+            item.locationName || ""
+          ).trim();
+
+        const location =
+          locationMap.get(
+            normalizeImportValue(
+              locationName
+            )
+          );
+
+        if (!location) {
+          throw new Error(
+            `User row ${item.rowNumber || "unknown"} references an unavailable location: ${locationName}`
+          );
+        }
+
+        const locationRole =
+          organizationRole ===
+            "location_manager"
+            ? "manager"
+            : organizationRole ===
+                "standard_user"
+              ? "standard_user"
+              : "read_only";
+
+        const canManage =
+          organizationRole ===
+          "location_manager";
+
+        const canViewReports =
+          organizationRole !==
+          "read_only";
+
+        const locationUserResult =
+          await client.query(
+            `
+              INSERT INTO location_users (
+                organization_id,
+                space_id,
+                user_id,
+                role,
+                can_manage_contracts,
+                can_manage_pricing,
+                can_view_reports,
+                is_active,
+                created_at
+              )
+
+              VALUES (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                $8,
+                CURRENT_TIMESTAMP
+              )
+
+              ON CONFLICT (
+                space_id,
+                user_id
+              )
+
+              DO UPDATE SET
+                organization_id =
+                  EXCLUDED.organization_id,
+
+                role =
+                  EXCLUDED.role,
+
+                can_manage_contracts =
+                  EXCLUDED.can_manage_contracts,
+
+                can_manage_pricing =
+                  EXCLUDED.can_manage_pricing,
+
+                can_view_reports =
+                  EXCLUDED.can_view_reports,
+
+                is_active =
+                  EXCLUDED.is_active
+
+              RETURNING
+                id,
+                (
+                  xmax = 0
+                ) AS was_inserted
+            `,
+            [
+              organizationId,
+              location.id,
+              userId,
+              locationRole,
+              canManage,
+              canManage,
+              canViewReports,
+              active
+            ]
+          );
+
+        const locationUser =
+          locationUserResult.rows[0];
+
+        if (
+          locationUser.was_inserted === true ||
+          locationUser.was_inserted === "true"
+        ) {
+          results.locationLinksCreated += 1;
+        } else {
+          results.locationLinksUpdated += 1;
+        }
+
+        /*
+        Add default notification preferences.
+        */
+
+        const defaultNotifications = [
+          "advertising_request_submitted",
+          "advertising_request_approved",
+          "contract_expiring",
+          "campaign_started",
+          "campaign_ended"
+        ];
+
+        for (
+          const notificationKey
+          of defaultNotifications
+        ) {
+          await client.query(
+            `
+              INSERT INTO organization_user_notifications (
+                organization_user_id,
+                notification_key,
+                is_enabled
+              )
+
+              VALUES (
+                $1,
+                $2,
+                true
+              )
+
+              ON CONFLICT (
+                organization_user_id,
+                notification_key
+              )
+
+              DO NOTHING
+            `,
+            [
+              organizationUserId,
+              notificationKey
+            ]
+          );
+        }
+      }
+
+      await client.query("COMMIT");
+
+      /*
+      Clear the workbook data only after the entire
+      transaction succeeds.
+      */
+
+      delete req.session
+        .pendingLocationsAssetsImport;
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        req.session.user?.name ||
+        "";
+
+      return res.send(
+        orgPage(
+          `Import Complete - ${organization.name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(
+                  organization.name
+                ),
+              activePage: "operations",
+              userName:
+                escapeHtml(userName)
+            })}
+
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Import Complete</h1>
+
+              <p class="subtitle">
+                The workbook was imported successfully.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div class="card" style="
+                border:1px solid #55a06b;
+                margin-bottom:22px;
+              ">
+                <h2 style="
+                  color:#176b3a;
+                  margin-top:0;
+                ">
+                  Import Successful
+                </h2>
+
+                <p>
+                  All records were processed in one
+                  database transaction.
+                </p>
+              </div>
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(
+                    auto-fit,
+                    minmax(190px,1fr)
+                  );
+                gap:16px;
+                margin-bottom:24px;
+              ">
+
+                <div class="card">
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                  ">
+                    ${results.locationsCreated}
+                  </div>
+
+                  <div>
+                    Locations Created
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                  ">
+                    ${results.locationsUpdated}
+                  </div>
+
+                  <div>
+                    Locations Updated
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                  ">
+                    ${results.assetsCreated}
+                  </div>
+
+                  <div>
+                    Assets Created
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                  ">
+                    ${results.assetsUpdated}
+                  </div>
+
+                  <div>
+                    Assets Updated
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                  ">
+                    ${results.usersCreated}
+                  </div>
+
+                  <div>
+                    New Users Created
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                  ">
+                    ${results.existingUsersLinked}
+                  </div>
+
+                  <div>
+                    Existing Users Linked
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                  ">
+                    ${results.membershipsCreated}
+                  </div>
+
+                  <div>
+                    Memberships Created
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                  ">
+                    ${results.locationLinksCreated}
+                  </div>
+
+                  <div>
+                    Location Access Added
+                  </div>
+                </div>
+
+              </div>
+
+              <a
+                class="btn"
+                href="/org-locations?organization_id=${organizationId}"
+              >
+                View Locations
+              </a>
+
+              <a
+                class="btn"
+                href="/org-marketplace?organization_id=${organizationId}"
+              >
+                View Advertising Inventory
+              </a>
+
+              <a
+                class="btn"
+                href="/org-users"
+              >
+                View Users
+              </a>
+
+              <a
+                class="btn secondary"
+                href="/org-import-locations-assets?organization_id=${organizationId}"
+              >
+                Import Another Workbook
+              </a>
+
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackError) {
+        console.error(
+          "IMPORT ROLLBACK ERROR:",
+          rollbackError
+        );
+      }
+
+      console.error(
+        "LOCATIONS ASSETS CONFIRM ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(`
+          <div style="
+            max-width:760px;
+            margin:50px auto;
+            padding:30px;
+            font-family:Arial,sans-serif;
+          ">
+            <h2>Import Failed</h2>
+
+            <p>
+              Nothing was imported. The entire transaction
+              was rolled back.
+            </p>
+
+            <p>
+              <strong>Error:</strong>
+              ${escapeHtml(err.message)}
+            </p>
+
+            <a href="/org-operations">
+              Return to Operations
+            </a>
+          </div>
+        `);
+    } finally {
+      client.release();
+    }
+  }
+);
 app.get("/org-revenue", async (req, res) => {
   res.send(orgPage("Organization Revenue", `
     <div class="topbar">
