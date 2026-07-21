@@ -9447,37 +9447,83 @@ app.post(
         }
       }
 
-      /*
-      =====================================================
-      FIND OR CREATE GLOBAL USER
-      =====================================================
-      */
-
       const existingUserResult =
-        await client.query(
-          `
-            SELECT
-              id,
-              name,
-              email
-            FROM users
-            WHERE LOWER(email) = LOWER($1)
-            LIMIT 1
-            FOR UPDATE
-          `,
-          [email]
-        );
+  await client.query(
+    `
+      SELECT
+        id,
+        name,
+        email,
+        account_status
+      FROM users
+      WHERE LOWER(TRIM(email)) =
+            LOWER(TRIM($1))
+      LIMIT 1
+      FOR UPDATE
+    `,
+    [email]
+  );
 
-      let userId;
-      let existingVividUser = false;
+let userId = null;
+let existingVividUser = false;
 
-      if (existingUserResult.rows.length) {
-        userId = Number(
-          existingUserResult.rows[0].id
-        );
+if (existingUserResult.rows.length > 0) {
 
-        existingVividUser = true;
-      } else {
+  userId = Number(
+    existingUserResult.rows[0].id
+  );
+
+  existingVividUser = true;
+
+} else {
+
+  const newUserResult =
+    await client.query(
+      `
+        INSERT INTO users (
+          name,
+          email,
+          password,
+          role,
+          account_status
+        )
+        VALUES (
+          $1,
+          $2,
+          NULL,
+          'organization_user',
+          'pending'
+        )
+        RETURNING id
+      `,
+      [
+        name,
+        email
+      ]
+    );
+
+  if (
+    !newUserResult.rows.length ||
+    !newUserResult.rows[0].id
+  ) {
+    throw new Error(
+      "Unable to create Vivid user."
+    );
+  }
+
+  userId = Number(
+    newUserResult.rows[0].id
+  );
+}
+
+if (
+  !Number.isInteger(userId) ||
+  userId <= 0
+) {
+  throw new Error(
+    "User ID was not created."
+  );
+}
         const newUserResult =
   await client.query(
     `
