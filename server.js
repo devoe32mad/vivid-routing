@@ -6303,7 +6303,56 @@ const advertiserResult = await q(`
         FROM contracts
         WHERE organization_id = $1
       `, [orgId]);
+const businessMetricsResult = await q(`
+  SELECT
+    COUNT(*) FILTER (
+      WHERE LOWER(COALESCE(oo.status, '')) = 'available'
+        AND COALESCE(oo.is_active, true) = true
+        AND (
+          oo.available_from IS NULL
+          OR oo.available_from <= CURRENT_DATE
+        )
+        AND (
+          oo.available_until IS NULL
+          OR oo.available_until >= CURRENT_DATE
+        )
+    )::int AS available_spots,
 
+    COALESCE(
+      SUM(
+        COALESCE(oo.price, oo.annual_price, 0)
+      ) FILTER (
+        WHERE LOWER(COALESCE(oo.status, '')) = 'available'
+          AND COALESCE(oo.is_active, true) = true
+          AND (
+            oo.available_from IS NULL
+            OR oo.available_from <= CURRENT_DATE
+          )
+          AND (
+            oo.available_until IS NULL
+            OR oo.available_until >= CURRENT_DATE
+          )
+      ),
+      0
+    )::numeric AS available_revenue
+
+  FROM organization_opportunities oo
+  WHERE oo.organization_id = $1
+`, [orgId]);
+
+const pendingMetricsResult = await q(`
+  SELECT
+    COUNT(*)::int AS pending_spots,
+
+    COALESCE(
+      SUM(COALESCE(r.price, 0)),
+      0
+    )::numeric AS pending_revenue
+
+  FROM organization_advertising_requests r
+  WHERE r.organization_id = $1
+    AND LOWER(COALESCE(r.status, 'pending')) = 'pending'
+`, [orgId]);
       const locations = locationResult.rows;
 
       const totals = locations.reduce(
@@ -6336,7 +6385,17 @@ const advertiserResult = await q(`
 
       const activeContracts =
         Number(contractResult.rows[0]?.active_contracts || 0);
+const availableSpots =
+  Number(businessMetricsResult.rows[0]?.available_spots || 0);
 
+const availableRevenue =
+  Number(businessMetricsResult.rows[0]?.available_revenue || 0);
+
+const pendingSpots =
+  Number(pendingMetricsResult.rows[0]?.pending_spots || 0);
+
+const pendingRevenue =
+  Number(pendingMetricsResult.rows[0]?.pending_revenue || 0);
 const locationCards = locations.map(location => `
   <a
     href="/org-location/${location.id}?organization_id=${org.id}"
