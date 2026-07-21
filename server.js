@@ -9468,15 +9468,12 @@ let userId = null;
 let existingVividUser = false;
 
 if (existingUserResult.rows.length > 0) {
-
   userId = Number(
     existingUserResult.rows[0].id
   );
 
   existingVividUser = true;
-
 } else {
-
   const newUserResult =
     await client.query(
       `
@@ -9524,38 +9521,7 @@ if (
     "User ID was not created."
   );
 }
-        const newUserResult =
-  await client.query(
-    `
-      INSERT INTO users (
-        name,
-        email,
-        password,
-        role,
-        account_status
-      )
-      VALUES (
-        $1,
-        $2,
-        NULL,
-        'organization_user',
-        'pending'
-      )
-      RETURNING id
-    `,
-    [
-      name,
-      email
-    ]
-  );
-         
-      }
 
-      /*
-      =====================================================
-      PREVENT DUPLICATE ORGANIZATION MEMBERSHIP
-      =====================================================
-      */
 
       const existingMembershipResult =
         await client.query(
