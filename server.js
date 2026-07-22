@@ -36648,9 +36648,10 @@ const campaigns = await q(
         c.name AS campaign_name,
         c.advertiser
       FROM campaign_schedules cs
-      LEFT JOIN qr_codes qr ON qr.id = cs.qr_id
-      LEFT JOIN campaigns c ON c.id = cs.campaign_id
-      ORDER BY cs.id DESC
+LEFT JOIN qr_codes qr ON qr.id = cs.qr_id
+LEFT JOIN campaigns c ON c.id = cs.campaign_id
+WHERE COALESCE(cs.is_active, true) = true
+ORDER BY cs.id DESC
     `
     : `
       SELECT
@@ -36662,8 +36663,10 @@ const campaigns = await q(
       LEFT JOIN qr_codes qr ON qr.id = cs.qr_id
       LEFT JOIN spaces s ON s.id = qr.space_id
       LEFT JOIN campaigns c ON c.id = cs.campaign_id
-      WHERE s.user_id = $1
-      ORDER BY cs.id DESC
+    WHERE s.user_id = $1
+  AND COALESCE(cs.is_active, true) = true
+ORDER BY cs.id DESC
+      
     `,
   isSuperAdmin ? [] : [currentUser.id]
 );
