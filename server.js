@@ -31982,28 +31982,38 @@ ${hasCampaigns
 </table>
 </div>
 
-        <h2>Campaigns</h2>
-        <table>
-<tr>
-  <th>ID</th>
-<th>Advertiser</th>
-<th>Name</th>
-<th>Market</th>
-<th>Location</th>
-<th>QR Code</th>
-<th>Created Date</th>
-<th>First Assigned</th>
-<th>End Date</th>
-<th>
-Days in Market
-  <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
-</th>
-<th>Action</th>
-<th>Status</th>
+   <h2>Campaigns</h2>
 
-</tr>
-${campaignTable || `<tr><td colspan="10">No campaigns yet.</td></tr>`}
-        </table>
+<table>
+  <tr>
+    <th>ID</th>
+    <th>Advertiser</th>
+    <th>Campaign</th>
+    <th>Market</th>
+    <th>Location</th>
+    <th>QR Code</th>
+    <th>Start Date</th>
+    <th>End Date</th>
+
+    <th>
+      Days in Market
+      <span
+        title="Number of days this campaign has been active between its start and end dates."
+        style="cursor:help;"
+      >
+        ⓘ
+      </span>
+    </th>
+
+    <th>Action</th>
+    <th>Status</th>
+  </tr>
+
+  ${
+    campaignTable ||
+    `<tr><td colspan="11">No campaigns yet.</td></tr>`
+  }
+</table>     
 
     
 <h2>Schedules</h2>
