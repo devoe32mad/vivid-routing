@@ -31105,11 +31105,23 @@ SELECT
   s.location AS market,
   s.name AS location_name,
 
+  GREATEST(
   COALESCE(
-    qc.started_at,
-    qc.assigned_at,
-    CURRENT_TIMESTAMP
-  ) AS started_at,
+    qc.started_at::date,
+    qc.assigned_at::date,
+    CURRENT_DATE
+  ),
+  COALESCE(
+    qr.live_date::date,
+    CURRENT_DATE
+  ),
+  COALESCE(
+    c.start_date::date,
+    c.live_date::date,
+    qr.live_date::date,
+    CURRENT_DATE
+  )
+) AS effective_start_date,
 
   qc.ended_at,
   qr.annual_cost AS placement_cost,
@@ -31726,7 +31738,7 @@ for (const s of schedules.rows) {
 <td>${a.qr_name || ""}</td>
 <td>${a.advertiser || ""}</td>
 <td>${a.campaign_name || ""}</td>
-<td>${dateLabel(a.started_at || a.assigned_at)}</td>
+<td>${dateLabel(a.effective_start_date)}</td>
 <td>${Number(a.assignment_days ?? 0)}</td>
 <td>$${Number(a.allocated_cost ?? 0).toFixed(2)}</td>
 <td>
