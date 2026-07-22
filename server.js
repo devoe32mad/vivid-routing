@@ -36340,7 +36340,53 @@ app.get("/admin/edit-schedule/:id", requireLogin, async (req, res) => {
             </option>
           `).join("")}
         </select>
+<label>Run Campaign On</label>
 
+<div style="
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px 18px;
+  margin:8px 0 20px;
+  align-items:center;
+">
+  <label style="display:flex;align-items:center;gap:6px;">
+    <input type="checkbox" id="everydayToggle">
+    Everyday
+  </label>
+
+  ${[
+    ["0", "Sunday"],
+    ["1", "Monday"],
+    ["2", "Tuesday"],
+    ["3", "Wednesday"],
+    ["4", "Thursday"],
+    ["5", "Friday"],
+    ["6", "Saturday"]
+  ].map(([value, label]) => `
+    <label style="display:flex;align-items:center;gap:6px;">
+      <input
+        type="checkbox"
+        name="days_of_week_check"
+        value="${value}"
+        ${
+          String(schedule.rows[0].days_of_week || "")
+            .split(",")
+            .includes(value)
+              ? "checked"
+              : ""
+        }
+      >
+      ${label}
+    </label>
+  `).join("")}
+</div>
+
+<input
+  type="hidden"
+  name="days_of_week"
+  id="days_of_week_hidden"
+  value="${schedule.rows[0].days_of_week || ""}"
+>
         <label>Start Time</label>
         <input type="time"
           name="start_time"
@@ -36360,6 +36406,56 @@ app.get("/admin/edit-schedule/:id", requireLogin, async (req, res) => {
           Save Changes
         </button>
       </form>
+<script>
+  const everydayToggle =
+    document.getElementById("everydayToggle");
+
+  const dayCheckboxes =
+    document.querySelectorAll(
+      'input[name="days_of_week_check"]'
+    );
+
+  function syncEverydayToggle() {
+    everydayToggle.checked =
+      Array.from(dayCheckboxes).every(
+        checkbox => checkbox.checked
+      );
+  }
+
+  everydayToggle.addEventListener(
+    "change",
+    () => {
+      dayCheckboxes.forEach(
+        checkbox => {
+          checkbox.checked =
+            everydayToggle.checked;
+        }
+      );
+    }
+  );
+
+  dayCheckboxes.forEach(
+    checkbox => {
+      checkbox.addEventListener(
+        "change",
+        syncEverydayToggle
+      );
+    }
+  );
+
+  document.querySelector("form")
+    .addEventListener("submit", () => {
+      document.getElementById(
+        "days_of_week_hidden"
+      ).value =
+        Array.from(dayCheckboxes)
+          .filter(checkbox => checkbox.checked)
+          .map(checkbox => checkbox.value)
+          .join(",");
+    });
+
+  syncEverydayToggle();
+</script>
     </div>
   `));
 });
