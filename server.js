@@ -33068,110 +33068,256 @@ function toggleHelp() {
 </script>
   `));
 });
-app.get("/admin/edit-location/:spaceId", requireLogin, async (req, res) => {
-  const currentUser = req.session.user;
-  const isSuperAdmin = currentUser.role === "super_admin";
 
-  const result = await q(
-    isSuperAdmin
-      ? `SELECT * FROM spaces WHERE id = $1`
-      : `SELECT * FROM spaces WHERE id = $1 AND user_id = $2`,
-    isSuperAdmin
-      ? [req.params.spaceId]
-      : [req.params.spaceId, currentUser.id]
-  );
+app.get(
+  "/admin/edit-location/:spaceId",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const currentUser = req.session.user;
+      const isSuperAdmin =
+        currentUser.role === "super_admin";
 
-  const s = result.rows[0];
+      const result = await q(
+        isSuperAdmin
+          ? `
+              SELECT *
+              FROM spaces
+              WHERE id = $1
+            `
+          : `
+              SELECT *
+              FROM spaces
+              WHERE id = $1
+                AND user_id = $2
+            `,
+        isSuperAdmin
+          ? [req.params.spaceId]
+          : [
+              req.params.spaceId,
+              currentUser.id
+            ]
+      );
 
-  if (!s) {
-    return res.send("Location not found or access denied");
-  }
+      const s = result.rows[0];
 
-  res.send(page("Edit Location", `
-    <div class="topbar">
-      <div class="brand">Vivid Spots</div>
-      <h1>Edit Location</h1>
-    </div>
+      if (!s) {
+        return res.send(
+          "Location not found or access denied"
+        );
+      }
 
-    <div class="wrap">
-      <form method="POST" action="/admin/edit-location/${s.id}">
-        <label>Location Name</label>
-        <input name="name" value="${s.name || ""}" />
+      const startDate = s.live_date
+        ? new Date(s.live_date)
+            .toISOString()
+            .slice(0, 10)
+        : "";
 
-        <label>Market / Address</label>
-        <input name="location" value="${s.location || ""}" />
+      return res.send(
+        page(
+          "Edit Location",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Spots
+              </div>
 
-        <label>Estimated Impressions</label>
-        <input name="annual_impressions" value="${s.annual_impressions || 0}" />
+              <h1>Edit Location</h1>
+            </div>
 
-        <label>Placement Cost</label>
-        <input name="placement_cost" value="${s.placement_cost || 800}" />
+            <div class="wrap">
+              <form
+                method="POST"
+                action="/admin/edit-location/${s.id}"
+              >
+                <label>Location Name</label>
 
-        <button class="btn" type="submit">
-          Save Location
-        </button>
-      </form>
-    </div>
-  `));
-});
-app.post("/admin/edit-location/:spaceId", requireLogin, async (req, res) => {
-  try {
-    const currentUser = req.session.user;
-    const isSuperAdmin = currentUser.role === "super_admin";
+                <input
+                  name="name"
+                  value="${escapeHtml(
+                    s.name || ""
+                  )}"
+                  required
+                />
 
-    const result = await q(
-      isSuperAdmin
-        ? `
-          UPDATE spaces
-          SET
-            name = $1,
-            location = $2,
-            annual_impressions = $3,
-            placement_cost = $4
-          WHERE id = $5
-          RETURNING id
-        `
-        : `
-          UPDATE spaces
-          SET
-            name = $1,
-            location = $2,
-            annual_impressions = $3,
-            placement_cost = $4
-          WHERE id = $5
-          AND user_id = $6
-          RETURNING id
-        `,
-      isSuperAdmin
-        ? [
-            req.body.name || "",
-            req.body.location || "",
-            Number(req.body.annual_impressions || 0),
-            Number(req.body.placement_cost || 800),
-            req.params.spaceId
-          ]
-        : [
-            req.body.name || "",
-            req.body.location || "",
-            Number(req.body.annual_impressions || 0),
-            Number(req.body.placement_cost || 800),
-            req.params.spaceId,
-            currentUser.id
-          ]
-    );
+                <label>Market / Address</label>
 
-    if (!result.rows[0]) {
-      return res.send("Location not found or access denied");
+                <input
+                  name="location"
+                  value="${escapeHtml(
+                    s.location || ""
+                  )}"
+                />
+
+                <label>Start Date</label>
+
+                <input
+                  type="date"
+                  name="live_date"
+                  value="${startDate}"
+                  required
+                />
+
+                <label>Estimated Impressions</label>
+
+                <input
+                  type="number"
+                  name="annual_impressions"
+                  value="${Number(
+                    s.annual_impressions || 0
+                  )}"
+                  min="0"
+                />
+
+                <button
+                  class="btn"
+                  type="submit"
+                >
+                  Save Location
+                </button>
+              </form>
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "EDIT LOCATION FORM ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "EDIT LOCATION FORM ERROR: " +
+          err.message
+      );
     }
-
-    res.send(
-      "Location updated <br><a href='/my-setup'>Back to My Setup</a>"
-    );
-
-  } catch (err) {
-    res.send("EDIT LOCATION ERROR: " + err.message);
   }
-});
+);
+
+app.post(
+  "/admin/edit-location/:spaceId",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const currentUser = req.session.user;
+      const isSuperAdmin =
+        currentUser.role === "super_admin";
+
+      const name =
+        String(req.body.name || "").trim();
+
+      const location =
+        String(
+          req.body.location || ""
+        ).trim();
+
+      const liveDate =
+        String(
+          req.body.live_date || ""
+        ).trim();
+
+      const annualImpressions =
+        Number(
+          req.body.annual_impressions || 0
+        );
+
+      if (!name) {
+        return res.status(400).send(
+          "Location name is required."
+        );
+      }
+
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(
+          liveDate
+        )
+      ) {
+        return res.status(400).send(
+          "A valid location start date is required."
+        );
+      }
+
+      if (
+        !Number.isFinite(
+          annualImpressions
+        ) ||
+        annualImpressions < 0
+      ) {
+        return res.status(400).send(
+          "Estimated impressions must be zero or greater."
+        );
+      }
+
+      const result = await q(
+        isSuperAdmin
+          ? `
+              UPDATE spaces
+
+              SET
+                name = $1,
+                location = $2,
+                live_date = $3,
+                annual_impressions = $4
+
+              WHERE id = $5
+
+              RETURNING id
+            `
+          : `
+              UPDATE spaces
+
+              SET
+                name = $1,
+                location = $2,
+                live_date = $3,
+                annual_impressions = $4
+
+              WHERE id = $5
+                AND user_id = $6
+
+              RETURNING id
+            `,
+        isSuperAdmin
+          ? [
+              name,
+              location || null,
+              liveDate,
+              annualImpressions,
+              req.params.spaceId
+            ]
+          : [
+              name,
+              location || null,
+              liveDate,
+              annualImpressions,
+              req.params.spaceId,
+              currentUser.id
+            ]
+      );
+
+      if (!result.rows[0]) {
+        return res.send(
+          "Location not found or access denied"
+        );
+      }
+
+      return res.redirect("/my-setup");
+    } catch (err) {
+      console.error(
+        "EDIT LOCATION ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "EDIT LOCATION ERROR: " +
+          err.message
+      );
+    }
+  }
+);
+
+
+  
 app.get("/admin/organizations", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
