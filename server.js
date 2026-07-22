@@ -31957,7 +31957,7 @@ ${hasCampaigns
         
             
         
-    ${locationTable || `<tr><td colspan="9">No locations yet.</td></tr>`}  </table>
+  ${locationTable || `<tr><td colspan="9">No locations yet.</td></tr>`}   </table>
 
        <h2>QR Codes</h2>
 
