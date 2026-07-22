@@ -33825,7 +33825,8 @@ app.post("/admin/new-location", requireLogin, async (req, res) => {
 
     const description =
       String(req.body.description || "").trim();
-
+const liveDate =
+  String(req.body.live_date || "").trim();
     if (
       !Number.isInteger(organizationId) ||
       organizationId <= 0
@@ -33840,7 +33841,11 @@ app.post("/admin/new-location", requireLogin, async (req, res) => {
         "Location name is required."
       );
     }
-
+if (!/^\d{4}-\d{2}-\d{2}$/.test(liveDate)) {
+  return res.status(400).send(
+    "A valid location start date is required."
+  );
+}
     let approvedMarketplaceRequest = null;
 
     /*
@@ -33989,25 +33994,27 @@ app.post("/admin/new-location", requireLogin, async (req, res) => {
 
     const createdLocationResult = await q(
       `
-        INSERT INTO spaces (
-          user_id,
-          organization_id,
-          name,
-          location,
-          description
-        )
+       INSERT INTO spaces (
+  user_id,
+  organization_id,
+  name,
+  location,
+  description,
+  live_date
+)
 
-        VALUES ($1, $2, $3, $4, $5)
+VALUES ($1, $2, $3, $4, $5, $6)
 
         RETURNING id
       `,
-      [
-        currentUser.id,
-        organizationId,
-        name,
-        market || null,
-        description || null
-      ]
+     [
+  currentUser.id,
+  organizationId,
+  name,
+  market || null,
+  description || null,
+  liveDate
+]
     );
 
     const createdLocationId =
