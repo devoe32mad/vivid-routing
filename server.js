@@ -31469,7 +31469,10 @@ for (const s of schedules.rows) {
       <td>${s.qr_name || ""}</td>
       <td>${s.advertiser || ""}</td>
       <td>${s.campaign_name || ""}</td>
-      <td>${daysActive(s.created_at)}</td>
+      <td>${daysActive(
+  s.effective_start_date,
+  s.effective_end_date
+)}</td>
       <td>${dayLabels(s.days_of_week) || "Every Day"}</td>
       <td>${s.start_time || ""}</td>
       <td>${s.end_time || ""}</td>
