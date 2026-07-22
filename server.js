@@ -31500,23 +31500,28 @@ const hasSchedules = activeScheduleCount > 0;
 )].join(", ")
 }</td>
 <td>${dateLabel(s.live_date || s.created_at)}</td>
+<td>${dateLabel(s.live_date)}</td>
+
+<td>${s.end_date ? dateLabel(s.end_date) : "Open"}</td>
+
 <td>${daysActive(
-  s.effective_start_date,
-  s.effective_end_date
+  s.live_date,
+  s.end_date
 )}</td>
 
-
-  <td>
+<td>
   <a href="/admin/view-location/${s.id}">View</a>
   &nbsp;|&nbsp;
+
   <a href="/admin/edit-location/${s.id}">Edit</a>
   &nbsp;|&nbsp;
+
   <a
-  href="/admin/deactivate-schedule/${s.id}?return_to=my-setup"
-  onclick="return confirm('Archive this schedule?')"
->
-  Archive
-</a>
+    href="/admin/deactivate-location/${s.id}?return_to=my-setup"
+    onclick="return confirm('Archive this location?')"
+  >
+    Archive
+  </a>
 </td>
         </tr>
       `;
