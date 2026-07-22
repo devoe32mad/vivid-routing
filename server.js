@@ -31267,11 +31267,27 @@ SELECT
   s.location AS market,
   s.name AS location_name,
 
+  GREATEST(
   COALESCE(
-    qc.started_at,
-    qc.assigned_at,
-    CURRENT_TIMESTAMP
-  ) AS started_at,
+    qc.started_at::date,
+    qc.assigned_at::date,
+    CURRENT_DATE
+  ),
+  COALESCE(
+    qr.live_date::date,
+    CURRENT_DATE
+  ),
+  COALESCE(
+    c.start_date::date,
+    c.live_date::date,
+    qr.live_date::date,
+    CURRENT_DATE
+  )
+) AS effective_start_date,
+
+    
+    
+
 
   qc.ended_at,
   qr.annual_cost AS placement_cost,
