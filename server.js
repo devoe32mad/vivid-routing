@@ -32170,22 +32170,12 @@ app.get("/reports-qr", requireLogin, async (req, res) => {
       const conversions = Number(m.conversions || 0);
       const revenue = Number(m.revenue || 0);
 
-let allocatedCost = 0;
+const allocatedCost = await allocatedSpotCostForQr(
+  qr.qr_id,
+  startDate,
+  endDate
+);
 
-const assignedCampaigns = await q(`
-  SELECT DISTINCT campaign_id
-  FROM qr_campaigns
-  WHERE qr_id = $1
-    AND COALESCE(is_active,true) = true
-`, [qr.qr_id]);
-
-for (const ac of assignedCampaigns.rows) {
-  allocatedCost += await allocatedSpotCostForCampaign(
-    ac.campaign_id,
-    startDate || today,
-    endDate || today
-  );
-}
 
       const customerValue = conversions > 0 ? revenue / conversions : 0;
       const roi =
