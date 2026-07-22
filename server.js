@@ -31930,23 +31930,25 @@ ${hasCampaigns
           Review your locations, QR codes, campaigns, and assignments here.
         </div>
 
-        <h2>Locations</h2>
-        <table>
-          <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Market</th>
-            <th>QR Codes</th>
-            <th>Campaigns</th>
-            <th>Live Date</th>
-           <th>
-  Days in Market
-  <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
-</th>
+        <tr>
+  <th>Location</th>
+  <th>Market</th>
+  <th>Live Date</th>
+  <th>End Date</th>
+  <th>
+    Active Days
+    <span
+      title="Number of days this location has been active."
+      style="cursor:help;"
+    >ⓘ</span>
+  </th>
+  <th>Status</th>
+  <th>Action</th>
+</tr>
           
         
-            <th>Action</th>
-          </tr>
+            
+        
 ${locationTable || `<tr><td colspan="6">No locations yet.</td></tr>`}        </table>
 
        <h2>QR Codes</h2>
