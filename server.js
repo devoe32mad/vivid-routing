@@ -31499,7 +31499,6 @@ const hasSchedules = activeScheduleCount > 0;
     .filter(Boolean)
 )].join(", ")
 }</td>
-<td>${dateLabel(s.live_date || s.created_at)}</td>
 <td>${dateLabel(s.live_date)}</td>
 
 <td>${s.end_date ? dateLabel(s.end_date) : "Open"}</td>
@@ -31935,7 +31934,11 @@ ${hasCampaigns
           Review your locations, QR codes, campaigns, and assignments here.
         </div>
 
-      <tr>
+      
+  <h2>Locations</h2>
+
+<table>
+  <tr>    
   <th>ID</th>
   <th>Name</th>
   <th>Market</th>
