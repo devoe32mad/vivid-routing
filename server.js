@@ -33662,7 +33662,13 @@ app.post("/admin/edit-organization/:id", requireLogin, async (req, res) => {
                     marketplaceRequest.opportunity_description || ""
                   )}"
                 />
+<label>Start Date</label>
 
+<input
+  type="date"
+  name="live_date"
+  required
+/>
                 <button class="btn" type="submit">
                   Save &amp; Continue
                 </button>
