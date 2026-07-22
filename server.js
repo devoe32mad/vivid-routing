@@ -31335,7 +31335,8 @@ ${qr.is_imported ? "Imported" : "Native"}
 )].join(", ")
 }</td>
 <td>${dateLabel(qr.live_date || qr.created_at)}</td>
-          <td>${daysActive(qr.created_at)}</td>
+<td>${daysActive(qr.live_date, qr.end_date)}</td>
+          
           <td>${Number(qr.annual_impressions || 0).toLocaleString()}</td>
 <td>${money(qr.annual_cost || 0)}</td>
 <td>
