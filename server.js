@@ -33396,18 +33396,24 @@ app.post("/admin/edit-organization/:id", requireLogin, async (req, res) => {
     let organizationField = "";
 
     if (orgs.rows.length === 1) {
-      organizationField = `
-        <input
-          type="hidden"
-          name="organization_id"
-          value="${orgs.rows[0].id}"
-        />
+    organizationField = `
+  <input
+    type="hidden"
+    name="organization_id"
+    value="${orgs.rows[0].id}"
+  />
 
-        <p>
-          <strong>Organization:</strong>
-          ${escapeHtml(orgs.rows[0].name)}
-        </p>
-      `;
+  <p style="margin-bottom:6px;">
+    <strong>Organization:</strong>
+    ${escapeHtml(orgs.rows[0].name)}
+  </p>
+
+  <p style="margin-top:0;color:#65776b;">
+    <strong>Logged in as:</strong>
+    ${escapeHtml(currentUser.email || "")}
+  </p>
+`;  
+      
     } else {
       organizationField = `
         <label>Organization</label>
