@@ -31618,29 +31618,35 @@ const campaignQrs = [...new Set(
 
 <td>${campaignLocations}</td>
 <td>${campaignQrs}</td>
-<td>${dateLabel(c.created_at)}</td>
 
-<td>${dateLabel(
-  relationships.rows
-    .filter(r => String(r.campaign_id) === String(c.id))
-    .map(r => r.created_at)
-    .filter(Boolean)
-    .sort()[0],
-  "Not Assigned"
-)}</td>
-<td>${c.end_date ? dateLabel(c.end_date) : "No End Date"}</td>
-<td>${
-  daysActive(
-    c.start_date || (
-      relationships.rows
-        .filter(r => String(r.campaign_id) === String(c.id))
-        .map(r => r.created_at)
-        .filter(Boolean)
-        .sort()[0] || c.created_at
-    ),
-    c.end_date || c.archived_at
-  )
-}</td>
+<td>
+  ${
+    c.start_date
+      ? dateLabel(c.start_date)
+      : "No Start Date"
+  }
+</td>
+
+<td>
+  ${
+    c.end_date
+      ? dateLabel(c.end_date)
+      : "No End Date"
+  }
+</td>
+
+<td>
+  ${
+    c.start_date
+      ? daysActive(
+          c.start_date,
+          c.end_date || c.archived_at
+        )
+      : 0
+  }
+</td>
+
+
 
 <td>
   <a href="/admin/view-campaign/${c.id}">View</a>
