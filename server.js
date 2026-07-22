@@ -31163,6 +31163,7 @@ const schedules = await q(
       FROM campaign_schedules cs
       JOIN qr_codes qr ON qr.id = cs.qr_id
       JOIN campaigns c ON c.id = cs.campaign_id
+      WHERE COALESCE(cs.is_active, true) = true
       ORDER BY cs.id DESC
     `
     : `
@@ -31171,10 +31172,14 @@ const schedules = await q(
       JOIN qr_codes qr ON qr.id = cs.qr_id
       JOIN campaigns c ON c.id = cs.campaign_id
       WHERE c.user_id = $1
+        AND COALESCE(cs.is_active, true) = true
       ORDER BY cs.id DESC
     `,
   isSuperAdmin ? [] : [currentUser.id]
 );
+    
+      
+
     const hasLocations = locations.rows.length > 0;
     const hasQrs = qrs.rows.length > 0;
     const hasCampaigns = campaigns.rows.length > 0;
@@ -31221,7 +31226,12 @@ const hasSchedules = activeScheduleCount > 0;
   &nbsp;|&nbsp;
   <a href="/admin/edit-location/${s.id}">Edit</a>
   &nbsp;|&nbsp;
-  <a href="/admin/archive-location/${s.id}">Archive</a>
+  <a
+  href="/admin/deactivate-schedule/${s.id}?return_to=my-setup"
+  onclick="return confirm('Archive this schedule?')"
+>
+  Archive
+</a>
 </td>
         </tr>
       `;
