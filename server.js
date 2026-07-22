@@ -30999,7 +30999,9 @@ const relationships = await q(`
     AND COALESCE(qc.is_active, true) = true
 
   LEFT JOIN campaign_schedules cs
-    ON cs.qr_id = qr.id
+  ON cs.qr_id = qr.id
+ AND COALESCE(cs.is_active, true) = true
+    
 
   LEFT JOIN campaigns c
     ON c.id = COALESCE(qc.campaign_id, cs.campaign_id)
