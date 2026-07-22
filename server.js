@@ -31973,7 +31973,7 @@ ${hasCampaigns
   Days in Market
   <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
 </th>
-<th>Annual Impressions</th>
+<th>Impressions</th>
 <th>Contract Cost</th>
 <th>Action</th>
 <th>Download</th>
