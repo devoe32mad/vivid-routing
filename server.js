@@ -31188,7 +31188,22 @@ ORDER BY qc.id DESC
 const schedules = await q(
   isSuperAdmin
     ? `
-      SELECT cs.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser
+      SELECT
+        cs.*,
+        qr.name AS qr_name,
+        c.name AS campaign_name,
+        c.advertiser,
+
+        GREATEST(
+          COALESCE(qr.live_date, CURRENT_DATE),
+          COALESCE(c.start_date, qr.live_date, CURRENT_DATE)
+        ) AS effective_start_date,
+
+        LEAST(
+          COALESCE(qr.end_date, '9999-12-31'::date),
+          COALESCE(c.end_date, qr.end_date, '9999-12-31'::date)
+        ) AS effective_end_date
+
       FROM campaign_schedules cs
       JOIN qr_codes qr ON qr.id = cs.qr_id
       JOIN campaigns c ON c.id = cs.campaign_id
@@ -31196,7 +31211,22 @@ const schedules = await q(
       ORDER BY cs.id DESC
     `
     : `
-      SELECT cs.*, qr.name AS qr_name, c.name AS campaign_name, c.advertiser
+      SELECT
+        cs.*,
+        qr.name AS qr_name,
+        c.name AS campaign_name,
+        c.advertiser,
+
+        GREATEST(
+          COALESCE(qr.live_date, CURRENT_DATE),
+          COALESCE(c.start_date, qr.live_date, CURRENT_DATE)
+        ) AS effective_start_date,
+
+        LEAST(
+          COALESCE(qr.end_date, '9999-12-31'::date),
+          COALESCE(c.end_date, qr.end_date, '9999-12-31'::date)
+        ) AS effective_end_date
+
       FROM campaign_schedules cs
       JOIN qr_codes qr ON qr.id = cs.qr_id
       JOIN campaigns c ON c.id = cs.campaign_id
