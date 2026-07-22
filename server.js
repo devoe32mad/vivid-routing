@@ -65,13 +65,19 @@ function dateLabel(d, fallback = "Not Set") {
 
   return date.toLocaleDateString();
 }
-function daysActive(createdAt, endedAt = null) {
-  if (!createdAt) return 0;
+function daysActive(startAt, endAt = null) {
+  if (!startAt) return 0;
 
-  const start = new Date(createdAt);
-  const end = endedAt ? new Date(endedAt) : new Date();
+  const start = new Date(startAt);
+  const today = new Date();
+  const contractEnd = endAt ? new Date(endAt) : today;
 
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(contractEnd.getTime())
+  ) {
+    return 0;
+  }
 
   const startDay = new Date(
     start.getFullYear(),
@@ -79,18 +85,41 @@ function daysActive(createdAt, endedAt = null) {
     start.getDate()
   );
 
-  const endDay = new Date(
-    end.getFullYear(),
-    end.getMonth(),
-    end.getDate()
+  const todayDay = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
   );
 
-  const diffDays = Math.floor(
-    (endDay - startDay) / (1000 * 60 * 60 * 24)
+  const contractEndDay = new Date(
+    contractEnd.getFullYear(),
+    contractEnd.getMonth(),
+    contractEnd.getDate()
   );
 
-  return Math.max(1, diffDays + 1);
+  if (todayDay < startDay) {
+    return 0;
+  }
+
+  const effectiveEnd =
+    contractEndDay < todayDay
+      ? contractEndDay
+      : todayDay;
+
+  if (effectiveEnd < startDay) {
+    return 0;
+  }
+
+  return (
+    Math.floor(
+      (effectiveEnd - startDay) /
+        (1000 * 60 * 60 * 24)
+    ) + 1
+  );
 }
+
+
+
 function dayLabels(days) {
   if (!days) return "";
 
