@@ -36618,7 +36618,12 @@ app.get("/admin/deactivate-schedule/:scheduleId", requireLogin, async (req, res)
 );
     }
 
-    res.redirect("/admin/schedule");
+    const returnTo =
+  req.query.return_to === "my-setup"
+    ? "/my-setup"
+    : "/admin/schedule";
+
+res.redirect(returnTo);
 
   } catch (err) {
     res.send("ARCHIVE SCHEDULE ERROR: " + err.message);
