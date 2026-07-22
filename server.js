@@ -4134,15 +4134,43 @@ app.get("/debug-conversions", async (req, res) => {
   res.json(result.rows);
 });
 function addVividClickIdToUrl(destinationUrl, vividClickId) {
-  if (!destinationUrl || !vividClickId) {
-    return destinationUrl || "/";
+  let normalizedUrl = String(destinationUrl || "").trim();
+
+  if (!normalizedUrl) {
+    return "/";
   }
 
-  const separator =
-    destinationUrl.includes("?") ? "&" : "?";
+  if (
+    !/^https?:\/\//i.test(normalizedUrl)
+  ) {
+    normalizedUrl = `https://${normalizedUrl}`;
+  }
 
-  return `${destinationUrl}${separator}vivid_click_id=${encodeURIComponent(vividClickId)}`;
+  if (!vividClickId) {
+    return normalizedUrl;
+  }
+
+  try {
+    const url = new URL(normalizedUrl);
+
+    url.searchParams.set(
+      "vivid_click_id",
+      vividClickId
+    );
+
+    return url.toString();
+  } catch (err) {
+    console.error(
+      "INVALID DESTINATION URL:",
+      destinationUrl,
+      err.message
+    );
+
+    return "/";
+  }
 }
+
+ 
 app.get("/debug-puma-assignments", requireLogin, async (req, res) => {
   const rows = await q(`
     SELECT
