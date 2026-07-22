@@ -31930,9 +31930,12 @@ ${hasCampaigns
           Review your locations, QR codes, campaigns, and assignments here.
         </div>
 
-        <tr>
-  <th>Location</th>
+      <tr>
+  <th>ID</th>
+  <th>Name</th>
   <th>Market</th>
+  <th>QR Codes</th>
+  <th>Campaigns</th>
   <th>Live Date</th>
   <th>End Date</th>
   <th>
@@ -31942,14 +31945,14 @@ ${hasCampaigns
       style="cursor:help;"
     >ⓘ</span>
   </th>
-  <th>Status</th>
   <th>Action</th>
 </tr>
+  
           
         
             
         
-${locationTable || `<tr><td colspan="6">No locations yet.</td></tr>`}        </table>
+    ${locationTable || `<tr><td colspan="9">No locations yet.</td></tr>`}  </table>
 
        <h2>QR Codes</h2>
 
