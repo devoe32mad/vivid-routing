@@ -33774,7 +33774,12 @@ app.post("/admin/edit-organization/:id", requireLogin, async (req, res) => {
 
               <label>Description</label>
               <input name="description" />
-
+<label>Start Date</label>
+<input
+  type="date"
+  name="live_date"
+  required
+/>
               <button class="btn" type="submit">
                 Create Location
               </button>
