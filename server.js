@@ -36461,11 +36461,18 @@ app.get("/admin/edit-schedule/:id", requireLogin, async (req, res) => {
 });
 app.post("/admin/edit-schedule/:id", requireLogin, async (req, res) => {
   const {
-    campaign_id,
-    start_time,
-    end_time,
-    priority
-  } = req.body;
+  campaign_id,
+  start_time,
+  end_time,
+  priority,
+  days_of_week
+} = req.body;
+
+const selectedDays =
+  String(days_of_week || "").trim();
+    
+  
+  
 const currentSchedule = await q(
   `
   SELECT qr_id
@@ -36545,19 +36552,21 @@ if (conflict.rows.length > 0) {
 }
   await q(
     `UPDATE campaign_schedules
-     SET
-       campaign_id = $1,
-       start_time = $2,
-       end_time = $3,
-       priority = $4
-     WHERE id = $5`,
+ SET
+   campaign_id = $1,
+   days_of_week = $2,
+   start_time = $3,
+   end_time = $4,
+   priority = $5
+ WHERE id = $6`,
     [
-      campaign_id,
-      start_time,
-      end_time,
-      priority,
-      req.params.id
-    ]
+  campaign_id,
+  selectedDays,
+  start_time,
+  end_time,
+  priority,
+  req.params.id
+]
   );
 
   res.redirect("/admin/schedule");
