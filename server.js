@@ -31722,11 +31722,8 @@ for (const s of schedules.rows) {
 <td>${a.advertiser || ""}</td>
 <td>${a.campaign_name || ""}</td>
 <td>${dateLabel(a.started_at || a.assigned_at)}</td>
-<td>${Number(a.assignment_days || 1)}</td>
-<td>$${Number(
-  a.allocated_cost ||
-  ((a.placement_cost || 0) / Math.max(1, Number(a.contract_days || 365)))
-).toFixed(2)}</td>
+<td>${Number(a.assignment_days ?? 0)}</td>
+<td>$${Number(a.allocated_cost ?? 0).toFixed(2)}</td>
 <td>
 ${a.is_active
 ? '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Active</span>'
