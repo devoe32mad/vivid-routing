@@ -32043,26 +32043,38 @@ ${hasCampaigns
 
   ${scheduleTable || `<tr><td colspan="8">No schedules yet.</td></tr>`}
 </table>
-        <h2>Active Campaign Assignments</h2>
-        <table>
-          <tr>
-            <th>Market</th>
-<th>Location</th>
-<th>QR Code</th>
-<th>Advertiser</th>
-<th>Campaign</th>
-<th>
-  Assigned On
-  
-</th>
-<th>Assignment Days<span title="Number of days this campaign has been actively assigned to this QR code." style="cursor:help;">ⓘ</span></th>
-<th>Allocated Cost</th>
-<th>Status</th>
+        
+  <h2>Active Campaign Assignments</h2>
 
-<th>Archive</th>
-          </tr>
-          ${assignmentTable || `<tr><td colspan="3">No assignments yet.</td></tr>`}
-        </table>
+<table>
+  <tr>
+    <th>Market</th>
+    <th>Location</th>
+    <th>QR Code</th>
+    <th>Advertiser</th>
+    <th>Campaign</th>
+    <th>Start Date</th>
+
+    <th>
+      Assignment Days
+      <span
+        title="Number of days this campaign has been actively assigned to this QR code."
+        style="cursor:help;"
+      >
+        ⓘ
+      </span>
+    </th>
+
+    <th>Allocated Cost</th>
+    <th>Status</th>
+    <th>Action</th>
+  </tr>
+
+  ${
+    assignmentTable ||
+    `<tr><td colspan="10">No assignments yet.</td></tr>`
+  }
+</table>
 
       </div>
     `));
