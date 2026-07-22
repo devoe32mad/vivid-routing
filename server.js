@@ -31095,45 +31095,8 @@ const archivedCampaigns = await q(
   isSuperAdmin ? [] : [currentUser.id]
 );
     const assignments = await q(
-      isSuperAdmin
-        ? `
-  SELECT
-  qc.*,
-  qr.name AS qr_name,
-  c.name AS campaign_name,
-  c.advertiser,
-  s.location AS market,
-  s.name AS location_name,
-  COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP) AS started_at,
-qc.ended_at,
-qr.annual_cost AS placement_cost,
-GREATEST(
-  1,
-  CURRENT_DATE - DATE(COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP)) + 1
-) AS assignment_days
-,
-
-ROUND(
-  (
-    qr.annual_cost / GREATEST(
-  1,
-  COALESCE(qr.end_date::date, CURRENT_DATE) - COALESCE(qr.live_date::date, DATE(COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP))) + 1
-)
-  ) *
-  GREATEST(
-    1,
-    CURRENT_DATE - DATE(COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP))
-  ),
-  2
-) AS allocated_cost
-FROM qr_campaigns qc
-JOIN qr_codes qr ON qr.id = qc.qr_id
-JOIN spaces s ON s.id = qr.space_id
-JOIN campaigns c ON c.id = qc.campaign_id
-WHERE COALESCE(qc.is_active,true) = true
-ORDER BY qc.id DESC 
-        `
-        : `
+  isSuperAdmin
+    ? `
 SELECT
   qc.*,
   qr.name AS qr_name,
@@ -31141,50 +31104,310 @@ SELECT
   c.advertiser,
   s.location AS market,
   s.name AS location_name,
-  COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP) AS started_at,
+
+  COALESCE(
+    qc.started_at,
+    qc.assigned_at,
+    CURRENT_TIMESTAMP
+  ) AS started_at,
+
   qc.ended_at,
   qr.annual_cost AS placement_cost,
 
-  GREATEST(
-    1,
-    FLOOR(
-      EXTRACT(EPOCH FROM (
-        NOW() - COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP)
-      )) / 86400
-    )
-  ) AS assignment_days,
+  CASE
+    WHEN CURRENT_DATE <
+      GREATEST(
+        COALESCE(
+          DATE(qc.started_at),
+          DATE(qc.assigned_at),
+          CURRENT_DATE
+        ),
+        COALESCE(
+          qr.live_date::date,
+          CURRENT_DATE
+        ),
+        COALESCE(
+          c.start_date::date,
+          c.live_date::date,
+          qr.live_date::date,
+          CURRENT_DATE
+        )
+      )
+    THEN 0
+
+    ELSE
+      LEAST(
+        CURRENT_DATE,
+        COALESCE(qc.ended_at::date, CURRENT_DATE),
+        COALESCE(qr.end_date::date, CURRENT_DATE),
+        COALESCE(c.end_date::date, CURRENT_DATE)
+      )
+      -
+      GREATEST(
+        COALESCE(
+          DATE(qc.started_at),
+          DATE(qc.assigned_at),
+          CURRENT_DATE
+        ),
+        COALESCE(
+          qr.live_date::date,
+          CURRENT_DATE
+        ),
+        COALESCE(
+          c.start_date::date,
+          c.live_date::date,
+          qr.live_date::date,
+          CURRENT_DATE
+        )
+      )
+      + 1
+  END AS assignment_days,
 
   ROUND(
-    qr.annual_cost / GREATEST(
-  1,
-  COALESCE(qr.end_date::date, CURRENT_DATE) - COALESCE(qr.live_date::date, DATE(COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP))) + 1
-)*
-    GREATEST(
-      1,
-      FLOOR(
-        EXTRACT(EPOCH FROM (
-          NOW() - COALESCE(qc.started_at, qc.assigned_at, CURRENT_TIMESTAMP)
-        )) / 86400
-      )
-    ),
+    (
+      COALESCE(qr.annual_cost, 0)
+      /
+      GREATEST(
+        1,
+        COALESCE(qr.end_date::date, CURRENT_DATE)
+        -
+        COALESCE(
+          qr.live_date::date,
+          qr.created_at::date,
+          CURRENT_DATE
+        )
+        + 1
+      )::numeric
+    )
+    *
+    CASE
+      WHEN CURRENT_DATE <
+        GREATEST(
+          COALESCE(
+            DATE(qc.started_at),
+            DATE(qc.assigned_at),
+            CURRENT_DATE
+          ),
+          COALESCE(
+            qr.live_date::date,
+            CURRENT_DATE
+          ),
+          COALESCE(
+            c.start_date::date,
+            c.live_date::date,
+            qr.live_date::date,
+            CURRENT_DATE
+          )
+        )
+      THEN 0
+
+      ELSE
+        GREATEST(
+          0,
+          LEAST(
+            CURRENT_DATE,
+            COALESCE(qc.ended_at::date, CURRENT_DATE),
+            COALESCE(qr.end_date::date, CURRENT_DATE),
+            COALESCE(c.end_date::date, CURRENT_DATE)
+          )
+          -
+          GREATEST(
+            COALESCE(
+              DATE(qc.started_at),
+              DATE(qc.assigned_at),
+              CURRENT_DATE
+            ),
+            COALESCE(
+              qr.live_date::date,
+              CURRENT_DATE
+            ),
+            COALESCE(
+              c.start_date::date,
+              c.live_date::date,
+              qr.live_date::date,
+              CURRENT_DATE
+            )
+          )
+          + 1
+        )
+    END,
     2
   ) AS allocated_cost
-FROM (
-    SELECT DISTINCT ON (qr_id, campaign_id)
-        *
-    FROM qr_campaigns
-    WHERE COALESCE(is_active, true) = true
-    ORDER BY qr_id, campaign_id, id DESC
-) qc
-JOIN qr_codes qr ON qr.id = qc.qr_id
-JOIN spaces s ON s.id = qr.space_id
-JOIN campaigns c ON c.id = qc.campaign_id
-WHERE c.user_id = $1
-AND qc.is_active = true
+
+FROM qr_campaigns qc
+JOIN qr_codes qr
+  ON qr.id = qc.qr_id
+JOIN spaces s
+  ON s.id = qr.space_id
+JOIN campaigns c
+  ON c.id = qc.campaign_id
+
+WHERE COALESCE(qc.is_active, true) = true
 ORDER BY qc.id DESC
-        `,
-      isSuperAdmin ? [] : [currentUser.id]
-    );
+    `
+
+    : `
+SELECT
+  qc.*,
+  qr.name AS qr_name,
+  c.name AS campaign_name,
+  c.advertiser,
+  s.location AS market,
+  s.name AS location_name,
+
+  COALESCE(
+    qc.started_at,
+    qc.assigned_at,
+    CURRENT_TIMESTAMP
+  ) AS started_at,
+
+  qc.ended_at,
+  qr.annual_cost AS placement_cost,
+
+  CASE
+    WHEN CURRENT_DATE <
+      GREATEST(
+        COALESCE(
+          DATE(qc.started_at),
+          DATE(qc.assigned_at),
+          CURRENT_DATE
+        ),
+        COALESCE(
+          qr.live_date::date,
+          CURRENT_DATE
+        ),
+        COALESCE(
+          c.start_date::date,
+          c.live_date::date,
+          qr.live_date::date,
+          CURRENT_DATE
+        )
+      )
+    THEN 0
+
+    ELSE
+      LEAST(
+        CURRENT_DATE,
+        COALESCE(qc.ended_at::date, CURRENT_DATE),
+        COALESCE(qr.end_date::date, CURRENT_DATE),
+        COALESCE(c.end_date::date, CURRENT_DATE)
+      )
+      -
+      GREATEST(
+        COALESCE(
+          DATE(qc.started_at),
+          DATE(qc.assigned_at),
+          CURRENT_DATE
+        ),
+        COALESCE(
+          qr.live_date::date,
+          CURRENT_DATE
+        ),
+        COALESCE(
+          c.start_date::date,
+          c.live_date::date,
+          qr.live_date::date,
+          CURRENT_DATE
+        )
+      )
+      + 1
+  END AS assignment_days,
+
+  ROUND(
+    (
+      COALESCE(qr.annual_cost, 0)
+      /
+      GREATEST(
+        1,
+        COALESCE(qr.end_date::date, CURRENT_DATE)
+        -
+        COALESCE(
+          qr.live_date::date,
+          qr.created_at::date,
+          CURRENT_DATE
+        )
+        + 1
+      )::numeric
+    )
+    *
+    CASE
+      WHEN CURRENT_DATE <
+        GREATEST(
+          COALESCE(
+            DATE(qc.started_at),
+            DATE(qc.assigned_at),
+            CURRENT_DATE
+          ),
+          COALESCE(
+            qr.live_date::date,
+            CURRENT_DATE
+          ),
+          COALESCE(
+            c.start_date::date,
+            c.live_date::date,
+            qr.live_date::date,
+            CURRENT_DATE
+          )
+        )
+      THEN 0
+
+      ELSE
+        GREATEST(
+          0,
+          LEAST(
+            CURRENT_DATE,
+            COALESCE(qc.ended_at::date, CURRENT_DATE),
+            COALESCE(qr.end_date::date, CURRENT_DATE),
+            COALESCE(c.end_date::date, CURRENT_DATE)
+          )
+          -
+          GREATEST(
+            COALESCE(
+              DATE(qc.started_at),
+              DATE(qc.assigned_at),
+              CURRENT_DATE
+            ),
+            COALESCE(
+              qr.live_date::date,
+              CURRENT_DATE
+            ),
+            COALESCE(
+              c.start_date::date,
+              c.live_date::date,
+              qr.live_date::date,
+              CURRENT_DATE
+            )
+          )
+          + 1
+        )
+    END,
+    2
+  ) AS allocated_cost
+
+FROM (
+  SELECT DISTINCT ON (qr_id, campaign_id)
+    *
+  FROM qr_campaigns
+  WHERE COALESCE(is_active, true) = true
+  ORDER BY qr_id, campaign_id, id DESC
+) qc
+
+JOIN qr_codes qr
+  ON qr.id = qc.qr_id
+JOIN spaces s
+  ON s.id = qr.space_id
+JOIN campaigns c
+  ON c.id = qc.campaign_id
+
+WHERE c.user_id = $1
+  AND COALESCE(qc.is_active, true) = true
+
+ORDER BY qc.id DESC
+    `,
+  isSuperAdmin ? [] : [currentUser.id]
+);
+  
+    
 const schedules = await q(
   isSuperAdmin
     ? `
