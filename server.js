@@ -31277,7 +31277,10 @@ const hasSchedules = activeScheduleCount > 0;
 )].join(", ")
 }</td>
 <td>${dateLabel(s.live_date || s.created_at)}</td>
-<td>${daysActive(s.created_at)}</td>
+<td>${daysActive(
+  s.effective_start_date,
+  s.effective_end_date
+)}</td>
 
 
   <td>
