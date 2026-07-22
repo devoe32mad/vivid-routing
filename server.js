@@ -31501,12 +31501,7 @@ const hasSchedules = activeScheduleCount > 0;
 }</td>
 <td>${dateLabel(s.live_date)}</td>
 
-<td>${s.end_date ? dateLabel(s.end_date) : "Open"}</td>
-
-<td>${daysActive(
-  s.live_date,
-  s.end_date
-)}</td>
+<td>${daysActive(s.live_date)}</td>
 
 <td>
   <a href="/admin/view-location/${s.id}">View</a>
@@ -31944,10 +31939,9 @@ ${hasCampaigns
   <th>Market</th>
   <th>QR Codes</th>
   <th>Campaigns</th>
-  <th>Live Date</th>
-  <th>End Date</th>
-  <th>
-    Active Days
+  <th>Start Date</th>
+<th>
+  Days in Market
     <span
       title="Number of days this location has been active."
       style="cursor:help;"
@@ -31960,7 +31954,7 @@ ${hasCampaigns
         
             
         
-  ${locationTable || `<tr><td colspan="9">No locations yet.</td></tr>`}   </table>
+  ${locationTable || `<tr><td colspan="8">No locations yet.</td></tr>`}  </table>
 
        <h2>QR Codes</h2>
 
