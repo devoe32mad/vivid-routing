@@ -17552,7 +17552,34 @@ app.get(
           "Advertising Requests access denied."
         );
       }
+const isSuperAdmin =
+  req.session.user?.role === "super_admin";
 
+let locationScope = {
+  restricted: false,
+  locationIds: []
+};
+
+if (!isSuperAdmin) {
+  locationScope =
+    await getOrganizationLocationScope({
+      organizationId,
+      organizationUserId: Number(
+        req.session.orgUser?.id
+      ),
+      organizationRole:
+        req.session.orgUser?.organization_role
+    });
+
+  if (
+    locationScope.restricted &&
+    locationScope.locationIds.length === 0
+  ) {
+    return res.status(403).send(
+      "No locations are assigned to this account."
+    );
+  }
+}
       const escapeHtml = value =>
         String(value ?? "")
           .replace(/&/g, "&amp;")
@@ -17626,22 +17653,50 @@ app.get(
       /*
         Load organization locations for filter.
       */
-      const locationsResult = await q(`
-        SELECT
-          id,
-          name
-        FROM spaces
-        WHERE organization_id = $1
-          AND COALESCE(
-            is_archived,
-            false
-          ) = false
-        ORDER BY name
-      `, [organizationId]);
+    const locationQueryValues = [
+  organizationId
+];
+
+const locationWhereParts = [
+  "organization_id = $1",
+  "COALESCE(is_archived, false) = false"
+];
+
+if (locationScope.restricted) {
+  locationQueryValues.push(
+    locationScope.locationIds
+  );
+
+  locationWhereParts.push(
+    `id = ANY($${locationQueryValues.length}::int[])`
+  );
+}
+
+const locationsResult = await q(
+  `
+    SELECT
+      id,
+      name
+    FROM spaces
+    WHERE ${locationWhereParts.join("\nAND ")}
+    ORDER BY name
+  `,
+  locationQueryValues
+);
 
       const locations =
         locationsResult.rows;
-
+if (
+  selectedLocationId &&
+  locationScope.restricted &&
+  !locationScope.locationIds.includes(
+    selectedLocationId
+  )
+) {
+  return res.status(403).send(
+    "Location access denied."
+  );
+}
       /*
         Build request query safely.
       */
@@ -17652,6 +17707,16 @@ app.get(
       const whereParts = [
   "r.organization_id = $1"
 ];
+
+if (locationScope.restricted) {
+  queryValues.push(
+    locationScope.locationIds
+  );
+
+  whereParts.push(
+    `r.location_id = ANY($${queryValues.length}::int[])`
+  );
+}
 
       if (selectedStatus !== "All") {
         queryValues.push(
@@ -17802,6 +17867,24 @@ oo.status AS inventory_status,
   organization_advertising_requests is used only for the
   individual request records shown below the dashboard.
 */
+ const opportunitySummaryValues = [
+  organizationId
+];
+
+const opportunitySummaryWhereParts = [
+  "organization_id = $1",
+  "COALESCE(is_active, true) = true"
+];
+
+if (locationScope.restricted) {
+  opportunitySummaryValues.push(
+    locationScope.locationIds
+  );
+
+  opportunitySummaryWhereParts.push(
+    `space_id = ANY($${opportunitySummaryValues.length}::int[])`
+  );
+}     
 const opportunitySummaryResult = await q(
   `
     SELECT
@@ -17937,10 +18020,12 @@ const opportunitySummaryResult = await q(
 
     FROM organization_opportunities
 
-    WHERE organization_id = $1
-      AND COALESCE(is_active, true) = true
+   WHERE
+  ${opportunitySummaryWhereParts.join(
+    "\nAND "
+  )}
   `,
-  [organizationId]
+  opportunitySummaryValues
 );
 
 const opportunitySummary =
