@@ -17670,10 +17670,8 @@ const requestsResult = await q(
         r.pricing_unit
       ) AS pricing_unit,
 
-      COALESCE(
-        oo.status,
-        r.status
-      ) AS status,
+      r.status AS status,
+oo.status AS inventory_status,
 
       r.setup_status,
       r.submitted_at
