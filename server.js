@@ -6656,7 +6656,7 @@ min-height:220px;
     </div>
   </a>
 `).join("");
-      res.send(orgPage("Organization Executive Dashboard", `
+      res.send(orgPage("Organization Overview", `
   ${organizationNav({
     organizationId: org.id,
     organizationName: org.name,
@@ -6670,10 +6670,10 @@ min-height:220px;
   <div class="topbar">
     <div class="brand">Vivid Organizations</div>
 
-    <h1>Executive Dashboard</h1>
+    <h1>Overview</h1>
 
     <p class="subtitle">
-      Organization-wide performance and management overview
+      Organization revenue, advertisers, opportunities, and performance.
     </p>
   </div>
 
@@ -6689,7 +6689,7 @@ min-height:220px;
           ">
             <div>
               <h2 style="margin:0 0 5px;">
-                Executive Overview
+                Business Overview
               </h2>
 
               <div style="color:#65776b;">
