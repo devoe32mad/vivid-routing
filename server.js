@@ -434,11 +434,7 @@ ${navItem(
   "requests"
 )}
 
-${navItem(
-  "Users",
-  `/org-users`,
-  "users"
-)}
+
 
 ${navItem(
   "Administration",
