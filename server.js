@@ -18815,14 +18815,12 @@ ${infoIcon(
       </span>
 
       ${infoIcon(
-        "The combined listed value of all active advertising opportunities."
+        "Available, pending, approved, and closed advertising value. Rejected value is excluded."
       )}
     </div>
 
     <div class="dashboard-summary-revenue">
-      ${formatMoney(
-        opportunitySummary.total_inventory_value
-      )}
+      ${formatMoney(totalInventoryValue)}
     </div>
   </a>
 
