@@ -404,50 +404,48 @@ function organizationNav({
           margin-top:14px;
         ">
 
-          ${navItem(
-            "Executive Dashboard",
-            `/org-organization/${organizationId}`,
-            "dashboard"
-          )}
+      ${navItem(
+  "Overview",
+  `/org-organization/${organizationId}`,
+  "dashboard"
+)}
 
-          ${navItem(
-            "Locations",
-            `/org-locations?organization_id=${organizationId}`,
-            "locations"
-          )}
+${navItem(
+  "Locations",
+  `/org-locations?organization_id=${organizationId}`,
+  "locations"
+)}
+
+${navItem(
+  "Advertisers",
+  `/org-advertisers?organization_id=${organizationId}`,
+  "advertisers"
+)}
+
+${navItem(
+  "Advertising Opportunities",
+  `/org-marketplace?organization_id=${organizationId}`,
+  "marketplace"
+)}
+
+${navItem(
+  "Revenue Pipeline",
+  `/org-advertising-requests?organization_id=${organizationId}`,
+  "requests"
+)}
+
 ${navItem(
   "Users",
   `/org-users`,
   "users"
 )}
-          ${navItem(
-            "Advertisers",
-            `/org-advertisers?organization_id=${organizationId}`,
-            "advertisers"
-          )}
 
-          ${navItem(
-            "Advertising Inventory",
-            `/org-marketplace?organization_id=${organizationId}`,
-            "marketplace"
-          )}
-
-          ${navItem(
-            "Advertising Requests",
-            `/org-advertising-requests?organization_id=${organizationId}`,
-            "requests"
-          )}
 ${navItem(
-  "Operations",
+  "Administration",
   `/org-operations?organization_id=${organizationId}`,
   "operations"
-)}
-        </div>
+)}    
 
-      </div>
-    </div>
-  `;
-}
 function statusBadge(status) {
   const s = String(status || "").toLowerCase();
 
