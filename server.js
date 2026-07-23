@@ -18634,10 +18634,7 @@ const statusStyle = status => {
     </div>
 
     <div class="dashboard-summary-number">
-      ${Number(
-        opportunitySummary.total_opportunities ||
-        0
-      )}
+      ${totalOpportunities}
     </div>
   </a>
 
