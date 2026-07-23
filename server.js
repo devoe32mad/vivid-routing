@@ -444,7 +444,14 @@ ${navItem(
   "Administration",
   `/org-operations?organization_id=${organizationId}`,
   "operations"
-)}    
+)}
+
+        </div>
+
+      </div>
+    </div>
+  `;
+}
 
 function statusBadge(status) {
   const s = String(status || "").toLowerCase();
