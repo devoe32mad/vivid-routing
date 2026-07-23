@@ -1208,6 +1208,82 @@ function requireOrganizationPermission(permissionKey) {
     next();
   };
 }
+/*
+=========================================================
+ORGANIZATION LOCATION ACCESS SCOPE
+=========================================================
+
+Organization Administrators:
+- Can access every active location in their organization.
+
+Location Managers and Read Only users:
+- Can access only active locations assigned through location_users.
+
+Super Admin access is handled by the calling route.
+=========================================================
+*/
+
+async function getOrganizationLocationScope({
+  organizationId,
+  organizationUserId,
+  organizationRole,
+  db = q
+}) {
+  const normalizedRole =
+    normalizeOrganizationRole(organizationRole);
+
+  /*
+    Organization Administrators have organization-wide access.
+    null means the route should not add a location restriction.
+  */
+  if (normalizedRole === "organization_admin") {
+    return {
+      restricted: false,
+      locationIds: []
+    };
+  }
+
+  if (
+    !Number.isInteger(organizationUserId) ||
+    organizationUserId <= 0
+  ) {
+    return {
+      restricted: true,
+      locationIds: []
+    };
+  }
+
+  const assignedLocationsResult = await db(
+    `
+      SELECT DISTINCT
+        s.id
+      FROM location_users lu
+
+      JOIN spaces s
+        ON s.id = lu.space_id
+       AND s.organization_id = lu.organization_id
+
+      WHERE lu.organization_id = $1
+        AND lu.user_id = $2
+        AND COALESCE(lu.is_active, true) = true
+        AND COALESCE(s.is_archived, false) = false
+
+      ORDER BY s.id
+    `,
+    [
+      organizationId,
+      organizationUserId
+    ]
+  );
+
+  return {
+    restricted: true,
+    locationIds:
+      assignedLocationsResult.rows.map(
+        row => Number(row.id)
+      )
+  };
+}
 function requireAdmin(req, res, next) {
 
   if (!req.session.user) {
