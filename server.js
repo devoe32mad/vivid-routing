@@ -38848,7 +38848,107 @@ app.get("/admin/reports", requireLogin, async (req, res) => {
   }
 });
 
+/*
+=========================================================
+ONE-TIME OPPORTUNITY STATUS REPAIR
+Remove after successfully running once.
+=========================================================
+*/
 
+app.get(
+  "/admin/repair-opportunity-statuses",
+  requireLogin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const repairResult = await q(`
+        WITH latest_requests AS (
+          SELECT DISTINCT ON (
+            organization_id,
+            opportunity_id
+          )
+            organization_id,
+            opportunity_id,
+            status AS request_status
+          FROM organization_advertising_requests
+          WHERE opportunity_id IS NOT NULL
+          ORDER BY
+            organization_id,
+            opportunity_id,
+            submitted_at DESC,
+            id DESC
+        )
+
+        UPDATE organization_opportunities oo
+
+        SET
+          status = CASE
+            WHEN LOWER(
+              COALESCE(lr.request_status, '')
+            ) = 'pending'
+              THEN 'Pending'
+
+            WHEN LOWER(
+              COALESCE(lr.request_status, '')
+            ) = 'approved'
+              THEN 'Approved'
+
+            WHEN LOWER(
+              COALESCE(lr.request_status, '')
+            ) = 'rejected'
+              THEN 'Rejected'
+
+            WHEN LOWER(
+              COALESCE(lr.request_status, '')
+            ) = 'closed'
+              THEN 'Closed'
+
+            ELSE oo.status
+          END,
+
+          updated_at = CURRENT_TIMESTAMP
+
+        FROM latest_requests lr
+
+        WHERE oo.organization_id =
+              lr.organization_id
+
+          AND oo.id =
+              lr.opportunity_id
+
+        RETURNING
+          oo.id,
+          oo.organization_id,
+          oo.title,
+          oo.status,
+          COALESCE(
+            oo.annual_price,
+            oo.price,
+            0
+          ) AS value
+      `);
+
+      return res.json({
+        success: true,
+        updated_count:
+          repairResult.rows.length,
+        updated_opportunities:
+          repairResult.rows
+      });
+
+    } catch (err) {
+      console.error(
+        "OPPORTUNITY STATUS REPAIR ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: err.message
+      });
+    }
+  }
+);
 app.listen(port, () => {
   console.log("Server running on port " + port);
 });
