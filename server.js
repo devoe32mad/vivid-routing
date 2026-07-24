@@ -18068,18 +18068,18 @@ const opportunitySummaryResult = await q(
 
 const opportunitySummary =
   opportunitySummaryResult.rows[0] || {};
-      const totalOpportunities =
+  const totalOpportunities =
   Number(opportunitySummary.available_count || 0) +
-  Number(requestSummary.pending_count || 0) +
-  Number(requestSummary.approved_count || 0) +
-  Number(requestSummary.closed_count || 0) +
-  Number(requestSummary.rejected_count || 0);
+  Number(opportunitySummary.pending_count || 0) +
+  Number(opportunitySummary.approved_count || 0) +
+  Number(opportunitySummary.closed_count || 0) +
+  Number(opportunitySummary.rejected_count || 0);
 
 const totalInventoryValue =
   Number(opportunitySummary.available_revenue || 0) +
-  Number(requestSummary.pending_revenue || 0) +
-  Number(requestSummary.approved_revenue || 0) +
-  Number(requestSummary.closed_revenue || 0);
+  Number(opportunitySummary.pending_revenue || 0) +
+  Number(opportunitySummary.approved_revenue || 0) +
+  Number(opportunitySummary.closed_revenue || 0);
 const requestsBaseParams = () => {
   const params =
     new URLSearchParams();
