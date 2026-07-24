@@ -20445,7 +20445,7 @@ approvingOrganizationUserId =
             UPDATE organization_opportunities
 
             SET
-              status = 'Reserved',
+              status = 'Approved',
               updated_at = CURRENT_TIMESTAMP
 
             WHERE id = $1
