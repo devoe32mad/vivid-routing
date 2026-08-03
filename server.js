@@ -4932,7 +4932,153 @@ if (importedQr.rows[0]) {
     type: "scan",
     vividClickId
   });
+/*
+=========================================================
+CUSTOMER ACTION ROUTING
 
+If the campaign has configured Customer Actions:
+- 1 active action: redirect automatically
+- 2+ active actions: show a simple selection page
+
+If none exist, continue into the existing store and
+Offer / Maps / Waze routing below.
+=========================================================
+*/
+
+const campaignId =
+  campaign.campaign_id ||
+  campaign.id;
+
+const customerActionsResult = await q(
+  `
+    SELECT
+      id,
+      name,
+      destination_type,
+      destination_url,
+      display_order
+
+    FROM campaign_destinations
+
+    WHERE campaign_id = $1
+      AND COALESCE(
+            is_active,
+            true
+          ) = true
+
+    ORDER BY
+      display_order ASC,
+      id ASC
+  `,
+  [campaignId]
+);
+
+const customerActions =
+  customerActionsResult.rows;
+
+/*
+  One active Customer Action:
+  send the visitor through the existing tracked
+  destination-click route automatically.
+*/
+if (customerActions.length === 1) {
+  const action =
+    customerActions[0];
+
+  return res.redirect(
+    `/destination-click/${action.id}` +
+    `?qr_id=${qrId}` +
+    `&vivid_click_id=${encodeURIComponent(
+      vividClickId
+    )}`
+  );
+}
+
+/*
+  Multiple active Customer Actions:
+  let the visitor choose what they want to do.
+*/
+if (customerActions.length > 1) {
+  const actionButtons =
+    customerActions
+      .map(action => {
+        const actionName =
+          String(
+            action.name ||
+            "Open"
+          )
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+        return `
+          <a
+            class="choice-btn"
+            href="/destination-click/${action.id}?qr_id=${qrId}&vivid_click_id=${encodeURIComponent(
+              vividClickId
+            )}"
+          >
+            ${actionName}
+          </a>
+        `;
+      })
+      .join("");
+
+  return res.send(
+    page(
+      "Vivid Customer Experience",
+      `
+        <div class="topbar">
+          <div class="brand">
+            Vivid Spots
+          </div>
+
+          <h1>
+            ${campaign.advertiser || "Campaign"}
+          </h1>
+
+          <p class="subtitle">
+            ${campaign.name || ""}
+          </p>
+        </div>
+
+        <div class="wrap">
+          <div class="choice-card">
+            ${
+              campaign.is_deal_of_day
+                ? `
+                    <span class="deal">
+                      🔥 Deal of the Day
+                    </span>
+                  `
+                : `
+                    <span class="pill">
+                      Customer Actions
+                    </span>
+                  `
+            }
+
+            <h1>
+              What would you like to do?
+            </h1>
+
+            <p>
+              Choose an option below.
+            </p>
+
+            ${actionButtons}
+
+            <p class="small">
+              Powered by Vivid
+            </p>
+          </div>
+        </div>
+      `
+    )
+  );
+}
   return res.redirect(
     addVividClickIdToUrl(importedQr.rows[0].description, vividClickId)
   );
