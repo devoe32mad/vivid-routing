@@ -35105,7 +35105,302 @@ app.get(
     }
   }
 );
-  
+  app.get(
+  "/admin/campaign/:campaignId/new-destination",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const campaignId = Number(req.params.campaignId);
+
+      if (
+        !Number.isInteger(campaignId) ||
+        campaignId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid campaign ID required."
+        );
+      }
+
+      const isSuperAdmin =
+        req.session.user.role === "super_admin";
+
+      const campaignResult = await q(
+        isSuperAdmin
+          ? `
+              SELECT
+                id,
+                name,
+                advertiser
+              FROM campaigns
+              WHERE id = $1
+              LIMIT 1
+            `
+          : `
+              SELECT
+                id,
+                name,
+                advertiser
+              FROM campaigns
+              WHERE id = $1
+                AND user_id = $2
+              LIMIT 1
+            `,
+        isSuperAdmin
+          ? [campaignId]
+          : [
+              campaignId,
+              req.session.user.id
+            ]
+      );
+
+      const campaign =
+        campaignResult.rows[0];
+
+      if (!campaign) {
+        return res.status(404).send(
+          "Campaign not found."
+        );
+      }
+
+      return res.send(
+        page(
+          "Add Destination",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Spots
+              </div>
+
+              <h1>
+                Add Customer Destination
+              </h1>
+
+              <p class="subtitle">
+                ${campaign.advertiser || ""}
+                — ${campaign.name || ""}
+              </p>
+            </div>
+
+            <div class="wrap">
+              <div class="card">
+                <form
+                  method="POST"
+                  action="/admin/campaign/${campaign.id}/new-destination"
+                >
+                  <div class="formgrid">
+
+                    <div>
+                      <label>
+                        Destination Name
+                      </label>
+
+                      <input
+                        name="name"
+                        placeholder="Example: Order Online"
+                        required
+                      >
+                    </div>
+
+                    <div>
+                      <label>
+                        Destination Type
+                      </label>
+
+                      <select
+                        name="destination_type"
+                        required
+                      >
+                        <option value="website">
+                          Website
+                        </option>
+
+                        <option value="order">
+                          Order Online
+                        </option>
+
+                        <option value="offer">
+                          Offer or Coupon
+                        </option>
+
+                        <option value="menu">
+                          Menu
+                        </option>
+
+                        <option value="reservation">
+                          Reservation
+                        </option>
+
+                        <option value="appointment">
+                          Appointment
+                        </option>
+
+                        <option value="directions">
+                          Directions
+                        </option>
+
+                        <option value="store_locator">
+                          Store Locator
+                        </option>
+
+                        <option value="phone">
+                          Phone Call
+                        </option>
+
+                        <option value="email">
+                          Email
+                        </option>
+
+                        <option value="sms">
+                          Text Message
+                        </option>
+
+                        <option value="registration">
+                          Registration
+                        </option>
+
+                        <option value="donation">
+                          Donation
+                        </option>
+
+                        <option value="tickets">
+                          Ticket Purchase
+                        </option>
+
+                        <option value="pdf">
+                          PDF or Document
+                        </option>
+
+                        <option value="video">
+                          Video
+                        </option>
+
+                        <option value="social">
+                          Social Media
+                        </option>
+
+                        <option value="app">
+                          App Download
+                        </option>
+
+                        <option value="other">
+                          Other
+                        </option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label>
+                        Destination URL
+                      </label>
+
+                      <input
+                        type="text"
+                        name="destination_url"
+                        placeholder="example.com/order"
+                        required
+                      >
+                    </div>
+
+                    <div>
+                      <label>
+                        Conversion Page URL
+                        (Optional)
+                      </label>
+
+                      <input
+                        type="text"
+                        name="conversion_url"
+                        placeholder="example.com/thank-you"
+                      >
+                    </div>
+
+                    <div>
+                      <label>
+                        Estimated Revenue Per Conversion ($)
+                      </label>
+
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        name="estimated_value"
+                        value="0"
+                      >
+                    </div>
+
+                    <div>
+                      <label>
+                        Display Order
+                      </label>
+
+                      <input
+                        type="number"
+                        min="1"
+                        name="display_order"
+                        value="1"
+                      >
+                    </div>
+
+                  </div>
+
+                  <label style="
+                    display:flex;
+                    align-items:center;
+                    gap:8px;
+                    margin-top:15px;
+                  ">
+                    <input
+                      type="checkbox"
+                      name="is_active"
+                      checked
+                      style="
+                        width:auto;
+                        margin:0;
+                      "
+                    >
+
+                    Active
+                  </label>
+
+                  <div style="
+                    display:flex;
+                    gap:12px;
+                    flex-wrap:wrap;
+                    margin-top:22px;
+                  ">
+                    <button
+                      class="btn"
+                      type="submit"
+                    >
+                      Save Destination
+                    </button>
+
+                    <a
+                      class="btn secondary"
+                      href="/admin/view-campaign/${campaign.id}"
+                    >
+                      Cancel
+                    </a>
+                  </div>
+                </form>
+              </div>
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "NEW DESTINATION PAGE ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load destination page: " +
+        err.message
+      );
+    }
+  }
+);
 app.get("/reports", requireLogin, async (req, res) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
