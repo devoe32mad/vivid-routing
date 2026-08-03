@@ -39287,45 +39287,165 @@ const existing = await q(`
         ]
       ));
     }
-function normalizeUrl(url) {
-  if (!url) return "";
-  url = url.trim();
+function normalizeUrl(value) {
+  const url = String(value || "").trim();
 
-  if (
-    !url.startsWith("http://") &&
-    !url.startsWith("https://")
-  ) {
-    url = "https://" + url;
+  if (!url) return "";
+
+  if (/^(https?:\/\/|mailto:|tel:|sms:)/i.test(url)) {
+    return url;
   }
 
-  return url;
+  return "https://" + url;
 }
-    await q(`
-      INSERT INTO campaigns (
-        name,
-        advertiser,
-        campaign_url,
-        conversion_url,
-        avg_customer_value,
-        conversion_rate,
-        is_deal_of_day,
-        user_id,
-        start_date,
-        end_date
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-    `, [
+ const campaignInsertResult = await q(`
+  INSERT INTO campaigns (
+    name,
+    advertiser,
+    campaign_url,
+    conversion_url,
+    avg_customer_value,
+    conversion_rate,
+    is_deal_of_day,
+    user_id,
+    start_date,
+    end_date
+  )
+  VALUES (
+    $1,$2,$3,$4,$5,
+    $6,$7,$8,$9,$10
+  )
+  RETURNING id
+`, [
+  name,
+  advertiser,
+  normalizeUrl(req.body.campaign_url),
+  normalizeUrl(req.body.conversion_url),
+  Number(req.body.avg_customer_value || 50),
+  8,
+  req.body.is_deal_of_day === "on",
+  userId,
+  startDate,
+  endDate
+]);
+
+const campaignId =
+  Number(campaignInsertResult.rows[0].id);
+
+/*
+  Express may return one destination as a string
+  and multiple destinations as an array.
+*/
+function toArray(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return [];
+  }
+
+  return [value];
+}
+
+const destinationNames =
+  toArray(req.body.destination_name);
+
+const destinationTypes =
+  toArray(req.body.destination_type);
+
+const destinationUrls =
+  toArray(req.body.destination_url);
+
+const destinationConversionUrls =
+  toArray(
+    req.body.destination_conversion_url
+  );
+
+const destinationEstimatedValues =
+  toArray(
+    req.body.destination_estimated_value
+  );
+
+const destinationDisplayOrders =
+  toArray(
+    req.body.destination_display_order
+  );
+
+for (
+  let index = 0;
+  index < destinationUrls.length;
+  index += 1
+) {
+  const destinationName =
+    String(
+      destinationNames[index] ||
+      `Destination ${index + 1}`
+    ).trim();
+
+  const destinationType =
+    String(
+      destinationTypes[index] ||
+      "website"
+    ).trim();
+
+  const destinationUrl =
+    normalizeUrl(
+      destinationUrls[index]
+    );
+
+  const conversionUrl =
+    normalizeUrl(
+      destinationConversionUrls[index]
+    );
+
+  const estimatedValue =
+    Number(
+      destinationEstimatedValues[index] ||
+      0
+    );
+
+  const displayOrder =
+    Number(
+      destinationDisplayOrders[index] ||
+      index + 1
+    );
+
+  if (!destinationUrl) {
+    continue;
+  }
+
+  await q(`
+    INSERT INTO campaign_destinations (
+      campaign_id,
       name,
-      advertiser,
-    normalizeUrl(req.body.campaign_url),
-normalizeUrl(req.body.conversion_url),
-      Number(req.body.avg_customer_value || 50),
-      8,
-      req.body.is_deal_of_day === "on",
-      userId,
-      startDate,
-      endDate
-    ]);
+      destination_type,
+      destination_url,
+      conversion_url,
+      estimated_value,
+      display_order,
+      is_active,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      $1,$2,$3,$4,$5,
+      $6,$7,true,NOW(),NOW()
+    )
+  `, [
+    campaignId,
+    destinationName,
+    destinationType,
+    destinationUrl,
+    conversionUrl || null,
+    estimatedValue,
+    displayOrder
+  ]);
+}
+ 
 
     res.send(successPage(
       "Campaign Created Successfully",
