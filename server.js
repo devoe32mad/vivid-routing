@@ -4483,6 +4483,30 @@ app.get(
     }
   }
 );
+app.get("/debug/latest-events", async (req, res) => {
+  try {
+    const result = await q(`
+      SELECT
+        id,
+        qr_id,
+        campaign_id,
+        campaign_destination_id,
+        type,
+        vivid_click_id,
+        created_at
+      FROM events
+      ORDER BY id DESC
+      LIMIT 20
+    `);
+
+    res.json(result.rows);
+
+  } catch (err) {
+    res.status(500).json({
+      error: err.message
+    });
+  }
+});
 app.get(
   "/debug-org-advertising-requests",
   async (req, res) => {
