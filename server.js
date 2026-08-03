@@ -35061,7 +35061,9 @@ app.get(
                         Status
                       </th>
                     </tr>
-
+<th style="text-align:center;">
+  Actions
+</th>
                     ${destinationRows}
                   </table>
                 </div>
