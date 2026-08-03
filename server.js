@@ -34467,73 +34467,630 @@ console.log("VIEW QR DATA:", qr);
     </div>
   `));
 });
-app.get("/admin/view-campaign/:id", requireLogin, async (req, res) => {
-  const id = Number(req.params.id);
+app.get(
+  "/admin/view-campaign/:id",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
 
-  const result = await q(
-    `
-    SELECT *
-    FROM campaigns
-    WHERE id = $1
-      AND user_id = $2
-    LIMIT 1
-    `,
-    [id, req.session.user.id]
-  );
+      if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).send(
+          "Valid campaign ID required."
+        );
+      }
 
-  const c = result.rows[0];
-const qrList = await q(`
-  SELECT DISTINCT qr.id, qr.name, qc.is_active
-  FROM qr_campaigns qc
-  JOIN qr_codes qr ON qr.id = qc.qr_id
-  WHERE qc.campaign_id = $1
-  ORDER BY qr.name ASC
-`, [id]);
+      const safe = value =>
+        String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
 
-const qrListHtml = qrList.rows.length
-  ? qrList.rows.map(qr => `
-      <li>
-        <a href="/admin/view-qr/${qr.id}">${qr.name}</a>
-        - ${qr.is_active ? "Active" : "Archived"}
-      </li>
-    `).join("")
-  : "<li>No QR Codes assigned</li>";
-  if (!c) {
-    return res.status(404).send("Campaign not found");
+      const isSuperAdmin =
+        req.session.user.role === "super_admin";
+
+      const result = await q(
+        isSuperAdmin
+          ? `
+              SELECT *
+              FROM campaigns
+              WHERE id = $1
+              LIMIT 1
+            `
+          : `
+              SELECT *
+              FROM campaigns
+              WHERE id = $1
+                AND user_id = $2
+              LIMIT 1
+            `,
+        isSuperAdmin
+          ? [id]
+          : [id, req.session.user.id]
+      );
+
+      const campaign = result.rows[0];
+
+      if (!campaign) {
+        return res.status(404).send(
+          "Campaign not found."
+        );
+      }
+
+      const qrList = await q(
+        `
+          SELECT DISTINCT
+            qr.id,
+            qr.name,
+            qc.is_active
+
+          FROM qr_campaigns qc
+
+          JOIN qr_codes qr
+            ON qr.id = qc.qr_id
+
+          WHERE qc.campaign_id = $1
+
+          ORDER BY qr.name ASC
+        `,
+        [id]
+      );
+
+      const destinationsResult = await q(
+        `
+          SELECT
+            id,
+            campaign_id,
+            name,
+            destination_type,
+            destination_url,
+            conversion_url,
+            estimated_value,
+            display_order,
+            is_active,
+            created_at,
+            updated_at
+
+          FROM campaign_destinations
+
+          WHERE campaign_id = $1
+
+          ORDER BY
+            display_order ASC,
+            id ASC
+        `,
+        [id]
+      );
+
+      const qrListHtml = qrList.rows.length
+        ? qrList.rows
+            .map(
+              qr => `
+                <li style="margin-bottom:6px;">
+                  <a href="/admin/view-qr/${qr.id}">
+                    ${safe(qr.name)}
+                  </a>
+
+                  —
+                  ${
+                    qr.is_active
+                      ? "Active"
+                      : "Archived"
+                  }
+                </li>
+              `
+            )
+            .join("")
+        : `
+            <li>
+              No QR Codes assigned
+            </li>
+          `;
+
+      const destinationRows =
+        destinationsResult.rows.length
+          ? destinationsResult.rows
+              .map(
+                destination => `
+                  <tr>
+                    <td style="
+                      text-align:center;
+                      white-space:nowrap;
+                    ">
+                      ${Number(
+                        destination.display_order || 0
+                      )}
+                    </td>
+
+                    <td>
+                      <strong>
+                        ${safe(
+                          destination.name ||
+                          "Unnamed Destination"
+                        )}
+                      </strong>
+                    </td>
+
+                    <td>
+                      ${safe(
+                        String(
+                          destination.destination_type ||
+                          "website"
+                        )
+                          .replace(/_/g, " ")
+                          .replace(
+                            /\b\w/g,
+                            character =>
+                              character.toUpperCase()
+                          )
+                      )}
+                    </td>
+
+                    <td style="
+                      max-width:340px;
+                      overflow-wrap:anywhere;
+                    ">
+                      <a
+                        href="${safe(
+                          destination.destination_url
+                        )}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        ${safe(
+                          destination.destination_url
+                        )}
+                      </a>
+                    </td>
+
+                    <td style="
+                      max-width:280px;
+                      overflow-wrap:anywhere;
+                    ">
+                      ${
+                        destination.conversion_url
+                          ? `
+                              <a
+                                href="${safe(
+                                  destination.conversion_url
+                                )}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                ${safe(
+                                  destination.conversion_url
+                                )}
+                              </a>
+                            `
+                          : "Not configured"
+                      }
+                    </td>
+
+                    <td style="
+                      text-align:right;
+                      white-space:nowrap;
+                    ">
+                      ${money(
+                        destination.estimated_value || 0
+                      )}
+                    </td>
+
+                    <td style="
+                      text-align:center;
+                      white-space:nowrap;
+                    ">
+                      ${
+                        destination.is_active
+                          ? `
+                              <span style="
+                                display:inline-block;
+                                background:#dcfce7;
+                                color:#166534;
+                                padding:5px 10px;
+                                border-radius:999px;
+                                font-size:12px;
+                                font-weight:bold;
+                              ">
+                                Active
+                              </span>
+                            `
+                          : `
+                              <span style="
+                                display:inline-block;
+                                background:#fee2e2;
+                                color:#991b1b;
+                                padding:5px 10px;
+                                border-radius:999px;
+                                font-size:12px;
+                                font-weight:bold;
+                              ">
+                                Inactive
+                              </span>
+                            `
+                      }
+                    </td>
+                  </tr>
+                `
+              )
+              .join("")
+          : `
+              <tr>
+                <td
+                  colspan="7"
+                  style="
+                    padding:32px;
+                    text-align:center;
+                  "
+                >
+                  <strong>
+                    No Customer Destinations
+                  </strong>
+
+                  <div style="
+                    color:#65776b;
+                    margin-top:6px;
+                  ">
+                    This campaign does not have any
+                    destinations yet.
+                  </div>
+                </td>
+              </tr>
+            `;
+
+      return res.send(
+        page(
+          "View Campaign",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Spots
+              </div>
+
+              <h1>
+                Campaign Overview
+              </h1>
+
+              <p class="subtitle">
+                Campaign information, assignments,
+                and customer destinations.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div class="card">
+                <h2 style="margin-top:0;">
+                  Campaign Information
+                </h2>
+
+                <div style="
+                  display:grid;
+                  grid-template-columns:
+                    repeat(
+                      auto-fit,
+                      minmax(220px,1fr)
+                    );
+                  gap:18px;
+                ">
+                  <div>
+                    <div style="
+                      color:#65776b;
+                      font-size:12px;
+                    ">
+                      Advertiser
+                    </div>
+
+                    <div style="
+                      font-size:17px;
+                      font-weight:bold;
+                      margin-top:4px;
+                    ">
+                      ${safe(
+                        campaign.advertiser || ""
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style="
+                      color:#65776b;
+                      font-size:12px;
+                    ">
+                      Campaign
+                    </div>
+
+                    <div style="
+                      font-size:17px;
+                      font-weight:bold;
+                      margin-top:4px;
+                    ">
+                      ${safe(
+                        campaign.name || ""
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style="
+                      color:#65776b;
+                      font-size:12px;
+                    ">
+                      Start Date
+                    </div>
+
+                    <div style="
+                      font-size:17px;
+                      font-weight:bold;
+                      margin-top:4px;
+                    ">
+                      ${
+                        campaign.start_date ||
+                        "Not set"
+                      }
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style="
+                      color:#65776b;
+                      font-size:12px;
+                    ">
+                      End Date
+                    </div>
+
+                    <div style="
+                      font-size:17px;
+                      font-weight:bold;
+                      margin-top:4px;
+                    ">
+                      ${
+                        campaign.end_date ||
+                        "Not set"
+                      }
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style="
+                      color:#65776b;
+                      font-size:12px;
+                    ">
+                      Campaign Days
+                    </div>
+
+                    <div style="
+                      font-size:17px;
+                      font-weight:bold;
+                      margin-top:4px;
+                    ">
+                      ${
+                        campaign.start_date &&
+                        campaign.end_date
+                          ? daysBetween(
+                              campaign.start_date,
+                              campaign.end_date
+                            )
+                          : "Not set"
+                      }
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style="
+                      color:#65776b;
+                      font-size:12px;
+                    ">
+                      Default Revenue Per Conversion
+                    </div>
+
+                    <div style="
+                      font-size:17px;
+                      font-weight:bold;
+                      margin-top:4px;
+                    ">
+                      ${money(
+                        campaign.avg_customer_value || 0
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style="
+                      color:#65776b;
+                      font-size:12px;
+                    ">
+                      Destinations
+                    </div>
+
+                    <div style="
+                      font-size:17px;
+                      font-weight:bold;
+                      margin-top:4px;
+                    ">
+                      ${destinationsResult.rows.length}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style="
+                      color:#65776b;
+                      font-size:12px;
+                    ">
+                      Status
+                    </div>
+
+                    <div style="margin-top:6px;">
+                      ${
+                        campaign.is_archived
+                          ? `
+                              <span style="
+                                background:#fee2e2;
+                                color:#991b1b;
+                                padding:5px 10px;
+                                border-radius:999px;
+                                font-size:12px;
+                                font-weight:bold;
+                              ">
+                                Archived
+                              </span>
+                            `
+                          : `
+                              <span style="
+                                background:#dcfce7;
+                                color:#166534;
+                                padding:5px 10px;
+                                border-radius:999px;
+                                font-size:12px;
+                                font-weight:bold;
+                              ">
+                                Active
+                              </span>
+                            `
+                      }
+                    </div>
+                  </div>
+                </div>
+
+                <div style="
+                  margin-top:22px;
+                  padding-top:18px;
+                  border-top:1px solid #e7eee7;
+                ">
+                  <strong>
+                    Assigned QR Codes
+                  </strong>
+
+                  <ul style="
+                    margin-bottom:0;
+                    padding-left:20px;
+                  ">
+                    ${qrListHtml}
+                  </ul>
+                </div>
+              </div>
+
+              <div class="card">
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:center;
+                  gap:16px;
+                  flex-wrap:wrap;
+                  margin-bottom:18px;
+                ">
+                  <div>
+                    <h2 style="margin:0 0 5px;">
+                      Customer Destinations
+                    </h2>
+
+                    <div style="
+                      color:#65776b;
+                      font-size:14px;
+                    ">
+                      Customer actions currently connected
+                      to this campaign.
+                    </div>
+                  </div>
+
+                  <div style="
+                    font-size:14px;
+                    font-weight:bold;
+                    color:#176b3a;
+                  ">
+                    ${
+                      destinationsResult.rows.length
+                    } Destination${
+                      destinationsResult.rows.length === 1
+                        ? ""
+                        : "s"
+                    }
+                  </div>
+                </div>
+
+                <div style="
+                  overflow-x:auto;
+                  width:100%;
+                ">
+                  <table style="
+                    width:100%;
+                    min-width:1100px;
+                  ">
+                    <tr>
+                      <th style="text-align:center;">
+                        Order
+                      </th>
+
+                      <th>
+                        Name
+                      </th>
+
+                      <th>
+                        Type
+                      </th>
+
+                      <th>
+                        Destination
+                      </th>
+
+                      <th>
+                        Conversion Page
+                      </th>
+
+                      <th style="text-align:right;">
+                        Revenue Value
+                      </th>
+
+                      <th style="text-align:center;">
+                        Status
+                      </th>
+                    </tr>
+
+                    ${destinationRows}
+                  </table>
+                </div>
+              </div>
+
+              <div style="
+                display:flex;
+                gap:12px;
+                flex-wrap:wrap;
+                margin:22px 0;
+              ">
+                <a
+                  class="btn"
+                  href="/admin/edit-campaign/${campaign.id}"
+                >
+                  Edit Campaign
+                </a>
+
+                <a
+                  class="btn secondary"
+                  href="/my-setup"
+                >
+                  Back to My Setup
+                </a>
+              </div>
+
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "VIEW CAMPAIGN ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load campaign: " +
+        err.message
+      );
+    }
   }
-
-  res.send(page("View Campaign", `
-    <div class="wrap">
-      <h1>View Campaign</h1>
-
-      <div class="card">
-        <p><b>Advertiser:</b> ${c.advertiser || ""}</p>
-        <p><b>Campaign Name:</b> ${c.name || ""}</p>
-        <p><b>Campaign URL:</b> ${c.campaign_url || ""}</p>
-        <p><b>Conversion Page URL:</b> ${c.conversion_url || "Not set"}</p>
-        <p><b>Actual Customer Value:</b> $${c.avg_customer_value || 0}</p>
-        <p><b>Start Date:</b> ${c.start_date || "Not set"}</p>
-  <p><b>End Date:</b> ${c.end_date || "Not set"}</p>
-
-<p><b>Contract Days:</b> ${
-  c.start_date && c.end_date
-    ? daysBetween(c.start_date, c.end_date)
-    : "Not set"
-}</p>
-      <p><b>Assigned QR Codes:</b> ${qrList.rows.length}</p>
-<ul>
-  ${qrListHtml}
-</ul>  
-        <p><b>Status:</b> ${c.is_active === false ? "Archived" : "Active"}</p>
-
-        <br>
-
-        <a class="btn" href="/admin/edit-campaign/${c.id}">Edit Campaign</a>
-        <a class="btn" href="/admin/setup">Back to My Setup</a>
-      </div>
-    </div>
-  `));
-});
+);
+  
 app.get("/reports", requireLogin, async (req, res) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
