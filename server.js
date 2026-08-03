@@ -7698,81 +7698,92 @@ JOIN qr_campaigns qc
                 border-collapse:collapse;
                 margin:0;
               ">
-                <thead>
-                  <tr style="
-                    background:#eaf3e8;
-                  ">
-                    <th style="
-                      padding:16px 18px;
-                      text-align:left;
-                    ">
-                      Location
-                    </th>
+               <thead>
+  <tr style="
+    background:#eaf3e8;
+  ">
+    <th style="
+      padding:16px 18px;
+      text-align:left;
+      white-space:nowrap;
+    ">
+      Location
+    </th>
 
-                    <th style="
-                      padding:16px 18px;
-                      text-align:left;
-                    ">
-                      Placement
-                    </th>
+    <th style="
+      padding:16px 18px;
+      text-align:left;
+      white-space:nowrap;
+    ">
+      Placement
+    </th>
 
-                    <th style="
-                      padding:16px 18px;
-                      text-align:left;
-                    ">
-                      Advertiser
-                    </th>
+    <th style="
+      padding:16px 18px;
+      text-align:left;
+      white-space:nowrap;
+    ">
+      Advertiser
+    </th>
 
-                    <th style="
-                      padding:16px 18px;
-                      text-align:left;
-                    ">
-                      Campaign
-                    </th>
+    <th style="
+      padding:16px 18px;
+      text-align:left;
+      white-space:nowrap;
+    ">
+      Campaign
+    </th>
 
-                    <th style="
-                      padding:16px 18px;
-                      text-align:left;
-                    ">
-                      Start
-                    </th>
+    <th style="
+      padding:16px 18px;
+      text-align:left;
+      white-space:nowrap;
+    ">
+      Live Since
+    </th>
 
-                    <th style="
-                      padding:16px 18px;
-                      text-align:left;
-                    ">
-                      End
-                    </th>
+    <th style="
+      padding:16px 18px;
+      text-align:center;
+      white-space:nowrap;
+    ">
+      Scans
+    </th>
 
-                    <th style="
-                      padding:16px 18px;
-                      text-align:center;
-                    ">
-                      Scans
-                    </th>
+    <th style="
+      padding:16px 18px;
+      text-align:center;
+      white-space:nowrap;
+    ">
+      Intent
+    </th>
 
-                    <th style="
-                      padding:16px 18px;
-                      text-align:center;
-                    ">
-                      Conversions
-                    </th>
+    <th style="
+      padding:16px 18px;
+      text-align:center;
+      white-space:nowrap;
+    ">
+      Conversions
+    </th>
 
-                    <th style="
-                      padding:16px 18px;
-                      text-align:right;
-                    ">
-                      Revenue Generated
-                    </th>
+    <th style="
+      padding:16px 18px;
+      text-align:right;
+      white-space:nowrap;
+    ">
+      Revenue
+    </th>
 
-                    <th style="
-                      padding:16px 18px;
-                      text-align:center;
-                    ">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
+    <th style="
+      padding:16px 18px;
+      text-align:center;
+      white-space:nowrap;
+    ">
+      Action
+    </th>
+  </tr>
+</thead>
+              
 
                 <tbody>
                   ${activeRows}
