@@ -41580,6 +41580,109 @@ app.get("/qr-admin/:qrId", requireLogin, async (req, res) => {
   `));
 });
 app.get(
+  "/destination-click/:destinationId",
+  async (req, res) => {
+    try {
+      const destinationId = Number(
+        req.params.destinationId
+      );
+
+      const qrId = Number(
+        req.query.qr_id
+      );
+
+      const vividClickId = String(
+        req.query.vivid_click_id || ""
+      ).trim();
+
+      if (
+        !Number.isInteger(destinationId) ||
+        destinationId <= 0 ||
+        !Number.isInteger(qrId) ||
+        qrId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid destination and QR are required."
+        );
+      }
+
+      const destinationResult = await q(
+        `
+          SELECT
+            cd.id,
+            cd.campaign_id,
+            cd.destination_url,
+            cd.destination_type,
+            cd.is_active
+
+          FROM campaign_destinations cd
+
+          JOIN qr_campaigns qc
+            ON qc.campaign_id = cd.campaign_id
+           AND qc.qr_id = $2
+           AND COALESCE(
+                 qc.is_active,
+                 true
+               ) = true
+
+          WHERE cd.id = $1
+            AND COALESCE(
+                  cd.is_active,
+                  true
+                ) = true
+
+          LIMIT 1
+        `,
+        [
+          destinationId,
+          qrId
+        ]
+      );
+
+      const destination =
+        destinationResult.rows[0];
+
+      if (!destination) {
+        return res.status(404).send(
+          "Customer Action not found or unavailable."
+        );
+      }
+
+      const resolvedClickId =
+        vividClickId ||
+        crypto.randomUUID();
+
+      await saveEvent({
+        qrId,
+        campaignId:
+          destination.campaign_id,
+        campaignDestinationId:
+          destination.id,
+        type: "destination_click",
+        vividClickId:
+          resolvedClickId
+      });
+
+      return res.redirect(
+        addVividClickIdToUrl(
+          destination.destination_url,
+          resolvedClickId
+        )
+      );
+    } catch (err) {
+      console.error(
+        "DESTINATION CLICK ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to open Customer Action: " +
+        err.message
+      );
+    }
+  }
+);
+app.get(
   "/admin/destination/:destinationId/disable",
   requireLogin,
   async (req, res) => {
