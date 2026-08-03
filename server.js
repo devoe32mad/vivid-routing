@@ -39035,7 +39035,7 @@ app.get(
                         '<div>' +
                           '<label>Conversion Page URL (Optional)</label>' +
                           '<input' +
-                            ' type="url"' +
+                            ' type="text"' +
                             ' name="destination_conversion_url[]"' +
                             ' value="' +
                               escapeAttribute(
