@@ -7059,11 +7059,16 @@ app.get(
         Add pending, active and advertiser-revenue
         after Available Advertising is fully tested.
       */
-      if (metric !== "available") {
-        return res.status(400).send(
-          "This business breakdown is not available yet."
-        );
-      }
+if (
+  ![
+    "available",
+    "active"
+  ].includes(metric)
+) {
+  return res.status(400).send(
+    "This business breakdown is not available yet."
+  );
+}
 
       const escapeHtml = value =>
         String(value ?? "")
