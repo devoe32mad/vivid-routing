@@ -7578,26 +7578,94 @@ if (metric === "advertiser-revenue") {
             </a>
           </div>
 
-          ${orgDateFilterForm({
-            action:
-              `/org-business-breakdown`,
-            fromDate,
-            toDate
-          }).replace(
-            `<form`,
-            `<form>
-              <input
-                type="hidden"
-                name="organization_id"
-                value="${organizationId}"
-              >
-              <input
-                type="hidden"
-                name="metric"
-                value="advertiser-revenue"
-              >
-            `.replace("<form>", "")
-          )}
+        <form
+  method="GET"
+  action="/org-business-breakdown"
+  style="
+    background:white;
+    border-radius:14px;
+    padding:14px 16px;
+    box-shadow:0 5px 14px rgba(0,0,0,.07);
+    display:flex;
+    align-items:end;
+    gap:12px;
+    flex-wrap:wrap;
+    margin:0 0 22px;
+  "
+>
+  <input
+    type="hidden"
+    name="organization_id"
+    value="${organizationId}"
+  >
+
+  <input
+    type="hidden"
+    name="metric"
+    value="advertiser-revenue"
+  >
+
+  <div>
+    <label
+      for="revenue-from-date"
+      style="
+        display:block;
+        color:#65776b;
+        font-size:12px;
+        margin-bottom:5px;
+      "
+    >
+      From
+    </label>
+
+    <input
+      id="revenue-from-date"
+      type="date"
+      name="from"
+      value="${escapeHtml(fromDate || "")}"
+      style="
+        padding:11px 12px;
+        border:1px solid #d8e2d8;
+        border-radius:9px;
+      "
+    >
+  </div>
+
+  <div>
+    <label
+      for="revenue-to-date"
+      style="
+        display:block;
+        color:#65776b;
+        font-size:12px;
+        margin-bottom:5px;
+      "
+    >
+      To
+    </label>
+
+    <input
+      id="revenue-to-date"
+      type="date"
+      name="to"
+      value="${escapeHtml(toDate || "")}"
+      style="
+        padding:11px 12px;
+        border:1px solid #d8e2d8;
+        border-radius:9px;
+      "
+    >
+  </div>
+
+  <button
+    class="btn"
+    type="submit"
+    style="margin:0;"
+  >
+    Apply
+  </button>
+</form>  
+      
 
           <div style="
             display:grid;
