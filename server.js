@@ -4754,6 +4754,33 @@ async function activeCampaignForQr(qrId) {
 
   return result.rows[0] || null;
 }
+app.get("/debug-campaign-destinations", async (req, res) => {
+  try {
+    const result = await q(`
+      SELECT
+        table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = 'campaign_destinations'
+    `);
+
+    return res.json({
+      success: true,
+      table_exists: result.rows.length === 1,
+      rows: result.rows
+    });
+  } catch (err) {
+    console.error(
+      "DEBUG CAMPAIGN DESTINATIONS ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
 app.get("/r/:qrId", async (req, res) => {
   const qrId = Number(req.params.qrId);
   const vividClickId = crypto.randomUUID();
