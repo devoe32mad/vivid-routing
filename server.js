@@ -41652,6 +41652,76 @@ app.get("/campaign-admin/:campaignId", requireLogin, async (req, res) => {
     </div>
   `));
 });
+app.get(
+  "/admin/destination/:destinationId/enable",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const destinationId = Number(
+        req.params.destinationId
+      );
+
+      if (
+        !Number.isInteger(destinationId) ||
+        destinationId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid destination ID required."
+        );
+      }
+
+      const result = await q(
+        `
+          UPDATE campaign_destinations cd
+
+          SET
+            is_active = true,
+            updated_at = NOW()
+
+          FROM campaigns c
+
+          WHERE cd.id = $1
+            AND c.id = cd.campaign_id
+            AND (
+              $2::boolean = true
+              OR c.user_id = $3
+            )
+
+          RETURNING
+            cd.campaign_id
+        `,
+        [
+          destinationId,
+          req.session.user.role === "super_admin",
+          req.session.user.id
+        ]
+      );
+
+      const updated =
+        result.rows[0];
+
+      if (!updated) {
+        return res.status(404).send(
+          "Destination not found or access denied."
+        );
+      }
+
+      return res.redirect(
+        `/admin/view-campaign/${updated.campaign_id}`
+      );
+    } catch (err) {
+      console.error(
+        "ENABLE DESTINATION ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to activate destination: " +
+        err.message
+      );
+    }
+  }
+);
 app.get("/qr/:qrId.png", (req, res) => {
   const qrId = req.params.qrId;
   const url = `${BASE_URL}/r/${qrId}`;
