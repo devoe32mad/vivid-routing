@@ -7095,7 +7095,8 @@ if (
   ![
     "available",
     "pending",
-    "active"
+    "active",
+    "advertiser-revenue"
   ].includes(metric)
 ) {
   return res.status(400).send(
