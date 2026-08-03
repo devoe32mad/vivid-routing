@@ -7140,7 +7140,7 @@ if (metric === "pending") {
         r.opportunity_id,
         r.business_name,
         r.contact_name,
-        r.contact_email,
+        r.email AS contact_email,
         r.status,
         r.created_at,
 
