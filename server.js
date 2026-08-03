@@ -25876,7 +25876,7 @@ SELECT
 
       return res.send(
         marketplacePage(
-          `Edit Opportunity - ${opportunity.location_name}`
+          `Edit Opportunity - ${opportunity.location_name}`,
           `
             <div class="marketplace-topbar">
 
