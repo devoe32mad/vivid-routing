@@ -35401,6 +35401,93 @@ app.get(
     }
   }
 );
+app.post(
+  "/admin/campaign/:campaignId/new-destination",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const campaignId = Number(req.params.campaignId);
+
+      if (
+        !Number.isInteger(campaignId) ||
+        campaignId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid campaign ID required."
+        );
+      }
+
+      function normalizeUrl(value) {
+        const url = String(value || "").trim();
+
+        if (!url) return "";
+
+        if (
+          /^(https?:\/\/|mailto:|tel:|sms:)/i.test(url)
+        ) {
+          return url;
+        }
+
+        return "https://" + url;
+      }
+
+      const nextOrder = await q(`
+        SELECT
+          COALESCE(MAX(display_order),0)+1 AS next_order
+        FROM campaign_destinations
+        WHERE campaign_id = $1
+      `,[campaignId]);
+
+      await q(`
+        INSERT INTO campaign_destinations (
+          campaign_id,
+          name,
+          destination_type,
+          destination_url,
+          conversion_url,
+          estimated_value,
+          display_order,
+          is_active,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          $1,$2,$3,$4,$5,$6,$7,$8,
+          NOW(),
+          NOW()
+        )
+      `,[
+        campaignId,
+        req.body.name,
+        req.body.destination_type,
+        normalizeUrl(req.body.destination_url),
+        normalizeUrl(req.body.conversion_url),
+        Number(req.body.estimated_value || 0),
+        Number(
+          req.body.display_order ||
+          nextOrder.rows[0].next_order
+        ),
+        req.body.is_active === "on"
+      ]);
+
+      res.redirect(
+        "/admin/view-campaign/" + campaignId
+      );
+
+    } catch(err){
+
+      console.error(
+        "ADD DESTINATION ERROR:",
+        err
+      );
+
+      res.send(
+        "ADD DESTINATION ERROR: " +
+        err.message
+      );
+    }
+  }
+);
 app.get("/reports", requireLogin, async (req, res) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
