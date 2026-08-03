@@ -6775,7 +6775,7 @@ ${orgDateFilterForm({
   </a>
 
   <a
-   href="/org-advertising-requests?organization_id=${org.id}&status=Pending${dateQueryString ? `&${dateQueryString}` : ""}"
+   href="/org-business-breakdown?organization_id=${org.id}&metric=pending${dateQueryString ? `&${dateQueryString}` : ""}"
 style="text-decoration:none;color:inherit;display:block;"
   >
     <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
