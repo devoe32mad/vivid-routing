@@ -38539,113 +38539,707 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
   `));
 });
-app.get("/admin/new-campaign", requireLogin, async (req, res) => {
-  const users = await q(`
-  SELECT id, email
-  FROM users
-  WHERE role = 'customer'
-  ORDER BY email
-`);
+app.get(
+  "/admin/new-campaign",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const users = await q(`
+        SELECT
+          id,
+          email
+        FROM users
+        WHERE role = 'customer'
+        ORDER BY email
+      `);
 
-  res.send(page("New Campaign", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Create Campaign</h1></div><div class="wrap"><form method="POST" action="/admin/new-campaign">
-<div class="formgrid">
-  
-${req.session.user.role === "super_admin" ? `
-  <div>
-    
-    <select name="user_id">
-      ${users.rows.map(u => `
-        <option value="${u.id}">
-          ${u.email}
-        </option>
-      `).join("")}
-    </select>
-  </div>
-` : `
-  <input type="hidden" name="user_id" value="${req.session.user.id}">
-`}
-<div>
-  <label>Advertiser</label>
-  <input name="advertiser" value="Pepsi" />
-</div><div><label>Campaign Name</label><input name="name" value="Low Inventory Store Push" /></div><div><label>Campaign URL</label><input name="campaign_url" value="https://www.pepsi.com" /><label>Conversion Page URL</label>
-<input name="conversion_url" placeholder="https://yourwebsite.com/thank-you" />
+      return res.send(
+        page(
+          "New Campaign",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Spots
+              </div>
 
-<div style="font-size:13px;color:#666;margin-top:4px;">
-  Vivid records a conversion only when a visitor from a valid Vivid QR scan reaches this page.
-</div></div><div>
-  
+              <h1>
+                Create Campaign
+              </h1>
 
-<div style="margin-top:15px;padding:12px;background:#f8f8f8;border-radius:8px;">
+              <p class="subtitle">
+                Create a campaign and add the customer
+                destinations you want to measure.
+              </p>
+            </div>
 
-  <strong>Install Conversion Tracking</strong>
+            <div class="wrap">
 
-  <p style="margin-top:8px;font-size:14px;">
-Copy and paste this code on your thank-you page, confirmation page, checkout success page, or registration success page before the closing &lt;/body&gt; tag.
-  </p>
+              <form
+                id="newCampaignForm"
+                method="POST"
+                action="/admin/new-campaign"
+              >
 
-  <textarea readonly
-    style="width:100%;height:70px;padding:10px;font-family:monospace;border-radius:6px;">
-<script src="https://vivid-routing-production.up.railway.app/vivid-conversion.js"></script>
-  </textarea>
+                <div class="card">
+                  <h2 style="margin-top:0;">
+                    Campaign Information
+                  </h2>
 
-  <p style="margin-top:8px;font-size:13px;color:#666;">
-    Vivid only records conversions that originate from a valid Vivid QR scan.
-  </p>
+                  <div class="formgrid">
 
-</div>
+                    ${
+                      req.session.user.role === "super_admin"
+                        ? `
+                            <div>
+                              <label>
+                                Customer Account
+                              </label>
 
-</div>
+                              <select
+                                name="user_id"
+                                required
+                              >
+                                ${users.rows
+                                  .map(
+                                    user => `
+                                      <option
+                                        value="${user.id}"
+                                      >
+                                        ${escapeHtml(
+                                          user.email || ""
+                                        )}
+                                      </option>
+                                    `
+                                  )
+                                  .join("")}
+                              </select>
+                            </div>
+                          `
+                        : `
+                            <input
+                              type="hidden"
+                              name="user_id"
+                              value="${req.session.user.id}"
+                            >
+                          `
+                    }
 
-<div><label>Actual Customer Value ($)</label><input name="avg_customer_value" value="35" /></div><div>
-<label>Start Date</label>
-<input type="date" name="start_date" />
-</div>
+                    <div>
+                      <label>
+                        Advertiser
+                      </label>
 
-<div>
-  <label>End Date</label>
- <input type="date" name="end_date" />
+                      <input
+                        name="advertiser"
+                        placeholder="Example: Chipotle"
+                        required
+                      >
+                    </div>
 
-  <div id="campaignDays"
-    style="font-weight:600;color:#40624f;margin-top:10px;">
-    Campaign Days: 0
-  </div>
-</div>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const startInput = document.querySelector('input[name="start_date"]');
-  const endInput = document.querySelector('input[name="end_date"]');
-  const daysDisplay = document.getElementById('campaignDays');
+                    <div>
+                      <label>
+                        Campaign Name
+                      </label>
 
-  function updateDays() {
-    if (!startInput.value || !endInput.value) {
-      daysDisplay.innerHTML = 'Campaign Days: 0';
-      return;
+                      <input
+                        name="name"
+                        placeholder="Example: Summer Promotion"
+                        required
+                      >
+                    </div>
+
+                    <div>
+                      <label>
+                        Start Date
+                      </label>
+
+                      <input
+                        type="date"
+                        name="start_date"
+                      >
+                    </div>
+
+                    <div>
+                      <label>
+                        End Date
+                      </label>
+
+                      <input
+                        type="date"
+                        name="end_date"
+                      >
+
+                      <div
+                        id="campaignDays"
+                        style="
+                          font-weight:600;
+                          color:#40624f;
+                          margin-top:5px;
+                        "
+                      >
+                        Campaign Days: 0
+                      </div>
+                    </div>
+
+                    <div>
+                      <label>
+                        Default Revenue Per Conversion ($)
+                      </label>
+
+                      <input
+                        name="avg_customer_value"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value="35"
+                      >
+
+                      <div style="
+                        font-size:12px;
+                        color:#666;
+                        margin-top:4px;
+                      ">
+                        Used when a conversion does not provide
+                        its own transaction value.
+                      </div>
+                    </div>
+
+                  </div>
+
+                  <label style="
+                    display:flex;
+                    align-items:center;
+                    gap:8px;
+                    margin-top:18px;
+                  ">
+                    <input
+                      type="checkbox"
+                      name="is_deal_of_day"
+                      style="
+                        width:auto;
+                        margin:0;
+                      "
+                    >
+
+                    Deal of the Day
+                  </label>
+                </div>
+
+                <div class="card">
+                  <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:16px;
+                    flex-wrap:wrap;
+                  ">
+                    <div>
+                      <h2 style="margin:0 0 5px;">
+                        Customer Destinations
+                      </h2>
+
+                      <div style="
+                        color:#65776b;
+                        font-size:14px;
+                      ">
+                        Add every customer action this campaign
+                        should display and track.
+                      </div>
+                    </div>
+
+                    <button
+                      class="btn secondary"
+                      type="button"
+                      id="addDestinationBtn"
+                    >
+                      + Add Destination
+                    </button>
+                  </div>
+
+                  <div
+                    id="destinationContainer"
+                    style="
+                      margin-top:20px;
+                      display:grid;
+                      gap:18px;
+                    "
+                  ></div>
+                </div>
+
+                <div class="card">
+                  <h2 style="margin-top:0;">
+                    Conversion Tracking
+                  </h2>
+
+                  <p style="
+                    color:#65776b;
+                    line-height:1.5;
+                  ">
+                    Install this script on the advertiser’s
+                    confirmation, thank-you, checkout-success,
+                    registration-success, or other conversion page.
+                  </p>
+
+                  <textarea
+                    readonly
+                    style="
+                      width:100%;
+                      min-height:80px;
+                      padding:12px;
+                      box-sizing:border-box;
+                      font-family:monospace;
+                      border:1px solid #cfdacf;
+                      border-radius:8px;
+                    "
+                  ><script src="https://vivid-routing-production.up.railway.app/vivid-conversion.js"><\/script></textarea>
+
+                  <p style="
+                    margin-bottom:0;
+                    font-size:13px;
+                    color:#65776b;
+                  ">
+                    Vivid records conversions only when they
+                    originate from a valid Vivid visit.
+                  </p>
+                </div>
+
+                <!--
+                  Temporary legacy compatibility.
+
+                  Until the POST route is updated, these values
+                  are populated from the first destination.
+                -->
+                <input
+                  type="hidden"
+                  name="campaign_url"
+                  id="legacyCampaignUrl"
+                >
+
+                <input
+                  type="hidden"
+                  name="conversion_url"
+                  id="legacyConversionUrl"
+                >
+
+                <div style="
+                  display:flex;
+                  gap:12px;
+                  flex-wrap:wrap;
+                  margin:22px 0;
+                ">
+                  <button
+                    class="btn"
+                    id="createCampaignBtn"
+                    type="submit"
+                  >
+                    Create Campaign
+                  </button>
+
+                  <a
+                    class="btn secondary"
+                    href="/my-setup"
+                  >
+                    Cancel
+                  </a>
+                </div>
+
+              </form>
+            </div>
+
+            <script>
+              document.addEventListener(
+                "DOMContentLoaded",
+                function () {
+                  const form =
+                    document.getElementById(
+                      "newCampaignForm"
+                    );
+
+                  const destinationContainer =
+                    document.getElementById(
+                      "destinationContainer"
+                    );
+
+                  const addDestinationBtn =
+                    document.getElementById(
+                      "addDestinationBtn"
+                    );
+
+                  const createCampaignBtn =
+                    document.getElementById(
+                      "createCampaignBtn"
+                    );
+
+                  const startInput =
+                    document.querySelector(
+                      'input[name="start_date"]'
+                    );
+
+                  const endInput =
+                    document.querySelector(
+                      'input[name="end_date"]'
+                    );
+
+                  const daysDisplay =
+                    document.getElementById(
+                      "campaignDays"
+                    );
+
+                  let destinationNumber = 0;
+
+                  function escapeAttribute(value) {
+                    return String(value || "")
+                      .replace(/&/g, "&amp;")
+                      .replace(/"/g, "&quot;")
+                      .replace(/</g, "&lt;")
+                      .replace(/>/g, "&gt;");
+                  }
+
+                  function refreshDestinationNumbers() {
+                    const cards =
+                      destinationContainer.querySelectorAll(
+                        ".destination-card"
+                      );
+
+                    cards.forEach(
+                      function (card, index) {
+                        const title =
+                          card.querySelector(
+                            ".destination-title"
+                          );
+
+                        title.textContent =
+                          "Destination " + (index + 1);
+
+                        const removeButton =
+                          card.querySelector(
+                            ".remove-destination"
+                          );
+
+                        removeButton.style.display =
+                          cards.length > 1
+                            ? "inline-block"
+                            : "none";
+                      }
+                    );
+                  }
+
+                  function addDestination(
+                    values
+                  ) {
+                    destinationNumber += 1;
+
+                    const destination =
+                      values || {};
+
+                    const card =
+                      document.createElement("div");
+
+                    card.className =
+                      "destination-card";
+
+                    card.style.cssText =
+                      "background:#f7faf6;" +
+                      "border:1px solid #dfe9df;" +
+                      "border-radius:14px;" +
+                      "padding:18px;";
+
+                    card.innerHTML =
+                      '<div style="' +
+                        'display:flex;' +
+                        'justify-content:space-between;' +
+                        'align-items:center;' +
+                        'gap:12px;' +
+                        'margin-bottom:14px;' +
+                      '">' +
+
+                        '<h3 class="destination-title"' +
+                          ' style="margin:0;">' +
+                          'Destination' +
+                        '</h3>' +
+
+                        '<button' +
+                          ' type="button"' +
+                          ' class="remove-destination"' +
+                          ' style="' +
+                            'border:0;' +
+                            'background:#fee2e2;' +
+                            'color:#991b1b;' +
+                            'padding:8px 11px;' +
+                            'border-radius:8px;' +
+                            'font-weight:bold;' +
+                            'cursor:pointer;' +
+                          '"' +
+                        '>' +
+                          'Remove' +
+                        '</button>' +
+
+                      '</div>' +
+
+                      '<div class="formgrid">' +
+
+                        '<div>' +
+                          '<label>Destination Name</label>' +
+                          '<input' +
+                            ' name="destination_name[]"' +
+                            ' value="' +
+                              escapeAttribute(
+                                destination.name || ""
+                              ) +
+                            '"' +
+                            ' placeholder="Example: Order Online"' +
+                            ' required' +
+                          '>' +
+                        '</div>' +
+
+                        '<div>' +
+                          '<label>Destination Type</label>' +
+                          '<select name="destination_type[]">' +
+                            '<option value="website">Website</option>' +
+                            '<option value="order">Order Online</option>' +
+                            '<option value="offer">Offer or Coupon</option>' +
+                            '<option value="menu">Menu</option>' +
+                            '<option value="reservation">Reservation</option>' +
+                            '<option value="appointment">Appointment</option>' +
+                            '<option value="directions">Directions</option>' +
+                            '<option value="store_locator">Store Locator</option>' +
+                            '<option value="phone">Phone Call</option>' +
+                            '<option value="email">Email</option>' +
+                            '<option value="sms">Text Message</option>' +
+                            '<option value="registration">Registration</option>' +
+                            '<option value="donation">Donation</option>' +
+                            '<option value="tickets">Ticket Purchase</option>' +
+                            '<option value="pdf">PDF or Document</option>' +
+                            '<option value="video">Video</option>' +
+                            '<option value="social">Social Media</option>' +
+                            '<option value="app">App Download</option>' +
+                            '<option value="other">Other</option>' +
+                          '</select>' +
+                        '</div>' +
+
+                        '<div>' +
+                          '<label>Destination URL</label>' +
+                          '<input' +
+                            ' type="url"' +
+                            ' name="destination_url[]"' +
+                            ' value="' +
+                              escapeAttribute(
+                                destination.url || ""
+                              ) +
+                            '"' +
+                            ' placeholder="https://example.com/order"' +
+                            ' required' +
+                          '>' +
+                        '</div>' +
+
+                        '<div>' +
+                          '<label>Conversion Page URL (Optional)</label>' +
+                          '<input' +
+                            ' type="url"' +
+                            ' name="destination_conversion_url[]"' +
+                            ' value="' +
+                              escapeAttribute(
+                                destination.conversionUrl || ""
+                              ) +
+                            '"' +
+                            ' placeholder="https://example.com/thank-you"' +
+                          '>' +
+                        '</div>' +
+
+                        '<div>' +
+                          '<label>Estimated Revenue Per Conversion ($)</label>' +
+                          '<input' +
+                            ' type="number"' +
+                            ' min="0"' +
+                            ' step="0.01"' +
+                            ' name="destination_estimated_value[]"' +
+                            ' value="' +
+                              escapeAttribute(
+                                destination.estimatedValue || "0"
+                              ) +
+                            '"' +
+                          '>' +
+                        '</div>' +
+
+                        '<div>' +
+                          '<label>Display Order</label>' +
+                          '<input' +
+                            ' type="number"' +
+                            ' min="1"' +
+                            ' name="destination_display_order[]"' +
+                            ' value="' +
+                              destinationNumber +
+                            '"' +
+                          '>' +
+                        '</div>' +
+
+                      '</div>' +
+
+                      '<label style="' +
+                        'display:flex;' +
+                        'align-items:center;' +
+                        'gap:8px;' +
+                        'margin-top:12px;' +
+                      '">' +
+                        '<input' +
+                          ' type="checkbox"' +
+                          ' name="destination_active[]"' +
+                          ' value="true"' +
+                          ' checked' +
+                          ' style="width:auto;margin:0;"' +
+                        '>' +
+                        'Active' +
+                      '</label>';
+
+                    destinationContainer.appendChild(
+                      card
+                    );
+
+                    const typeSelect =
+                      card.querySelector(
+                        'select[name="destination_type[]"]'
+                      );
+
+                    if (destination.type) {
+                      typeSelect.value =
+                        destination.type;
+                    }
+
+                    card
+                      .querySelector(
+                        ".remove-destination"
+                      )
+                      .addEventListener(
+                        "click",
+                        function () {
+                          card.remove();
+                          refreshDestinationNumbers();
+                        }
+                      );
+
+                    refreshDestinationNumbers();
+                  }
+
+                  function updateDays() {
+                    if (
+                      !startInput.value ||
+                      !endInput.value
+                    ) {
+                      daysDisplay.textContent =
+                        "Campaign Days: 0";
+                      return;
+                    }
+
+                    const start =
+                      new Date(
+                        startInput.value +
+                        "T00:00:00"
+                      );
+
+                    const end =
+                      new Date(
+                        endInput.value +
+                        "T00:00:00"
+                      );
+
+                    const days =
+                      Math.floor(
+                        (end - start) /
+                        (1000 * 60 * 60 * 24)
+                      ) + 1;
+
+                    daysDisplay.textContent =
+                      "Campaign Days: " +
+                      Math.max(days, 0);
+                  }
+
+                  addDestinationBtn.addEventListener(
+                    "click",
+                    function () {
+                      addDestination();
+                    }
+                  );
+
+                  startInput.addEventListener(
+                    "change",
+                    updateDays
+                  );
+
+                  endInput.addEventListener(
+                    "change",
+                    updateDays
+                  );
+
+                  form.addEventListener(
+                    "submit",
+                    function (event) {
+                      const firstDestinationUrl =
+                        destinationContainer.querySelector(
+                          'input[name="destination_url[]"]'
+                        );
+
+                      const firstConversionUrl =
+                        destinationContainer.querySelector(
+                          'input[name="destination_conversion_url[]"]'
+                        );
+
+                      if (!firstDestinationUrl) {
+                        event.preventDefault();
+
+                        alert(
+                          "Add at least one customer destination."
+                        );
+
+                        return;
+                      }
+
+                      document.getElementById(
+                        "legacyCampaignUrl"
+                      ).value =
+                        firstDestinationUrl.value || "";
+
+                      document.getElementById(
+                        "legacyConversionUrl"
+                      ).value =
+                        firstConversionUrl
+                          ? firstConversionUrl.value || ""
+                          : "";
+
+                      createCampaignBtn.disabled = true;
+                      createCampaignBtn.textContent =
+                        "Creating...";
+                    }
+                  );
+
+                  addDestination({
+                    name: "Visit Website",
+                    type: "website",
+                    url: "",
+                    conversionUrl: "",
+                    estimatedValue: "35"
+                  });
+
+                  updateDays();
+                }
+              );
+            </script>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "NEW CAMPAIGN PAGE ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load Create Campaign: " +
+        err.message
+      );
     }
-
-    const start = new Date(startInput.value);
-    const end = new Date(endInput.value);
-
-    const days =
-      Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
-
-    daysDisplay.innerHTML =
-      'Campaign Days: ' + Math.max(days, 0);
   }
-updateDays();
-  startInput.addEventListener('change', updateDays);
-  endInput.addEventListener('change', updateDays);
-});
-</script>
-</div><label><input type="checkbox" name="is_deal_of_day" style="width:auto" /> Deal of the Day</label><br><br><button class="btn" id="createCampaignBtn" type="submit">Create Campaign</button>
+);
 
-<script>
-document.querySelector("form").addEventListener("submit", function () {
-  const btn = document.getElementById("createCampaignBtn");
-  btn.disabled = true;
-  btn.innerText = "Creating...";
-});
-</script></form></div>`));
-});
 
 app.post("/admin/new-campaign", requireLogin, async (req, res) => {
   try {
