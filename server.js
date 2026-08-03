@@ -7300,7 +7300,12 @@ JOIN qr_campaigns qc
         total + Number(row.scans || 0),
       0
     );
-
+const totalIntent =
+  activeAdvertising.reduce(
+    (total, item) =>
+      total + Number(item.intent || 0),
+    0
+  );
   const totalConversions =
     activeAdvertising.reduce(
       (total, row) =>
@@ -7667,13 +7672,7 @@ JOIN qr_campaigns qc
     font-weight:bold;
     margin-top:7px;
   ">
-    ${activeAdvertising
-      .reduce(
-        (total, row) =>
-          total + Number(row.intent || 0),
-        0
-      )
-      .toLocaleString()}
+    ${totalIntent.toLocaleString()}
   </div>
 </div>
           </div>
