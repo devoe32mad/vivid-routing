@@ -7130,7 +7130,392 @@ if (
           "Organization not found."
         );
       }
-if (metric === "active") {
+if (metric === "pending") {
+  const pendingResult = await q(
+    `
+      SELECT DISTINCT ON (r.opportunity_id)
+        r.id AS request_id,
+        r.organization_id,
+        r.location_id,
+        r.opportunity_id,
+        r.business_name,
+        r.contact_name,
+        r.contact_email,
+        r.status,
+        r.created_at,
+
+        COALESCE(
+          r.price,
+          oo.price,
+          oo.annual_price,
+          0
+        )::numeric AS investment,
+
+        COALESCE(
+          NULLIF(TRIM(r.pricing_unit), ''),
+          NULLIF(TRIM(oo.pricing_unit), ''),
+          'Per Year'
+        ) AS pricing_unit,
+
+        oo.title AS opportunity_title,
+        s.name AS location_name,
+        s.location AS market
+
+      FROM organization_advertising_requests r
+
+      LEFT JOIN organization_opportunities oo
+        ON oo.id = r.opportunity_id
+       AND oo.organization_id = r.organization_id
+
+      LEFT JOIN spaces s
+        ON s.id = r.location_id
+       AND s.organization_id = r.organization_id
+
+      WHERE r.organization_id = $1
+
+      ORDER BY
+        r.opportunity_id,
+        r.created_at DESC,
+        r.id DESC
+    `,
+    [organizationId]
+  );
+
+  const latestRequests = pendingResult.rows.filter(
+    row =>
+      String(row.status || "")
+        .trim()
+        .toLowerCase() === "pending"
+  );
+
+  const pendingRevenue = latestRequests.reduce(
+    (total, row) =>
+      total + Number(row.investment || 0),
+    0
+  );
+
+  const pendingRows = latestRequests.length
+    ? latestRequests
+        .map(row => {
+          const pricingUnit = String(
+            row.pricing_unit || ""
+          )
+            .replace(/^Per\s+/i, "")
+            .trim();
+
+          return `
+            <tr>
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+              ">
+                <strong>
+                  ${escapeHtml(
+                    row.business_name ||
+                    "Unnamed Business"
+                  )}
+                </strong>
+
+                <div style="
+                  color:#65776b;
+                  font-size:12px;
+                  margin-top:4px;
+                ">
+                  ${escapeHtml(
+                    row.contact_name || "—"
+                  )}
+                </div>
+
+                <div style="
+                  color:#65776b;
+                  font-size:12px;
+                  margin-top:2px;
+                ">
+                  ${escapeHtml(
+                    row.contact_email || "—"
+                  )}
+                </div>
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+              ">
+                <strong>
+                  ${escapeHtml(
+                    row.opportunity_title ||
+                    "Unnamed Opportunity"
+                  )}
+                </strong>
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+              ">
+                <a
+                  href="/org-location/${row.location_id}?organization_id=${organizationId}"
+                  style="
+                    color:#073b22;
+                    text-decoration:none;
+                    font-weight:bold;
+                  "
+                >
+                  ${escapeHtml(
+                    row.location_name ||
+                    "Unnamed Location"
+                  )}
+                </a>
+
+                <div style="
+                  color:#65776b;
+                  font-size:12px;
+                  margin-top:4px;
+                ">
+                  ${escapeHtml(
+                    row.market || "Market not set"
+                  )}
+                </div>
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+                white-space:nowrap;
+              ">
+                <strong>
+                  ${money(row.investment)}
+                  ${
+                    pricingUnit
+                      ? ` / ${escapeHtml(pricingUnit)}`
+                      : ""
+                  }
+                </strong>
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+                white-space:nowrap;
+              ">
+                ${formatDate(row.created_at)}
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:center;
+                vertical-align:middle;
+                white-space:nowrap;
+              ">
+                ${statusBadge("Pending")}
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:center;
+                vertical-align:middle;
+                white-space:nowrap;
+              ">
+                <a
+                  class="btn"
+                  href="/org-advertising-request/${row.request_id}?organization_id=${organizationId}"
+                  style="margin:0;"
+                >
+                  Open Request
+                </a>
+              </td>
+            </tr>
+          `;
+        })
+        .join("")
+    : `
+        <tr>
+          <td
+            colspan="7"
+            style="
+              padding:42px;
+              text-align:center;
+            "
+          >
+            <h3 style="margin:0 0 8px;">
+              No Pending Advertising
+            </h3>
+
+            <div style="color:#65776b;">
+              There are no current advertising requests awaiting review.
+            </div>
+          </td>
+        </tr>
+      `;
+
+  return res.send(
+    orgPage(
+      `Pending Advertising - ${organization.name}`,
+      `
+        ${organizationNav({
+          organizationId,
+          organizationName: organization.name,
+          activePage: "dashboard",
+          userName:
+            req.session.orgUser?.name ||
+            req.session.user?.name ||
+            ""
+        })}
+
+        <div class="topbar">
+          <div class="brand">
+            Vivid Organizations
+          </div>
+
+          <h1>
+            Pending Advertising
+          </h1>
+
+          <p class="subtitle">
+            Advertising requests currently awaiting organization review.
+          </p>
+        </div>
+
+        <div class="wrap">
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:18px;
+            flex-wrap:wrap;
+            margin-bottom:22px;
+          ">
+            <div>
+              <h2 style="margin:0 0 5px;">
+                Pending Requests
+              </h2>
+
+              <div style="color:#65776b;">
+                Current pending requests, one latest request per advertising opportunity.
+              </div>
+            </div>
+
+            <a
+              class="btn secondary"
+              href="/org-organization/${organizationId}"
+            >
+              Back to Overview
+            </a>
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:
+              repeat(auto-fit,minmax(220px,1fr));
+            gap:16px;
+            margin-bottom:24px;
+          ">
+            <div class="card" style="margin:0;">
+              <div style="
+                color:#65776b;
+                font-size:13px;
+              ">
+                Pending Requests
+              </div>
+
+              <div style="
+                font-size:30px;
+                font-weight:bold;
+                margin-top:7px;
+              ">
+                ${latestRequests.length.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="
+                color:#65776b;
+                font-size:13px;
+              ">
+                Pending Revenue
+              </div>
+
+              <div style="
+                font-size:30px;
+                font-weight:bold;
+                margin-top:7px;
+              ">
+                ${money(pendingRevenue)}
+              </div>
+            </div>
+          </div>
+
+          <div style="
+            background:white;
+            border-radius:18px;
+            overflow:hidden;
+            box-shadow:0 8px 22px rgba(0,0,0,.08);
+          ">
+            <div style="overflow-x:auto;">
+              <table style="
+                width:100%;
+                min-width:1150px;
+                border-collapse:collapse;
+                margin:0;
+              ">
+                <thead>
+                  <tr style="background:#eaf3e8;">
+                    <th style="padding:16px 18px;text-align:left;">
+                      Business
+                    </th>
+
+                    <th style="padding:16px 18px;text-align:left;">
+                      Advertising Opportunity
+                    </th>
+
+                    <th style="padding:16px 18px;text-align:left;">
+                      Location
+                    </th>
+
+                    <th style="padding:16px 18px;text-align:left;">
+                      Investment
+                    </th>
+
+                    <th style="padding:16px 18px;text-align:left;">
+                      Submitted
+                    </th>
+
+                    <th style="padding:16px 18px;text-align:center;">
+                      Status
+                    </th>
+
+                    <th style="padding:16px 18px;text-align:center;">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  ${pendingRows}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      `
+    )
+  );
+}
+      if (metric === "active") {
   /*
     Active Advertising comes only from Vivid Core.
 
