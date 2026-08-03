@@ -4967,233 +4967,442 @@ app.get("/debug-campaign-destinations", async (req, res) => {
   }
 });
 app.get("/r/:qrId", async (req, res) => {
-  const qrId = Number(req.params.qrId);
-  const vividClickId = crypto.randomUUID();
-  const importedQr = await q(`
-  SELECT *
-FROM qr_codes
-WHERE id = $1
-AND is_imported = true
-AND description IS NOT NULL
-AND description LIKE 'http%'
-`, [qrId]);
+  try {
+    const qrId = Number(req.params.qrId);
 
-if (importedQr.rows[0]) {
-  const campaign = await activeCampaignForQr(qrId);
+    if (
+      !Number.isInteger(qrId) ||
+      qrId <= 0
+    ) {
+      return res.status(400).send(
+        "Valid QR ID required."
+      );
+    }
 
-  await saveEvent({
-    qrId,
-    campaignId: campaign?.id || campaign?.campaign_id || null,
-    type: "scan",
-    vividClickId
-  });
-/*
-=========================================================
-CUSTOMER ACTION ROUTING
+    const vividClickId =
+      crypto.randomUUID();
 
-If the campaign has configured Customer Actions:
-- 1 active action: redirect automatically
-- 2+ active actions: show a simple selection page
+    const safe = value =>
+      String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 
-If none exist, continue into the existing store and
-Offer / Maps / Waze routing below.
-=========================================================
-*/
+    /*
+    =========================================================
+    IMPORTED QR ROUTING
 
-const campaignId =
-  campaign.campaign_id ||
-  campaign.id;
+    Imported QR codes keep their existing direct destination.
+    This working behavior remains unchanged.
+    =========================================================
+    */
 
-const customerActionsResult = await q(
-  `
-    SELECT
-      id,
-      name,
-      destination_type,
-      destination_url,
-      display_order
-
-    FROM campaign_destinations
-
-    WHERE campaign_id = $1
-      AND COALESCE(
-            is_active,
-            true
-          ) = true
-
-    ORDER BY
-      display_order ASC,
-      id ASC
-  `,
-  [campaignId]
-);
-
-const customerActions =
-  customerActionsResult.rows;
-
-/*
-  One active Customer Action:
-  send the visitor through the existing tracked
-  destination-click route automatically.
-*/
-if (customerActions.length === 1) {
-  const action =
-    customerActions[0];
-
-  return res.redirect(
-    `/destination-click/${action.id}` +
-    `?qr_id=${qrId}` +
-    `&vivid_click_id=${encodeURIComponent(
-      vividClickId
-    )}`
-  );
-}
-
-/*
-  Multiple active Customer Actions:
-  let the visitor choose what they want to do.
-*/
-if (customerActions.length > 1) {
-  const actionButtons =
-    customerActions
-      .map(action => {
-        const actionName =
-          String(
-            action.name ||
-            "Open"
-          )
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-
-        return `
-          <a
-            class="choice-btn"
-            href="/destination-click/${action.id}?qr_id=${qrId}&vivid_click_id=${encodeURIComponent(
-              vividClickId
-            )}"
-          >
-            ${actionName}
-          </a>
-        `;
-      })
-      .join("");
-
-  return res.send(
-    page(
-      "Vivid Customer Experience",
+    const importedQr = await q(
       `
-        <div class="topbar">
-          <div class="brand">
-            Vivid Spots
-          </div>
+        SELECT *
+        FROM qr_codes
+        WHERE id = $1
+          AND is_imported = true
+          AND description IS NOT NULL
+          AND description LIKE 'http%'
+        LIMIT 1
+      `,
+      [qrId]
+    );
 
-          <h1>
-            ${campaign.advertiser || "Campaign"}
-          </h1>
+    if (importedQr.rows[0]) {
+      const campaign =
+        await activeCampaignForQr(qrId);
 
-          <p class="subtitle">
-            ${campaign.name || ""}
-          </p>
-        </div>
+      const importedCampaignId =
+        campaign?.campaign_id ||
+        campaign?.id ||
+        null;
 
-        <div class="wrap">
-          <div class="choice-card">
-            ${
-              campaign.is_deal_of_day
-                ? `
-                    <span class="deal">
-                      🔥 Deal of the Day
-                    </span>
-                  `
-                : `
-                    <span class="pill">
-                      Customer Actions
-                    </span>
-                  `
-            }
+      await saveEvent({
+        qrId,
+        campaignId: importedCampaignId,
+        type: "scan",
+        vividClickId
+      });
 
-            <h1>
-              What would you like to do?
-            </h1>
+      return res.redirect(
+        addVividClickIdToUrl(
+          importedQr.rows[0].description,
+          vividClickId
+        )
+      );
+    }
 
-            <p>
-              Choose an option below.
-            </p>
+    /*
+    =========================================================
+    ACTIVE CAMPAIGN
 
-            ${actionButtons}
+    Existing campaign selection logic remains the source
+    of truth for the QR.
+    =========================================================
+    */
 
-            <p class="small">
-              Powered by Vivid
-            </p>
-          </div>
-        </div>
-      `
-    )
-  );
-}
-  return res.redirect(
-    addVividClickIdToUrl(importedQr.rows[0].description, vividClickId)
-  );
-}
+    const campaign =
+      await activeCampaignForQr(qrId);
 
+    if (!campaign) {
+      return res.status(404).send(
+        "No active campaign assigned to this QR."
+      );
+    }
 
-  const campaign = await activeCampaignForQr(qrId);
-  if (!campaign) return res.status(404).send("No active campaign assigned to this QR.");
-  await saveEvent({
-  qrId,
-  campaignId: campaign.id,
-  type: "scan",
-  vividClickId
-});
-try {
-  const routedStore = await q(`
-    SELECT s.*
-    FROM campaign_stores cs
-    JOIN stores s
-      ON s.id = cs.store_id
-    WHERE cs.campaign_id = $1
-      AND s.maps_url IS NOT NULL
-      AND s.maps_url <> ''
-    ORDER BY
-      CASE
-        WHEN s.inventory_status = 'high' THEN 1
-        WHEN s.inventory_status = 'normal' THEN 2
-        WHEN s.inventory_status = 'low' THEN 3
-        ELSE 4
-      END,
-      s.id ASC
-    LIMIT 1
-  `, [campaign.campaign_id || campaign.id]);
+    const campaignId =
+      campaign.campaign_id ||
+      campaign.id;
 
-  if (routedStore.rows[0]) {
     await saveEvent({
       qrId,
-      campaignId: campaign.campaign_id || campaign.id,
-      type: "maps"
+      campaignId,
+      type: "scan",
+      vividClickId
     });
 
-    return res.redirect(routedStore.rows[0].maps_url);
-  }
+    /*
+    =========================================================
+    CUSTOMER ACTION ROUTING
 
-} catch (err) {
-  return res.send("STORE ROUTING ERROR: " + err.message);
-}
-  res.send(page("Vivid QR Experience", `
-    <div class="topbar"><div class="brand">Vivid Spots</div><h1>${campaign.advertiser || "Campaign"}</h1><p class="subtitle">${campaign.name || ""}</p></div>
-    <div class="wrap"><div class="choice-card">
-      ${campaign.is_deal_of_day ? `<span class="deal">🔥 Deal of the Day</span>` : `<span class="pill">Smart Campaign</span>`}
-      <h1>${campaign.name || "Campaign"}</h1>
-      <p><b>QR:</b> ${campaign.qr_name || qrId}<br><b>Location:</b> ${campaign.space_name || ""}</p>
-      <a class="choice-btn" href="/click/offer/${qrId}?vivid_click_id=${encodeURIComponent(vividClickId)}">View Offer</a>
-  <a class="choice-btn dark" href="/click/maps/${qrId}?vivid_click_id=${encodeURIComponent(vividClickId)}">Find Store on Google Maps</a>
-     <a class="choice-btn dark" href="/click/waze/${qrId}?vivid_click_id=${encodeURIComponent(vividClickId)}">Open in Waze</a>
-      <p class="small">Vivid routes traffic based on campaign, performance, schedule, and inventory priority.</p>
-    </div></div>
-  `));
+    One active Customer Action:
+    - redirect through the tracked destination route
+
+    Multiple active Customer Actions:
+    - show the customer a simple selection page
+
+    No Customer Actions:
+    - continue to the existing store and legacy routing
+    =========================================================
+    */
+
+    const customerActionsResult =
+      await q(
+        `
+          SELECT
+            id,
+            name,
+            destination_type,
+            destination_url,
+            display_order
+
+          FROM campaign_destinations
+
+          WHERE campaign_id = $1
+            AND COALESCE(
+                  is_active,
+                  true
+                ) = true
+
+          ORDER BY
+            display_order ASC,
+            id ASC
+        `,
+        [campaignId]
+      );
+
+    const customerActions =
+      customerActionsResult.rows;
+
+    /*
+      One active Customer Action:
+      do not make the customer choose unnecessarily.
+    */
+    if (customerActions.length === 1) {
+      const action =
+        customerActions[0];
+
+      return res.redirect(
+        `/destination-click/${action.id}` +
+        `?qr_id=${qrId}` +
+        `&vivid_click_id=${encodeURIComponent(
+          vividClickId
+        )}`
+      );
+    }
+
+    /*
+      Multiple active Customer Actions:
+      display the choices configured by the advertiser.
+    */
+    if (customerActions.length > 1) {
+      const actionButtons =
+        customerActions
+          .map(
+            action => `
+              <a
+                class="choice-btn"
+                href="/destination-click/${action.id}?qr_id=${qrId}&vivid_click_id=${encodeURIComponent(
+                  vividClickId
+                )}"
+              >
+                ${safe(
+                  action.name ||
+                  "Open"
+                )}
+              </a>
+            `
+          )
+          .join("");
+
+      return res.send(
+        page(
+          "Vivid Customer Experience",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Spots
+              </div>
+
+              <h1>
+                ${safe(
+                  campaign.advertiser ||
+                  "Campaign"
+                )}
+              </h1>
+
+              <p class="subtitle">
+                ${safe(
+                  campaign.name || ""
+                )}
+              </p>
+            </div>
+
+            <div class="wrap">
+              <div class="choice-card">
+
+                ${
+                  campaign.is_deal_of_day
+                    ? `
+                        <span class="deal">
+                          🔥 Deal of the Day
+                        </span>
+                      `
+                    : `
+                        <span class="pill">
+                          Customer Actions
+                        </span>
+                      `
+                }
+
+                <h1>
+                  What would you like to do?
+                </h1>
+
+                <p>
+                  Choose an option below.
+                </p>
+
+                ${actionButtons}
+
+                <p class="small">
+                  Powered by Vivid
+                </p>
+
+              </div>
+            </div>
+          `
+        )
+      );
+    }
+
+    /*
+    =========================================================
+    EXISTING STORE ROUTING FALLBACK
+
+    This runs only when the campaign has no configured
+    Customer Actions.
+    =========================================================
+    */
+
+    try {
+      const routedStore = await q(
+        `
+          SELECT
+            s.*
+
+          FROM campaign_stores cs
+
+          JOIN stores s
+            ON s.id = cs.store_id
+
+          WHERE cs.campaign_id = $1
+            AND s.maps_url IS NOT NULL
+            AND s.maps_url <> ''
+
+          ORDER BY
+            CASE
+              WHEN s.inventory_status = 'high'
+                THEN 1
+              WHEN s.inventory_status = 'normal'
+                THEN 2
+              WHEN s.inventory_status = 'low'
+                THEN 3
+              ELSE 4
+            END,
+            s.id ASC
+
+          LIMIT 1
+        `,
+        [campaignId]
+      );
+
+      if (routedStore.rows[0]) {
+        await saveEvent({
+          qrId,
+          campaignId,
+          storeId:
+            routedStore.rows[0].id ||
+            null,
+          type: "maps",
+          vividClickId
+        });
+
+        return res.redirect(
+          addVividClickIdToUrl(
+            routedStore.rows[0].maps_url,
+            vividClickId
+          )
+        );
+      }
+    } catch (err) {
+      console.error(
+        "STORE ROUTING ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "STORE ROUTING ERROR: " +
+        err.message
+      );
+    }
+
+    /*
+    =========================================================
+    LEGACY CUSTOMER EXPERIENCE FALLBACK
+
+    Existing campaigns without Customer Actions continue
+    using Offer, Maps and Waze.
+    =========================================================
+    */
+
+    return res.send(
+      page(
+        "Vivid QR Experience",
+        `
+          <div class="topbar">
+            <div class="brand">
+              Vivid Spots
+            </div>
+
+            <h1>
+              ${safe(
+                campaign.advertiser ||
+                "Campaign"
+              )}
+            </h1>
+
+            <p class="subtitle">
+              ${safe(
+                campaign.name || ""
+              )}
+            </p>
+          </div>
+
+          <div class="wrap">
+            <div class="choice-card">
+
+              ${
+                campaign.is_deal_of_day
+                  ? `
+                      <span class="deal">
+                        🔥 Deal of the Day
+                      </span>
+                    `
+                  : `
+                      <span class="pill">
+                        Smart Campaign
+                      </span>
+                    `
+              }
+
+              <h1>
+                ${safe(
+                  campaign.name ||
+                  "Campaign"
+                )}
+              </h1>
+
+              <p>
+                <b>QR:</b>
+                ${safe(
+                  campaign.qr_name ||
+                  qrId
+                )}
+
+                <br>
+
+                <b>Location:</b>
+                ${safe(
+                  campaign.space_name ||
+                  ""
+                )}
+              </p>
+
+              <a
+                class="choice-btn"
+                href="/click/offer/${qrId}?vivid_click_id=${encodeURIComponent(
+                  vividClickId
+                )}"
+              >
+                View Offer
+              </a>
+
+              <a
+                class="choice-btn dark"
+                href="/click/maps/${qrId}?vivid_click_id=${encodeURIComponent(
+                  vividClickId
+                )}"
+              >
+                Find Store on Google Maps
+              </a>
+
+              <a
+                class="choice-btn dark"
+                href="/click/waze/${qrId}?vivid_click_id=${encodeURIComponent(
+                  vividClickId
+                )}"
+              >
+                Open in Waze
+              </a>
+
+              <p class="small">
+                Vivid routes traffic based on campaign,
+                performance, schedule, and inventory priority.
+              </p>
+
+            </div>
+          </div>
+        `
+      )
+    );
+  } catch (err) {
+    console.error(
+      "QR ROUTING ERROR:",
+      err
+    );
+
+    return res.status(500).send(
+      "Unable to load the Vivid experience: " +
+      err.message
+    );
+  }
 });
+
 app.get("/conversion", async (req, res) => {
   try {
     const vividClickId = req.query.vivid_click_id || req.query.click_id;
