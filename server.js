@@ -4840,6 +4840,61 @@ app.get(
     }
   }
 );
+app.get("/debug/qr-customer-actions/:qrId", async (req, res) => {
+  try {
+    const qrId = Number(req.params.qrId);
+
+    const campaign = await activeCampaignForQr(qrId);
+
+    if (!campaign) {
+      return res.json({
+        success: false,
+        qr_id: qrId,
+        message: "No active campaign found."
+      });
+    }
+
+    const campaignId =
+      campaign.campaign_id ||
+      campaign.id;
+
+    const customerActionsResult = await q(`
+      SELECT
+        id,
+        campaign_id,
+        name,
+        destination_type,
+        destination_url,
+        display_order,
+        is_active
+      FROM campaign_destinations
+      WHERE campaign_id = $1
+        AND COALESCE(is_active, true) = true
+      ORDER BY
+        display_order ASC,
+        id ASC
+    `, [campaignId]);
+
+    return res.json({
+      success: true,
+      qr_id: qrId,
+      campaign_id_from_id: campaign.id,
+      campaign_id_from_assignment:
+        campaign.campaign_id,
+      resolved_campaign_id: campaignId,
+      campaign_name: campaign.name,
+      customer_action_count:
+        customerActionsResult.rows.length,
+      customer_actions:
+        customerActionsResult.rows
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
 app.get("/debug-users-spaces", requireLogin, async (req, res) => {
   const users = await q(`
 SELECT id, email, role
