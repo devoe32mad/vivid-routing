@@ -7129,7 +7129,55 @@ if (
           "Organization not found."
         );
       }
+if (metric === "active") {
 
+  return res.send(
+    orgPage(
+      `Active Advertising - ${organization.name}`,
+      `
+        ${organizationNav({
+          organizationId,
+          organizationName: organization.name,
+          activePage: "dashboard",
+          userName:
+            req.session.orgUser?.name ||
+            req.session.user?.name ||
+            ""
+        })}
+
+        <div class="topbar">
+          <div class="brand">
+            Vivid Organizations
+          </div>
+
+          <h1>
+            Active Advertising
+          </h1>
+
+          <p class="subtitle">
+            Live advertising running in Vivid Core.
+          </p>
+        </div>
+
+        <div class="wrap">
+
+          <div class="card">
+
+            <h2>Building Active Advertising...</h2>
+
+            <p>
+              This page will display only active campaigns
+              from Vivid Core.
+            </p>
+
+          </div>
+
+        </div>
+      `
+    )
+  );
+
+}
       /*
         Available Advertising comes from the organization's
         advertising opportunities connected to existing
