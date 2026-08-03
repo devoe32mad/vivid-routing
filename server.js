@@ -7163,7 +7163,635 @@ if (
           "Organization not found."
         );
       }
-if (metric === "pending") {
+if (metric === "advertiser-revenue") {
+  /*
+    Advertiser Revenue comes entirely from Vivid Core:
+
+    spaces
+    → qr_codes
+    → qr_campaigns
+    → campaigns
+    → events
+
+    No revenue totals are stored separately
+    in the Organization Portal.
+  */
+
+  const revenueDateFilter =
+    getOrgDateFilter(req);
+
+  if (revenueDateFilter.error) {
+    return res.status(400).send(
+      revenueDateFilter.error
+    );
+  }
+
+  const {
+    fromDate,
+    toDate,
+    queryString: revenueDateQueryString
+  } = revenueDateFilter;
+
+  const revenueResult = await q(
+    `
+      SELECT
+        s.id AS space_id,
+        s.name AS location_name,
+        s.location AS market,
+
+        qr.id AS qr_id,
+        qr.name AS qr_name,
+
+        c.id AS campaign_id,
+        c.name AS campaign_name,
+        c.advertiser,
+
+        COUNT(e.id) FILTER (
+          WHERE e.type = 'scan'
+        )::int AS scans,
+
+        COUNT(e.id) FILTER (
+          WHERE e.type IN (
+            'offer',
+            'maps',
+            'waze'
+          )
+        )::int AS intent,
+
+        COUNT(e.id) FILTER (
+          WHERE e.type = 'conversion'
+        )::int AS conversions,
+
+        COALESCE(
+          SUM(e.value) FILTER (
+            WHERE e.type = 'conversion'
+          ),
+          0
+        )::numeric AS conversion_value
+
+      FROM spaces s
+
+      JOIN qr_codes qr
+        ON qr.space_id = s.id
+       AND COALESCE(
+             qr.is_archived,
+             false
+           ) = false
+
+      JOIN qr_campaigns qc
+        ON qc.qr_id = qr.id
+
+      JOIN campaigns c
+        ON c.id = qc.campaign_id
+       AND COALESCE(
+             c.is_archived,
+             false
+           ) = false
+
+      LEFT JOIN events e
+        ON e.qr_id = qr.id
+       AND e.campaign_id = c.id
+
+       AND (
+         NULLIF($2, '') IS NULL
+         OR e.created_at::date >=
+            NULLIF($2, '')::date
+       )
+
+       AND (
+         NULLIF($3, '') IS NULL
+         OR e.created_at::date <=
+            NULLIF($3, '')::date
+       )
+
+      WHERE s.organization_id = $1
+
+        AND COALESCE(
+              s.is_archived,
+              false
+            ) = false
+
+        AND NULLIF(
+              TRIM(c.advertiser),
+              ''
+            ) IS NOT NULL
+
+      GROUP BY
+        s.id,
+        s.name,
+        s.location,
+
+        qr.id,
+        qr.name,
+
+        c.id,
+        c.name,
+        c.advertiser
+
+      ORDER BY
+        conversion_value DESC,
+        conversions DESC,
+        c.advertiser,
+        c.name
+    `,
+    [
+      organizationId,
+      fromDate,
+      toDate
+    ]
+  );
+
+  const revenueRecords =
+    revenueResult.rows;
+
+  const advertiserCount =
+    new Set(
+      revenueRecords.map(row =>
+        String(row.advertiser || "")
+          .trim()
+          .toLowerCase()
+      )
+    ).size;
+
+  const totalRevenueScans =
+    revenueRecords.reduce(
+      (total, row) =>
+        total + Number(row.scans || 0),
+      0
+    );
+
+  const totalRevenueIntent =
+    revenueRecords.reduce(
+      (total, row) =>
+        total + Number(row.intent || 0),
+      0
+    );
+
+  const totalRevenueConversions =
+    revenueRecords.reduce(
+      (total, row) =>
+        total +
+        Number(row.conversions || 0),
+      0
+    );
+
+  const advertiserRevenueGenerated =
+    revenueRecords.reduce(
+      (total, row) =>
+        total +
+        Number(
+          row.conversion_value || 0
+        ),
+      0
+    );
+
+  const revenueRows =
+    revenueRecords.length
+      ? revenueRecords
+          .map(row => `
+            <tr>
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+                min-width:190px;
+              ">
+                <strong>
+                  ${escapeHtml(
+                    row.advertiser ||
+                    "Advertiser not set"
+                  )}
+                </strong>
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+                min-width:220px;
+              ">
+                <a
+                  href="/org-location/${row.space_id}?organization_id=${organizationId}"
+                  style="
+                    color:#073b22;
+                    text-decoration:none;
+                    font-weight:bold;
+                  "
+                >
+                  ${escapeHtml(
+                    row.location_name ||
+                    "Unnamed Location"
+                  )}
+                </a>
+
+                <div style="
+                  color:#65776b;
+                  font-size:12px;
+                  margin-top:4px;
+                ">
+                  ${escapeHtml(
+                    row.market ||
+                    "Market not set"
+                  )}
+                </div>
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+                min-width:190px;
+              ">
+                ${escapeHtml(
+                  row.qr_name ||
+                  `Placement ${row.qr_id}`
+                )}
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+                min-width:220px;
+              ">
+                <a
+                  href="/org-campaign/${row.campaign_id}?organization_id=${organizationId}&qr_id=${row.qr_id}${revenueDateQueryString ? `&${revenueDateQueryString}` : ""}"
+                  style="
+                    color:#073b22;
+                    text-decoration:none;
+                    font-weight:bold;
+                  "
+                >
+                  ${escapeHtml(
+                    row.campaign_name ||
+                    "Unnamed Campaign"
+                  )}
+                </a>
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:center;
+                vertical-align:middle;
+              ">
+                ${Number(
+                  row.scans || 0
+                ).toLocaleString()}
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:center;
+                vertical-align:middle;
+              ">
+                ${Number(
+                  row.intent || 0
+                ).toLocaleString()}
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:center;
+                vertical-align:middle;
+              ">
+                ${Number(
+                  row.conversions || 0
+                ).toLocaleString()}
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:right;
+                vertical-align:middle;
+                white-space:nowrap;
+              ">
+                <strong>
+                  ${money(
+                    row.conversion_value
+                  )}
+                </strong>
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:center;
+                vertical-align:middle;
+                white-space:nowrap;
+              ">
+                <a
+                  class="btn"
+                  href="/org-campaign/${row.campaign_id}?organization_id=${organizationId}&qr_id=${row.qr_id}${revenueDateQueryString ? `&${revenueDateQueryString}` : ""}"
+                  style="margin:0;"
+                >
+                  Open Campaign
+                </a>
+              </td>
+            </tr>
+          `)
+          .join("")
+      : `
+          <tr>
+            <td
+              colspan="9"
+              style="
+                padding:42px;
+                text-align:center;
+              "
+            >
+              <h3 style="margin:0 0 8px;">
+                No Advertiser Revenue
+              </h3>
+
+              <div style="color:#65776b;">
+                No Vivid Core campaigns are currently
+                connected to this organization.
+              </div>
+            </td>
+          </tr>
+        `;
+
+  return res.send(
+    orgPage(
+      `Advertiser Revenue - ${organization.name}`,
+      `
+        ${organizationNav({
+          organizationId,
+          organizationName:
+            organization.name,
+          activePage: "dashboard",
+          userName:
+            req.session.orgUser?.name ||
+            req.session.user?.name ||
+            ""
+        })}
+
+        <div class="topbar">
+          <div class="brand">
+            Vivid Organizations
+          </div>
+
+          <h1>
+            Advertiser Revenue Generated
+          </h1>
+
+          <p class="subtitle">
+            Revenue attributed to advertisers
+            through Vivid Core.
+          </p>
+        </div>
+
+        <div class="wrap">
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:18px;
+            flex-wrap:wrap;
+            margin-bottom:22px;
+          ">
+            <div>
+              <h2 style="margin:0 0 5px;">
+                Advertiser Performance
+              </h2>
+
+              <div style="color:#65776b;">
+                Campaign results and attributed revenue
+                pulled directly from Vivid Core.
+              </div>
+            </div>
+
+            <a
+              class="btn secondary"
+              href="/org-organization/${organizationId}${revenueDateQueryString ? `?${revenueDateQueryString}` : ""}"
+            >
+              Back to Overview
+            </a>
+          </div>
+
+          ${orgDateFilterForm({
+            action:
+              `/org-business-breakdown`,
+            fromDate,
+            toDate
+          }).replace(
+            `<form`,
+            `<form>
+              <input
+                type="hidden"
+                name="organization_id"
+                value="${organizationId}"
+              >
+              <input
+                type="hidden"
+                name="metric"
+                value="advertiser-revenue"
+              >
+            `.replace("<form>", "")
+          )}
+
+          <div style="
+            display:grid;
+            grid-template-columns:
+              repeat(
+                auto-fit,
+                minmax(190px,1fr)
+              );
+            gap:16px;
+            margin-bottom:24px;
+          ">
+            <div class="card" style="margin:0;">
+              <div style="
+                color:#65776b;
+                font-size:13px;
+              ">
+                Advertisers
+              </div>
+
+              <div style="
+                font-size:30px;
+                font-weight:bold;
+                margin-top:7px;
+              ">
+                ${advertiserCount.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="
+                color:#65776b;
+                font-size:13px;
+              ">
+                Scans
+              </div>
+
+              <div style="
+                font-size:30px;
+                font-weight:bold;
+                margin-top:7px;
+              ">
+                ${totalRevenueScans.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="
+                color:#65776b;
+                font-size:13px;
+              ">
+                Intent
+              </div>
+
+              <div style="
+                font-size:30px;
+                font-weight:bold;
+                margin-top:7px;
+              ">
+                ${totalRevenueIntent.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="
+                color:#65776b;
+                font-size:13px;
+              ">
+                Conversions
+              </div>
+
+              <div style="
+                font-size:30px;
+                font-weight:bold;
+                margin-top:7px;
+              ">
+                ${totalRevenueConversions.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="
+                color:#65776b;
+                font-size:13px;
+              ">
+                Revenue Generated
+              </div>
+
+              <div style="
+                font-size:30px;
+                font-weight:bold;
+                margin-top:7px;
+              ">
+                ${money(
+                  advertiserRevenueGenerated
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div style="
+            background:white;
+            border-radius:18px;
+            overflow:hidden;
+            box-shadow:
+              0 8px 22px
+              rgba(0,0,0,.08);
+          ">
+            <div style="overflow-x:auto;">
+              <table style="
+                width:100%;
+                min-width:1350px;
+                border-collapse:collapse;
+                margin:0;
+              ">
+                <thead>
+                  <tr style="background:#eaf3e8;">
+                    <th style="
+                      padding:16px 18px;
+                      text-align:left;
+                    ">
+                      Advertiser
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:left;
+                    ">
+                      Location
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:left;
+                    ">
+                      Placement
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:left;
+                    ">
+                      Campaign
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:center;
+                    ">
+                      Scans
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:center;
+                    ">
+                      Intent
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:center;
+                    ">
+                      Conversions
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:right;
+                    ">
+                      Revenue Generated
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:center;
+                    ">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  ${revenueRows}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      `
+    )
+  );
+}
+      if (metric === "pending") {
   const pendingResult = await q(
     `
       SELECT DISTINCT ON (r.opportunity_id)
