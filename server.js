@@ -1915,6 +1915,50 @@ CREATE INDEX IF NOT EXISTS
 idx_campaign_destinations_active
 ON campaign_destinations(is_active)
 `);
+  /*
+=========================================================
+DESTINATION-LEVEL EVENT TRACKING
+=========================================================
+*/
+
+await q(`
+  ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS
+    campaign_destination_id INTEGER
+    REFERENCES campaign_destinations(id)
+    ON DELETE SET NULL
+`);
+
+await q(`
+  ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS
+    vivid_session_id TEXT
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+    idx_events_campaign_destination
+  ON events (
+    campaign_destination_id
+  )
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+    idx_events_vivid_session
+  ON events (
+    vivid_session_id
+  )
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+    idx_events_destination_created
+  ON events (
+    campaign_destination_id,
+    created_at
+  )
+`);
   await q(`
   UPDATE campaigns
   SET created_at = CURRENT_TIMESTAMP
@@ -2779,27 +2823,35 @@ async function saveEvent({
   campaignId,
   storeId = null,
   campaignDestinationId = null,
+  vividSessionId = null,
   type,
   value = 0,
   vividClickId = null
 }) {
   const result = await q(
-    `INSERT INTO events (
-      qr_id,
-      campaign_id,
-      store_id,
-      campaign_destination_id,
-      type,
-      value,
-      vivid_click_id
-    )
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
-    RETURNING *`,
+    `
+      INSERT INTO events (
+        qr_id,
+        campaign_id,
+        store_id,
+        campaign_destination_id,
+        vivid_session_id,
+        type,
+        value,
+        vivid_click_id
+      )
+      VALUES (
+        $1,$2,$3,$4,
+        $5,$6,$7,$8
+      )
+      RETURNING *
+    `,
     [
       qrId,
       campaignId,
       storeId,
       campaignDestinationId,
+      vividSessionId,
       type,
       Number(value || 0),
       vividClickId
