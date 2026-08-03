@@ -7659,24 +7659,28 @@ JOIN qr_campaigns qc
               </div>
             </div>
 
-            <div class="card" style="margin:0;">
-              <div style="
-                color:#65776b;
-                font-size:13px;
-              ">
-                Advertiser Revenue
-              </div>
+         <div class="card" style="margin:0;">
+  <div style="
+    color:#65776b;
+    font-size:13px;
+  ">
+    Intent
+  </div>
 
-              <div style="
-                font-size:30px;
-                font-weight:bold;
-                margin-top:7px;
-              ">
-                ${money(
-                  totalConversionValue
-                )}
-              </div>
-            </div>
+  <div style="
+    font-size:30px;
+    font-weight:bold;
+    margin-top:7px;
+  ">
+    ${activeAdvertising
+      .reduce(
+        (total, row) =>
+          total + Number(row.intent || 0),
+        0
+      )
+      .toLocaleString()}
+  </div>
+</div>
           </div>
 
           <div style="
