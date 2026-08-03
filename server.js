@@ -6475,17 +6475,49 @@ const businessMetricsResult = await q(`
 `, [orgId]);
 
 const pendingMetricsResult = await q(`
+  WITH latest_requests AS (
+    SELECT DISTINCT ON (r.opportunity_id)
+      r.opportunity_id,
+      r.status,
+
+      COALESCE(
+        r.price,
+        oo.price,
+        oo.annual_price,
+        0
+      )::numeric AS investment
+
+    FROM organization_advertising_requests r
+
+    LEFT JOIN organization_opportunities oo
+      ON oo.id = r.opportunity_id
+     AND oo.organization_id = r.organization_id
+
+    WHERE r.organization_id = $1
+
+    ORDER BY
+      r.opportunity_id,
+      r.created_at DESC,
+      r.id DESC
+  )
+
   SELECT
-    COUNT(*)::int AS pending_spots,
+    COUNT(*) FILTER (
+      WHERE LOWER(
+        COALESCE(status, '')
+      ) = 'pending'
+    )::int AS pending_spots,
 
     COALESCE(
-      SUM(COALESCE(r.price, 0)),
+      SUM(investment) FILTER (
+        WHERE LOWER(
+          COALESCE(status, '')
+        ) = 'pending'
+      ),
       0
     )::numeric AS pending_revenue
 
-  FROM organization_advertising_requests r
-  WHERE r.organization_id = $1
-    AND LOWER(COALESCE(r.status, 'pending')) = 'pending'
+  FROM latest_requests
 `, [orgId]);
       const locations = locationResult.rows;
 
