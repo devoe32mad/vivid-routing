@@ -7130,6 +7130,388 @@ if (
         );
       }
 if (metric === "active") {
+  /*
+    Active Advertising comes only from Vivid Core.
+
+    A record is active when:
+    - the location is active
+    - the QR placement is active
+    - the QR/campaign assignment is active
+    - the campaign is not archived
+    - the campaign has started
+    - the campaign has not ended
+  */
+  const activeResult = await q(
+    `
+      SELECT
+        s.id AS space_id,
+        s.name AS location_name,
+        s.location AS market,
+
+        qr.id AS qr_id,
+        qr.name AS qr_name,
+
+        COALESCE(
+          qr.total_cost,
+          qr.annual_cost,
+          0
+        )::numeric AS placement_value,
+
+        c.id AS campaign_id,
+        c.name AS campaign_name,
+        c.advertiser,
+        c.start_date,
+        c.end_date,
+
+        qc.started_at,
+        qc.assigned_at,
+
+        COUNT(e.id) FILTER (
+          WHERE e.type = 'scan'
+        )::int AS scans,
+
+        COUNT(e.id) FILTER (
+          WHERE e.type IN (
+            'offer',
+            'maps',
+            'waze'
+          )
+        )::int AS intent,
+
+        COUNT(e.id) FILTER (
+          WHERE e.type = 'conversion'
+        )::int AS conversions,
+
+        COALESCE(
+          SUM(e.value) FILTER (
+            WHERE e.type = 'conversion'
+          ),
+          0
+        )::numeric AS conversion_value
+
+      FROM spaces s
+
+      JOIN qr_codes qr
+        ON qr.space_id = s.id
+       AND COALESCE(
+             qr.is_archived,
+             false
+           ) = false
+       AND COALESCE(
+             qr.is_active,
+             true
+           ) = true
+
+      JOIN qr_campaigns qc
+        ON qc.qr_id = qr.id
+       AND COALESCE(
+             qc.is_active,
+             true
+           ) = true
+       AND qc.ended_at IS NULL
+
+      JOIN campaigns c
+        ON c.id = qc.campaign_id
+       AND COALESCE(
+             c.is_archived,
+             false
+           ) = false
+
+      LEFT JOIN events e
+        ON e.qr_id = qr.id
+       AND e.campaign_id = c.id
+
+      WHERE s.organization_id = $1
+
+        AND COALESCE(
+              s.is_archived,
+              false
+            ) = false
+
+        AND (
+          c.start_date IS NULL
+          OR c.start_date <= CURRENT_DATE
+        )
+
+        AND (
+          c.end_date IS NULL
+          OR c.end_date >= CURRENT_DATE
+        )
+
+      GROUP BY
+        s.id,
+        s.name,
+        s.location,
+
+        qr.id,
+        qr.name,
+        qr.total_cost,
+        qr.annual_cost,
+
+        c.id,
+        c.name,
+        c.advertiser,
+        c.start_date,
+        c.end_date,
+
+        qc.started_at,
+        qc.assigned_at
+
+      ORDER BY
+        s.name,
+        qr.name,
+        c.name
+    `,
+    [organizationId]
+  );
+
+  const activeAdvertising =
+    activeResult.rows;
+
+  const activeCampaignCount =
+    activeAdvertising.length;
+
+  const activePlacementCount =
+    new Set(
+      activeAdvertising.map(
+        row => Number(row.qr_id)
+      )
+    ).size;
+
+  /*
+    Count each physical QR placement value only once,
+    even when more than one active campaign is assigned.
+  */
+  const activePlacementValues =
+    new Map();
+
+  for (const row of activeAdvertising) {
+    const qrId = Number(row.qr_id);
+
+    if (!activePlacementValues.has(qrId)) {
+      activePlacementValues.set(
+        qrId,
+        Number(row.placement_value || 0)
+      );
+    }
+  }
+
+  const activePlacementValue =
+    Array.from(
+      activePlacementValues.values()
+    ).reduce(
+      (total, value) => total + value,
+      0
+    );
+
+  const totalScans =
+    activeAdvertising.reduce(
+      (total, row) =>
+        total + Number(row.scans || 0),
+      0
+    );
+
+  const totalConversions =
+    activeAdvertising.reduce(
+      (total, row) =>
+        total +
+        Number(row.conversions || 0),
+      0
+    );
+
+  const totalConversionValue =
+    activeAdvertising.reduce(
+      (total, row) =>
+        total +
+        Number(
+          row.conversion_value || 0
+        ),
+      0
+    );
+
+  const activeRows =
+    activeAdvertising.length
+      ? activeAdvertising
+          .map(row => `
+            <tr>
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+                min-width:220px;
+              ">
+                <a
+                  href="/org-location/${row.space_id}?organization_id=${organizationId}"
+                  style="
+                    color:#073b22;
+                    text-decoration:none;
+                    font-weight:bold;
+                  "
+                >
+                  ${escapeHtml(
+                    row.location_name ||
+                    "Unnamed Location"
+                  )}
+                </a>
+
+                <div style="
+                  color:#65776b;
+                  font-size:12px;
+                  margin-top:4px;
+                ">
+                  ${escapeHtml(
+                    row.market ||
+                    "Market not set"
+                  )}
+                </div>
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+                min-width:210px;
+              ">
+                <strong>
+                  ${escapeHtml(
+                    row.qr_name ||
+                    `Placement ${row.qr_id}`
+                  )}
+                </strong>
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+                min-width:190px;
+              ">
+                ${escapeHtml(
+                  row.advertiser ||
+                  "Advertiser not set"
+                )}
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+                min-width:220px;
+              ">
+                <strong>
+                  ${escapeHtml(
+                    row.campaign_name ||
+                    "Unnamed Campaign"
+                  )}
+                </strong>
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+                white-space:nowrap;
+              ">
+                ${formatDate(
+                  row.start_date ||
+                  row.started_at ||
+                  row.assigned_at
+                )}
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:left;
+                vertical-align:middle;
+                white-space:nowrap;
+              ">
+                ${
+                  row.end_date
+                    ? formatDate(row.end_date)
+                    : "Ongoing"
+                }
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:center;
+                vertical-align:middle;
+              ">
+                ${Number(
+                  row.scans || 0
+                ).toLocaleString()}
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:center;
+                vertical-align:middle;
+              ">
+                ${Number(
+                  row.conversions || 0
+                ).toLocaleString()}
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:right;
+                vertical-align:middle;
+                white-space:nowrap;
+              ">
+                <strong>
+                  ${money(
+                    row.conversion_value
+                  )}
+                </strong>
+              </td>
+
+              <td style="
+                padding:16px 18px;
+                border-bottom:1px solid #e7eee7;
+                text-align:center;
+                vertical-align:middle;
+                white-space:nowrap;
+              ">
+                <a
+                  class="btn"
+                  href="/org-location/${row.space_id}?organization_id=${organizationId}"
+                  style="margin:0;"
+                >
+                  Open
+                </a>
+              </td>
+            </tr>
+          `)
+          .join("")
+      : `
+          <tr>
+            <td
+              colspan="10"
+              style="
+                padding:42px;
+                text-align:center;
+              "
+            >
+              <h3 style="margin:0 0 8px;">
+                No Active Advertising
+              </h3>
+
+              <div style="color:#65776b;">
+                No live Vivid Core campaigns are
+                currently connected to this organization.
+              </div>
+            </td>
+          </tr>
+        `;
 
   return res.send(
     orgPage(
@@ -7137,7 +7519,8 @@ if (metric === "active") {
       `
         ${organizationNav({
           organizationId,
-          organizationName: organization.name,
+          organizationName:
+            organization.name,
           activePage: "dashboard",
           userName:
             req.session.orgUser?.name ||
@@ -7155,560 +7538,262 @@ if (metric === "active") {
           </h1>
 
           <p class="subtitle">
-            Live advertising running in Vivid Core.
+            Advertising currently live in Vivid Core.
           </p>
         </div>
 
         <div class="wrap">
 
-          <div class="card">
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:18px;
+            flex-wrap:wrap;
+            margin-bottom:22px;
+          ">
+            <div>
+              <h2 style="margin:0 0 5px;">
+                Live Advertising
+              </h2>
 
-            <h2>Building Active Advertising...</h2>
+              <div style="color:#65776b;">
+                Live campaigns, placements and
+                advertiser results pulled directly
+                from Vivid Core.
+              </div>
+            </div>
 
-            <p>
-              This page will display only active campaigns
-              from Vivid Core.
-            </p>
+            <a
+              class="btn secondary"
+              href="/org-organization/${organizationId}"
+            >
+              Back to Overview
+            </a>
+          </div>
 
+          <div style="
+            display:grid;
+            grid-template-columns:
+              repeat(
+                auto-fit,
+                minmax(190px,1fr)
+              );
+            gap:16px;
+            margin-bottom:24px;
+          ">
+            <div class="card" style="margin:0;">
+              <div style="
+                color:#65776b;
+                font-size:13px;
+              ">
+                Active Placements
+              </div>
+
+              <div style="
+                font-size:30px;
+                font-weight:bold;
+                margin-top:7px;
+              ">
+                ${activePlacementCount.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="
+                color:#65776b;
+                font-size:13px;
+              ">
+                Active Campaigns
+              </div>
+
+              <div style="
+                font-size:30px;
+                font-weight:bold;
+                margin-top:7px;
+              ">
+                ${activeCampaignCount.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="
+                color:#65776b;
+                font-size:13px;
+              ">
+                Active Placement Value
+              </div>
+
+              <div style="
+                font-size:30px;
+                font-weight:bold;
+                margin-top:7px;
+              ">
+                ${money(
+                  activePlacementValue
+                )}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="
+                color:#65776b;
+                font-size:13px;
+              ">
+                Scans
+              </div>
+
+              <div style="
+                font-size:30px;
+                font-weight:bold;
+                margin-top:7px;
+              ">
+                ${totalScans.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="
+                color:#65776b;
+                font-size:13px;
+              ">
+                Conversions
+              </div>
+
+              <div style="
+                font-size:30px;
+                font-weight:bold;
+                margin-top:7px;
+              ">
+                ${totalConversions.toLocaleString()}
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;">
+              <div style="
+                color:#65776b;
+                font-size:13px;
+              ">
+                Advertiser Revenue
+              </div>
+
+              <div style="
+                font-size:30px;
+                font-weight:bold;
+                margin-top:7px;
+              ">
+                ${money(
+                  totalConversionValue
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div style="
+            background:white;
+            border-radius:18px;
+            overflow:hidden;
+            box-shadow:
+              0 8px 22px
+              rgba(0,0,0,.08);
+          ">
+            <div style="overflow-x:auto;">
+              <table style="
+                width:100%;
+                min-width:1450px;
+                border-collapse:collapse;
+                margin:0;
+              ">
+                <thead>
+                  <tr style="
+                    background:#eaf3e8;
+                  ">
+                    <th style="
+                      padding:16px 18px;
+                      text-align:left;
+                    ">
+                      Location
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:left;
+                    ">
+                      Placement
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:left;
+                    ">
+                      Advertiser
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:left;
+                    ">
+                      Campaign
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:left;
+                    ">
+                      Start
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:left;
+                    ">
+                      End
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:center;
+                    ">
+                      Scans
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:center;
+                    ">
+                      Conversions
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:right;
+                    ">
+                      Revenue Generated
+                    </th>
+
+                    <th style="
+                      padding:16px 18px;
+                      text-align:center;
+                    ">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  ${activeRows}
+                </tbody>
+              </table>
+            </div>
           </div>
 
         </div>
       `
     )
   );
-
 }
-      /*
-        Available Advertising comes from the organization's
-        advertising opportunities connected to existing
-        Vivid locations and placements.
-
-        The Organization Portal does not duplicate these
-        records or store separate reporting totals.
-      */
-      const opportunitiesResult = await q(
-        `
-          SELECT
-            oo.id AS opportunity_id,
-            oo.organization_id,
-            oo.space_id,
-            oo.qr_id,
-
-            oo.title,
-            oo.description,
-            oo.category,
-
-            COALESCE(
-              oo.price,
-              oo.annual_price,
-              0
-            )::numeric AS price,
-
-            COALESCE(
-              NULLIF(
-                TRIM(oo.pricing_unit),
-                ''
-              ),
-              'Per Year'
-            ) AS pricing_unit,
-
-            oo.suggested_term_length,
-            oo.suggested_term_unit,
-
-            oo.available_from,
-            oo.available_until,
-
-            s.name AS location_name,
-            s.location AS market,
-
-            qr.name AS placement_name
-
-          FROM organization_opportunities oo
-
-          JOIN spaces s
-            ON s.id = oo.space_id
-           AND s.organization_id =
-               oo.organization_id
-           AND COALESCE(
-                 s.is_archived,
-                 false
-               ) = false
-
-          LEFT JOIN qr_codes qr
-            ON qr.id = oo.qr_id
-           AND qr.space_id = oo.space_id
-           AND COALESCE(
-                 qr.is_archived,
-                 false
-               ) = false
-
-          WHERE oo.organization_id = $1
-
-            AND COALESCE(
-                  oo.is_active,
-                  true
-                ) = true
-
-            AND LOWER(
-                  COALESCE(
-                    oo.status,
-                    ''
-                  )
-                ) = 'available'
-
-            AND (
-              oo.available_from IS NULL
-              OR oo.available_from <= CURRENT_DATE
-            )
-
-            AND (
-              oo.available_until IS NULL
-              OR oo.available_until >= CURRENT_DATE
-            )
-
-          ORDER BY
-            s.name,
-            oo.display_order,
-            oo.title
-        `,
-        [organizationId]
-      );
-
-      const opportunities =
-        opportunitiesResult.rows;
-
-      const totalAvailableValue =
-        opportunities.reduce(
-          (total, opportunity) =>
-            total +
-            Number(
-              opportunity.price || 0
-            ),
-          0
-        );
-
-      /*
-        Build the underlying opportunity rows.
-
-        Location and Advertising Opportunity are both
-        drillable to their underlying setup records.
-      */
-      const opportunityRows =
-        opportunities.length
-          ? opportunities
-              .map(opportunity => {
-                const pricingUnit =
-                  String(
-                    opportunity.pricing_unit ||
-                    ""
-                  )
-                    .replace(/^Per\s+/i, "")
-                    .trim();
-
-                const priceLabel =
-                  pricingUnit
-                    ? `${money(
-                        opportunity.price
-                      )} / ${escapeHtml(
-                        pricingUnit
-                      )}`
-                    : money(
-                        opportunity.price
-                      );
-
-                const placementDetail =
-                  opportunity.placement_name
-                    ? `
-                        <div style="
-                          color:#65776b;
-                          font-size:12px;
-                          margin-top:4px;
-                        ">
-                          ${escapeHtml(
-                            opportunity.placement_name
-                          )}
-                        </div>
-                      `
-                    : "";
-
-                return `
-                  <tr>
-
-                    <td style="
-                      padding:16px 18px;
-                      border-bottom:1px solid #e7eee7;
-                      text-align:left;
-                      vertical-align:middle;
-                      min-width:230px;
-                    ">
-                      <a
-                        href="/org-location/${opportunity.space_id}?organization_id=${organizationId}"
-                        style="
-                          color:#073b22;
-                          text-decoration:none;
-                          font-weight:bold;
-                        "
-                      >
-                        ${escapeHtml(
-                          opportunity.location_name ||
-                          "Unnamed Location"
-                        )}
-                      </a>
-
-                      <div style="
-                        color:#65776b;
-                        font-size:12px;
-                        margin-top:4px;
-                      ">
-                        ${escapeHtml(
-                          opportunity.market ||
-                          "Market not set"
-                        )}
-                      </div>
-                    </td>
-
-                    <td style="
-                      padding:16px 18px;
-                      border-bottom:1px solid #e7eee7;
-                      text-align:left;
-                      vertical-align:middle;
-                      min-width:270px;
-                    ">
-                      <a
-                        href="/org-opportunity/edit/${opportunity.opportunity_id}?organization_id=${organizationId}"
-                        style="
-                          color:#073b22;
-                          text-decoration:none;
-                          font-weight:bold;
-                        "
-                      >
-                        ${escapeHtml(
-                          opportunity.title ||
-                          "Unnamed Opportunity"
-                        )}
-                      </a>
-
-                      ${placementDetail}
-                    </td>
-
-                    <td style="
-                      padding:16px 18px;
-                      border-bottom:1px solid #e7eee7;
-                      text-align:left;
-                      vertical-align:middle;
-                      white-space:nowrap;
-                    ">
-                      ${escapeHtml(
-                        opportunity.category ||
-                        "—"
-                      )}
-                    </td>
-
-                    <td style="
-                      padding:16px 18px;
-                      border-bottom:1px solid #e7eee7;
-                      text-align:left;
-                      vertical-align:middle;
-                      white-space:nowrap;
-                    ">
-                      <strong>
-                        ${priceLabel}
-                      </strong>
-                    </td>
-
-                    <td style="
-                      padding:16px 18px;
-                      border-bottom:1px solid #e7eee7;
-                      text-align:left;
-                      vertical-align:middle;
-                      white-space:nowrap;
-                    ">
-                      ${formatDate(
-                        opportunity.available_from
-                      )}
-                    </td>
-
-                    <td style="
-                      padding:16px 18px;
-                      border-bottom:1px solid #e7eee7;
-                      text-align:left;
-                      vertical-align:middle;
-                      white-space:nowrap;
-                    ">
-                      ${formatDate(
-                        opportunity.available_until
-                      )}
-                    </td>
-
-                    <td style="
-                      padding:16px 18px;
-                      border-bottom:1px solid #e7eee7;
-                      text-align:center;
-                      vertical-align:middle;
-                      white-space:nowrap;
-                    ">
-                      <a
-                        class="btn"
-                        href="/org-opportunity/edit/${opportunity.opportunity_id}?organization_id=${organizationId}"
-                        style="
-                          margin:0;
-                          white-space:nowrap;
-                        "
-                      >
-                        Open
-                      </a>
-                    </td>
-
-                  </tr>
-                `;
-              })
-              .join("")
-          : `
-              <tr>
-                <td
-                  colspan="7"
-                  style="
-                    padding:42px;
-                    text-align:center;
-                  "
-                >
-                  <h3 style="
-                    margin:0 0 8px;
-                  ">
-                    No Available Advertising
-                  </h3>
-
-                  <div style="
-                    color:#65776b;
-                  ">
-                    This organization has no advertising
-                    opportunities currently marked Available.
-                  </div>
-                </td>
-              </tr>
-            `;
-
-      return res.send(
-        orgPage(
-          `Available Advertising - ${organization.name}`,
-          `
-            ${organizationNav({
-              organizationId,
-              organizationName:
-                organization.name,
-              activePage: "dashboard",
-              userName:
-                req.session.orgUser?.name ||
-                req.session.user?.name ||
-                ""
-            })}
-
-            <div class="topbar">
-              <div class="brand">
-                Vivid Organizations
-              </div>
-
-              <h1>
-                Available Advertising
-              </h1>
-
-              <p class="subtitle">
-                Advertising opportunities currently
-                available across the organization.
-              </p>
-            </div>
-
-            <div class="wrap">
-
-              <div style="
-                display:flex;
-                justify-content:space-between;
-                align-items:center;
-                gap:18px;
-                flex-wrap:wrap;
-                margin-bottom:22px;
-              ">
-                <div>
-                  <h2 style="
-                    margin:0 0 5px;
-                  ">
-                    Available Opportunities
-                  </h2>
-
-                  <div style="
-                    color:#65776b;
-                  ">
-                    Select a location or advertising
-                    opportunity to view its underlying
-                    setup information.
-                  </div>
-                </div>
-
-                <a
-                  class="btn secondary"
-                  href="/org-organization/${organizationId}"
-                >
-                  Back to Overview
-                </a>
-              </div>
-
-              <div style="
-                display:grid;
-                grid-template-columns:
-                  repeat(
-                    auto-fit,
-                    minmax(220px,1fr)
-                  );
-                gap:16px;
-                margin-bottom:24px;
-              ">
-
-                <div
-                  class="card"
-                  style="
-                    margin:0;
-                    padding:18px 22px;
-                  "
-                >
-                  <div style="
-                    color:#65776b;
-                    font-size:13px;
-                  ">
-                    Available Opportunities
-                  </div>
-
-                  <div style="
-                    font-size:30px;
-                    font-weight:bold;
-                    margin-top:7px;
-                  ">
-                    ${opportunities.length.toLocaleString()}
-                  </div>
-                </div>
-
-                <div
-                  class="card"
-                  style="
-                    margin:0;
-                    padding:18px 22px;
-                  "
-                >
-                  <div style="
-                    color:#65776b;
-                    font-size:13px;
-                  ">
-                    Available Revenue
-                  </div>
-
-                  <div style="
-                    font-size:30px;
-                    font-weight:bold;
-                    margin-top:7px;
-                  ">
-                    ${money(
-                      totalAvailableValue
-                    )}
-                  </div>
-                </div>
-
-              </div>
-
-              <div style="
-                background:white;
-                border-radius:18px;
-                overflow:hidden;
-                box-shadow:
-                  0 8px 22px
-                  rgba(0,0,0,.08);
-              ">
-                <div style="
-                  overflow-x:auto;
-                ">
-                  <table style="
-                    width:100%;
-                    min-width:1080px;
-                    border-collapse:collapse;
-                    margin:0;
-                  ">
-
-                    <thead>
-                      <tr style="
-                        background:#eaf3e8;
-                      ">
-
-                        <th style="
-                          padding:16px 18px;
-                          text-align:left;
-                          white-space:nowrap;
-                        ">
-                          Location
-                        </th>
-
-                        <th style="
-                          padding:16px 18px;
-                          text-align:left;
-                          white-space:nowrap;
-                        ">
-                          Advertising Opportunity
-                        </th>
-
-                        <th style="
-                          padding:16px 18px;
-                          text-align:left;
-                          white-space:nowrap;
-                        ">
-                          Category
-                        </th>
-
-                        <th style="
-                          padding:16px 18px;
-                          text-align:left;
-                          white-space:nowrap;
-                        ">
-                          Investment
-                        </th>
-
-                        <th style="
-                          padding:16px 18px;
-                          text-align:left;
-                          white-space:nowrap;
-                        ">
-                          Available From
-                        </th>
-
-                        <th style="
-                          padding:16px 18px;
-                          text-align:left;
-                          white-space:nowrap;
-                        ">
-                          Available Until
-                        </th>
-
-                        <th style="
-                          padding:16px 18px;
-                          text-align:center;
-                          white-space:nowrap;
-                        ">
-                          Action
-                        </th>
-
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      ${opportunityRows}
-                    </tbody>
-
-                  </table>
-                </div>
-              </div>
-
-            </div>
-          `
-        )
-      );
-
-    } catch (err) {
+ 
+     catch (err) {
       console.error(
         "ORGANIZATION BUSINESS BREAKDOWN ERROR:",
         err
