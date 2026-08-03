@@ -39020,7 +39020,7 @@ app.get(
                         '<div>' +
                           '<label>Destination URL</label>' +
                           '<input' +
-                            ' type="url"' +
+                            ' type="text"' +
                             ' name="destination_url[]"' +
                             ' value="' +
                               escapeAttribute(
