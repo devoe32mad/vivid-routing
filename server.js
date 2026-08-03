@@ -6962,12 +6962,43 @@ ${orgDateFilterForm({
   margin:0 0 34px;
 ">
 
-  <div class="card" style="margin:0;">
-    <div style="font-size:13px;color:#65776b;">Active Campaigns</div>
+ <a
+  href="/org-locations?organization_id=${org.id}"
+  style="
+    text-decoration:none;
+    color:inherit;
+    display:block;
+  "
+>
+  <div
+    class="card"
+    style="
+      margin:0;
+      height:100%;
+      box-sizing:border-box;
+      cursor:pointer;
+    "
+  >
+    <div style="font-size:13px;color:#65776b;">
+      Active Campaigns
+    </div>
+
     <div style="font-size:30px;font-weight:bold;margin-top:7px;">
       ${totals.activeCampaigns.toLocaleString()}
     </div>
+
+    <div style="
+      margin-top:15px;
+      padding-top:10px;
+      border-top:1px solid #e7eee7;
+      font-size:12px;
+      color:#176b3a;
+      font-weight:bold;
+    ">
+      View by Location →
+    </div>
   </div>
+</a>
 
   <div class="card" style="margin:0;">
     <div style="font-size:13px;color:#65776b;">Scans</div>
