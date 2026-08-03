@@ -34994,19 +34994,34 @@ app.get(
                     </div>
                   </div>
 
-                  <div style="
-                    font-size:14px;
-                    font-weight:bold;
-                    color:#176b3a;
-                  ">
-                    ${
-                      destinationsResult.rows.length
-                    } Destination${
-                      destinationsResult.rows.length === 1
-                        ? ""
-                        : "s"
-                    }
-                  </div>
+              <div style="
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+">
+  <div style="
+    font-size:14px;
+    font-weight:bold;
+    color:#176b3a;
+  ">
+    ${
+      destinationsResult.rows.length
+    } Destination${
+      destinationsResult.rows.length === 1
+        ? ""
+        : "s"
+    }
+  </div>
+
+  <a
+    class="btn"
+    href="/admin/campaign/${campaign.id}/new-destination"
+    style="margin:0;"
+  >
+    + Add Destination
+  </a>
+</div>
                 </div>
 
                 <div style="
