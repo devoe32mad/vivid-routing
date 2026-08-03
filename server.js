@@ -7401,32 +7401,18 @@ JOIN qr_campaigns qc
               </td>
 
               <td style="
-                padding:16px 18px;
-                border-bottom:1px solid #e7eee7;
-                text-align:left;
-                vertical-align:middle;
-                white-space:nowrap;
-              ">
-                ${formatDate(
-                  row.start_date ||
-                  row.started_at ||
-                  row.assigned_at
-                )}
-              </td>
-
-              <td style="
-                padding:16px 18px;
-                border-bottom:1px solid #e7eee7;
-                text-align:left;
-                vertical-align:middle;
-                white-space:nowrap;
-              ">
-                ${
-                  row.end_date
-                    ? formatDate(row.end_date)
-                    : "Ongoing"
-                }
-              </td>
+  padding:16px 18px;
+  border-bottom:1px solid #e7eee7;
+  text-align:left;
+  vertical-align:middle;
+  white-space:nowrap;
+">
+  ${formatDate(
+    row.start_date ||
+    row.started_at ||
+    row.assigned_at
+  )}
+</td>
 
               <td style="
                 padding:16px 18px;
@@ -7632,7 +7618,16 @@ JOIN qr_campaigns qc
               ">
                 Scans
               </div>
-
+<td style="
+  padding:16px 18px;
+  border-bottom:1px solid #e7eee7;
+  text-align:center;
+  vertical-align:middle;
+">
+  ${Number(
+    row.intent || 0
+  ).toLocaleString()}
+</td>
               <div style="
                 font-size:30px;
                 font-weight:bold;
