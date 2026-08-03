@@ -6997,6 +6997,20 @@ No summary data is stored here.
 =========================================================
 */
 
+/*
+=========================================================
+ORGANIZATION BUSINESS BREAKDOWN
+
+Read-only drill-down from the Organization Overview.
+
+Vivid remains the source of truth.
+No summary totals or business records are duplicated here.
+
+Current supported metric:
+- available
+=========================================================
+*/
+
 app.get(
   "/org-business-breakdown",
   async (req, res) => {
@@ -7004,8 +7018,8 @@ app.get(
       let organizationId = null;
 
       /*
-        Organization Portal users use their session
-        organization. They cannot select another organization.
+        Organization Portal users always use the
+        organization stored in their authenticated session.
       */
       if (req.session.orgUser?.organization_id) {
         organizationId = Number(
@@ -7042,8 +7056,8 @@ app.get(
         .toLowerCase();
 
       /*
-        Version 1 supports Available Advertising only.
-        The other metrics will be added after this is tested.
+        Add pending, active and advertiser-revenue
+        after Available Advertising is fully tested.
       */
       if (metric !== "available") {
         return res.status(400).send(
@@ -7051,14 +7065,52 @@ app.get(
         );
       }
 
+      const escapeHtml = value =>
+        String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+
+      const formatDate = value => {
+        if (!value) {
+          return "No restriction";
+        }
+
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+          return "No restriction";
+        }
+
+        return date.toLocaleDateString(
+          "en-US",
+          {
+            month: "short",
+            day: "numeric",
+            year: "numeric"
+          }
+        );
+      };
+
+      /*
+        Confirm that the selected organization exists.
+      */
       const organizationResult = await q(
         `
           SELECT
             id,
             name
+
           FROM organizations
+
           WHERE id = $1
-            AND COALESCE(is_active, true) = true
+            AND COALESCE(
+                  is_active,
+                  true
+                ) = true
+
           LIMIT 1
         `,
         [organizationId]
@@ -7074,10 +7126,12 @@ app.get(
       }
 
       /*
-        Available advertising comes from the organization's
-        opportunities connected to existing Vivid locations.
+        Available Advertising comes from the organization's
+        advertising opportunities connected to existing
+        Vivid locations and placements.
 
-        No totals or opportunity records are duplicated.
+        The Organization Portal does not duplicate these
+        records or store separate reporting totals.
       */
       const opportunitiesResult = await q(
         `
@@ -7098,13 +7152,16 @@ app.get(
             )::numeric AS price,
 
             COALESCE(
-              NULLIF(TRIM(oo.pricing_unit), ''),
+              NULLIF(
+                TRIM(oo.pricing_unit),
+                ''
+              ),
               'Per Year'
             ) AS pricing_unit,
 
             oo.suggested_term_length,
             oo.suggested_term_unit,
-            oo.status,
+
             oo.available_from,
             oo.available_until,
 
@@ -7171,31 +7228,18 @@ app.get(
         opportunities.reduce(
           (total, opportunity) =>
             total +
-            Number(opportunity.price || 0),
+            Number(
+              opportunity.price || 0
+            ),
           0
         );
 
-      const formatDate = value => {
-        if (!value) {
-          return "No restriction";
-        }
+      /*
+        Build the underlying opportunity rows.
 
-        const date = new Date(value);
-
-        if (Number.isNaN(date.getTime())) {
-          return "No restriction";
-        }
-
-        return date.toLocaleDateString(
-          "en-US",
-          {
-            month: "short",
-            day: "numeric",
-            year: "numeric"
-          }
-        );
-      };
-
+        Location and Advertising Opportunity are both
+        drillable to their underlying setup records.
+      */
       const opportunityRows =
         opportunities.length
           ? opportunities
@@ -7219,17 +7263,44 @@ app.get(
                         opportunity.price
                       );
 
+                const placementDetail =
+                  opportunity.placement_name
+                    ? `
+                        <div style="
+                          color:#65776b;
+                          font-size:12px;
+                          margin-top:4px;
+                        ">
+                          ${escapeHtml(
+                            opportunity.placement_name
+                          )}
+                        </div>
+                      `
+                    : "";
+
                 return `
                   <tr>
+
                     <td style="
+                      padding:16px 18px;
+                      border-bottom:1px solid #e7eee7;
                       text-align:left;
+                      vertical-align:middle;
+                      min-width:230px;
                     ">
-                      <strong>
+                      <a
+                        href="/org-location/${opportunity.space_id}?organization_id=${organizationId}"
+                        style="
+                          color:#073b22;
+                          text-decoration:none;
+                          font-weight:bold;
+                        "
+                      >
                         ${escapeHtml(
                           opportunity.location_name ||
                           "Unnamed Location"
                         )}
-                      </strong>
+                      </a>
 
                       <div style="
                         color:#65776b;
@@ -7244,64 +7315,85 @@ app.get(
                     </td>
 
                     <td style="
+                      padding:16px 18px;
+                      border-bottom:1px solid #e7eee7;
                       text-align:left;
+                      vertical-align:middle;
+                      min-width:270px;
                     ">
-                      <strong>
+                      <a
+                        href="/org-opportunity/edit/${opportunity.opportunity_id}?organization_id=${organizationId}"
+                        style="
+                          color:#073b22;
+                          text-decoration:none;
+                          font-weight:bold;
+                        "
+                      >
                         ${escapeHtml(
-                          opportunity.title
+                          opportunity.title ||
+                          "Unnamed Opportunity"
                         )}
-                      </strong>
+                      </a>
 
-                      ${
-                        opportunity.placement_name
-                          ? `
-                            <div style="
-                              color:#65776b;
-                              font-size:12px;
-                              margin-top:4px;
-                            ">
-                              ${escapeHtml(
-                                opportunity.placement_name
-                              )}
-                            </div>
-                          `
-                          : ""
-                      }
+                      ${placementDetail}
                     </td>
 
-                    <td>
+                    <td style="
+                      padding:16px 18px;
+                      border-bottom:1px solid #e7eee7;
+                      text-align:left;
+                      vertical-align:middle;
+                      white-space:nowrap;
+                    ">
                       ${escapeHtml(
                         opportunity.category ||
                         "—"
                       )}
                     </td>
 
-                    <td>
+                    <td style="
+                      padding:16px 18px;
+                      border-bottom:1px solid #e7eee7;
+                      text-align:left;
+                      vertical-align:middle;
+                      white-space:nowrap;
+                    ">
                       <strong>
                         ${priceLabel}
                       </strong>
                     </td>
 
-                    <td>
+                    <td style="
+                      padding:16px 18px;
+                      border-bottom:1px solid #e7eee7;
+                      text-align:left;
+                      vertical-align:middle;
+                      white-space:nowrap;
+                    ">
                       ${formatDate(
                         opportunity.available_from
                       )}
                     </td>
 
-                    <td>
+                    <td style="
+                      padding:16px 18px;
+                      border-bottom:1px solid #e7eee7;
+                      text-align:left;
+                      vertical-align:middle;
+                      white-space:nowrap;
+                    ">
                       ${formatDate(
                         opportunity.available_until
                       )}
                     </td>
 
-                    <td>
-                      ${statusBadge(
-                        opportunity.status ||
-                        "Available"
-                      )}
-                    </td>
-
-                    <td>
+                    <td style="
+                      padding:16px 18px;
+                      border-bottom:1px solid #e7eee7;
+                      text-align:center;
+                      vertical-align:middle;
+                      white-space:nowrap;
+                    ">
                       <a
                         class="btn"
                         href="/org-opportunity/edit/${opportunity.opportunity_id}?organization_id=${organizationId}"
@@ -7310,9 +7402,10 @@ app.get(
                           white-space:nowrap;
                         "
                       >
-                        Open Opportunity
+                        Open
                       </a>
                     </td>
+
                   </tr>
                 `;
               })
@@ -7320,7 +7413,7 @@ app.get(
           : `
               <tr>
                 <td
-                  colspan="8"
+                  colspan="7"
                   style="
                     padding:42px;
                     text-align:center;
@@ -7349,16 +7442,12 @@ app.get(
             ${organizationNav({
               organizationId,
               organizationName:
-                escapeHtml(
-                  organization.name
-                ),
+                organization.name,
               activePage: "dashboard",
               userName:
-                escapeHtml(
-                  req.session.orgUser?.name ||
-                  req.session.user?.name ||
-                  ""
-                )
+                req.session.orgUser?.name ||
+                req.session.user?.name ||
+                ""
             })}
 
             <div class="topbar">
@@ -7396,8 +7485,9 @@ app.get(
                   <div style="
                     color:#65776b;
                   ">
-                    Select an opportunity to view its
-                    underlying setup information.
+                    Select a location or advertising
+                    opportunity to view its underlying
+                    setup information.
                   </div>
                 </div>
 
@@ -7419,7 +7509,14 @@ app.get(
                 gap:16px;
                 margin-bottom:24px;
               ">
-                <div class="card" style="margin:0;">
+
+                <div
+                  class="card"
+                  style="
+                    margin:0;
+                    padding:18px 22px;
+                  "
+                >
                   <div style="
                     color:#65776b;
                     font-size:13px;
@@ -7436,7 +7533,13 @@ app.get(
                   </div>
                 </div>
 
-                <div class="card" style="margin:0;">
+                <div
+                  class="card"
+                  style="
+                    margin:0;
+                    padding:18px 22px;
+                  "
+                >
                   <div style="
                     color:#65776b;
                     font-size:13px;
@@ -7449,57 +7552,102 @@ app.get(
                     font-weight:bold;
                     margin-top:7px;
                   ">
-                    ${money(totalAvailableValue)}
+                    ${money(
+                      totalAvailableValue
+                    )}
                   </div>
                 </div>
+
               </div>
 
               <div style="
-                overflow-x:auto;
+                background:white;
                 border-radius:18px;
+                overflow:hidden;
+                box-shadow:
+                  0 8px 22px
+                  rgba(0,0,0,.08);
               ">
-                <table style="
-                  min-width:1050px;
-                  margin:0;
+                <div style="
+                  overflow-x:auto;
                 ">
-                  <thead>
-                    <tr>
-                      <th style="text-align:left;">
-                        Location
-                      </th>
+                  <table style="
+                    width:100%;
+                    min-width:1080px;
+                    border-collapse:collapse;
+                    margin:0;
+                  ">
 
-                      <th style="text-align:left;">
-                        Advertising Opportunity
-                      </th>
+                    <thead>
+                      <tr style="
+                        background:#eaf3e8;
+                      ">
 
-                      <th>
-                        Category
-                      </th>
+                        <th style="
+                          padding:16px 18px;
+                          text-align:left;
+                          white-space:nowrap;
+                        ">
+                          Location
+                        </th>
 
-                      <th>
-                        Investment
-                      </th>
+                        <th style="
+                          padding:16px 18px;
+                          text-align:left;
+                          white-space:nowrap;
+                        ">
+                          Advertising Opportunity
+                        </th>
 
-                      <th>
-                        Available From
-                      </th>
+                        <th style="
+                          padding:16px 18px;
+                          text-align:left;
+                          white-space:nowrap;
+                        ">
+                          Category
+                        </th>
 
-                      <th>
-                        Available Until
-                      </th>
+                        <th style="
+                          padding:16px 18px;
+                          text-align:left;
+                          white-space:nowrap;
+                        ">
+                          Investment
+                        </th>
 
-                      <th>
-                        Status
-                      </th>
+                        <th style="
+                          padding:16px 18px;
+                          text-align:left;
+                          white-space:nowrap;
+                        ">
+                          Available From
+                        </th>
 
-                      <th></th>
-                    </tr>
-                  </thead>
+                        <th style="
+                          padding:16px 18px;
+                          text-align:left;
+                          white-space:nowrap;
+                        ">
+                          Available Until
+                        </th>
 
-                  <tbody>
-                    ${opportunityRows}
-                  </tbody>
-                </table>
+                        <th style="
+                          padding:16px 18px;
+                          text-align:center;
+                          white-space:nowrap;
+                        ">
+                          Action
+                        </th>
+
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      ${opportunityRows}
+                    </tbody>
+
+                  </table>
+                </div>
               </div>
 
             </div>
@@ -7520,6 +7668,7 @@ app.get(
     }
   }
 );
+      
 app.get("/org-contracts", async (req, res) => {
   res.send(orgPage("Organization Contracts", `
     <div class="topbar">
