@@ -7062,6 +7062,7 @@ app.get(
 if (
   ![
     "available",
+    "pending",
     "active"
   ].includes(metric)
 ) {
