@@ -7790,10 +7790,10 @@ if (metric === "active") {
         </div>
       `
     )
-  );
+    );
 }
- 
-     catch (err) {
+
+    } catch (err) {
       console.error(
         "ORGANIZATION BUSINESS BREAKDOWN ERROR:",
         err
