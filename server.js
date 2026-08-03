@@ -6775,8 +6775,8 @@ ${orgDateFilterForm({
   </a>
 
   <a
-    href="/org-business-breakdown?organization_id=${org.id}&metric=pending"
-    style="text-decoration:none;color:inherit;display:block;"
+   href="/org-advertising-requests?organization_id=${org.id}&status=Pending${dateQueryString ? `&${dateQueryString}` : ""}"
+style="text-decoration:none;color:inherit;display:block;"
   >
     <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
       <div style="font-size:15px;font-weight:bold;">
@@ -6822,7 +6822,7 @@ ${orgDateFilterForm({
   </a>
 
   <a
-    href="/org-business-breakdown?organization_id=${org.id}&metric=active"
+    href="/org-advertising-requests?organization_id=${org.id}&status=Approved${dateQueryString ? `&${dateQueryString}` : ""}"
     style="text-decoration:none;color:inherit;display:block;"
   >
     <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
