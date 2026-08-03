@@ -7689,7 +7689,7 @@ JOIN qr_campaigns qc
             <div style="overflow-x:auto;">
               <table style="
                 width:100%;
-                min-width:1450px;
+                min-width:1300px;
                 border-collapse:collapse;
                 margin:0;
               ">
