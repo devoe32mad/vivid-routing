@@ -7202,14 +7202,12 @@ if (metric === "active") {
              true
            ) = true
 
-      JOIN qr_campaigns qc
-        ON qc.qr_id = qr.id
-       AND COALESCE(
-             qc.is_active,
-             true
-           ) = true
-       AND qc.ended_at IS NULL
-
+JOIN qr_campaigns qc
+  ON qc.qr_id = qr.id
+ AND COALESCE(
+       qc.is_active,
+       true
+     ) = true
       JOIN campaigns c
         ON c.id = qc.campaign_id
        AND COALESCE(
@@ -7228,15 +7226,7 @@ if (metric === "active") {
               false
             ) = false
 
-        AND (
-          c.start_date IS NULL
-          OR c.start_date <= CURRENT_DATE
-        )
-
-        AND (
-          c.end_date IS NULL
-          OR c.end_date >= CURRENT_DATE
-        )
+      
 
       GROUP BY
         s.id,
