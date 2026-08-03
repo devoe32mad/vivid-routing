@@ -1877,6 +1877,45 @@ await q(`
   ADD COLUMN IF NOT EXISTS end_date DATE
 `);
   await q(`
+CREATE TABLE IF NOT EXISTS campaign_destinations (
+    id SERIAL PRIMARY KEY,
+
+    campaign_id INTEGER NOT NULL
+        REFERENCES campaigns(id)
+        ON DELETE CASCADE,
+
+    name TEXT NOT NULL,
+
+    destination_type TEXT NOT NULL DEFAULT 'website',
+
+    destination_url TEXT NOT NULL,
+
+    conversion_url TEXT,
+
+    estimated_value NUMERIC(12,2) DEFAULT 0,
+
+    display_order INTEGER DEFAULT 1,
+
+    is_active BOOLEAN DEFAULT TRUE,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+`);
+
+await q(`
+CREATE INDEX IF NOT EXISTS
+idx_campaign_destinations_campaign
+ON campaign_destinations(campaign_id)
+`);
+
+await q(`
+CREATE INDEX IF NOT EXISTS
+idx_campaign_destinations_active
+ON campaign_destinations(is_active)
+`);
+  await q(`
   UPDATE campaigns
   SET created_at = CURRENT_TIMESTAMP
   WHERE created_at IS NULL
