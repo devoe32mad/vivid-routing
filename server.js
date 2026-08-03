@@ -34711,6 +34711,36 @@ app.get(
                             `
                       }
                     </td>
+                 <td style="
+  text-align:center;
+  white-space:nowrap;
+">
+  <a
+    href="/admin/destination/${destination.id}/edit"
+  >
+    Edit
+  </a>
+
+  &nbsp;|&nbsp;
+
+  ${
+    destination.is_active
+      ? `
+          <a
+            href="/admin/destination/${destination.id}/disable"
+          >
+            Disable
+          </a>
+        `
+      : `
+          <a
+            href="/admin/destination/${destination.id}/enable"
+          >
+            Activate
+          </a>
+        `
+  }
+</td>
                   </tr>
                 `
               )
