@@ -2778,6 +2778,7 @@ async function saveEvent({
   qrId,
   campaignId,
   storeId = null,
+  campaignDestinationId = null,
   type,
   value = 0,
   vividClickId = null
@@ -2787,16 +2788,18 @@ async function saveEvent({
       qr_id,
       campaign_id,
       store_id,
+      campaign_destination_id,
       type,
       value,
       vivid_click_id
     )
-    VALUES ($1, $2, $3, $4, $5, $6)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
     RETURNING *`,
     [
       qrId,
       campaignId,
       storeId,
+      campaignDestinationId,
       type,
       Number(value || 0),
       vividClickId
