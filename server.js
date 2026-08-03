@@ -7429,7 +7429,16 @@ const totalIntent =
                   row.scans || 0
                 ).toLocaleString()}
               </td>
-
+<td style="
+  padding:16px 18px;
+  border-bottom:1px solid #e7eee7;
+  text-align:center;
+  vertical-align:middle;
+">
+  ${Number(
+    row.intent || 0
+  ).toLocaleString()}
+</td>
               <td style="
                 padding:16px 18px;
                 border-bottom:1px solid #e7eee7;
