@@ -6822,7 +6822,7 @@ style="text-decoration:none;color:inherit;display:block;"
   </a>
 
   <a
-    href="/org-advertising-requests?organization_id=${org.id}&status=Approved${dateQueryString ? `&${dateQueryString}` : ""}"
+    href="/org-business-breakdown?organization_id=${org.id}&metric=active${dateQueryString ? `&${dateQueryString}` : ""}"
     style="text-decoration:none;color:inherit;display:block;"
   >
     <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
