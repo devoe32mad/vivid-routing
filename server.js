@@ -6987,6 +6987,539 @@ justify-content:flex-start;
     }
   }
 );
+/*
+=========================================================
+ORGANIZATION BUSINESS BREAKDOWN
+Read-only drill-down from Organization Overview.
+
+Vivid remains the source of truth.
+No summary data is stored here.
+=========================================================
+*/
+
+app.get(
+  "/org-business-breakdown",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Organization Portal users use their session
+        organization. They cannot select another organization.
+      */
+      if (req.session.orgUser?.organization_id) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      /*
+        Super Admin may select an organization through
+        the organization_id query parameter.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res.status(403).send(
+          "Organization access denied."
+        );
+      }
+
+      const metric = String(
+        req.query.metric || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      /*
+        Version 1 supports Available Advertising only.
+        The other metrics will be added after this is tested.
+      */
+      if (metric !== "available") {
+        return res.status(400).send(
+          "This business breakdown is not available yet."
+        );
+      }
+
+      const organizationResult = await q(
+        `
+          SELECT
+            id,
+            name
+          FROM organizations
+          WHERE id = $1
+            AND COALESCE(is_active, true) = true
+          LIMIT 1
+        `,
+        [organizationId]
+      );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res.status(404).send(
+          "Organization not found."
+        );
+      }
+
+      /*
+        Available advertising comes from the organization's
+        opportunities connected to existing Vivid locations.
+
+        No totals or opportunity records are duplicated.
+      */
+      const opportunitiesResult = await q(
+        `
+          SELECT
+            oo.id AS opportunity_id,
+            oo.organization_id,
+            oo.space_id,
+            oo.qr_id,
+
+            oo.title,
+            oo.description,
+            oo.category,
+
+            COALESCE(
+              oo.price,
+              oo.annual_price,
+              0
+            )::numeric AS price,
+
+            COALESCE(
+              NULLIF(TRIM(oo.pricing_unit), ''),
+              'Per Year'
+            ) AS pricing_unit,
+
+            oo.suggested_term_length,
+            oo.suggested_term_unit,
+            oo.status,
+            oo.available_from,
+            oo.available_until,
+
+            s.name AS location_name,
+            s.location AS market,
+
+            qr.name AS placement_name
+
+          FROM organization_opportunities oo
+
+          JOIN spaces s
+            ON s.id = oo.space_id
+           AND s.organization_id =
+               oo.organization_id
+           AND COALESCE(
+                 s.is_archived,
+                 false
+               ) = false
+
+          LEFT JOIN qr_codes qr
+            ON qr.id = oo.qr_id
+           AND qr.space_id = oo.space_id
+           AND COALESCE(
+                 qr.is_archived,
+                 false
+               ) = false
+
+          WHERE oo.organization_id = $1
+
+            AND COALESCE(
+                  oo.is_active,
+                  true
+                ) = true
+
+            AND LOWER(
+                  COALESCE(
+                    oo.status,
+                    ''
+                  )
+                ) = 'available'
+
+            AND (
+              oo.available_from IS NULL
+              OR oo.available_from <= CURRENT_DATE
+            )
+
+            AND (
+              oo.available_until IS NULL
+              OR oo.available_until >= CURRENT_DATE
+            )
+
+          ORDER BY
+            s.name,
+            oo.display_order,
+            oo.title
+        `,
+        [organizationId]
+      );
+
+      const opportunities =
+        opportunitiesResult.rows;
+
+      const totalAvailableValue =
+        opportunities.reduce(
+          (total, opportunity) =>
+            total +
+            Number(opportunity.price || 0),
+          0
+        );
+
+      const formatDate = value => {
+        if (!value) {
+          return "No restriction";
+        }
+
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+          return "No restriction";
+        }
+
+        return date.toLocaleDateString(
+          "en-US",
+          {
+            month: "short",
+            day: "numeric",
+            year: "numeric"
+          }
+        );
+      };
+
+      const opportunityRows =
+        opportunities.length
+          ? opportunities
+              .map(opportunity => {
+                const pricingUnit =
+                  String(
+                    opportunity.pricing_unit ||
+                    ""
+                  )
+                    .replace(/^Per\s+/i, "")
+                    .trim();
+
+                const priceLabel =
+                  pricingUnit
+                    ? `${money(
+                        opportunity.price
+                      )} / ${escapeHtml(
+                        pricingUnit
+                      )}`
+                    : money(
+                        opportunity.price
+                      );
+
+                return `
+                  <tr>
+                    <td style="
+                      text-align:left;
+                    ">
+                      <strong>
+                        ${escapeHtml(
+                          opportunity.location_name ||
+                          "Unnamed Location"
+                        )}
+                      </strong>
+
+                      <div style="
+                        color:#65776b;
+                        font-size:12px;
+                        margin-top:4px;
+                      ">
+                        ${escapeHtml(
+                          opportunity.market ||
+                          "Market not set"
+                        )}
+                      </div>
+                    </td>
+
+                    <td style="
+                      text-align:left;
+                    ">
+                      <strong>
+                        ${escapeHtml(
+                          opportunity.title
+                        )}
+                      </strong>
+
+                      ${
+                        opportunity.placement_name
+                          ? `
+                            <div style="
+                              color:#65776b;
+                              font-size:12px;
+                              margin-top:4px;
+                            ">
+                              ${escapeHtml(
+                                opportunity.placement_name
+                              )}
+                            </div>
+                          `
+                          : ""
+                      }
+                    </td>
+
+                    <td>
+                      ${escapeHtml(
+                        opportunity.category ||
+                        "—"
+                      )}
+                    </td>
+
+                    <td>
+                      <strong>
+                        ${priceLabel}
+                      </strong>
+                    </td>
+
+                    <td>
+                      ${formatDate(
+                        opportunity.available_from
+                      )}
+                    </td>
+
+                    <td>
+                      ${formatDate(
+                        opportunity.available_until
+                      )}
+                    </td>
+
+                    <td>
+                      ${statusBadge(
+                        opportunity.status ||
+                        "Available"
+                      )}
+                    </td>
+
+                    <td>
+                      <a
+                        class="btn"
+                        href="/org-opportunity/edit/${opportunity.opportunity_id}?organization_id=${organizationId}"
+                        style="
+                          margin:0;
+                          white-space:nowrap;
+                        "
+                      >
+                        Open Opportunity
+                      </a>
+                    </td>
+                  </tr>
+                `;
+              })
+              .join("")
+          : `
+              <tr>
+                <td
+                  colspan="8"
+                  style="
+                    padding:42px;
+                    text-align:center;
+                  "
+                >
+                  <h3 style="
+                    margin:0 0 8px;
+                  ">
+                    No Available Advertising
+                  </h3>
+
+                  <div style="
+                    color:#65776b;
+                  ">
+                    This organization has no advertising
+                    opportunities currently marked Available.
+                  </div>
+                </td>
+              </tr>
+            `;
+
+      return res.send(
+        orgPage(
+          `Available Advertising - ${organization.name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(
+                  organization.name
+                ),
+              activePage: "dashboard",
+              userName:
+                escapeHtml(
+                  req.session.orgUser?.name ||
+                  req.session.user?.name ||
+                  ""
+                )
+            })}
+
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Available Advertising
+              </h1>
+
+              <p class="subtitle">
+                Advertising opportunities currently
+                available across the organization.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:18px;
+                flex-wrap:wrap;
+                margin-bottom:22px;
+              ">
+                <div>
+                  <h2 style="
+                    margin:0 0 5px;
+                  ">
+                    Available Opportunities
+                  </h2>
+
+                  <div style="
+                    color:#65776b;
+                  ">
+                    Select an opportunity to view its
+                    underlying setup information.
+                  </div>
+                </div>
+
+                <a
+                  class="btn secondary"
+                  href="/org-organization/${organizationId}"
+                >
+                  Back to Overview
+                </a>
+              </div>
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(
+                    auto-fit,
+                    minmax(220px,1fr)
+                  );
+                gap:16px;
+                margin-bottom:24px;
+              ">
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                  ">
+                    Available Opportunities
+                  </div>
+
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                    margin-top:7px;
+                  ">
+                    ${opportunities.length.toLocaleString()}
+                  </div>
+                </div>
+
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                  ">
+                    Available Revenue
+                  </div>
+
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                    margin-top:7px;
+                  ">
+                    ${money(totalAvailableValue)}
+                  </div>
+                </div>
+              </div>
+
+              <div style="
+                overflow-x:auto;
+                border-radius:18px;
+              ">
+                <table style="
+                  min-width:1050px;
+                  margin:0;
+                ">
+                  <thead>
+                    <tr>
+                      <th style="text-align:left;">
+                        Location
+                      </th>
+
+                      <th style="text-align:left;">
+                        Advertising Opportunity
+                      </th>
+
+                      <th>
+                        Category
+                      </th>
+
+                      <th>
+                        Investment
+                      </th>
+
+                      <th>
+                        Available From
+                      </th>
+
+                      <th>
+                        Available Until
+                      </th>
+
+                      <th>
+                        Status
+                      </th>
+
+                      <th></th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    ${opportunityRows}
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "ORGANIZATION BUSINESS BREAKDOWN ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load business breakdown: " +
+        err.message
+      );
+    }
+  }
+);
 app.get("/org-contracts", async (req, res) => {
   res.send(orgPage("Organization Contracts", `
     <div class="topbar">
