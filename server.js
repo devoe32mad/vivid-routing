@@ -4376,7 +4376,58 @@ Supports:
 Remove after testing.
 =========================================================
 */
+app.get(
+  "/debug-campaign-destinations/:campaignId",
+  async (req, res) => {
+    try {
+      const campaignId = Number(
+        req.params.campaignId
+      );
 
+      if (
+        !Number.isInteger(campaignId) ||
+        campaignId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "Valid campaign ID required."
+        });
+      }
+
+      const result = await q(`
+        SELECT
+          id,
+          campaign_id,
+          name,
+          destination_type,
+          destination_url,
+          conversion_url,
+          estimated_value,
+          display_order,
+          is_active
+        FROM campaign_destinations
+        WHERE campaign_id = $1
+        ORDER BY
+          display_order,
+          id
+      `, [campaignId]);
+
+      return res.json({
+        success: true,
+        campaign_id: campaignId,
+        destination_count:
+          result.rows.length,
+        destinations:
+          result.rows
+      });
+    } catch (err) {
+      return res.status(500).json({
+        success: false,
+        error: err.message
+      });
+    }
+  }
+);
 app.get(
   "/debug-org-advertising-requests",
   async (req, res) => {
