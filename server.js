@@ -39287,7 +39287,19 @@ const existing = await q(`
         ]
       ));
     }
+function normalizeUrl(url) {
+  if (!url) return "";
+  url = url.trim();
 
+  if (
+    !url.startsWith("http://") &&
+    !url.startsWith("https://")
+  ) {
+    url = "https://" + url;
+  }
+
+  return url;
+}
     await q(`
       INSERT INTO campaigns (
         name,
@@ -39305,8 +39317,8 @@ const existing = await q(`
     `, [
       name,
       advertiser,
-      req.body.campaign_url || "",
-      req.body.conversion_url || "",
+    normalizeUrl(req.body.campaign_url),
+normalizeUrl(req.body.conversion_url),
       Number(req.body.avg_customer_value || 50),
       8,
       req.body.is_deal_of_day === "on",
