@@ -35800,7 +35800,7 @@ app.get(
                     font-weight:bold;
                     margin-top:7px;
                   ">
-                    ${uniqueJourneys.toLocaleString()}
+                    ${visitors.toLocaleString()}
                   </div>
                 </div>
 
