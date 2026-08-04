@@ -35399,7 +35399,7 @@ app.get(
                     color:#65776b;
                     font-size:13px;
                   ">
-                    Unique Journeys
+                    Visitors
                   </div>
 
                   <div style="
