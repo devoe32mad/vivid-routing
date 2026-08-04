@@ -36334,6 +36334,24 @@ app.get(
 </td>
 
 <td style="
+  text-align:center;
+  white-space:nowrap;
+">
+  <a
+    href="/admin/destination/${destination.id}/clicks"
+    style="
+      color:#073b22;
+      font-weight:bold;
+      text-decoration:none;
+    "
+  >
+    ${Number(
+      destination.conversions || 0
+    ).toLocaleString()}
+  </a>
+</td>
+
+<td style="
   white-space:nowrap;
 ">
   ${
