@@ -45734,136 +45734,771 @@ app.get("/export/report.csv", requireLogin, async (req, res) => {
     res.status(500).send("REPORT CSV ERROR: " + err.message);
   }
 });
-app.get("/export/report.pdf", requireLogin, async (req, res) => {
-  try {
-    const today = new Date().toISOString().slice(0, 10);
+app.get(
+  "/export/report.pdf",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const today =
+        new Date()
+          .toISOString()
+          .slice(0, 10);
 
-    const startDate =
-      req.query.start_date ||
-      req.query.startDate ||
-      req.query.start ||
-      req.query.from ||
-      today;
+      const startDate =
+        req.query.start_date ||
+        req.query.startDate ||
+        req.query.start ||
+        req.query.from ||
+        today;
 
-    const endDate =
-      req.query.end_date ||
-      req.query.endDate ||
-      req.query.end ||
-      req.query.to ||
-      today;
+      const endDate =
+        req.query.end_date ||
+        req.query.endDate ||
+        req.query.end ||
+        req.query.to ||
+        today;
 
-    const locationId = req.query.location_id || "";
-    const qrId = req.query.qr_id || req.query.qrId || req.query.qr || "";
-    const campaignId =
-      req.query.campaign_id ||
-      req.query.campaignId ||
-      req.query.campaign ||
-      "";
+      const locationId =
+        req.query.location_id ||
+        "";
 
-    const status = (req.query.status || "all").toLowerCase();
+      const qrId =
+        req.query.qr_id ||
+        req.query.qrId ||
+        req.query.qr ||
+        "";
 
-    const reportRows = await buildExportReportRows(
-      req,
-      startDate,
-      endDate,
-      locationId,
-      qrId,
-      campaignId,
-      status
-    );
+      const campaignId =
+        req.query.campaign_id ||
+        req.query.campaignId ||
+        req.query.campaign ||
+        "";
 
-    const summary = reportRows.reduce((t, r) => {
-      t.scans += r.scans;
-      t.offerClicks += r.offerClicks;
-      t.mapClicks += r.mapClicks;
-      t.wazeClicks += r.wazeClicks;
-      t.intent += r.intent;
-      t.conversions += r.conversions;
-      t.revenue += r.revenue;
-      t.allocatedCost += r.allocatedCost;
-      return t;
-    }, {
-      scans: 0,
-      offerClicks: 0,
-      mapClicks: 0,
-      wazeClicks: 0,
-      intent: 0,
-      conversions: 0,
-      revenue: 0,
-      allocatedCost: 0
-    });
+      const status =
+        String(
+          req.query.status || "all"
+        ).toLowerCase();
 
-    summary.cac =
-      summary.conversions > 0
-        ? summary.allocatedCost / summary.conversions
-        : 0;
+      const reportRows =
+        await buildExportReportRows(
+          req,
+          startDate,
+          endDate,
+          locationId,
+          qrId,
+          campaignId,
+          status
+        );
 
-    summary.roi =
-      summary.allocatedCost > 0
-        ? ((summary.revenue - summary.allocatedCost) / summary.allocatedCost) * 100
-        : 0;
+      /*
+      =========================================================
+      EXECUTIVE TOTALS
+      =========================================================
+      */
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=vivid-executive-report.pdf"
-    );
+      const summary =
+        reportRows.reduce(
+          (totals, row) => {
+            totals.visitors +=
+              Number(
+                row.visitors || 0
+              );
 
-    const doc = new PDFDocument({ margin: 50 });
-    doc.pipe(res);
+            totals.clicks +=
+              Number(
+                row.clicks || 0
+              );
 
-    doc.fontSize(22).text("Vivid Spots", { align: "center" });
-    doc.fontSize(16).text("Executive Performance Report", { align: "center" });
-    doc.moveDown();
-    doc.fontSize(10).text(`Date Range: ${startDate} to ${endDate}`, { align: "center" });
+            totals.conversions +=
+              Number(
+                row.conversions || 0
+              );
 
-    doc.moveDown(2);
-    doc.fontSize(16).text("Executive Summary");
-    doc.moveDown();
+            totals.visitorsConverted +=
+              Number(
+                row.visitorsConverted ||
+                0
+              );
 
-    doc.fontSize(12);
-    doc.text(`Scans: ${summary.scans}`);
-    doc.text(`Offer Clicks: ${summary.offerClicks}`);
-    doc.text(`Map Clicks: ${summary.mapClicks}`);
-    doc.text(`Waze Clicks: ${summary.wazeClicks}`);
-    doc.text(`Total Intent: ${summary.intent}`);
-    doc.text(`Conversions: ${summary.conversions}`);
-    doc.text(`Revenue: ${money(summary.revenue)}`);
-    doc.text(`Allocated Cost: ${money(summary.allocatedCost)}`);
-    doc.text(`CAC: ${money(summary.cac)}`);
-    doc.text(`ROI: ${pct(summary.roi)}`);
+            totals.revenueGenerated +=
+              Number(
+                row.revenueGenerated ||
+                0
+              );
 
-    doc.moveDown(2);
-    doc.fontSize(16).text("Campaign Results");
-    doc.moveDown();
+            totals.allocatedCost +=
+              Number(
+                row.allocatedCost ||
+                0
+              );
 
-    if (reportRows.length === 0) {
-      doc.fontSize(11).text("No campaign activity found for this date range.");
-    } else {
-      reportRows.forEach((r, i) => {
-        doc.fontSize(11).text(`${i + 1}. ${r.advertiser || "Unknown Advertiser"} - ${r.campaignName || "Unnamed Campaign"}`);
-        doc.fontSize(9).text(`QR Codes: ${r.qrNames || "N/A"}`);
-        doc.text(`Locations: ${r.locationNames || "N/A"}`);
-        doc.text(`Status: ${r.status}`);
-        doc.text(`Scans: ${r.scans} | Offers: ${r.offerClicks} | Maps: ${r.mapClicks} | Waze: ${r.wazeClicks} | Intent: ${r.intent}`);
-        doc.text(`Conversions: ${r.conversions} | Revenue: ${money(r.revenue)} | Allocated Cost: ${money(r.allocatedCost)} | CAC: ${money(r.cac)} | ROI: ${pct(r.roi)}`);
-        doc.moveDown();
-      });
+            return totals;
+          },
+          {
+            visitors: 0,
+            clicks: 0,
+            conversions: 0,
+            visitorsConverted: 0,
+            revenueGenerated: 0,
+            allocatedCost: 0
+          }
+        );
+
+      summary.visitorConversionRate =
+        summary.visitors > 0
+          ? summary.visitorsConverted /
+            summary.visitors *
+            100
+          : 0;
+
+      summary.revenuePerVisitor =
+        summary.visitors > 0
+          ? summary.revenueGenerated /
+            summary.visitors
+          : 0;
+
+      summary.revenuePerClick =
+        summary.clicks > 0
+          ? summary.revenueGenerated /
+            summary.clicks
+          : 0;
+
+      summary.revenuePerConversion =
+        summary.conversions > 0
+          ? summary.revenueGenerated /
+            summary.conversions
+          : 0;
+
+      summary.cac =
+        summary.conversions > 0
+          ? summary.allocatedCost /
+            summary.conversions
+          : 0;
+
+      summary.roi =
+        summary.allocatedCost > 0
+          ? (
+              (
+                summary.revenueGenerated -
+                summary.allocatedCost
+              ) /
+              summary.allocatedCost
+            ) * 100
+          : 0;
+
+      res.setHeader(
+        "Content-Type",
+        "application/pdf"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        "attachment; filename=vivid-executive-report.pdf"
+      );
+
+      const doc =
+        new PDFDocument({
+          margin: 48,
+          size: "LETTER"
+        });
+
+      doc.pipe(res);
+
+      const pageBottom = () =>
+        doc.page.height -
+        doc.page.margins.bottom;
+
+      const ensureSpace = needed => {
+        if (
+          doc.y + needed >
+          pageBottom()
+        ) {
+          doc.addPage();
+        }
+      };
+
+      const sectionTitle = title => {
+        ensureSpace(45);
+
+        doc
+          .fillColor("#123d25")
+          .fontSize(15)
+          .text(title);
+
+        doc
+          .moveDown(0.35)
+          .strokeColor("#d8e4d8")
+          .lineWidth(1)
+          .moveTo(
+            doc.page.margins.left,
+            doc.y
+          )
+          .lineTo(
+            doc.page.width -
+              doc.page.margins.right,
+            doc.y
+          )
+          .stroke();
+
+        doc.moveDown(0.7);
+      };
+
+      const metricLine = (
+        label,
+        value
+      ) => {
+        doc
+          .fillColor("#374151")
+          .fontSize(10)
+          .text(
+            `${label}:`,
+            {
+              continued: true
+            }
+          )
+          .fillColor("#111827")
+          .text(` ${value}`);
+      };
+
+      /*
+      =========================================================
+      COVER / EXECUTIVE SUMMARY
+      =========================================================
+      */
+
+      doc
+        .fillColor("#123d25")
+        .fontSize(24)
+        .text(
+          "Vivid Spots",
+          {
+            align: "center"
+          }
+        );
+
+      doc
+        .fillColor("#111827")
+        .fontSize(17)
+        .text(
+          "Executive Performance Report",
+          {
+            align: "center"
+          }
+        );
+
+      doc.moveDown(0.6);
+
+      doc
+        .fillColor("#6b7280")
+        .fontSize(10)
+        .text(
+          `Reporting Period: ${startDate} through ${endDate}`,
+          {
+            align: "center"
+          }
+        );
+
+      doc.moveDown(1.5);
+
+      sectionTitle(
+        "Executive Summary"
+      );
+
+      const summaryMetrics = [
+        [
+          "Visitors",
+          summary.visitors
+            .toLocaleString()
+        ],
+        [
+          "Clicks",
+          summary.clicks
+            .toLocaleString()
+        ],
+        [
+          "Conversions",
+          summary.conversions
+            .toLocaleString()
+        ],
+        [
+          "Visitor Conversion Rate",
+          pct(
+            summary
+              .visitorConversionRate
+          )
+        ],
+        [
+          "Revenue Generated",
+          money(
+            summary
+              .revenueGenerated
+          )
+        ],
+        [
+          "Revenue Per Conversion",
+          money(
+            summary
+              .revenuePerConversion
+          )
+        ],
+        [
+          "Revenue Per Visitor",
+          money(
+            summary
+              .revenuePerVisitor
+          )
+        ],
+        [
+          "Revenue Per Click",
+          money(
+            summary
+              .revenuePerClick
+          )
+        ],
+        [
+          "Allocated Cost",
+          money(
+            summary.allocatedCost
+          )
+        ],
+        [
+          "CAC",
+          money(summary.cac)
+        ],
+        [
+          "ROI",
+          pct(summary.roi)
+        ]
+      ];
+
+      summaryMetrics.forEach(
+        ([label, value]) => {
+          metricLine(label, value);
+        }
+      );
+
+      doc.moveDown(1.2);
+
+      doc
+        .fillColor("#4b5563")
+        .fontSize(9)
+        .text(
+          `${reportRows.length} campaign${
+            reportRows.length === 1
+              ? ""
+              : "s"
+          } included in this report.`,
+          {
+            align: "center"
+          }
+        );
+
+      /*
+      =========================================================
+      CAMPAIGN AND CUSTOMER ACTION DETAIL
+      =========================================================
+      */
+
+      if (!reportRows.length) {
+        doc.moveDown(2);
+
+        doc
+          .fontSize(11)
+          .fillColor("#374151")
+          .text(
+            "No campaign activity was found for the selected filters."
+          );
+      } else {
+        reportRows.forEach(
+          (
+            campaign,
+            campaignIndex
+          ) => {
+            doc.addPage();
+
+            doc
+              .fillColor("#123d25")
+              .fontSize(18)
+              .text(
+                `${campaignIndex + 1}. ${
+                  campaign.advertiser ||
+                  "Unknown Advertiser"
+                }`
+              );
+
+            doc
+              .fillColor("#111827")
+              .fontSize(15)
+              .text(
+                campaign.campaignName ||
+                "Unnamed Campaign"
+              );
+
+            doc.moveDown(0.5);
+
+            doc
+              .fillColor("#6b7280")
+              .fontSize(9)
+              .text(
+                `Status: ${campaign.status}`
+              )
+              .text(
+                `QR Placements: ${
+                  campaign.qrNames ||
+                  "Not assigned"
+                }`
+              )
+              .text(
+                `Locations: ${
+                  campaign.locationNames ||
+                  "Not assigned"
+                }`
+              );
+
+            doc.moveDown(1);
+
+            sectionTitle(
+              "Campaign Performance"
+            );
+
+            metricLine(
+              "Visitors",
+              Number(
+                campaign.visitors || 0
+              ).toLocaleString()
+            );
+
+            metricLine(
+              "Clicks",
+              Number(
+                campaign.clicks || 0
+              ).toLocaleString()
+            );
+
+            metricLine(
+              "Conversions",
+              Number(
+                campaign.conversions ||
+                0
+              ).toLocaleString()
+            );
+
+            metricLine(
+              "Visitor Conversion Rate",
+              pct(
+                campaign
+                  .visitorConversionRate ||
+                0
+              )
+            );
+
+            metricLine(
+              "Revenue Generated",
+              money(
+                campaign
+                  .revenueGenerated ||
+                0
+              )
+            );
+
+            metricLine(
+              "Revenue Per Conversion",
+              money(
+                campaign
+                  .revenuePerConversion ||
+                0
+              )
+            );
+
+            metricLine(
+              "Revenue Per Visitor",
+              money(
+                campaign
+                  .revenuePerVisitor ||
+                0
+              )
+            );
+
+            metricLine(
+              "Revenue Per Click",
+              money(
+                campaign
+                  .revenuePerClick ||
+                0
+              )
+            );
+
+            metricLine(
+              "Allocated Cost",
+              money(
+                campaign
+                  .allocatedCost ||
+                0
+              )
+            );
+
+            metricLine(
+              "CAC",
+              money(
+                campaign.cac || 0
+              )
+            );
+
+            metricLine(
+              "ROI",
+              pct(
+                campaign.roi || 0
+              )
+            );
+
+            doc.moveDown(1);
+
+            sectionTitle(
+              "Customer Actions and URLs"
+            );
+
+            if (
+              !campaign.customerActions ||
+              !campaign
+                .customerActions.length
+            ) {
+              doc
+                .fillColor("#6b7280")
+                .fontSize(10)
+                .text(
+                  "No Customer Actions are configured for this campaign."
+                );
+            } else {
+              campaign
+                .customerActions
+                .forEach(
+                  (
+                    action,
+                    actionIndex
+                  ) => {
+                    ensureSpace(190);
+
+                    doc
+                      .fillColor("#123d25")
+                      .fontSize(12)
+                      .text(
+                        `${
+                          actionIndex + 1
+                        }. ${
+                          action.name ||
+                          "Unnamed Customer Action"
+                        }`
+                      );
+
+                    doc
+                      .fillColor("#6b7280")
+                      .fontSize(8.5)
+                      .text(
+                        `Type: ${
+                          action.type ||
+                          "website"
+                        } | Status: ${
+                          action.status
+                        }`
+                      );
+
+                    doc.moveDown(0.35);
+
+                    doc
+                      .fillColor("#374151")
+                      .fontSize(8.5)
+                      .text(
+                        `Destination URL: ${
+                          action.destinationUrl ||
+                          "Not configured"
+                        }`,
+                        {
+                          width: 500
+                        }
+                      );
+
+                    doc
+                      .text(
+                        `Conversion URL: ${
+                          action.conversionUrl ||
+                          "Not configured"
+                        }`,
+                        {
+                          width: 500
+                        }
+                      );
+
+                    doc.moveDown(0.55);
+
+                    metricLine(
+                      "Visitors",
+                      Number(
+                        action.visitors ||
+                        0
+                      ).toLocaleString()
+                    );
+
+                    metricLine(
+                      "Clicks",
+                      Number(
+                        action.clicks || 0
+                      ).toLocaleString()
+                    );
+
+                    metricLine(
+                      "Conversions",
+                      Number(
+                        action.conversions ||
+                        0
+                      ).toLocaleString()
+                    );
+
+                    metricLine(
+                      "Conversion Rate",
+                      pct(
+                        action
+                          .conversionRate ||
+                        0
+                      )
+                    );
+
+                    metricLine(
+                      "Revenue Generated",
+                      money(
+                        action
+                          .revenueGenerated ||
+                        0
+                      )
+                    );
+
+                    metricLine(
+                      "Conversion Value",
+                      money(
+                        action
+                          .conversionValue ||
+                        0
+                      )
+                    );
+
+                    metricLine(
+                      "Revenue Per Visitor",
+                      money(
+                        action
+                          .revenuePerVisitor ||
+                        0
+                      )
+                    );
+
+                    metricLine(
+                      "Revenue Per Click",
+                      money(
+                        action
+                          .revenuePerClick ||
+                        0
+                      )
+                    );
+
+                    metricLine(
+                      "Revenue Per Conversion",
+                      money(
+                        action
+                          .revenuePerConversion ||
+                        0
+                      )
+                    );
+
+                    doc.moveDown(0.75);
+
+                    doc
+                      .strokeColor(
+                        "#e5e7eb"
+                      )
+                      .lineWidth(0.7)
+                      .moveTo(
+                        doc.page
+                          .margins.left,
+                        doc.y
+                      )
+                      .lineTo(
+                        doc.page.width -
+                          doc.page
+                            .margins.right,
+                        doc.y
+                      )
+                      .stroke();
+
+                    doc.moveDown(0.75);
+                  }
+                );
+            }
+
+            ensureSpace(120);
+
+            sectionTitle(
+              "Campaign Reconciliation"
+            );
+
+            metricLine(
+              "Campaign Visitors",
+              Number(
+                campaign.visitors || 0
+              ).toLocaleString()
+            );
+
+            metricLine(
+              "Campaign Clicks",
+              Number(
+                campaign.clicks || 0
+              ).toLocaleString()
+            );
+
+            metricLine(
+              "Campaign Conversions",
+              Number(
+                campaign.conversions ||
+                0
+              ).toLocaleString()
+            );
+
+            metricLine(
+              "Campaign Revenue Generated",
+              money(
+                campaign
+                  .revenueGenerated ||
+                0
+              )
+            );
+          }
+        );
+      }
+
+      doc.moveDown(1);
+
+      doc
+        .fillColor("#6b7280")
+        .fontSize(8)
+        .text(
+          "Vivid connects physical advertising engagement to Customer Actions, conversions, revenue, and executive performance reporting.",
+          {
+            align: "center"
+          }
+        );
+
+      doc.end();
+    } catch (err) {
+      console.error(
+        "PDF REPORT ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "PDF REPORT ERROR: " +
+        err.message
+      );
     }
-
-    doc.moveDown();
-    doc.fontSize(9).text(
-      "Vivid Spots helps advertisers measure physical-world engagement through QR routing, campaign analytics, conversion tracking, and performance reporting.",
-      { align: "center" }
-    );
-
-    doc.end();
-
-  } catch (err) {
-    console.error("PDF REPORT ERROR:", err);
-    res.status(500).send("PDF REPORT ERROR: " + err.message);
   }
-});
+);
+
 app.get("/analytics", async (req, res) => {
   const result = await q(`SELECT COUNT(*) FILTER (WHERE type='scan') AS scans, COUNT(*) FILTER (WHERE type='offer') AS offer_clicks, COUNT(*) FILTER (WHERE type='maps') AS maps_clicks, COUNT(*) FILTER (WHERE type='waze') AS waze_clicks, COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks FROM events`);
   res.json(result.rows[0]);
