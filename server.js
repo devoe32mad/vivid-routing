@@ -35774,13 +35774,16 @@ MAX(e.created_at) FILTER (
 
             FROM events conversion_event
 
-            WHERE conversion_event.type =
-                  'conversion'
+           WHERE conversion_event.type =
+      'conversion'
 
-              AND e.vivid_click_id IS NOT NULL
+  AND e.vivid_click_id IS NOT NULL
 
-              AND conversion_event.vivid_click_id =
-                  e.vivid_click_id
+  AND conversion_event.vivid_click_id =
+      e.vivid_click_id
+
+  AND conversion_event.campaign_destination_id =
+      e.campaign_destination_id
           ) journey
             ON true
 
