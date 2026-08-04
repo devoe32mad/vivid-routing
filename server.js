@@ -35450,10 +35450,10 @@ app.get(
         Number(summary.revenue || 0);
 
       const conversionRate =
-        uniqueJourneys > 0
+         visitors > 0
           ? (
               conversions /
-              uniqueJourneys *
+              visitors *
               100
             )
           : 0;
