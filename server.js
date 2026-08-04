@@ -4394,6 +4394,92 @@ app.get("/debug-puma-assignments", requireLogin, async (req, res) => {
 
   res.json(rows.rows);
 });
+app.get("/test-customer-action", (req, res) => {
+  const vividClickId = String(
+    req.query.vivid_click_id || ""
+  ).trim();
+
+  return res.send(
+    page(
+      "Test Customer Action",
+      `
+        <div class="topbar">
+          <div class="brand">
+            Vivid Spots
+          </div>
+
+          <h1>
+            Test Customer Action
+          </h1>
+
+          <p class="subtitle">
+            Simulated advertiser destination page.
+          </p>
+        </div>
+
+        <div class="wrap">
+          <div class="card">
+            <h2>
+              Test Destination
+            </h2>
+
+            <p>
+              This represents the advertiser’s website,
+              order page, appointment page, or offer page.
+            </p>
+
+            <a
+              class="btn"
+              href="/test-conversion?vivid_click_id=${encodeURIComponent(
+                vividClickId
+              )}"
+            >
+              Complete Test Conversion
+            </a>
+          </div>
+        </div>
+      `
+    )
+  );
+});
+
+app.get("/test-conversion", (req, res) => {
+  return res.send(
+    page(
+      "Test Conversion",
+      `
+        <div class="topbar">
+          <div class="brand">
+            Vivid Spots
+          </div>
+
+          <h1>
+            Conversion Complete
+          </h1>
+
+          <p class="subtitle">
+            Simulated advertiser confirmation page.
+          </p>
+        </div>
+
+        <div class="wrap">
+          <div class="card">
+            <h2>
+              Thank You
+            </h2>
+
+            <p>
+              This page automatically sends the attributed
+              conversion back to Vivid.
+            </p>
+          </div>
+        </div>
+
+        <script src="${BASE_URL}/vivid-conversion.js"></script>
+      `
+    )
+  );
+});
 app.get("/debug-qr-assignments/:qrId", requireLogin, async (req, res) => {
   try {
     const qrId = Number(req.params.qrId);
