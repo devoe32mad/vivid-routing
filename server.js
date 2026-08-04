@@ -45647,93 +45647,1960 @@ const qrId = req.query.qrId || req.query.qr_id || req.query.qr;
   res.status(500).send(err.message);
 } 
 });
-app.get("/export/report.csv", requireLogin, async (req, res) => {
-  try {
-    const today = new Date().toISOString().slice(0, 10);
+app.get(
+  "/export/report.csv",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const today =
+        new Date()
+          .toISOString()
+          .slice(0, 10);
 
-    const startDate =
-      req.query.start_date ||
-      req.query.startDate ||
-      req.query.start ||
-      req.query.from ||
-      today;
+      const startDate =
+        req.query.start_date ||
+        req.query.startDate ||
+        req.query.start ||
+        req.query.from ||
+        today;
 
-    const endDate =
-      req.query.end_date ||
-      req.query.endDate ||
-      req.query.end ||
-      req.query.to ||
-      today;
+      const endDate =
+        req.query.end_date ||
+        req.query.endDate ||
+        req.query.end ||
+        req.query.to ||
+        today;
 
-    const locationId = req.query.location_id || "";
-    const qrId = req.query.qr_id || req.query.qrId || req.query.qr || "";
-    const campaignId =
-      req.query.campaign_id ||
-      req.query.campaignId ||
-      req.query.campaign ||
-      "";
+      const locationId =
+        req.query.location_id || "";
 
-    const status = (req.query.status || "all").toLowerCase();
+      const qrId =
+        req.query.qr_id ||
+        req.query.qrId ||
+        req.query.qr ||
+        "";
 
-    const reportRows = await buildExportReportRows(
-      req,
-      startDate,
-      endDate,
-      locationId,
-      qrId,
-      campaignId,
-      status
-    );
+      const campaignId =
+        req.query.campaign_id ||
+        req.query.campaignId ||
+        req.query.campaign ||
+        "";
 
-    const header = [
-      "Advertiser",
-      "Campaign",
-      "QR Codes",
-      "Locations",
-      "Status",
-      "Scans",
-      "Offer Clicks",
-      "Map Clicks",
-      "Waze Clicks",
-      "Intent",
-      "Conversions",
-      "Revenue",
-      "Allocated Cost",
-      "CAC",
-      "ROI %"
-    ].join(",") + "\n";
+      const status =
+        String(
+          req.query.status || "all"
+        ).toLowerCase();
 
-    const rows = reportRows.map(r => [
-      r.advertiser,
-      r.campaignName,
-      r.qrNames,
-      r.locationNames,
-      r.status,
-      r.scans,
-      r.offerClicks,
-      r.mapClicks,
-      r.wazeClicks,
-      r.intent,
-      r.conversions,
-      r.revenue.toFixed(2),
-      r.allocatedCost.toFixed(2),
-      r.cac.toFixed(2),
-      r.roi.toFixed(2)
-    ].map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+      const reportRows =
+        await buildExportReportRows(
+          req,
+          startDate,
+          endDate,
+          locationId,
+          qrId,
+          campaignId,
+          status
+        );
 
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=vivid-executive-report.csv"
-    );
+      /*
+      =========================================================
+      EXECUTIVE TOTALS
+      =========================================================
+      */
 
-    res.send(header + rows);
+      const summary =
+        reportRows.reduce(
+          (totals, row) => {
+            totals.visitors +=
+              Number(
+                row.visitors || 0
+              );
 
-  } catch (err) {
-    console.error("REPORT CSV ERROR:", err);
-    res.status(500).send("REPORT CSV ERROR: " + err.message);
+            totals.clicks +=
+              Number(
+                row.clicks || 0
+              );
+
+            totals.conversions +=
+              Number(
+                row.conversions || 0
+              );
+
+            totals.visitorsConverted +=
+              Number(
+                row.visitorsConverted || 0
+              );
+
+            totals.revenueGenerated +=
+              Number(
+                row.revenueGenerated || 0
+              );
+
+            totals.allocatedCost +=
+              Number(
+                row.allocatedCost || 0
+              );
+
+            return totals;
+          },
+          {
+            visitors: 0,
+            clicks: 0,
+            conversions: 0,
+            visitorsConverted: 0,
+            revenueGenerated: 0,
+            allocatedCost: 0
+          }
+        );
+
+      summary.visitorConversionRate =
+        summary.visitors > 0
+          ? (
+              summary.visitorsConverted /
+              summary.visitors
+            )
+          : 0;
+
+      summary.revenuePerVisitor =
+        summary.visitors > 0
+          ? summary.revenueGenerated /
+            summary.visitors
+          : 0;
+
+      summary.revenuePerClick =
+        summary.clicks > 0
+          ? summary.revenueGenerated /
+            summary.clicks
+          : 0;
+
+      summary.revenuePerConversion =
+        summary.conversions > 0
+          ? summary.revenueGenerated /
+            summary.conversions
+          : 0;
+
+      summary.cac =
+        summary.conversions > 0
+          ? summary.allocatedCost /
+            summary.conversions
+          : 0;
+
+      summary.roi =
+        summary.allocatedCost > 0
+          ? (
+              summary.revenueGenerated -
+              summary.allocatedCost
+            ) /
+            summary.allocatedCost
+          : 0;
+
+      /*
+      =========================================================
+      WORKBOOK
+      =========================================================
+      */
+
+      const workbook =
+        new ExcelJS.Workbook();
+
+      workbook.creator =
+        "Vivid Spots";
+
+      workbook.company =
+        "Vivid Spots";
+
+      workbook.subject =
+        "Executive Performance Report";
+
+      workbook.title =
+        "Vivid Executive Performance Report";
+
+      workbook.description =
+        "Campaign, Customer Action, conversion, and revenue performance.";
+
+      workbook.created =
+        new Date();
+
+      workbook.modified =
+        new Date();
+
+      workbook.calcProperties.fullCalcOnLoad =
+        true;
+
+      /*
+      =========================================================
+      SHARED STYLES
+      =========================================================
+      */
+
+      const colors = {
+        darkGreen: "123D25",
+        green: "2F7D46",
+        lightGreen: "EAF3E8",
+        lighterGreen: "F6F9F5",
+        white: "FFFFFF",
+        darkText: "111827",
+        grayText: "65776B",
+        border: "D8E4D8"
+      };
+
+      const thinBorder = {
+        top: {
+          style: "thin",
+          color: {
+            argb: colors.border
+          }
+        },
+        left: {
+          style: "thin",
+          color: {
+            argb: colors.border
+          }
+        },
+        bottom: {
+          style: "thin",
+          color: {
+            argb: colors.border
+          }
+        },
+        right: {
+          style: "thin",
+          color: {
+            argb: colors.border
+          }
+        }
+      };
+
+      const currencyFormat =
+        '$#,##0.00;[Red]-$#,##0.00';
+
+      const percentageFormat =
+        '0.0%;[Red]-0.0%';
+
+      const integerFormat =
+        '#,##0';
+
+      const styleTitleRow = row => {
+        row.height = 32;
+
+        row.eachCell(cell => {
+          cell.font = {
+            bold: true,
+            size: 18,
+            color: {
+              argb: colors.white
+            }
+          };
+
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: {
+              argb: colors.darkGreen
+            }
+          };
+
+          cell.alignment = {
+            vertical: "middle",
+            horizontal: "left"
+          };
+        });
+      };
+
+      const styleSectionRow = row => {
+        row.height = 24;
+
+        row.eachCell(cell => {
+          cell.font = {
+            bold: true,
+            size: 12,
+            color: {
+              argb: colors.darkGreen
+            }
+          };
+
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: {
+              argb: colors.lightGreen
+            }
+          };
+
+          cell.border =
+            thinBorder;
+
+          cell.alignment = {
+            vertical: "middle",
+            horizontal: "left"
+          };
+        });
+      };
+
+      const styleHeaderRow = row => {
+        row.height = 28;
+
+        row.eachCell(cell => {
+          cell.font = {
+            bold: true,
+            color: {
+              argb: colors.white
+            }
+          };
+
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: {
+              argb: colors.green
+            }
+          };
+
+          cell.border =
+            thinBorder;
+
+          cell.alignment = {
+            vertical: "middle",
+            horizontal: "center",
+            wrapText: true
+          };
+        });
+      };
+
+      const styleDataRows = (
+        worksheet,
+        startRow,
+        endRow
+      ) => {
+        for (
+          let rowNumber = startRow;
+          rowNumber <= endRow;
+          rowNumber++
+        ) {
+          const row =
+            worksheet.getRow(
+              rowNumber
+            );
+
+          if (
+            (rowNumber - startRow) %
+              2 ===
+            1
+          ) {
+            row.eachCell(cell => {
+              cell.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: {
+                  argb:
+                    colors.lighterGreen
+                }
+              };
+            });
+          }
+
+          row.eachCell(cell => {
+            cell.border =
+              thinBorder;
+
+            cell.alignment = {
+              vertical: "top",
+              wrapText: true
+            };
+          });
+        }
+      };
+
+      const setPrintSettings =
+        worksheet => {
+          worksheet.pageSetup = {
+            orientation:
+              "landscape",
+            paperSize: 9,
+            fitToPage: true,
+            fitToWidth: 1,
+            fitToHeight: 0,
+            margins: {
+              left: 0.25,
+              right: 0.25,
+              top: 0.5,
+              bottom: 0.5,
+              header: 0.2,
+              footer: 0.2
+            }
+          };
+
+          worksheet.headerFooter = {
+            oddHeader:
+              '&C&BVivid Spots — Executive Performance Report',
+            oddFooter:
+              '&LVivid Spots&CPage &P of &N&R&D'
+          };
+
+          worksheet.views = [
+            {
+              state: "frozen",
+              ySplit: 1,
+              showGridLines: false
+            }
+          ];
+
+          worksheet.properties.defaultRowHeight =
+            20;
+        };
+
+      const makeUniqueSheetName = (
+        rawName,
+        existingNames
+      ) => {
+        const cleaned =
+          String(
+            rawName ||
+            "Campaign"
+          )
+            .replace(
+              /[\\/*?:[\]]/g,
+              " "
+            )
+            .replace(
+              /\s+/g,
+              " "
+            )
+            .trim()
+            .slice(0, 31) ||
+          "Campaign";
+
+        let candidate =
+          cleaned;
+
+        let counter = 2;
+
+        while (
+          existingNames.has(
+            candidate.toLowerCase()
+          )
+        ) {
+          const suffix =
+            ` ${counter}`;
+
+          candidate =
+            cleaned
+              .slice(
+                0,
+                31 -
+                  suffix.length
+              ) +
+            suffix;
+
+          counter++;
+        }
+
+        existingNames.add(
+          candidate.toLowerCase()
+        );
+
+        return candidate;
+      };
+
+      /*
+      =========================================================
+      SHEET 1 — EXECUTIVE SUMMARY
+      =========================================================
+      */
+
+      const executiveSheet =
+        workbook.addWorksheet(
+          "Executive Summary",
+          {
+            views: [
+              {
+                state: "frozen",
+                ySplit: 4,
+                showGridLines: false
+              }
+            ]
+          }
+        );
+
+      executiveSheet.columns = [
+        {
+          key: "metric",
+          width: 34
+        },
+        {
+          key: "value",
+          width: 24
+        }
+      ];
+
+      executiveSheet.mergeCells(
+        "A1:B1"
+      );
+
+      executiveSheet.getCell(
+        "A1"
+      ).value =
+        "Vivid Executive Performance Report";
+
+      styleTitleRow(
+        executiveSheet.getRow(1)
+      );
+
+      executiveSheet.mergeCells(
+        "A2:B2"
+      );
+
+      executiveSheet.getCell(
+        "A2"
+      ).value =
+        `Reporting Period: ${startDate} through ${endDate}`;
+
+      executiveSheet.getCell(
+        "A2"
+      ).font = {
+        italic: true,
+        color: {
+          argb: colors.grayText
+        }
+      };
+
+      executiveSheet.getCell(
+        "A2"
+      ).alignment = {
+        horizontal: "left"
+      };
+
+      executiveSheet.addRow([]);
+
+      const executiveHeaderRow =
+        executiveSheet.addRow([
+          "Metric",
+          "Value"
+        ]);
+
+      styleHeaderRow(
+        executiveHeaderRow
+      );
+
+      const executiveMetrics = [
+        [
+          "Visitors",
+          summary.visitors,
+          integerFormat
+        ],
+        [
+          "Clicks",
+          summary.clicks,
+          integerFormat
+        ],
+        [
+          "Conversions",
+          summary.conversions,
+          integerFormat
+        ],
+        [
+          "Visitor Conversion Rate",
+          summary
+            .visitorConversionRate,
+          percentageFormat
+        ],
+        [
+          "Revenue Generated",
+          summary.revenueGenerated,
+          currencyFormat
+        ],
+        [
+          "Revenue Per Conversion",
+          summary
+            .revenuePerConversion,
+          currencyFormat
+        ],
+        [
+          "Revenue Per Visitor",
+          summary
+            .revenuePerVisitor,
+          currencyFormat
+        ],
+        [
+          "Revenue Per Click",
+          summary
+            .revenuePerClick,
+          currencyFormat
+        ],
+        [
+          "Allocated Cost",
+          summary.allocatedCost,
+          currencyFormat
+        ],
+        [
+          "CAC",
+          summary.cac,
+          currencyFormat
+        ],
+        [
+          "ROI",
+          summary.roi,
+          percentageFormat
+        ],
+        [
+          "Campaigns Included",
+          reportRows.length,
+          integerFormat
+        ]
+      ];
+
+      executiveMetrics.forEach(
+        (
+          [
+            label,
+            value,
+            numberFormat
+          ]
+        ) => {
+          const row =
+            executiveSheet.addRow([
+              label,
+              value
+            ]);
+
+          row.getCell(1).font = {
+            bold: true,
+            color: {
+              argb: colors.darkText
+            }
+          };
+
+          row.getCell(2).numFmt =
+            numberFormat;
+
+          row.getCell(2).alignment = {
+            horizontal: "right"
+          };
+        }
+      );
+
+      styleDataRows(
+        executiveSheet,
+        5,
+        executiveSheet.rowCount
+      );
+
+      setPrintSettings(
+        executiveSheet
+      );
+
+      executiveSheet.pageSetup.printArea =
+        `A1:B${executiveSheet.rowCount}`;
+
+      /*
+      =========================================================
+      SHEET 2 — CAMPAIGN SUMMARY
+      =========================================================
+      */
+
+      const campaignSheet =
+        workbook.addWorksheet(
+          "Campaign Summary",
+          {
+            views: [
+              {
+                state: "frozen",
+                ySplit: 4,
+                showGridLines: false
+              }
+            ]
+          }
+        );
+
+      campaignSheet.columns = [
+        {
+          header: "Advertiser",
+          key: "advertiser",
+          width: 24
+        },
+        {
+          header: "Campaign",
+          key: "campaign",
+          width: 34
+        },
+        {
+          header: "QR Placements",
+          key: "qrPlacements",
+          width: 34
+        },
+        {
+          header: "Locations",
+          key: "locations",
+          width: 32
+        },
+        {
+          header: "Status",
+          key: "status",
+          width: 14
+        },
+        {
+          header: "Visitors",
+          key: "visitors",
+          width: 12
+        },
+        {
+          header: "Clicks",
+          key: "clicks",
+          width: 12
+        },
+        {
+          header: "Conversions",
+          key: "conversions",
+          width: 14
+        },
+        {
+          header:
+            "Visitor Conversion Rate",
+          key:
+            "visitorConversionRate",
+          width: 22
+        },
+        {
+          header:
+            "Revenue Generated",
+          key:
+            "revenueGenerated",
+          width: 19
+        },
+        {
+          header:
+            "Revenue / Conversion",
+          key:
+            "revenuePerConversion",
+          width: 21
+        },
+        {
+          header:
+            "Revenue / Visitor",
+          key:
+            "revenuePerVisitor",
+          width: 19
+        },
+        {
+          header:
+            "Revenue / Click",
+          key:
+            "revenuePerClick",
+          width: 18
+        },
+        {
+          header:
+            "Allocated Cost",
+          key:
+            "allocatedCost",
+          width: 17
+        },
+        {
+          header: "CAC",
+          key: "cac",
+          width: 14
+        },
+        {
+          header: "ROI",
+          key: "roi",
+          width: 12
+        }
+      ];
+
+      campaignSheet.insertRow(
+        1,
+        [
+          "Vivid Campaign Performance Summary"
+        ]
+      );
+
+      campaignSheet.mergeCells(
+        1,
+        1,
+        1,
+        campaignSheet.columnCount
+      );
+
+      styleTitleRow(
+        campaignSheet.getRow(1)
+      );
+
+      campaignSheet.insertRow(
+        2,
+        [
+          `Reporting Period: ${startDate} through ${endDate}`
+        ]
+      );
+
+      campaignSheet.mergeCells(
+        2,
+        1,
+        2,
+        campaignSheet.columnCount
+      );
+
+      campaignSheet.getCell(
+        "A2"
+      ).font = {
+        italic: true,
+        color: {
+          argb: colors.grayText
+        }
+      };
+
+      campaignSheet.insertRow(
+        3,
+        []
+      );
+
+      const campaignHeaderRow =
+        campaignSheet.getRow(4);
+
+      campaignSheet.columns.forEach(
+        (
+          column,
+          index
+        ) => {
+          campaignHeaderRow.getCell(
+            index + 1
+          ).value =
+            column.header;
+        }
+      );
+
+      styleHeaderRow(
+        campaignHeaderRow
+      );
+
+      reportRows.forEach(row => {
+        campaignSheet.addRow({
+          advertiser:
+            row.advertiser || "",
+          campaign:
+            row.campaignName || "",
+          qrPlacements:
+            row.qrNames || "",
+          locations:
+            row.locationNames || "",
+          status:
+            row.status || "",
+          visitors:
+            Number(
+              row.visitors || 0
+            ),
+          clicks:
+            Number(
+              row.clicks || 0
+            ),
+          conversions:
+            Number(
+              row.conversions || 0
+            ),
+          visitorConversionRate:
+            Number(
+              row.visitorConversionRate ||
+              0
+            ) / 100,
+          revenueGenerated:
+            Number(
+              row.revenueGenerated || 0
+            ),
+          revenuePerConversion:
+            Number(
+              row.revenuePerConversion ||
+              0
+            ),
+          revenuePerVisitor:
+            Number(
+              row.revenuePerVisitor || 0
+            ),
+          revenuePerClick:
+            Number(
+              row.revenuePerClick || 0
+            ),
+          allocatedCost:
+            Number(
+              row.allocatedCost || 0
+            ),
+          cac:
+            Number(
+              row.cac || 0
+            ),
+          roi:
+            Number(
+              row.roi || 0
+            ) / 100
+        });
+      });
+
+      const campaignStartRow = 5;
+
+      styleDataRows(
+        campaignSheet,
+        campaignStartRow,
+        campaignSheet.rowCount
+      );
+
+      campaignSheet.autoFilter = {
+        from: {
+          row: 4,
+          column: 1
+        },
+        to: {
+          row: campaignSheet.rowCount,
+          column:
+            campaignSheet.columnCount
+        }
+      };
+
+      [
+        "F",
+        "G",
+        "H"
+      ].forEach(columnLetter => {
+        for (
+          let rowNumber =
+            campaignStartRow;
+          rowNumber <=
+            campaignSheet.rowCount;
+          rowNumber++
+        ) {
+          campaignSheet.getCell(
+            `${columnLetter}${rowNumber}`
+          ).numFmt =
+            integerFormat;
+        }
+      });
+
+      [
+        "J",
+        "K",
+        "L",
+        "M",
+        "N",
+        "O"
+      ].forEach(columnLetter => {
+        for (
+          let rowNumber =
+            campaignStartRow;
+          rowNumber <=
+            campaignSheet.rowCount;
+          rowNumber++
+        ) {
+          campaignSheet.getCell(
+            `${columnLetter}${rowNumber}`
+          ).numFmt =
+            currencyFormat;
+        }
+      });
+
+      [
+        "I",
+        "P"
+      ].forEach(columnLetter => {
+        for (
+          let rowNumber =
+            campaignStartRow;
+          rowNumber <=
+            campaignSheet.rowCount;
+          rowNumber++
+        ) {
+          campaignSheet.getCell(
+            `${columnLetter}${rowNumber}`
+          ).numFmt =
+            percentageFormat;
+        }
+      });
+
+      for (
+        let rowNumber =
+          campaignStartRow;
+        rowNumber <=
+          campaignSheet.rowCount;
+        rowNumber++
+      ) {
+        for (
+          let columnNumber = 6;
+          columnNumber <= 16;
+          columnNumber++
+        ) {
+          campaignSheet
+            .getRow(rowNumber)
+            .getCell(columnNumber)
+            .alignment = {
+              horizontal: "right",
+              vertical: "top"
+            };
+        }
+      }
+
+      setPrintSettings(
+        campaignSheet
+      );
+
+      campaignSheet.views = [
+        {
+          state: "frozen",
+          ySplit: 4,
+          xSplit: 2,
+          showGridLines: false
+        }
+      ];
+
+      campaignSheet.pageSetup.printTitlesRow =
+        "1:4";
+
+      campaignSheet.pageSetup.printArea =
+        `A1:P${campaignSheet.rowCount}`;
+
+      /*
+      =========================================================
+      SHEET 3 — ALL CUSTOMER ACTIONS
+      =========================================================
+      */
+
+      const actionsSheet =
+        workbook.addWorksheet(
+          "Customer Actions",
+          {
+            views: [
+              {
+                state: "frozen",
+                ySplit: 4,
+                xSplit: 3,
+                showGridLines: false
+              }
+            ]
+          }
+        );
+
+      actionsSheet.columns = [
+        {
+          header: "Advertiser",
+          key: "advertiser",
+          width: 24
+        },
+        {
+          header: "Campaign",
+          key: "campaign",
+          width: 34
+        },
+        {
+          header:
+            "Customer Action",
+          key: "customerAction",
+          width: 28
+        },
+        {
+          header: "Type",
+          key: "type",
+          width: 15
+        },
+        {
+          header: "Status",
+          key: "status",
+          width: 14
+        },
+        {
+          header:
+            "Destination URL",
+          key: "destinationUrl",
+          width: 58
+        },
+        {
+          header:
+            "Conversion URL",
+          key: "conversionUrl",
+          width: 58
+        },
+        {
+          header: "Visitors",
+          key: "visitors",
+          width: 12
+        },
+        {
+          header: "Clicks",
+          key: "clicks",
+          width: 12
+        },
+        {
+          header: "Conversions",
+          key: "conversions",
+          width: 14
+        },
+        {
+          header:
+            "Conversion Rate",
+          key: "conversionRate",
+          width: 18
+        },
+        {
+          header:
+            "Revenue Generated",
+          key: "revenueGenerated",
+          width: 19
+        },
+        {
+          header:
+            "Conversion Value",
+          key: "conversionValue",
+          width: 18
+        },
+        {
+          header:
+            "Revenue / Visitor",
+          key: "revenuePerVisitor",
+          width: 19
+        },
+        {
+          header:
+            "Revenue / Click",
+          key: "revenuePerClick",
+          width: 18
+        },
+        {
+          header:
+            "Revenue / Conversion",
+          key:
+            "revenuePerConversion",
+          width: 21
+        },
+        {
+          header:
+            "Last Activity",
+          key: "lastActivity",
+          width: 23
+        }
+      ];
+
+      actionsSheet.insertRow(
+        1,
+        [
+          "Vivid Customer Action and URL Performance"
+        ]
+      );
+
+      actionsSheet.mergeCells(
+        1,
+        1,
+        1,
+        actionsSheet.columnCount
+      );
+
+      styleTitleRow(
+        actionsSheet.getRow(1)
+      );
+
+      actionsSheet.insertRow(
+        2,
+        [
+          `Reporting Period: ${startDate} through ${endDate}`
+        ]
+      );
+
+      actionsSheet.mergeCells(
+        2,
+        1,
+        2,
+        actionsSheet.columnCount
+      );
+
+      actionsSheet.getCell(
+        "A2"
+      ).font = {
+        italic: true,
+        color: {
+          argb: colors.grayText
+        }
+      };
+
+      actionsSheet.insertRow(
+        3,
+        []
+      );
+
+      const actionsHeaderRow =
+        actionsSheet.getRow(4);
+
+      actionsSheet.columns.forEach(
+        (
+          column,
+          index
+        ) => {
+          actionsHeaderRow.getCell(
+            index + 1
+          ).value =
+            column.header;
+        }
+      );
+
+      styleHeaderRow(
+        actionsHeaderRow
+      );
+
+      reportRows.forEach(
+        campaign => {
+          (
+            campaign.customerActions ||
+            []
+          ).forEach(action => {
+            actionsSheet.addRow({
+              advertiser:
+                campaign.advertiser ||
+                "",
+              campaign:
+                campaign.campaignName ||
+                "",
+              customerAction:
+                action.name || "",
+              type:
+                action.type || "",
+              status:
+                action.status || "",
+              destinationUrl:
+                action.destinationUrl ||
+                "",
+              conversionUrl:
+                action.conversionUrl ||
+                "",
+              visitors:
+                Number(
+                  action.visitors || 0
+                ),
+              clicks:
+                Number(
+                  action.clicks || 0
+                ),
+              conversions:
+                Number(
+                  action.conversions ||
+                  0
+                ),
+              conversionRate:
+                Number(
+                  action.conversionRate ||
+                  0
+                ) / 100,
+              revenueGenerated:
+                Number(
+                  action
+                    .revenueGenerated ||
+                  0
+                ),
+              conversionValue:
+                Number(
+                  action
+                    .conversionValue ||
+                  0
+                ),
+              revenuePerVisitor:
+                Number(
+                  action
+                    .revenuePerVisitor ||
+                  0
+                ),
+              revenuePerClick:
+                Number(
+                  action
+                    .revenuePerClick ||
+                  0
+                ),
+              revenuePerConversion:
+                Number(
+                  action
+                    .revenuePerConversion ||
+                  0
+                ),
+              lastActivity:
+                action.lastActivity
+                  ? new Date(
+                      action.lastActivity
+                    )
+                  : null
+            });
+          });
+        }
+      );
+
+      const actionsStartRow = 5;
+
+      if (
+        actionsSheet.rowCount >=
+        actionsStartRow
+      ) {
+        styleDataRows(
+          actionsSheet,
+          actionsStartRow,
+          actionsSheet.rowCount
+        );
+      }
+
+      actionsSheet.autoFilter = {
+        from: {
+          row: 4,
+          column: 1
+        },
+        to: {
+          row:
+            Math.max(
+              4,
+              actionsSheet.rowCount
+            ),
+          column:
+            actionsSheet.columnCount
+        }
+      };
+
+      [
+        "H",
+        "I",
+        "J"
+      ].forEach(columnLetter => {
+        for (
+          let rowNumber =
+            actionsStartRow;
+          rowNumber <=
+            actionsSheet.rowCount;
+          rowNumber++
+        ) {
+          actionsSheet.getCell(
+            `${columnLetter}${rowNumber}`
+          ).numFmt =
+            integerFormat;
+        }
+      });
+
+      actionsSheet.getColumn(
+        "K"
+      ).numFmt =
+        percentageFormat;
+
+      [
+        "L",
+        "M",
+        "N",
+        "O",
+        "P"
+      ].forEach(columnLetter => {
+        for (
+          let rowNumber =
+            actionsStartRow;
+          rowNumber <=
+            actionsSheet.rowCount;
+          rowNumber++
+        ) {
+          actionsSheet.getCell(
+            `${columnLetter}${rowNumber}`
+          ).numFmt =
+            currencyFormat;
+        }
+      });
+
+      actionsSheet.getColumn(
+        "Q"
+      ).numFmt =
+        "mmm d, yyyy h:mm AM/PM";
+
+      for (
+        let rowNumber =
+          actionsStartRow;
+        rowNumber <=
+          actionsSheet.rowCount;
+        rowNumber++
+      ) {
+        for (
+          let columnNumber = 8;
+          columnNumber <= 16;
+          columnNumber++
+        ) {
+          actionsSheet
+            .getRow(rowNumber)
+            .getCell(columnNumber)
+            .alignment = {
+              horizontal: "right",
+              vertical: "top"
+            };
+        }
+      }
+
+      setPrintSettings(
+        actionsSheet
+      );
+
+      actionsSheet.views = [
+        {
+          state: "frozen",
+          ySplit: 4,
+          xSplit: 3,
+          showGridLines: false
+        }
+      ];
+
+      actionsSheet.pageSetup.printTitlesRow =
+        "1:4";
+
+      actionsSheet.pageSetup.printArea =
+        `A1:Q${Math.max(
+          4,
+          actionsSheet.rowCount
+        )}`;
+
+      /*
+      =========================================================
+      ONE SHEET PER CAMPAIGN
+      =========================================================
+      */
+
+      const existingSheetNames =
+        new Set(
+          workbook.worksheets.map(
+            worksheet =>
+              worksheet.name
+                .toLowerCase()
+          )
+        );
+
+      reportRows.forEach(
+        (
+          campaign,
+          campaignIndex
+        ) => {
+          const sheetName =
+            makeUniqueSheetName(
+              `${
+                campaign.advertiser ||
+                "Advertiser"
+              } - ${
+                campaign.campaignName ||
+                `Campaign ${
+                  campaignIndex + 1
+                }`
+              }`,
+              existingSheetNames
+            );
+
+          const sheet =
+            workbook.addWorksheet(
+              sheetName,
+              {
+                views: [
+                  {
+                    state: "frozen",
+                    ySplit: 3,
+                    showGridLines: false
+                  }
+                ]
+              }
+            );
+
+          sheet.columns = [
+            {
+              key: "field",
+              width: 28
+            },
+            {
+              key: "value",
+              width: 48
+            },
+            {
+              key: "extra1",
+              width: 18
+            },
+            {
+              key: "extra2",
+              width: 18
+            },
+            {
+              key: "extra3",
+              width: 18
+            },
+            {
+              key: "extra4",
+              width: 20
+            }
+          ];
+
+          sheet.mergeCells(
+            "A1:F1"
+          );
+
+          sheet.getCell(
+            "A1"
+          ).value =
+            `${
+              campaign.advertiser ||
+              "Unknown Advertiser"
+            } — ${
+              campaign.campaignName ||
+              "Unnamed Campaign"
+            }`;
+
+          styleTitleRow(
+            sheet.getRow(1)
+          );
+
+          sheet.mergeCells(
+            "A2:F2"
+          );
+
+          sheet.getCell(
+            "A2"
+          ).value =
+            `Reporting Period: ${startDate} through ${endDate}`;
+
+          sheet.getCell(
+            "A2"
+          ).font = {
+            italic: true,
+            color: {
+              argb: colors.grayText
+            }
+          };
+
+          sheet.addRow([]);
+
+          const infoTitleRow =
+            sheet.addRow([
+              "Campaign Information"
+            ]);
+
+          sheet.mergeCells(
+            infoTitleRow.number,
+            1,
+            infoTitleRow.number,
+            6
+          );
+
+          styleSectionRow(
+            infoTitleRow
+          );
+
+          const informationRows = [
+            [
+              "Advertiser",
+              campaign.advertiser ||
+                ""
+            ],
+            [
+              "Campaign",
+              campaign.campaignName ||
+                ""
+            ],
+            [
+              "Status",
+              campaign.status || ""
+            ],
+            [
+              "QR Placements",
+              campaign.qrNames || ""
+            ],
+            [
+              "Locations",
+              campaign.locationNames ||
+                ""
+            ]
+          ];
+
+          informationRows.forEach(
+            ([label, value]) => {
+              const row =
+                sheet.addRow([
+                  label,
+                  value
+                ]);
+
+              row.getCell(1).font = {
+                bold: true
+              };
+
+              row.getCell(1).border =
+                thinBorder;
+
+              row.getCell(2).border =
+                thinBorder;
+
+              row.getCell(2).alignment = {
+                wrapText: true,
+                vertical: "top"
+              };
+
+              sheet.mergeCells(
+                row.number,
+                2,
+                row.number,
+                6
+              );
+            }
+          );
+
+          sheet.addRow([]);
+
+          const performanceTitleRow =
+            sheet.addRow([
+              "Campaign Performance"
+            ]);
+
+          sheet.mergeCells(
+            performanceTitleRow.number,
+            1,
+            performanceTitleRow.number,
+            6
+          );
+
+          styleSectionRow(
+            performanceTitleRow
+          );
+
+          const performanceHeader =
+            sheet.addRow([
+              "Metric",
+              "Value"
+            ]);
+
+          sheet.mergeCells(
+            performanceHeader.number,
+            2,
+            performanceHeader.number,
+            6
+          );
+
+          styleHeaderRow(
+            performanceHeader
+          );
+
+          const performanceRows = [
+            [
+              "Visitors",
+              Number(
+                campaign.visitors || 0
+              ),
+              integerFormat
+            ],
+            [
+              "Clicks",
+              Number(
+                campaign.clicks || 0
+              ),
+              integerFormat
+            ],
+            [
+              "Conversions",
+              Number(
+                campaign.conversions ||
+                0
+              ),
+              integerFormat
+            ],
+            [
+              "Visitor Conversion Rate",
+              Number(
+                campaign
+                  .visitorConversionRate ||
+                0
+              ) / 100,
+              percentageFormat
+            ],
+            [
+              "Revenue Generated",
+              Number(
+                campaign
+                  .revenueGenerated ||
+                0
+              ),
+              currencyFormat
+            ],
+            [
+              "Revenue Per Conversion",
+              Number(
+                campaign
+                  .revenuePerConversion ||
+                0
+              ),
+              currencyFormat
+            ],
+            [
+              "Revenue Per Visitor",
+              Number(
+                campaign
+                  .revenuePerVisitor ||
+                0
+              ),
+              currencyFormat
+            ],
+            [
+              "Revenue Per Click",
+              Number(
+                campaign
+                  .revenuePerClick ||
+                0
+              ),
+              currencyFormat
+            ],
+            [
+              "Allocated Cost",
+              Number(
+                campaign
+                  .allocatedCost ||
+                0
+              ),
+              currencyFormat
+            ],
+            [
+              "CAC",
+              Number(
+                campaign.cac || 0
+              ),
+              currencyFormat
+            ],
+            [
+              "ROI",
+              Number(
+                campaign.roi || 0
+              ) / 100,
+              percentageFormat
+            ]
+          ];
+
+          performanceRows.forEach(
+            (
+              [
+                label,
+                value,
+                numberFormat
+              ],
+              index
+            ) => {
+              const row =
+                sheet.addRow([
+                  label,
+                  value
+                ]);
+
+              sheet.mergeCells(
+                row.number,
+                2,
+                row.number,
+                6
+              );
+
+              row.getCell(1).font = {
+                bold: true
+              };
+
+              row.getCell(1).border =
+                thinBorder;
+
+              row.getCell(2).border =
+                thinBorder;
+
+              row.getCell(2).numFmt =
+                numberFormat;
+
+              row.getCell(2).alignment = {
+                horizontal: "right"
+              };
+
+              if (
+                index % 2 === 1
+              ) {
+                for (
+                  let column = 1;
+                  column <= 6;
+                  column++
+                ) {
+                  row.getCell(
+                    column
+                  ).fill = {
+                    type: "pattern",
+                    pattern: "solid",
+                    fgColor: {
+                      argb:
+                        colors.lighterGreen
+                    }
+                  };
+                }
+              }
+            }
+          );
+
+          sheet.addRow([]);
+
+          const actionsTitleRow =
+            sheet.addRow([
+              "Customer Actions and URLs"
+            ]);
+
+          sheet.mergeCells(
+            actionsTitleRow.number,
+            1,
+            actionsTitleRow.number,
+            6
+          );
+
+          styleSectionRow(
+            actionsTitleRow
+          );
+
+          const actionColumns = [
+            "Customer Action",
+            "Destination URL",
+            "Conversion URL",
+            "Visitors",
+            "Conversions",
+            "Revenue"
+          ];
+
+          const actionHeaderRow =
+            sheet.addRow(
+              actionColumns
+            );
+
+          styleHeaderRow(
+            actionHeaderRow
+          );
+
+          const actionStartRow =
+            actionHeaderRow.number +
+            1;
+
+          (
+            campaign.customerActions ||
+            []
+          ).forEach(action => {
+            const row =
+              sheet.addRow([
+                action.name || "",
+                action.destinationUrl ||
+                  "",
+                action.conversionUrl ||
+                  "",
+                Number(
+                  action.visitors || 0
+                ),
+                Number(
+                  action.conversions ||
+                  0
+                ),
+                Number(
+                  action
+                    .revenueGenerated ||
+                  0
+                )
+              ]);
+
+            row.getCell(4).numFmt =
+              integerFormat;
+
+            row.getCell(5).numFmt =
+              integerFormat;
+
+            row.getCell(6).numFmt =
+              currencyFormat;
+
+            row.eachCell(cell => {
+              cell.border =
+                thinBorder;
+
+              cell.alignment = {
+                vertical: "top",
+                wrapText: true
+              };
+            });
+          });
+
+          if (
+            sheet.rowCount >=
+            actionStartRow
+          ) {
+            styleDataRows(
+              sheet,
+              actionStartRow,
+              sheet.rowCount
+            );
+          }
+
+          sheet.autoFilter = {
+            from: {
+              row:
+                actionHeaderRow.number,
+              column: 1
+            },
+            to: {
+              row:
+                Math.max(
+                  actionHeaderRow.number,
+                  sheet.rowCount
+                ),
+              column: 6
+            }
+          };
+
+          setPrintSettings(
+            sheet
+          );
+
+          sheet.views = [
+            {
+              state: "frozen",
+              ySplit: 3,
+              showGridLines: false
+            }
+          ];
+
+          sheet.pageSetup.printArea =
+            `A1:F${sheet.rowCount}`;
+        }
+      );
+
+      /*
+      =========================================================
+      RESPONSE
+      =========================================================
+      */
+
+      workbook.views = [
+        {
+          activeTab: 0,
+          firstSheet: 0,
+          visibility: "visible"
+        }
+      ];
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="vivid-executive-report.xlsx"'
+      );
+
+      await workbook.xlsx.write(
+        res
+      );
+
+      res.end();
+    } catch (err) {
+      console.error(
+        "REPORT EXCEL ERROR:",
+        err
+      );
+
+      if (!res.headersSent) {
+        return res
+          .status(500)
+          .send(
+            "REPORT EXCEL ERROR: " +
+            err.message
+          );
+      }
+
+      res.end();
+    }
   }
-});
+);
+
 app.get(
   "/export/report.pdf",
   requireLogin,
