@@ -46265,105 +46265,559 @@ app.post("/admin/archive-schedule/:id", requireAdmin, async (req, res) => {
     res.status(500).send("Archive failed: " + e.message);
   }
 });
-async function buildExportReportRows(req, startDate, endDate, locationId, qrId, campaignId, status) {
+async function buildExportReportRows(
+  req,
+  startDate,
+  endDate,
+  locationId,
+  qrId,
+  campaignId,
+  status
+) {
   const currentUser = req.session.user;
-  const isSuperAdmin = currentUser.role === "super_admin";
-  const userId = isSuperAdmin ? null : currentUser.id;
 
-  const campaignsResult = await q(`
-    SELECT
-      c.id AS campaign_id,
-      c.name AS campaign_name,
-      c.advertiser,
-      COALESCE(c.is_archived,false) AS is_archived,
-      STRING_AGG(DISTINCT qr.name, ', ') AS qr_names,
-      STRING_AGG(DISTINCT s.name, ', ') AS location_names
-    FROM campaigns c
-    LEFT JOIN qr_campaigns qc
-      ON qc.campaign_id = c.id
-      AND COALESCE(qc.is_active,true) = true
-    LEFT JOIN qr_codes qr
-      ON qr.id = qc.qr_id
-    LEFT JOIN spaces s
-      ON s.id = qr.space_id
-    WHERE ($1::int IS NULL OR c.user_id = $1 OR s.user_id = $1)
-      AND ($2::text = '' OR c.id::text = $2::text)
-      AND ($3::text = '' OR qr.id::text = $3::text)
-      AND ($4::text = '' OR s.id::text = $4::text)
-      AND (
-        $5::text = 'all'
-        OR ($5::text = 'active' AND COALESCE(c.is_archived,false) = false)
-        OR ($5::text = 'archived' AND COALESCE(c.is_archived,false) = true)
+  const isSuperAdmin =
+    currentUser.role === "super_admin";
+
+  const userId =
+    isSuperAdmin
+      ? null
+      : currentUser.id;
+
+  const campaignsResult = await q(
+    `
+      SELECT
+        c.id AS campaign_id,
+        c.name AS campaign_name,
+        c.advertiser,
+        c.avg_customer_value,
+
+        COALESCE(
+          c.is_archived,
+          false
+        ) AS is_archived,
+
+        STRING_AGG(
+          DISTINCT qr.name,
+          ', '
+        ) AS qr_names,
+
+        STRING_AGG(
+          DISTINCT s.name,
+          ', '
+        ) AS location_names
+
+      FROM campaigns c
+
+      LEFT JOIN qr_campaigns qc
+        ON qc.campaign_id = c.id
+       AND COALESCE(
+             qc.is_active,
+             true
+           ) = true
+
+      LEFT JOIN qr_codes qr
+        ON qr.id = qc.qr_id
+
+      LEFT JOIN spaces s
+        ON s.id = qr.space_id
+
+      WHERE (
+        $1::int IS NULL
+        OR c.user_id = $1
+        OR s.user_id = $1
       )
-    GROUP BY c.id, c.name, c.advertiser, c.is_archived
-    ORDER BY c.name ASC
-  `, [userId, campaignId || "", qrId || "", locationId || "", status || "all"]);
+
+        AND (
+          $2::text = ''
+          OR c.id::text = $2::text
+        )
+
+        AND (
+          $3::text = ''
+          OR qr.id::text = $3::text
+        )
+
+        AND (
+          $4::text = ''
+          OR s.id::text = $4::text
+        )
+
+        AND (
+          $5::text = 'all'
+
+          OR (
+            $5::text = 'active'
+            AND COALESCE(
+                  c.is_archived,
+                  false
+                ) = false
+          )
+
+          OR (
+            $5::text = 'archived'
+            AND COALESCE(
+                  c.is_archived,
+                  false
+                ) = true
+          )
+        )
+
+      GROUP BY
+        c.id,
+        c.name,
+        c.advertiser,
+        c.avg_customer_value,
+        c.is_archived
+
+      ORDER BY
+        c.name ASC
+    `,
+    [
+      userId,
+      campaignId || "",
+      qrId || "",
+      locationId || "",
+      status || "all"
+    ]
+  );
 
   const reportRows = [];
 
-  for (const c of campaignsResult.rows) {
-    const metrics = await q(`
-      SELECT
-        COUNT(*) FILTER (WHERE e.type = 'scan')::int AS scans,
-        COUNT(*) FILTER (WHERE e.type = 'offer')::int AS offer_clicks,
-        COUNT(*) FILTER (WHERE e.type = 'maps')::int AS map_clicks,
-        COUNT(*) FILTER (WHERE e.type = 'waze')::int AS waze_clicks,
-        COUNT(*) FILTER (WHERE e.type = 'conversion')::int AS conversions,
-        COALESCE(SUM(e.value) FILTER (WHERE e.type = 'conversion'), 0)::numeric(12,2) AS revenue
-      FROM events e
-      LEFT JOIN qr_codes qr ON qr.id = e.qr_id
-      LEFT JOIN spaces s ON s.id = qr.space_id
-      WHERE e.campaign_id = $1
-        AND e.created_at::date BETWEEN $2::date AND $3::date
-        AND ($4::text = '' OR qr.space_id::text = $4::text)
-        AND ($5::text = '' OR e.qr_id::text = $5::text)
-    `, [c.campaign_id, startDate, endDate, locationId || "", qrId || ""]);
+  for (
+    const campaignRow of
+    campaignsResult.rows
+  ) {
+    /*
+    =========================================================
+    CENTRALIZED CAMPAIGN PERFORMANCE
 
-    const m = metrics.rows[0] || {};
+    Uses the same analytics engine as Campaign, QR,
+    and Location pages.
+    =========================================================
+    */
 
-    const scans = Number(m.scans || 0);
-    const offerClicks = Number(m.offer_clicks || 0);
-    const mapClicks = Number(m.map_clicks || 0);
-    const wazeClicks = Number(m.waze_clicks || 0);
-    const intent = offerClicks + mapClicks + wazeClicks;
+    const performance =
+      await getPerformanceMetrics({
+        campaignId:
+          Number(
+            campaignRow.campaign_id
+          ),
 
-    const conversions = Number(m.conversions || 0);
-    const revenue = Number(m.revenue || 0);
+        qrId:
+          qrId
+            ? Number(qrId)
+            : null,
 
-    const allocatedCost = await allocatedSpotCostForCampaign(
-      c.campaign_id,
-      startDate,
-      endDate
+        locationId:
+          locationId
+            ? Number(locationId)
+            : null,
+
+        startDate,
+        endDate
+      });
+
+    /*
+    =========================================================
+    LEGACY / TECHNICAL ACTIVITY METRICS
+
+    Preserved for technical and operational reporting.
+    =========================================================
+    */
+
+    const technicalResult = await q(
+      `
+        SELECT
+          COUNT(*) FILTER (
+            WHERE e.type = 'scan'
+          )::int AS scans,
+
+          COUNT(*) FILTER (
+            WHERE e.type = 'offer'
+          )::int AS offer_clicks,
+
+          COUNT(*) FILTER (
+            WHERE e.type = 'maps'
+          )::int AS map_clicks,
+
+          COUNT(*) FILTER (
+            WHERE e.type = 'waze'
+          )::int AS waze_clicks
+
+        FROM events e
+
+        LEFT JOIN qr_codes qr
+          ON qr.id = e.qr_id
+
+        WHERE e.campaign_id = $1
+
+          AND e.created_at::date
+              BETWEEN $2::date
+                  AND $3::date
+
+          AND (
+            $4::text = ''
+            OR qr.space_id::text =
+               $4::text
+          )
+
+          AND (
+            $5::text = ''
+            OR e.qr_id::text =
+               $5::text
+          )
+      `,
+      [
+        campaignRow.campaign_id,
+        startDate,
+        endDate,
+        locationId || "",
+        qrId || ""
+      ]
     );
 
-    const cac = conversions > 0 ? allocatedCost / conversions : 0;
+    const technical =
+      technicalResult.rows[0] || {};
+
+    const scans =
+      Number(technical.scans || 0);
+
+    const offerClicks =
+      Number(
+        technical.offer_clicks || 0
+      );
+
+    const mapClicks =
+      Number(
+        technical.map_clicks || 0
+      );
+
+    const wazeClicks =
+      Number(
+        technical.waze_clicks || 0
+      );
+
+    const intent =
+      offerClicks +
+      mapClicks +
+      wazeClicks;
+
+    /*
+    =========================================================
+    CUSTOMER ACTION / URL PERFORMANCE
+
+    Every campaign destination is retained, including URLs
+    that have no activity during the selected period.
+    =========================================================
+    */
+
+    const customerActionsResult =
+      await q(
+        `
+          SELECT
+            cd.id,
+            cd.name,
+            cd.destination_type,
+            cd.destination_url,
+            cd.conversion_url,
+            cd.estimated_value,
+            cd.display_order,
+            cd.is_active,
+
+            COUNT(e.id) FILTER (
+              WHERE e.type =
+                    'destination_click'
+            )::int AS clicks,
+
+            COUNT(
+              DISTINCT e.vivid_click_id
+            ) FILTER (
+              WHERE e.type =
+                    'destination_click'
+
+                AND e.vivid_click_id
+                    IS NOT NULL
+
+                AND TRIM(
+                      e.vivid_click_id
+                    ) <> ''
+            )::int AS visitors,
+
+            COUNT(e.id) FILTER (
+              WHERE e.type =
+                    'conversion'
+            )::int AS conversions,
+
+            COALESCE(
+              SUM(e.value) FILTER (
+                WHERE e.type =
+                      'conversion'
+              ),
+              0
+            )::numeric AS revenue_generated,
+
+            MAX(e.created_at) FILTER (
+              WHERE e.type =
+                    'destination_click'
+            ) AS last_activity
+
+          FROM campaign_destinations cd
+
+          LEFT JOIN events e
+            ON e.campaign_destination_id =
+               cd.id
+
+           AND e.campaign_id =
+               cd.campaign_id
+
+           AND e.created_at::date
+               BETWEEN $2::date
+                   AND $3::date
+
+           AND (
+             $4::text = ''
+
+             OR e.qr_id IN (
+               SELECT id
+               FROM qr_codes
+               WHERE space_id::text =
+                     $4::text
+             )
+           )
+
+           AND (
+             $5::text = ''
+             OR e.qr_id::text =
+                  $5::text
+           )
+
+          WHERE cd.campaign_id = $1
+
+          GROUP BY
+            cd.id,
+            cd.name,
+            cd.destination_type,
+            cd.destination_url,
+            cd.conversion_url,
+            cd.estimated_value,
+            cd.display_order,
+            cd.is_active
+
+          ORDER BY
+            cd.display_order ASC,
+            cd.id ASC
+        `,
+        [
+          campaignRow.campaign_id,
+          startDate,
+          endDate,
+          locationId || "",
+          qrId || ""
+        ]
+      );
+
+    const customerActions =
+      customerActionsResult.rows.map(
+        action => {
+          const visitors =
+            Number(action.visitors || 0);
+
+          const clicks =
+            Number(action.clicks || 0);
+
+          const conversions =
+            Number(
+              action.conversions || 0
+            );
+
+          const revenueGenerated =
+            Number(
+              action.revenue_generated ||
+              0
+            );
+
+          return {
+            id:
+              Number(action.id),
+
+            name:
+              action.name || "",
+
+            type:
+              action.destination_type ||
+              "website",
+
+            destinationUrl:
+              action.destination_url ||
+              "",
+
+            conversionUrl:
+              action.conversion_url ||
+              "",
+
+            conversionValue:
+              Number(
+                action.estimated_value ||
+                0
+              ),
+
+            displayOrder:
+              Number(
+                action.display_order ||
+                0
+              ),
+
+            status:
+              action.is_active
+                ? "Active"
+                : "Inactive",
+
+            visitors,
+            clicks,
+            conversions,
+
+            conversionRate:
+              visitors > 0
+                ? conversions /
+                  visitors *
+                  100
+                : 0,
+
+            revenueGenerated,
+
+            revenuePerVisitor:
+              visitors > 0
+                ? revenueGenerated /
+                  visitors
+                : 0,
+
+            revenuePerClick:
+              clicks > 0
+                ? revenueGenerated /
+                  clicks
+                : 0,
+
+            revenuePerConversion:
+              conversions > 0
+                ? revenueGenerated /
+                  conversions
+                : 0,
+
+            lastActivity:
+              action.last_activity ||
+              null
+          };
+        }
+      );
+
+    const allocatedCost =
+      await allocatedSpotCostForCampaign(
+        campaignRow.campaign_id,
+        startDate,
+        endDate
+      );
+
+    const cac =
+      performance.conversions > 0
+        ? allocatedCost /
+          performance.conversions
+        : 0;
+
     const roi =
       allocatedCost > 0
-        ? ((revenue - allocatedCost) / allocatedCost) * 100
+        ? (
+            (
+              performance
+                .revenueGenerated -
+              allocatedCost
+            ) /
+            allocatedCost
+          ) * 100
         : 0;
 
     reportRows.push({
-      campaignId: c.campaign_id,
-      campaignName: c.campaign_name || "",
-      advertiser: c.advertiser || "",
-      qrNames: c.qr_names || "",
-      locationNames: c.location_names || "",
-      status: c.is_archived ? "Archived" : "Active",
+      campaignId:
+        Number(
+          campaignRow.campaign_id
+        ),
+
+      campaignName:
+        campaignRow.campaign_name ||
+        "",
+
+      advertiser:
+        campaignRow.advertiser ||
+        "",
+
+      qrNames:
+        campaignRow.qr_names ||
+        "",
+
+      locationNames:
+        campaignRow.location_names ||
+        "",
+
+      status:
+        campaignRow.is_archived
+          ? "Archived"
+          : "Active",
+
       scans,
       offerClicks,
       mapClicks,
       wazeClicks,
       intent,
-      conversions,
-      revenue,
+
+      visitors:
+        performance.visitors,
+
+      clicks:
+        performance.clicks,
+
+      conversions:
+        performance.conversions,
+
+      visitorsConverted:
+        performance
+          .visitorsConverted,
+
+      visitorConversionRate:
+        performance
+          .visitorConversionRate,
+
+      revenue:
+        performance
+          .revenueGenerated,
+
+      revenueGenerated:
+        performance
+          .revenueGenerated,
+
+      revenuePerVisitor:
+        performance
+          .revenuePerVisitor,
+
+      revenuePerClick:
+        performance
+          .revenuePerClick,
+
+      revenuePerConversion:
+        performance
+          .revenuePerConversion,
+
       allocatedCost,
       cac,
-      roi
+      roi,
+
+      customerActions
     });
   }
 
   return reportRows;
 }
+
+
 app.get("/admin/reports", requireLogin, async (req, res) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
