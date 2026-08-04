@@ -46093,88 +46093,193 @@ app.get(
           }
         );
 
-     doc.addPage();
+  doc.addPage();
 
 sectionTitle("Campaign Summary");
 
 doc.moveDown();
+
+const summaryColumns = {
+  advertiser: 50,
+  campaign: 135,
+  visitors: 355,
+  clicks: 405,
+  conversions: 455,
+  revenue: 510
+};
+
+let summaryY = doc.y;
+
 doc
-  .fontSize(10)
+  .fontSize(9)
   .fillColor("#123d25")
   .text(
     "Advertiser",
-    50,
-    doc.y,
-    { continued: true, width: 110 }
+    summaryColumns.advertiser,
+    summaryY,
+    { width: 80 }
   )
   .text(
     "Campaign",
-    { continued: true, width: 180 }
+    summaryColumns.campaign,
+    summaryY,
+    { width: 210 }
   )
   .text(
     "Visitors",
-    { continued: true, width: 70, align: "right" }
+    summaryColumns.visitors,
+    summaryY,
+    {
+      width: 45,
+      align: "right"
+    }
   )
   .text(
     "Clicks",
-    { continued: true, width: 70, align: "right" }
+    summaryColumns.clicks,
+    summaryY,
+    {
+      width: 45,
+      align: "right"
+    }
   )
   .text(
-    "Conversions",
-    { continued: true, width: 90, align: "right" }
+    "Conv.",
+    summaryColumns.conversions,
+    summaryY,
+    {
+      width: 45,
+      align: "right"
+    }
   )
   .text(
     "Revenue",
-    { align: "right" }
+    summaryColumns.revenue,
+    summaryY,
+    {
+      width: 55,
+      align: "right"
+    }
   );
 
-doc.moveDown(0.4);
+summaryY += 22;
 
 doc
   .strokeColor("#d8e4d8")
-  .moveTo(50, doc.y)
-  .lineTo(560, doc.y)
+  .lineWidth(1)
+  .moveTo(50, summaryY)
+  .lineTo(565, summaryY)
   .stroke();
 
-doc.moveDown(0.5);
+summaryY += 10;
 
-reportRows.forEach(r => {
+for (
+  let index = 0;
+  index < reportRows.length;
+  index++
+) {
+  const row = reportRows[index];
 
-  ensureSpace(18);
+  if (summaryY > pageBottom() - 35) {
+    doc.addPage();
 
-  doc
-    .fontSize(9)
-    .fillColor("#111827")
-    .text(
-      r.advertiser,
-      50,
-      doc.y,
-      { continued: true, width: 110 }
-    )
-    .text(
-      r.campaignName,
-      { continued: true, width: 180 }
-    )
-    .text(
-      String(r.visitors),
-      { continued: true, width: 70, align: "right" }
-    )
-    .text(
-      String(r.clicks),
-      { continued: true, width: 70, align: "right" }
-    )
-    .text(
-      String(r.conversions),
-      { continued: true, width: 90, align: "right" }
-    )
-    .text(
-      money(r.revenueGenerated),
-      { align: "right" }
+    sectionTitle(
+      "Campaign Summary — Continued"
     );
 
-  doc.moveDown(0.35);
+    summaryY = doc.y;
+  }
 
-});
+  const rowHeight = 32;
+
+  if (index % 2 === 0) {
+    doc
+      .save()
+      .fillColor("#f6f9f5")
+      .rect(
+        48,
+        summaryY - 5,
+        518,
+        rowHeight
+      )
+      .fill()
+      .restore();
+  }
+
+  doc
+    .fontSize(8.5)
+    .fillColor("#111827")
+    .text(
+      row.advertiser || "—",
+      summaryColumns.advertiser,
+      summaryY,
+      {
+        width: 80,
+        height: rowHeight - 4,
+        ellipsis: true
+      }
+    )
+    .text(
+      row.campaignName || "—",
+      summaryColumns.campaign,
+      summaryY,
+      {
+        width: 210,
+        height: rowHeight - 4,
+        ellipsis: true
+      }
+    )
+    .text(
+      Number(
+        row.visitors || 0
+      ).toLocaleString(),
+      summaryColumns.visitors,
+      summaryY,
+      {
+        width: 45,
+        align: "right"
+      }
+    )
+    .text(
+      Number(
+        row.clicks || 0
+      ).toLocaleString(),
+      summaryColumns.clicks,
+      summaryY,
+      {
+        width: 45,
+        align: "right"
+      }
+    )
+    .text(
+      Number(
+        row.conversions || 0
+      ).toLocaleString(),
+      summaryColumns.conversions,
+      summaryY,
+      {
+        width: 45,
+        align: "right"
+      }
+    )
+    .text(
+      money(
+        row.revenueGenerated || 0
+      ),
+      summaryColumns.revenue,
+      summaryY,
+      {
+        width: 55,
+        align: "right"
+      }
+    );
+
+  summaryY += rowHeight;
+}
+
+doc.y = summaryY + 8;
+
+
 /*
 =========================================================
 CAMPAIGN AND CUSTOMER ACTION DETAIL
