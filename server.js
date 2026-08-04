@@ -38,7 +38,10 @@ async function q(sql, params = []) {
 }
 
 function money(n) {
-  return "$" + Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return "$" + Number(n || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 }
 
 function pct(n) {
