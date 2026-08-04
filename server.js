@@ -35628,7 +35628,7 @@ app.get(
                 ">
                   <table style="
                     width:100%;
-                    min-width:1100px;
+                    min-width:1550px;
                   ">
                     <tr>
                       <th style="text-align:center;">
