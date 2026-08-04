@@ -36399,7 +36399,10 @@ app.get(
           "Campaign not found."
         );
       }
-
+const campaignMetrics =
+  await getPerformanceMetrics({
+    campaignId: campaign.id
+  });
       const qrList = await q(
         `
           SELECT DISTINCT
