@@ -35316,7 +35316,7 @@ app.get(
           : `
               <tr>
                 <td
-                  colspan="7"
+                  colspan="10"
                   style="
                     padding:32px;
                     text-align:center;
