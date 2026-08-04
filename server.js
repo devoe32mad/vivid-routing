@@ -36852,9 +36852,13 @@ MAX(e.created_at) FILTER (
                         Conversion Page
                       </th>
 
-                      <th style="text-align:right;">
-                        Revenue Value
-                      </th>
+                     <th style="text-align:right;">
+  Revenue Generated
+</th>
+
+<th style="text-align:right;">
+  Conversion Value
+</th>
 
                       <th style="text-align:center;">
                         Status
