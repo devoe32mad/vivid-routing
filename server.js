@@ -5215,12 +5215,12 @@ const revenueGenerated =
   Number(
     row.revenue_generated || 0
   );
-
+const conversions =
+  Number(row.conversions || 0);
 return {
   visitors,
   clicks,
-  conversions:
-    Number(row.conversions || 0),
+  conversions,
   visitorsConverted,
   visitorConversionRate:
     visitors > 0
@@ -5239,6 +5239,10 @@ return {
     clicks > 0
       ? revenueGenerated / clicks
       : 0,
+  revenuePerConversion:
+  conversions > 0
+    ? revenueGenerated / conversions
+    : 0,
   lastActivity:
     row.last_activity || null
 };
