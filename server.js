@@ -41032,106 +41032,453 @@ GROUP BY c.name
     res.status(500).send(err.message);
   }
 });
-app.post("/admin/edit-campaign/:campaignId", requireLogin, async (req, res) => {
-  try {
-    const currentUser = req.session.user;
-    const isSuperAdmin = currentUser.role === "super_admin";
+app.post(
+  "/admin/edit-campaign/:campaignId",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const campaignId = Number(
+        req.params.campaignId
+      );
 
-    const result = await q(
-      isSuperAdmin
-        ? `
-       UPDATE campaigns
-SET
-advertiser = $1,
-name = $2,
-campaign_url = $3,
- conversion_url = $4,
- avg_customer_value = $5,
- conversion_rate = 8,
-start_date = $6,
-end_date = $7,
-days = CASE
-  WHEN $6::date IS NOT NULL AND $7::date IS NOT NULL
-  THEN ($7::date - $6::date + 1)
-  ELSE days
-END
-WHERE id = $8
-RETURNING id
-        `
-        : `
- UPDATE campaigns
-SET
-  advertiser = $1,
-  name = $2,
-  campaign_url = $3,
-  conversion_url = $4,
-  avg_customer_value = $5,
-  conversion_rate = 8,
-  start_date = $6,
-  end_date = $7
-WHERE id = $8
-AND user_id = $9
-RETURNING id
-        `,
-      isSuperAdmin
-        ?[
-   req.body.advertiser || "",
-req.body.name || "",
-req.body.campaign_url || "",
- req.body.conversion_url || "",
-Number(req.body.avg_customer_value || 50),
-req.body.start_date || null,
- req.body.end_date || null,
-req.params.campaignId
-]
-        : [
-  req.body.advertiser || "",
-req.body.name || "",
- req.body.campaign_url || "",
-req.body.conversion_url || "",
-Number(req.body.avg_customer_value || 50),
-req.body.start_date || null,
- req.body.end_date || null,
-req.params.campaignId,
-  currentUser.id
-]
+      if (
+        !Number.isInteger(campaignId) ||
+        campaignId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid campaign ID required."
+        );
+      }
 
-    );
+      const currentUser =
+        req.session.user;
 
-    if (!result.rows[0]) {
-      return res.send("Campaign not found or access denied");
+      const isSuperAdmin =
+        currentUser.role === "super_admin";
+
+      function normalizeUrl(value) {
+        const url =
+          String(value || "").trim();
+
+        if (!url) {
+          return "";
+        }
+
+        if (
+          /^(https?:\/\/|mailto:|tel:|sms:)/i
+            .test(url)
+        ) {
+          return url;
+        }
+
+        return "https://" + url;
+      }
+
+      /*
+      =========================================================
+      CONFIRM CAMPAIGN ACCESS
+      =========================================================
+      */
+
+      const accessResult = await q(
+        isSuperAdmin
+          ? `
+              SELECT id
+              FROM campaigns
+              WHERE id = $1
+              LIMIT 1
+            `
+          : `
+              SELECT id
+              FROM campaigns
+              WHERE id = $1
+                AND user_id = $2
+              LIMIT 1
+            `,
+        isSuperAdmin
+          ? [campaignId]
+          : [
+              campaignId,
+              currentUser.id
+            ]
+      );
+
+      if (!accessResult.rows[0]) {
+        return res.status(404).send(
+          "Campaign not found or access denied."
+        );
+      }
+
+      const advertiser =
+        String(
+          req.body.advertiser || ""
+        ).trim();
+
+      const name =
+        String(
+          req.body.name || ""
+        ).trim();
+
+      const startDate =
+        req.body.start_date || null;
+
+      const endDate =
+        req.body.end_date || null;
+
+      const defaultValue =
+        Number(
+          req.body.avg_customer_value ||
+          0
+        );
+
+      const campaignUrl =
+        normalizeUrl(
+          req.body.campaign_url
+        );
+
+      const conversionUrl =
+        normalizeUrl(
+          req.body.conversion_url
+        );
+
+      /*
+      =========================================================
+      UPDATE MAIN CAMPAIGN
+
+      Campaign URL fields remain legacy/default values.
+      Customer Actions remain the primary URL structure.
+      =========================================================
+      */
+
+      const updateResult = await q(
+        isSuperAdmin
+          ? `
+              UPDATE campaigns
+
+              SET
+                advertiser = $1,
+                name = $2,
+                campaign_url = $3,
+                conversion_url = $4,
+                avg_customer_value = $5,
+                conversion_rate = 8,
+                start_date = $6,
+                end_date = $7,
+                days = CASE
+                  WHEN $6::date IS NOT NULL
+                   AND $7::date IS NOT NULL
+                    THEN (
+                      $7::date -
+                      $6::date +
+                      1
+                    )
+                  ELSE days
+                END
+
+              WHERE id = $8
+
+              RETURNING id
+            `
+          : `
+              UPDATE campaigns
+
+              SET
+                advertiser = $1,
+                name = $2,
+                campaign_url = $3,
+                conversion_url = $4,
+                avg_customer_value = $5,
+                conversion_rate = 8,
+                start_date = $6,
+                end_date = $7
+
+              WHERE id = $8
+                AND user_id = $9
+
+              RETURNING id
+            `,
+        isSuperAdmin
+          ? [
+              advertiser,
+              name,
+              campaignUrl,
+              conversionUrl,
+              defaultValue,
+              startDate,
+              endDate,
+              campaignId
+            ]
+          : [
+              advertiser,
+              name,
+              campaignUrl,
+              conversionUrl,
+              defaultValue,
+              startDate,
+              endDate,
+              campaignId,
+              currentUser.id
+            ]
+      );
+
+      if (!updateResult.rows[0]) {
+        return res.status(404).send(
+          "Campaign not found or access denied."
+        );
+      }
+
+      /*
+      =========================================================
+      UPDATE OR INSERT CUSTOMER ACTIONS
+
+      Existing destination IDs are updated in place.
+
+      They are never deleted, so historical events remain
+      connected permanently.
+      =========================================================
+      */
+
+      const destinationCount =
+        Number(
+          req.body.destination_count ||
+          0
+        );
+
+      for (
+        let index = 0;
+        index < destinationCount;
+        index += 1
+      ) {
+        const destinationIdRaw =
+          req.body[
+            `destination_id_${index}`
+          ];
+
+        const destinationName =
+          String(
+            req.body[
+              `destination_name_${index}`
+            ] || ""
+          ).trim();
+
+        const destinationType =
+          String(
+            req.body[
+              `destination_type_${index}`
+            ] || "website"
+          ).trim();
+
+        const destinationUrl =
+          normalizeUrl(
+            req.body[
+              `destination_url_${index}`
+            ]
+          );
+
+        const destinationConversionUrl =
+          normalizeUrl(
+            req.body[
+              `destination_conversion_url_${index}`
+            ]
+          );
+
+        const estimatedValue =
+          Number(
+            req.body[
+              `destination_estimated_value_${index}`
+            ] || 0
+          );
+
+        const displayOrder =
+          Number(
+            req.body[
+              `destination_display_order_${index}`
+            ] ||
+            index + 1
+          );
+
+        const isActive =
+          req.body[
+            `destination_active_${index}`
+          ] === "on";
+
+        /*
+          A removed unsaved card leaves no submitted fields.
+        */
+        if (
+          !destinationName &&
+          !destinationUrl
+        ) {
+          continue;
+        }
+
+        if (!destinationUrl) {
+          continue;
+        }
+
+        const destinationId =
+          Number(destinationIdRaw || 0);
+
+        if (
+          Number.isInteger(destinationId) &&
+          destinationId > 0
+        ) {
+          /*
+            Ownership is enforced through campaign_id.
+            A destination from another campaign cannot
+            be modified through this request.
+          */
+          await q(
+            `
+              UPDATE campaign_destinations
+
+              SET
+                name = $1,
+                destination_type = $2,
+                destination_url = $3,
+                conversion_url = $4,
+                estimated_value = $5,
+                display_order = $6,
+                is_active = $7,
+                updated_at = NOW()
+
+              WHERE id = $8
+                AND campaign_id = $9
+            `,
+            [
+              destinationName,
+              destinationType,
+              destinationUrl,
+              destinationConversionUrl ||
+                null,
+              estimatedValue,
+              displayOrder,
+              isActive,
+              destinationId,
+              campaignId
+            ]
+          );
+        } else {
+          await q(
+            `
+              INSERT INTO campaign_destinations (
+                campaign_id,
+                name,
+                destination_type,
+                destination_url,
+                conversion_url,
+                estimated_value,
+                display_order,
+                is_active,
+                created_at,
+                updated_at
+              )
+              VALUES (
+                $1,$2,$3,$4,$5,
+                $6,$7,$8,NOW(),NOW()
+              )
+            `,
+            [
+              campaignId,
+              destinationName,
+              destinationType,
+              destinationUrl,
+              destinationConversionUrl ||
+                null,
+              estimatedValue,
+              displayOrder,
+              isActive
+            ]
+          );
+        }
+      }
+
+      /*
+      =========================================================
+      OPTIONAL QR ASSIGNMENT
+
+      Do not insert a duplicate active assignment.
+      =========================================================
+      */
+
+      const qrId =
+        Number(req.body.qr_ids || 0);
+
+      if (
+        Number.isInteger(qrId) &&
+        qrId > 0
+      ) {
+        const existingAssignment =
+          await q(
+            `
+              SELECT id
+
+              FROM qr_campaigns
+
+              WHERE qr_id = $1
+                AND campaign_id = $2
+                AND COALESCE(
+                      is_active,
+                      true
+                    ) = true
+                AND ended_at IS NULL
+
+              LIMIT 1
+            `,
+            [
+              qrId,
+              campaignId
+            ]
+          );
+
+        if (
+          !existingAssignment.rows.length
+        ) {
+          await q(
+            `
+              INSERT INTO qr_campaigns (
+                qr_id,
+                campaign_id,
+                is_active,
+                assigned_at,
+                started_at,
+                ended_at
+              )
+              VALUES (
+                $1,
+                $2,
+                true,
+                NOW(),
+                NOW(),
+                NULL
+              )
+            `,
+            [
+              qrId,
+              campaignId
+            ]
+          );
+        }
+      }
+
+      return res.redirect(
+        `/admin/view-campaign/${campaignId}`
+      );
+    } catch (err) {
+      console.error(
+        "EDIT CAMPAIGN ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "EDIT CAMPAIGN ERROR: " +
+        err.message
+      );
     }
-if (!result.rows[0]) {
-  return res.send("Campaign not found or access denied");
-}
-
-const qrId = req.body.qr_ids;
-
-if (qrId) {
-
-
-
-  await q(
-    `
-    INSERT INTO qr_campaigns (
-      qr_id,
-      campaign_id,
-      is_active,
-      assigned_at,
-      started_at,
-      ended_at
-    )
-    VALUES ($1, $2, true, NOW(), NOW(), NULL)
-    `,
-    [Number(qrId), Number(req.params.campaignId)]
-  );
-}
-
-    res.send("Campaign updated <br><a href='/dashboard'>Back to Dashboard</a>");
-  } catch (err) {
-    res.send("EDIT CAMPAIGN ERROR: " + err.message);
   }
-});
+);
+
+
 app.get("/admin/restore-campaign/:campaignId", requireLogin, async (req, res) => {
   try {
 
