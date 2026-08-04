@@ -46098,7 +46098,83 @@ app.get(
 sectionTitle("Campaign Summary");
 
 doc.moveDown();
+doc
+  .fontSize(10)
+  .fillColor("#123d25")
+  .text(
+    "Advertiser",
+    50,
+    doc.y,
+    { continued: true, width: 110 }
+  )
+  .text(
+    "Campaign",
+    { continued: true, width: 180 }
+  )
+  .text(
+    "Visitors",
+    { continued: true, width: 70, align: "right" }
+  )
+  .text(
+    "Clicks",
+    { continued: true, width: 70, align: "right" }
+  )
+  .text(
+    "Conversions",
+    { continued: true, width: 90, align: "right" }
+  )
+  .text(
+    "Revenue",
+    { align: "right" }
+  );
 
+doc.moveDown(0.4);
+
+doc
+  .strokeColor("#d8e4d8")
+  .moveTo(50, doc.y)
+  .lineTo(560, doc.y)
+  .stroke();
+
+doc.moveDown(0.5);
+
+reportRows.forEach(r => {
+
+  ensureSpace(18);
+
+  doc
+    .fontSize(9)
+    .fillColor("#111827")
+    .text(
+      r.advertiser,
+      50,
+      doc.y,
+      { continued: true, width: 110 }
+    )
+    .text(
+      r.campaignName,
+      { continued: true, width: 180 }
+    )
+    .text(
+      String(r.visitors),
+      { continued: true, width: 70, align: "right" }
+    )
+    .text(
+      String(r.clicks),
+      { continued: true, width: 70, align: "right" }
+    )
+    .text(
+      String(r.conversions),
+      { continued: true, width: 90, align: "right" }
+    )
+    .text(
+      money(r.revenueGenerated),
+      { align: "right" }
+    );
+
+  doc.moveDown(0.35);
+
+});
 /*
 =========================================================
 CAMPAIGN AND CUSTOMER ACTION DETAIL
