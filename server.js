@@ -35400,32 +35400,33 @@ app.get(
   const summaryResult = await q(
   `
     SELECT
-      COUNT(e.id) FILTER (
-        WHERE e.type = 'destination_click'
-      )::int AS clicks,
+    COUNT(e.id) FILTER (
+  WHERE e.type = 'destination_click'
+)::int AS clicks,
 
-      COUNT(
-        DISTINCT e.vivid_click_id
-      ) FILTER (
-        WHERE e.type = 'destination_click'
-          AND e.vivid_click_id IS NOT NULL
-          AND TRIM(e.vivid_click_id) <> ''
-      )::int AS visitors,
+COUNT(
+  DISTINCT e.vivid_click_id
+) FILTER (
+  WHERE e.type = 'destination_click'
+    AND e.vivid_click_id IS NOT NULL
+    AND TRIM(e.vivid_click_id) <> ''
+)::int AS unique_journeys,
 
-      COUNT(e.id) FILTER (
-        WHERE e.type = 'conversion'
-      )::int AS conversions,
+COUNT(e.id) FILTER (
+  WHERE e.type = 'conversion'
+)::int AS conversions,
 
-      COALESCE(
-        SUM(e.value) FILTER (
-          WHERE e.type = 'conversion'
-        ),
-        0
-      )::numeric AS revenue,
+COALESCE(
+  SUM(e.value) FILTER (
+    WHERE e.type = 'conversion'
+  ),
+  0
+)::numeric AS conversion_revenue,
 
-      MAX(e.created_at) FILTER (
-        WHERE e.type = 'destination_click'
-      ) AS last_activity
+MAX(e.created_at) FILTER (
+  WHERE e.type = 'destination_click'
+) AS last_activity
+
 
     FROM events e
 
