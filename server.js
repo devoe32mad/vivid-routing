@@ -37094,6 +37094,29 @@ MAX(e.created_at) FILTER (
         )}
       </div>
     </div>
+    <div class="card">
+  <div class="label">
+    Revenue Per Visitor
+  </div>
+
+  <div class="num">
+    ${money(
+      campaignMetrics.revenuePerVisitor || 0
+    )}
+  </div>
+</div>
+
+<div class="card">
+  <div class="label">
+    Revenue Per Click
+  </div>
+
+  <div class="num">
+    ${money(
+      campaignMetrics.revenuePerClick || 0
+    )}
+  </div>
+</div>
   </div>
 </div>
 
