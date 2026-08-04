@@ -36204,16 +36204,27 @@ app.get(
         WHERE e.type = 'destination_click'
       )::int AS clicks,
 
-      COUNT(
-        DISTINCT e.vivid_click_id
-      ) FILTER (
-        WHERE e.type = 'destination_click'
-          AND e.vivid_click_id IS NOT NULL
-      )::int AS unique_journeys,
+    COUNT(
+  DISTINCT e.vivid_click_id
+) FILTER (
+  WHERE e.type = 'destination_click'
+    AND e.vivid_click_id IS NOT NULL
+)::int AS unique_journeys,
 
-      MAX(e.created_at) FILTER (
-        WHERE e.type = 'destination_click'
-      ) AS last_activity
+COUNT(e.id) FILTER (
+  WHERE e.type = 'conversion'
+)::int AS conversions,
+
+COALESCE(
+  SUM(e.value) FILTER (
+    WHERE e.type = 'conversion'
+  ),
+  0
+)::numeric AS conversion_revenue,
+
+MAX(e.created_at) FILTER (
+  WHERE e.type = 'destination_click'
+) AS last_activity
 
     FROM campaign_destinations cd
 
