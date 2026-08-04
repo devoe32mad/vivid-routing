@@ -35397,78 +35397,42 @@ app.get(
       =========================================================
       */
 
-      const summaryResult = await q(
-        `
-          WITH destination_clicks AS (
-            SELECT
-              id,
-              vivid_click_id,
-              created_at
+  const summaryResult = await q(
+  `
+    SELECT
+      COUNT(e.id) FILTER (
+        WHERE e.type = 'destination_click'
+      )::int AS clicks,
 
-            FROM events
+      COUNT(
+        DISTINCT e.vivid_click_id
+      ) FILTER (
+        WHERE e.type = 'destination_click'
+          AND e.vivid_click_id IS NOT NULL
+          AND TRIM(e.vivid_click_id) <> ''
+      )::int AS visitors,
 
-            WHERE campaign_destination_id = $1
-              AND type = 'destination_click'
-          ),
+      COUNT(e.id) FILTER (
+        WHERE e.type = 'conversion'
+      )::int AS conversions,
 
-          destination_journeys AS (
-            SELECT DISTINCT
-              vivid_click_id
+      COALESCE(
+        SUM(e.value) FILTER (
+          WHERE e.type = 'conversion'
+        ),
+        0
+      )::numeric AS revenue,
 
-            FROM destination_clicks
+      MAX(e.created_at) FILTER (
+        WHERE e.type = 'destination_click'
+      ) AS last_activity
 
-            WHERE vivid_click_id IS NOT NULL
-              AND TRIM(vivid_click_id) <> ''
-          ),
+    FROM events e
 
-          conversion_metrics AS (
-            SELECT
-              COUNT(e.id)::int AS conversions,
-
-              COALESCE(
-                SUM(e.value),
-                0
-              )::numeric AS revenue
-
-            FROM events e
-
-            JOIN destination_journeys dj
-              ON dj.vivid_click_id =
-                 e.vivid_click_id
-
-            WHERE e.type = 'conversion'
-          )
-
-          SELECT
-            (
-              SELECT COUNT(*)::int
-              FROM destination_clicks
-            ) AS clicks,
-
-            (
-              SELECT COUNT(*)::int
-              FROM destination_journeys
-            ) AS unique_journeys,
-
-            (
-              SELECT MAX(created_at)
-              FROM destination_clicks
-            ) AS last_activity,
-
-            COALESCE(
-              conversion_metrics.conversions,
-              0
-            )::int AS conversions,
-
-            COALESCE(
-              conversion_metrics.revenue,
-              0
-            )::numeric AS revenue
-
-          FROM conversion_metrics
-        `,
-        [destinationId]
-      );
+    WHERE e.campaign_destination_id = $1
+  `,
+  [destinationId]
+);
 
       const summary =
         summaryResult.rows[0] || {};
@@ -35476,10 +35440,8 @@ app.get(
       const clicks =
         Number(summary.clicks || 0);
 
-      const uniqueJourneys =
-        Number(
-          summary.unique_journeys || 0
-        );
+   const visitors =
+  Number(summary.visitors || 0);
 
       const conversions =
         Number(summary.conversions || 0);
