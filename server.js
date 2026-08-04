@@ -46286,63 +46286,555 @@ CAMPAIGN AND CUSTOMER ACTION DETAIL
 =========================================================
 */
 
-if (!reportRows.length) {
-        doc.moveDown(2);
+/*
+=========================================================
+TABLE HELPERS FOR CAMPAIGN DETAIL
+=========================================================
+*/
 
+const drawKeyValueTable = (
+  title,
+  rows,
+  options = {}
+) => {
+  const {
+    labelWidth = 205,
+    valueWidth = 305,
+    rowHeight = 25,
+    fontSize = 9,
+    valueAlign = "left"
+  } = options;
+
+  sectionTitle(title);
+
+  let tableY = doc.y;
+
+  const tableX =
+    doc.page.margins.left;
+
+  const tableWidth =
+    labelWidth + valueWidth;
+
+  rows.forEach(
+    (
+      [label, value],
+      rowIndex
+    ) => {
+      const normalizedValue =
+        value === null ||
+        value === undefined ||
+        value === ""
+          ? "—"
+          : String(value);
+
+      const labelHeight =
+        doc.heightOfString(
+          String(label),
+          {
+            width:
+              labelWidth - 18,
+            fontSize
+          }
+        );
+
+      const valueHeight =
+        doc.heightOfString(
+          normalizedValue,
+          {
+            width:
+              valueWidth - 18,
+            fontSize
+          }
+        );
+
+      const actualRowHeight =
+        Math.max(
+          rowHeight,
+          labelHeight + 14,
+          valueHeight + 14
+        );
+
+      if (
+        tableY +
+          actualRowHeight >
+        pageBottom()
+      ) {
+        doc.addPage();
+
+        sectionTitle(
+          `${title} — Continued`
+        );
+
+        tableY = doc.y;
+      }
+
+      if (
+        rowIndex % 2 === 0
+      ) {
         doc
-          .fontSize(11)
-          .fillColor("#374151")
-          .text(
-            "No campaign activity was found for the selected filters."
-          );
+          .save()
+          .fillColor(
+            "#f6f9f5"
+          )
+          .rect(
+            tableX,
+            tableY,
+            tableWidth,
+            actualRowHeight
+          )
+          .fill()
+          .restore();
+      }
+
+      doc
+        .strokeColor(
+          "#e5e7eb"
+        )
+        .lineWidth(0.5)
+        .rect(
+          tableX,
+          tableY,
+          tableWidth,
+          actualRowHeight
+        )
+        .stroke();
+
+      doc
+        .moveTo(
+          tableX +
+            labelWidth,
+          tableY
+        )
+        .lineTo(
+          tableX +
+            labelWidth,
+          tableY +
+            actualRowHeight
+        )
+        .stroke();
+
+      doc
+        .fillColor(
+          "#374151"
+        )
+        .fontSize(fontSize)
+        .text(
+          String(label),
+          tableX + 9,
+          tableY + 7,
+          {
+            width:
+              labelWidth - 18
+          }
+        );
+
+      doc
+        .fillColor(
+          "#111827"
+        )
+        .fontSize(fontSize)
+        .text(
+          normalizedValue,
+          tableX +
+            labelWidth +
+            9,
+          tableY + 7,
+          {
+            width:
+              valueWidth - 18,
+            align:
+              valueAlign
+          }
+        );
+
+      tableY +=
+        actualRowHeight;
+    }
+  );
+
+  doc.y = tableY + 12;
+};
+
+const drawCustomerActionTable = (
+  action,
+  actionIndex
+) => {
+  ensureSpace(120);
+
+  drawKeyValueTable(
+    `Customer Action ${
+      actionIndex + 1
+    }: ${
+      action.name ||
+      "Unnamed Customer Action"
+    }`,
+    [
+      [
+        "Type",
+        String(
+          action.type ||
+          "website"
+        )
+          .replace(
+            /_/g,
+            " "
+          )
+          .replace(
+            /\b\w/g,
+            character =>
+              character
+                .toUpperCase()
+          )
+      ],
+      [
+        "Status",
+        action.status ||
+        "Unknown"
+      ],
+      [
+        "Destination URL",
+        action.destinationUrl ||
+        "Not configured"
+      ],
+      [
+        "Conversion URL",
+        action.conversionUrl ||
+        "Not configured"
+      ],
+      [
+        "Visitors",
+        Number(
+          action.visitors || 0
+        ).toLocaleString()
+      ],
+      [
+        "Clicks",
+        Number(
+          action.clicks || 0
+        ).toLocaleString()
+      ],
+      [
+        "Conversions",
+        Number(
+          action.conversions ||
+          0
+        ).toLocaleString()
+      ],
+      [
+        "Conversion Rate",
+        pct(
+          action.conversionRate ||
+          0
+        )
+      ],
+      [
+        "Revenue Generated",
+        money(
+          action.revenueGenerated ||
+          0
+        )
+      ],
+      [
+        "Conversion Value",
+        money(
+          action.conversionValue ||
+          0
+        )
+      ],
+      [
+        "Revenue Per Visitor",
+        money(
+          action.revenuePerVisitor ||
+          0
+        )
+      ],
+      [
+        "Revenue Per Click",
+        money(
+          action.revenuePerClick ||
+          0
+        )
+      ],
+      [
+        "Revenue Per Conversion",
+        money(
+          action
+            .revenuePerConversion ||
+          0
+        )
+      ],
+      [
+        "Last Activity",
+        action.lastActivity
+          ? new Date(
+              action.lastActivity
+            ).toLocaleString(
+              "en-US",
+              {
+                month:
+                  "short",
+                day:
+                  "numeric",
+                year:
+                  "numeric",
+                hour:
+                  "numeric",
+                minute:
+                  "2-digit"
+              }
+            )
+          : "No activity"
+      ]
+    ],
+    {
+      labelWidth: 190,
+      valueWidth: 320,
+      rowHeight: 25,
+      fontSize: 8.5
+    }
+  );
+};
+
+/*
+=========================================================
+CAMPAIGN AND CUSTOMER ACTION DETAIL
+=========================================================
+*/
+
+if (!reportRows.length) {
+  doc.moveDown(2);
+
+  drawKeyValueTable(
+    "Campaign Detail",
+    [
+      [
+        "Report Status",
+        "No campaign activity was found for the selected filters."
+      ]
+    ]
+  );
+} else {
+  reportRows.forEach(
+    (
+      campaign,
+      campaignIndex
+    ) => {
+      doc.addPage();
+
+      doc
+        .fillColor(
+          "#123d25"
+        )
+        .fontSize(18)
+        .text(
+          `${campaignIndex + 1}. ${
+            campaign.advertiser ||
+            "Unknown Advertiser"
+          }`
+        );
+
+      doc
+        .fillColor(
+          "#111827"
+        )
+        .fontSize(15)
+        .text(
+          campaign.campaignName ||
+          "Unnamed Campaign"
+        );
+
+      doc.moveDown(0.8);
+
+      drawKeyValueTable(
+        "Campaign Information",
+        [
+          [
+            "Advertiser",
+            campaign.advertiser ||
+            "Unknown Advertiser"
+          ],
+          [
+            "Campaign",
+            campaign.campaignName ||
+            "Unnamed Campaign"
+          ],
+          [
+            "Status",
+            campaign.status ||
+            "Unknown"
+          ],
+          [
+            "QR Placements",
+            campaign.qrNames ||
+            "Not assigned"
+          ],
+          [
+            "Locations",
+            campaign.locationNames ||
+            "Not assigned"
+          ]
+        ]
+      );
+
+      drawKeyValueTable(
+        "Campaign Performance",
+        [
+          [
+            "Visitors",
+            Number(
+              campaign.visitors ||
+              0
+            ).toLocaleString()
+          ],
+          [
+            "Clicks",
+            Number(
+              campaign.clicks ||
+              0
+            ).toLocaleString()
+          ],
+          [
+            "Conversions",
+            Number(
+              campaign
+                .conversions ||
+              0
+            ).toLocaleString()
+          ],
+          [
+            "Visitor Conversion Rate",
+            pct(
+              campaign
+                .visitorConversionRate ||
+              0
+            )
+          ],
+          [
+            "Revenue Generated",
+            money(
+              campaign
+                .revenueGenerated ||
+              0
+            )
+          ],
+          [
+            "Revenue Per Conversion",
+            money(
+              campaign
+                .revenuePerConversion ||
+              0
+            )
+          ],
+          [
+            "Revenue Per Visitor",
+            money(
+              campaign
+                .revenuePerVisitor ||
+              0
+            )
+          ],
+          [
+            "Revenue Per Click",
+            money(
+              campaign
+                .revenuePerClick ||
+              0
+            )
+          ],
+          [
+            "Allocated Cost",
+            money(
+              campaign
+                .allocatedCost ||
+              0
+            )
+          ],
+          [
+            "CAC",
+            money(
+              campaign.cac ||
+              0
+            )
+          ],
+          [
+            "ROI",
+            pct(
+              campaign.roi ||
+              0
+            )
+          ]
+        ]
+      );
+
+      if (
+        !campaign.customerActions ||
+        !campaign
+          .customerActions.length
+      ) {
+        drawKeyValueTable(
+          "Customer Actions and URLs",
+          [
+            [
+              "Customer Actions",
+              "No Customer Actions are configured for this campaign."
+            ]
+          ]
+        );
       } else {
-        reportRows.forEach(
-          (
-            campaign,
-            campaignIndex
-          ) => {
-            doc.addPage();
-
-            doc
-              .fillColor("#123d25")
-              .fontSize(18)
-              .text(
-                `${campaignIndex + 1}. ${
-                  campaign.advertiser ||
-                  "Unknown Advertiser"
-                }`
+        campaign
+          .customerActions
+          .forEach(
+            (
+              action,
+              actionIndex
+            ) => {
+              drawCustomerActionTable(
+                action,
+                actionIndex
               );
+            }
+          );
+      }
 
-            doc
-              .fillColor("#111827")
-              .fontSize(15)
-              .text(
-                campaign.campaignName ||
-                "Unnamed Campaign"
-              );
-
-            doc.moveDown(0.5);
-
-            doc
-              .fillColor("#6b7280")
-              .fontSize(9)
-              .text(
-                `Status: ${campaign.status}`
-              )
-              .text(
-                `QR Placements: ${
-                  campaign.qrNames ||
-                  "Not assigned"
-                }`
-              )
-              .text(
-                `Locations: ${
-                  campaign.locationNames ||
-                  "Not assigned"
-                }`
-              );
-
-            doc.moveDown(1);
+      drawKeyValueTable(
+        "Campaign Totals",
+        [
+          [
+            "Visitors",
+            Number(
+              campaign.visitors ||
+              0
+            ).toLocaleString()
+          ],
+          [
+            "Clicks",
+            Number(
+              campaign.clicks ||
+              0
+            ).toLocaleString()
+          ],
+          [
+            "Conversions",
+            Number(
+              campaign
+                .conversions ||
+              0
+            ).toLocaleString()
+          ],
+          [
+            "Revenue Generated",
+            money(
+              campaign
+                .revenueGenerated ||
+              0
+            )
+          ]
+        ]
+      );
+    }
+  );
+}
+          
 
             sectionTitle(
               "Campaign Performance"
