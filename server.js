@@ -36785,7 +36785,7 @@ app.get(
                 ">
                   <table style="
                     width:100%;
-                    min-width:1550px;
+                    min-width:1700px;
                   ">
                     <tr>
                       <th style="text-align:center;">
@@ -36805,6 +36805,10 @@ app.get(
 
 <th style="text-align:center;">
   Visitors
+</th>
+
+<th style="text-align:center;">
+  Conversions
 </th>
 
 <th>
