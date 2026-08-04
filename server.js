@@ -47131,22 +47131,19 @@ if (!reportRows.length) {
               ).toLocaleString()
             );
 
-            metricLine(
-              "Campaign Conversions",
-              Number(
-                campaign.conversions ||
-                0
-              ).toLocaleString()
-            );
+          metricLine(
+  "Campaign Conversions",
+  Number(
+    campaign.conversions || 0
+  ).toLocaleString()
+);
 
-            metricLine(
-              "Campaign Revenue Generated",
-              money(
-                campaign
-                  .revenueGenerated ||
-                0
-              )
-            );
+metricLine(
+  "Campaign Revenue Generated",
+  money(
+    campaign.revenueGenerated || 0
+  )
+);
           }
         );
       }
