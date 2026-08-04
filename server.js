@@ -37000,11 +37000,14 @@ MAX(e.created_at) FILTER (
                     padding-left:20px;
                   ">
                     ${qrListHtml}
-                  </ul>
-                </div>
-              </div>
+                 </ul>
 
-              <div class="card">
+</div>
+</div>
+
+<!-- Campaign Performance goes here -->
+
+<div class="card">
                 <div style="
                   display:flex;
                   justify-content:space-between;
