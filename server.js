@@ -45759,8 +45759,7 @@ app.get(
         today;
 
       const locationId =
-        req.query.location_id ||
-        "";
+        req.query.location_id || "";
 
       const qrId =
         req.query.qr_id ||
@@ -45816,20 +45815,17 @@ app.get(
 
             totals.visitorsConverted +=
               Number(
-                row.visitorsConverted ||
-                0
+                row.visitorsConverted || 0
               );
 
             totals.revenueGenerated +=
               Number(
-                row.revenueGenerated ||
-                0
+                row.revenueGenerated || 0
               );
 
             totals.allocatedCost +=
               Number(
-                row.allocatedCost ||
-                0
+                row.allocatedCost || 0
               );
 
             return totals;
@@ -45846,9 +45842,10 @@ app.get(
 
       summary.visitorConversionRate =
         summary.visitors > 0
-          ? summary.visitorsConverted /
-            summary.visitors *
-            100
+          ? (
+              summary.visitorsConverted /
+              summary.visitors
+            ) * 100
           : 0;
 
       summary.revenuePerVisitor =
@@ -45904,6 +45901,12 @@ app.get(
 
       doc.pipe(res);
 
+      /*
+      =========================================================
+      PDF HELPERS
+      =========================================================
+      */
+
       const pageBottom = () =>
         doc.page.height -
         doc.page.margins.bottom;
@@ -45918,7 +45921,7 @@ app.get(
       };
 
       const sectionTitle = title => {
-        ensureSpace(45);
+        ensureSpace(44);
 
         doc
           .fillColor("#123d25")
@@ -45926,7 +45929,7 @@ app.get(
           .text(title);
 
         doc
-          .moveDown(0.35)
+          .moveDown(0.3)
           .strokeColor("#d8e4d8")
           .lineWidth(1)
           .moveTo(
@@ -45940,29 +45943,402 @@ app.get(
           )
           .stroke();
 
-        doc.moveDown(0.7);
+        doc.moveDown(0.65);
       };
 
-      const metricLine = (
-        label,
-        value
-      ) => {
-        doc
-          .fillColor("#374151")
-          .fontSize(10)
-          .text(
-            `${label}:`,
-            {
-              continued: true
-            }
+      const formatDateTime = value => {
+        if (!value) {
+          return "No activity";
+        }
+
+        const date = new Date(value);
+
+        if (
+          Number.isNaN(
+            date.getTime()
           )
-          .fillColor("#111827")
-          .text(` ${value}`);
+        ) {
+          return "No activity";
+        }
+
+        return date.toLocaleString(
+          "en-US",
+          {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit"
+          }
+        );
       };
+
+      const drawKeyValueTable = (
+        title,
+        rows,
+        options = {}
+      ) => {
+        const {
+          labelWidth = 205,
+          valueWidth = 305,
+          rowHeight = 25,
+          fontSize = 9
+        } = options;
+
+        sectionTitle(title);
+
+        const tableX =
+          doc.page.margins.left;
+
+        const tableWidth =
+          labelWidth +
+          valueWidth;
+
+        let tableY = doc.y;
+
+        rows.forEach(
+          (
+            [label, value],
+            rowIndex
+          ) => {
+            const normalizedValue =
+              value === null ||
+              value === undefined ||
+              value === ""
+                ? "—"
+                : String(value);
+
+            doc.fontSize(fontSize);
+
+            const labelHeight =
+              doc.heightOfString(
+                String(label),
+                {
+                  width:
+                    labelWidth - 18
+                }
+              );
+
+            const valueHeight =
+              doc.heightOfString(
+                normalizedValue,
+                {
+                  width:
+                    valueWidth - 18
+                }
+              );
+
+            const actualRowHeight =
+              Math.max(
+                rowHeight,
+                labelHeight + 14,
+                valueHeight + 14
+              );
+
+            if (
+              tableY +
+                actualRowHeight >
+              pageBottom()
+            ) {
+              doc.addPage();
+
+              sectionTitle(
+                `${title} — Continued`
+              );
+
+              tableY = doc.y;
+            }
+
+            if (
+              rowIndex % 2 === 0
+            ) {
+              doc
+                .save()
+                .fillColor("#f6f9f5")
+                .rect(
+                  tableX,
+                  tableY,
+                  tableWidth,
+                  actualRowHeight
+                )
+                .fill()
+                .restore();
+            }
+
+            doc
+              .strokeColor("#e5e7eb")
+              .lineWidth(0.5)
+              .rect(
+                tableX,
+                tableY,
+                tableWidth,
+                actualRowHeight
+              )
+              .stroke();
+
+            doc
+              .moveTo(
+                tableX +
+                  labelWidth,
+                tableY
+              )
+              .lineTo(
+                tableX +
+                  labelWidth,
+                tableY +
+                  actualRowHeight
+              )
+              .stroke();
+
+            doc
+              .fillColor("#374151")
+              .fontSize(fontSize)
+              .text(
+                String(label),
+                tableX + 9,
+                tableY + 7,
+                {
+                  width:
+                    labelWidth - 18
+                }
+              );
+
+            doc
+              .fillColor("#111827")
+              .fontSize(fontSize)
+              .text(
+                normalizedValue,
+                tableX +
+                  labelWidth +
+                  9,
+                tableY + 7,
+                {
+                  width:
+                    valueWidth - 18
+                }
+              );
+
+            tableY +=
+              actualRowHeight;
+          }
+        );
+
+        doc.y =
+          tableY + 12;
+      };
+
+      const drawCampaignSummaryHeader =
+        y => {
+          const columns = {
+            advertiser: 50,
+            campaign: 135,
+            visitors: 355,
+            clicks: 405,
+            conversions: 455,
+            revenue: 510
+          };
+
+          doc
+            .fontSize(9)
+            .fillColor("#123d25")
+            .text(
+              "Advertiser",
+              columns.advertiser,
+              y,
+              {
+                width: 80
+              }
+            )
+            .text(
+              "Campaign",
+              columns.campaign,
+              y,
+              {
+                width: 210
+              }
+            )
+            .text(
+              "Visitors",
+              columns.visitors,
+              y,
+              {
+                width: 45,
+                align: "right"
+              }
+            )
+            .text(
+              "Clicks",
+              columns.clicks,
+              y,
+              {
+                width: 45,
+                align: "right"
+              }
+            )
+            .text(
+              "Conv.",
+              columns.conversions,
+              y,
+              {
+                width: 45,
+                align: "right"
+              }
+            )
+            .text(
+              "Revenue",
+              columns.revenue,
+              y,
+              {
+                width: 55,
+                align: "right"
+              }
+            );
+
+          const lineY =
+            y + 22;
+
+          doc
+            .strokeColor("#d8e4d8")
+            .lineWidth(1)
+            .moveTo(50, lineY)
+            .lineTo(565, lineY)
+            .stroke();
+
+          return {
+            columns,
+            nextY:
+              lineY + 10
+          };
+        };
+
+      const drawCustomerActionTable =
+        (
+          action,
+          actionIndex
+        ) => {
+          drawKeyValueTable(
+            `Customer Action ${
+              actionIndex + 1
+            }: ${
+              action.name ||
+              "Unnamed Customer Action"
+            }`,
+            [
+              [
+                "Type",
+                String(
+                  action.type ||
+                  "website"
+                )
+                  .replace(
+                    /_/g,
+                    " "
+                  )
+                  .replace(
+                    /\b\w/g,
+                    character =>
+                      character
+                        .toUpperCase()
+                  )
+              ],
+              [
+                "Status",
+                action.status ||
+                "Unknown"
+              ],
+              [
+                "Destination URL",
+                action.destinationUrl ||
+                "Not configured"
+              ],
+              [
+                "Conversion URL",
+                action.conversionUrl ||
+                "Not configured"
+              ],
+              [
+                "Visitors",
+                Number(
+                  action.visitors ||
+                  0
+                ).toLocaleString()
+              ],
+              [
+                "Clicks",
+                Number(
+                  action.clicks ||
+                  0
+                ).toLocaleString()
+              ],
+              [
+                "Conversions",
+                Number(
+                  action.conversions ||
+                  0
+                ).toLocaleString()
+              ],
+              [
+                "Conversion Rate",
+                pct(
+                  action.conversionRate ||
+                  0
+                )
+              ],
+              [
+                "Revenue Generated",
+                money(
+                  action.revenueGenerated ||
+                  0
+                )
+              ],
+              [
+                "Conversion Value",
+                money(
+                  action.conversionValue ||
+                  0
+                )
+              ],
+              [
+                "Revenue Per Visitor",
+                money(
+                  action.revenuePerVisitor ||
+                  0
+                )
+              ],
+              [
+                "Revenue Per Click",
+                money(
+                  action.revenuePerClick ||
+                  0
+                )
+              ],
+              [
+                "Revenue Per Conversion",
+                money(
+                  action
+                    .revenuePerConversion ||
+                  0
+                )
+              ],
+              [
+                "Last Activity",
+                formatDateTime(
+                  action.lastActivity
+                )
+              ]
+            ],
+            {
+              labelWidth: 190,
+              valueWidth: 320,
+              rowHeight: 25,
+              fontSize: 8.5
+            }
+          );
+        };
 
       /*
       =========================================================
-      COVER / EXECUTIVE SUMMARY
+      PAGE 1 — EXECUTIVE SUMMARY
       =========================================================
       */
 
@@ -46000,953 +46376,430 @@ app.get(
 
       doc.moveDown(1.5);
 
-      sectionTitle(
-        "Executive Summary"
-      );
-
-      const summaryMetrics = [
-        [
-          "Visitors",
-          summary.visitors
-            .toLocaleString()
-        ],
-        [
-          "Clicks",
-          summary.clicks
-            .toLocaleString()
-        ],
-        [
-          "Conversions",
-          summary.conversions
-            .toLocaleString()
-        ],
-        [
-          "Visitor Conversion Rate",
-          pct(
-            summary
-              .visitorConversionRate
-          )
-        ],
-        [
-          "Revenue Generated",
-          money(
-            summary
-              .revenueGenerated
-          )
-        ],
-        [
-          "Revenue Per Conversion",
-          money(
-            summary
-              .revenuePerConversion
-          )
-        ],
-        [
-          "Revenue Per Visitor",
-          money(
-            summary
-              .revenuePerVisitor
-          )
-        ],
-        [
-          "Revenue Per Click",
-          money(
-            summary
-              .revenuePerClick
-          )
-        ],
-        [
-          "Allocated Cost",
-          money(
-            summary.allocatedCost
-          )
-        ],
-        [
-          "CAC",
-          money(summary.cac)
-        ],
-        [
-          "ROI",
-          pct(summary.roi)
-        ]
-      ];
-
-      summaryMetrics.forEach(
-        ([label, value]) => {
-          metricLine(label, value);
-        }
-      );
-
-      doc.moveDown(1.2);
-
-      doc
-        .fillColor("#4b5563")
-        .fontSize(9)
-        .text(
-          `${reportRows.length} campaign${
-            reportRows.length === 1
-              ? ""
-              : "s"
-          } included in this report.`,
-          {
-            align: "center"
-          }
-        );
-
-  doc.addPage();
-
-sectionTitle("Campaign Summary");
-
-doc.moveDown();
-
-const summaryColumns = {
-  advertiser: 50,
-  campaign: 135,
-  visitors: 355,
-  clicks: 405,
-  conversions: 455,
-  revenue: 510
-};
-
-let summaryY = doc.y;
-
-doc
-  .fontSize(9)
-  .fillColor("#123d25")
-  .text(
-    "Advertiser",
-    summaryColumns.advertiser,
-    summaryY,
-    { width: 80 }
-  )
-  .text(
-    "Campaign",
-    summaryColumns.campaign,
-    summaryY,
-    { width: 210 }
-  )
-  .text(
-    "Visitors",
-    summaryColumns.visitors,
-    summaryY,
-    {
-      width: 45,
-      align: "right"
-    }
-  )
-  .text(
-    "Clicks",
-    summaryColumns.clicks,
-    summaryY,
-    {
-      width: 45,
-      align: "right"
-    }
-  )
-  .text(
-    "Conv.",
-    summaryColumns.conversions,
-    summaryY,
-    {
-      width: 45,
-      align: "right"
-    }
-  )
-  .text(
-    "Revenue",
-    summaryColumns.revenue,
-    summaryY,
-    {
-      width: 55,
-      align: "right"
-    }
-  );
-
-summaryY += 22;
-
-doc
-  .strokeColor("#d8e4d8")
-  .lineWidth(1)
-  .moveTo(50, summaryY)
-  .lineTo(565, summaryY)
-  .stroke();
-
-summaryY += 10;
-
-for (
-  let index = 0;
-  index < reportRows.length;
-  index++
-) {
-  const row = reportRows[index];
-
-  if (summaryY > pageBottom() - 35) {
-    doc.addPage();
-
-    sectionTitle(
-      "Campaign Summary — Continued"
-    );
-
-    summaryY = doc.y;
-  }
-
-  const rowHeight = 32;
-
-  if (index % 2 === 0) {
-    doc
-      .save()
-      .fillColor("#f6f9f5")
-      .rect(
-        48,
-        summaryY - 5,
-        518,
-        rowHeight
-      )
-      .fill()
-      .restore();
-  }
-
-  doc
-    .fontSize(8.5)
-    .fillColor("#111827")
-    .text(
-      row.advertiser || "—",
-      summaryColumns.advertiser,
-      summaryY,
-      {
-        width: 80,
-        height: rowHeight - 4,
-        ellipsis: true
-      }
-    )
-    .text(
-      row.campaignName || "—",
-      summaryColumns.campaign,
-      summaryY,
-      {
-        width: 210,
-        height: rowHeight - 4,
-        ellipsis: true
-      }
-    )
-    .text(
-      Number(
-        row.visitors || 0
-      ).toLocaleString(),
-      summaryColumns.visitors,
-      summaryY,
-      {
-        width: 45,
-        align: "right"
-      }
-    )
-    .text(
-      Number(
-        row.clicks || 0
-      ).toLocaleString(),
-      summaryColumns.clicks,
-      summaryY,
-      {
-        width: 45,
-        align: "right"
-      }
-    )
-    .text(
-      Number(
-        row.conversions || 0
-      ).toLocaleString(),
-      summaryColumns.conversions,
-      summaryY,
-      {
-        width: 45,
-        align: "right"
-      }
-    )
-    .text(
-      money(
-        row.revenueGenerated || 0
-      ),
-      summaryColumns.revenue,
-      summaryY,
-      {
-        width: 55,
-        align: "right"
-      }
-    );
-
-  summaryY += rowHeight;
-}
-
-doc.y = summaryY + 8;
-
-
-/*
-=========================================================
-CAMPAIGN AND CUSTOMER ACTION DETAIL
-=========================================================
-*/
-
-/*
-=========================================================
-TABLE HELPERS FOR CAMPAIGN DETAIL
-=========================================================
-*/
-
-const drawKeyValueTable = (
-  title,
-  rows,
-  options = {}
-) => {
-  const {
-    labelWidth = 205,
-    valueWidth = 305,
-    rowHeight = 25,
-    fontSize = 9,
-    valueAlign = "left"
-  } = options;
-
-  sectionTitle(title);
-
-  let tableY = doc.y;
-
-  const tableX =
-    doc.page.margins.left;
-
-  const tableWidth =
-    labelWidth + valueWidth;
-
-  rows.forEach(
-    (
-      [label, value],
-      rowIndex
-    ) => {
-      const normalizedValue =
-        value === null ||
-        value === undefined ||
-        value === ""
-          ? "—"
-          : String(value);
-
-      const labelHeight =
-        doc.heightOfString(
-          String(label),
-          {
-            width:
-              labelWidth - 18,
-            fontSize
-          }
-        );
-
-      const valueHeight =
-        doc.heightOfString(
-          normalizedValue,
-          {
-            width:
-              valueWidth - 18,
-            fontSize
-          }
-        );
-
-      const actualRowHeight =
-        Math.max(
-          rowHeight,
-          labelHeight + 14,
-          valueHeight + 14
-        );
-
-      if (
-        tableY +
-          actualRowHeight >
-        pageBottom()
-      ) {
-        doc.addPage();
-
-        sectionTitle(
-          `${title} — Continued`
-        );
-
-        tableY = doc.y;
-      }
-
-      if (
-        rowIndex % 2 === 0
-      ) {
-        doc
-          .save()
-          .fillColor(
-            "#f6f9f5"
-          )
-          .rect(
-            tableX,
-            tableY,
-            tableWidth,
-            actualRowHeight
-          )
-          .fill()
-          .restore();
-      }
-
-      doc
-        .strokeColor(
-          "#e5e7eb"
-        )
-        .lineWidth(0.5)
-        .rect(
-          tableX,
-          tableY,
-          tableWidth,
-          actualRowHeight
-        )
-        .stroke();
-
-      doc
-        .moveTo(
-          tableX +
-            labelWidth,
-          tableY
-        )
-        .lineTo(
-          tableX +
-            labelWidth,
-          tableY +
-            actualRowHeight
-        )
-        .stroke();
-
-      doc
-        .fillColor(
-          "#374151"
-        )
-        .fontSize(fontSize)
-        .text(
-          String(label),
-          tableX + 9,
-          tableY + 7,
-          {
-            width:
-              labelWidth - 18
-          }
-        );
-
-      doc
-        .fillColor(
-          "#111827"
-        )
-        .fontSize(fontSize)
-        .text(
-          normalizedValue,
-          tableX +
-            labelWidth +
-            9,
-          tableY + 7,
-          {
-            width:
-              valueWidth - 18,
-            align:
-              valueAlign
-          }
-        );
-
-      tableY +=
-        actualRowHeight;
-    }
-  );
-
-  doc.y = tableY + 12;
-};
-
-const drawCustomerActionTable = (
-  action,
-  actionIndex
-) => {
-  ensureSpace(120);
-
-  drawKeyValueTable(
-    `Customer Action ${
-      actionIndex + 1
-    }: ${
-      action.name ||
-      "Unnamed Customer Action"
-    }`,
-    [
-      [
-        "Type",
-        String(
-          action.type ||
-          "website"
-        )
-          .replace(
-            /_/g,
-            " "
-          )
-          .replace(
-            /\b\w/g,
-            character =>
-              character
-                .toUpperCase()
-          )
-      ],
-      [
-        "Status",
-        action.status ||
-        "Unknown"
-      ],
-      [
-        "Destination URL",
-        action.destinationUrl ||
-        "Not configured"
-      ],
-      [
-        "Conversion URL",
-        action.conversionUrl ||
-        "Not configured"
-      ],
-      [
-        "Visitors",
-        Number(
-          action.visitors || 0
-        ).toLocaleString()
-      ],
-      [
-        "Clicks",
-        Number(
-          action.clicks || 0
-        ).toLocaleString()
-      ],
-      [
-        "Conversions",
-        Number(
-          action.conversions ||
-          0
-        ).toLocaleString()
-      ],
-      [
-        "Conversion Rate",
-        pct(
-          action.conversionRate ||
-          0
-        )
-      ],
-      [
-        "Revenue Generated",
-        money(
-          action.revenueGenerated ||
-          0
-        )
-      ],
-      [
-        "Conversion Value",
-        money(
-          action.conversionValue ||
-          0
-        )
-      ],
-      [
-        "Revenue Per Visitor",
-        money(
-          action.revenuePerVisitor ||
-          0
-        )
-      ],
-      [
-        "Revenue Per Click",
-        money(
-          action.revenuePerClick ||
-          0
-        )
-      ],
-      [
-        "Revenue Per Conversion",
-        money(
-          action
-            .revenuePerConversion ||
-          0
-        )
-      ],
-      [
-        "Last Activity",
-        action.lastActivity
-          ? new Date(
-              action.lastActivity
-            ).toLocaleString(
-              "en-US",
-              {
-                month:
-                  "short",
-                day:
-                  "numeric",
-                year:
-                  "numeric",
-                hour:
-                  "numeric",
-                minute:
-                  "2-digit"
-              }
-            )
-          : "No activity"
-      ]
-    ],
-    {
-      labelWidth: 190,
-      valueWidth: 320,
-      rowHeight: 25,
-      fontSize: 8.5
-    }
-  );
-};
-
-/*
-=========================================================
-CAMPAIGN AND CUSTOMER ACTION DETAIL
-=========================================================
-*/
-
-if (!reportRows.length) {
-  doc.moveDown(2);
-
-  drawKeyValueTable(
-    "Campaign Detail",
-    [
-      [
-        "Report Status",
-        "No campaign activity was found for the selected filters."
-      ]
-    ]
-  );
-} else {
-  reportRows.forEach(
-    (
-      campaign,
-      campaignIndex
-    ) => {
-      doc.addPage();
-
-      doc
-        .fillColor(
-          "#123d25"
-        )
-        .fontSize(18)
-        .text(
-          `${campaignIndex + 1}. ${
-            campaign.advertiser ||
-            "Unknown Advertiser"
-          }`
-        );
-
-      doc
-        .fillColor(
-          "#111827"
-        )
-        .fontSize(15)
-        .text(
-          campaign.campaignName ||
-          "Unnamed Campaign"
-        );
-
-      doc.moveDown(0.8);
-
       drawKeyValueTable(
-        "Campaign Information",
-        [
-          [
-            "Advertiser",
-            campaign.advertiser ||
-            "Unknown Advertiser"
-          ],
-          [
-            "Campaign",
-            campaign.campaignName ||
-            "Unnamed Campaign"
-          ],
-          [
-            "Status",
-            campaign.status ||
-            "Unknown"
-          ],
-          [
-            "QR Placements",
-            campaign.qrNames ||
-            "Not assigned"
-          ],
-          [
-            "Locations",
-            campaign.locationNames ||
-            "Not assigned"
-          ]
-        ]
-      );
-
-      drawKeyValueTable(
-        "Campaign Performance",
+        "Executive Summary",
         [
           [
             "Visitors",
-            Number(
-              campaign.visitors ||
-              0
-            ).toLocaleString()
+            summary.visitors
+              .toLocaleString()
           ],
           [
             "Clicks",
-            Number(
-              campaign.clicks ||
-              0
-            ).toLocaleString()
+            summary.clicks
+              .toLocaleString()
           ],
           [
             "Conversions",
-            Number(
-              campaign
-                .conversions ||
-              0
-            ).toLocaleString()
+            summary.conversions
+              .toLocaleString()
           ],
           [
             "Visitor Conversion Rate",
             pct(
-              campaign
-                .visitorConversionRate ||
-              0
+              summary
+                .visitorConversionRate
             )
           ],
           [
             "Revenue Generated",
             money(
-              campaign
-                .revenueGenerated ||
-              0
+              summary
+                .revenueGenerated
             )
           ],
           [
             "Revenue Per Conversion",
             money(
-              campaign
-                .revenuePerConversion ||
-              0
+              summary
+                .revenuePerConversion
             )
           ],
           [
             "Revenue Per Visitor",
             money(
-              campaign
-                .revenuePerVisitor ||
-              0
+              summary
+                .revenuePerVisitor
             )
           ],
           [
             "Revenue Per Click",
             money(
-              campaign
-                .revenuePerClick ||
-              0
+              summary
+                .revenuePerClick
             )
           ],
           [
             "Allocated Cost",
             money(
-              campaign
-                .allocatedCost ||
-              0
+              summary.allocatedCost
             )
           ],
           [
             "CAC",
             money(
-              campaign.cac ||
-              0
+              summary.cac
             )
           ],
           [
             "ROI",
             pct(
-              campaign.roi ||
-              0
+              summary.roi
             )
+          ],
+          [
+            "Campaigns Included",
+            reportRows.length
+              .toLocaleString()
           ]
         ]
       );
 
+      /*
+      =========================================================
+      PAGE 2 — CAMPAIGN SUMMARY TABLE
+      =========================================================
+      */
+
+      doc.addPage();
+
+      sectionTitle(
+        "Campaign Summary"
+      );
+
+      let header =
+        drawCampaignSummaryHeader(
+          doc.y
+        );
+
+      let summaryY =
+        header.nextY;
+
+      let summaryColumns =
+        header.columns;
+
+      for (
+        let index = 0;
+        index <
+          reportRows.length;
+        index++
+      ) {
+        const row =
+          reportRows[index];
+
+        const rowHeight = 32;
+
+        if (
+          summaryY +
+            rowHeight >
+          pageBottom()
+        ) {
+          doc.addPage();
+
+          sectionTitle(
+            "Campaign Summary — Continued"
+          );
+
+          header =
+            drawCampaignSummaryHeader(
+              doc.y
+            );
+
+          summaryY =
+            header.nextY;
+
+          summaryColumns =
+            header.columns;
+        }
+
+        if (
+          index % 2 === 0
+        ) {
+          doc
+            .save()
+            .fillColor("#f6f9f5")
+            .rect(
+              48,
+              summaryY - 5,
+              518,
+              rowHeight
+            )
+            .fill()
+            .restore();
+        }
+
+        doc
+          .fontSize(8.5)
+          .fillColor("#111827")
+          .text(
+            row.advertiser ||
+            "—",
+            summaryColumns
+              .advertiser,
+            summaryY,
+            {
+              width: 80,
+              height:
+                rowHeight - 4,
+              ellipsis: true
+            }
+          )
+          .text(
+            row.campaignName ||
+            "—",
+            summaryColumns
+              .campaign,
+            summaryY,
+            {
+              width: 210,
+              height:
+                rowHeight - 4,
+              ellipsis: true
+            }
+          )
+          .text(
+            Number(
+              row.visitors || 0
+            ).toLocaleString(),
+            summaryColumns
+              .visitors,
+            summaryY,
+            {
+              width: 45,
+              align: "right"
+            }
+          )
+          .text(
+            Number(
+              row.clicks || 0
+            ).toLocaleString(),
+            summaryColumns
+              .clicks,
+            summaryY,
+            {
+              width: 45,
+              align: "right"
+            }
+          )
+          .text(
+            Number(
+              row.conversions ||
+              0
+            ).toLocaleString(),
+            summaryColumns
+              .conversions,
+            summaryY,
+            {
+              width: 45,
+              align: "right"
+            }
+          )
+          .text(
+            money(
+              row.revenueGenerated ||
+              0
+            ),
+            summaryColumns
+              .revenue,
+            summaryY,
+            {
+              width: 55,
+              align: "right"
+            }
+          );
+
+        summaryY +=
+          rowHeight;
+      }
+
+      doc.y =
+        summaryY + 8;
+
+      /*
+      =========================================================
+      CAMPAIGN DETAIL PAGES
+      =========================================================
+      */
+
       if (
-        !campaign.customerActions ||
-        !campaign
-          .customerActions.length
+        !reportRows.length
       ) {
         drawKeyValueTable(
-          "Customer Actions and URLs",
+          "Campaign Detail",
           [
             [
-              "Customer Actions",
-              "No Customer Actions are configured for this campaign."
+              "Report Status",
+              "No campaign activity was found for the selected filters."
             ]
           ]
         );
       } else {
-        campaign
-          .customerActions
-          .forEach(
-            (
-              action,
-              actionIndex
-            ) => {
-              drawCustomerActionTable(
-                action,
-                actionIndex
+        reportRows.forEach(
+          (
+            campaign,
+            campaignIndex
+          ) => {
+            doc.addPage();
+
+            doc
+              .fillColor("#123d25")
+              .fontSize(18)
+              .text(
+                `${
+                  campaignIndex + 1
+                }. ${
+                  campaign.advertiser ||
+                  "Unknown Advertiser"
+                }`
               );
-            }
-          );
-      }
 
-      drawKeyValueTable(
-        "Campaign Totals",
-        [
-          [
-            "Visitors",
-            Number(
-              campaign.visitors ||
-              0
-            ).toLocaleString()
-          ],
-          [
-            "Clicks",
-            Number(
-              campaign.clicks ||
-              0
-            ).toLocaleString()
-          ],
-          [
-            "Conversions",
-            Number(
-              campaign
-                .conversions ||
-              0
-            ).toLocaleString()
-          ],
-          [
-            "Revenue Generated",
-            money(
-              campaign
-                .revenueGenerated ||
-              0
-            )
-          ]
-        ]
-      );
-    }
-  );
-}
-          
+            doc
+              .fillColor("#111827")
+              .fontSize(15)
+              .text(
+                campaign.campaignName ||
+                "Unnamed Campaign"
+              );
 
-            sectionTitle(
-              "Campaign Performance"
+            doc.moveDown(0.8);
+
+            drawKeyValueTable(
+              "Campaign Information",
+              [
+                [
+                  "Advertiser",
+                  campaign.advertiser ||
+                  "Unknown Advertiser"
+                ],
+                [
+                  "Campaign",
+                  campaign.campaignName ||
+                  "Unnamed Campaign"
+                ],
+                [
+                  "Status",
+                  campaign.status ||
+                  "Unknown"
+                ],
+                [
+                  "QR Placements",
+                  campaign.qrNames ||
+                  "Not assigned"
+                ],
+                [
+                  "Locations",
+                  campaign.locationNames ||
+                  "Not assigned"
+                ]
+              ]
             );
 
-            metricLine(
-              "Visitors",
-              Number(
-                campaign.visitors || 0
-              ).toLocaleString()
-            );
-
-            metricLine(
-              "Clicks",
-              Number(
-                campaign.clicks || 0
-              ).toLocaleString()
-            );
-
-            metricLine(
-              "Conversions",
-              Number(
-                campaign.conversions ||
-                0
-              ).toLocaleString()
-            );
-
-            metricLine(
-              "Visitor Conversion Rate",
-              pct(
-                campaign
-                  .visitorConversionRate ||
-                0
-              )
-            );
-
-            metricLine(
-              "Revenue Generated",
-              money(
-                campaign
-                  .revenueGenerated ||
-                0
-              )
-            );
-
-            metricLine(
-              "Revenue Per Conversion",
-              money(
-                campaign
-                  .revenuePerConversion ||
-                0
-              )
-            );
-
-            metricLine(
-              "Revenue Per Visitor",
-              money(
-                campaign
-                  .revenuePerVisitor ||
-                0
-              )
-            );
-
-            metricLine(
-              "Revenue Per Click",
-              money(
-                campaign
-                  .revenuePerClick ||
-                0
-              )
-            );
-
-            metricLine(
-              "Allocated Cost",
-              money(
-                campaign
-                  .allocatedCost ||
-                0
-              )
-            );
-
-            metricLine(
-              "CAC",
-              money(
-                campaign.cac || 0
-              )
-            );
-
-            metricLine(
-              "ROI",
-              pct(
-                campaign.roi || 0
-              )
-            );
-
-            doc.moveDown(1);
-
-            sectionTitle(
-              "Customer Actions and URLs"
+            drawKeyValueTable(
+              "Campaign Performance",
+              [
+                [
+                  "Visitors",
+                  Number(
+                    campaign.visitors ||
+                    0
+                  ).toLocaleString()
+                ],
+                [
+                  "Clicks",
+                  Number(
+                    campaign.clicks ||
+                    0
+                  ).toLocaleString()
+                ],
+                [
+                  "Conversions",
+                  Number(
+                    campaign
+                      .conversions ||
+                    0
+                  ).toLocaleString()
+                ],
+                [
+                  "Visitor Conversion Rate",
+                  pct(
+                    campaign
+                      .visitorConversionRate ||
+                    0
+                  )
+                ],
+                [
+                  "Revenue Generated",
+                  money(
+                    campaign
+                      .revenueGenerated ||
+                    0
+                  )
+                ],
+                [
+                  "Revenue Per Conversion",
+                  money(
+                    campaign
+                      .revenuePerConversion ||
+                    0
+                  )
+                ],
+                [
+                  "Revenue Per Visitor",
+                  money(
+                    campaign
+                      .revenuePerVisitor ||
+                    0
+                  )
+                ],
+                [
+                  "Revenue Per Click",
+                  money(
+                    campaign
+                      .revenuePerClick ||
+                    0
+                  )
+                ],
+                [
+                  "Allocated Cost",
+                  money(
+                    campaign
+                      .allocatedCost ||
+                    0
+                  )
+                ],
+                [
+                  "CAC",
+                  money(
+                    campaign.cac ||
+                    0
+                  )
+                ],
+                [
+                  "ROI",
+                  pct(
+                    campaign.roi ||
+                    0
+                  )
+                ]
+              ]
             );
 
             if (
-              !campaign.customerActions ||
               !campaign
-                .customerActions.length
+                .customerActions ||
+              !campaign
+                .customerActions
+                .length
             ) {
-              doc
-                .fillColor("#6b7280")
-                .fontSize(10)
-                .text(
-                  "No Customer Actions are configured for this campaign."
-                );
+              drawKeyValueTable(
+                "Customer Actions and URLs",
+                [
+                  [
+                    "Customer Actions",
+                    "No Customer Actions are configured for this campaign."
+                  ]
+                ]
+              );
             } else {
               campaign
                 .customerActions
@@ -46955,195 +46808,49 @@ if (!reportRows.length) {
                     action,
                     actionIndex
                   ) => {
-                    ensureSpace(190);
-
-                    doc
-                      .fillColor("#123d25")
-                      .fontSize(12)
-                      .text(
-                        `${
-                          actionIndex + 1
-                        }. ${
-                          action.name ||
-                          "Unnamed Customer Action"
-                        }`
-                      );
-
-                    doc
-                      .fillColor("#6b7280")
-                      .fontSize(8.5)
-                      .text(
-                        `Type: ${
-                          action.type ||
-                          "website"
-                        } | Status: ${
-                          action.status
-                        }`
-                      );
-
-                    doc.moveDown(0.35);
-
-                    doc
-                      .fillColor("#374151")
-                      .fontSize(8.5)
-                      .text(
-                        `Destination URL: ${
-                          action.destinationUrl ||
-                          "Not configured"
-                        }`,
-                        {
-                          width: 500
-                        }
-                      );
-
-                    doc
-                      .text(
-                        `Conversion URL: ${
-                          action.conversionUrl ||
-                          "Not configured"
-                        }`,
-                        {
-                          width: 500
-                        }
-                      );
-
-                    doc.moveDown(0.55);
-
-                    metricLine(
-                      "Visitors",
-                      Number(
-                        action.visitors ||
-                        0
-                      ).toLocaleString()
+                    drawCustomerActionTable(
+                      action,
+                      actionIndex
                     );
-
-                    metricLine(
-                      "Clicks",
-                      Number(
-                        action.clicks || 0
-                      ).toLocaleString()
-                    );
-
-                    metricLine(
-                      "Conversions",
-                      Number(
-                        action.conversions ||
-                        0
-                      ).toLocaleString()
-                    );
-
-                    metricLine(
-                      "Conversion Rate",
-                      pct(
-                        action
-                          .conversionRate ||
-                        0
-                      )
-                    );
-
-                    metricLine(
-                      "Revenue Generated",
-                      money(
-                        action
-                          .revenueGenerated ||
-                        0
-                      )
-                    );
-
-                    metricLine(
-                      "Conversion Value",
-                      money(
-                        action
-                          .conversionValue ||
-                        0
-                      )
-                    );
-
-                    metricLine(
-                      "Revenue Per Visitor",
-                      money(
-                        action
-                          .revenuePerVisitor ||
-                        0
-                      )
-                    );
-
-                    metricLine(
-                      "Revenue Per Click",
-                      money(
-                        action
-                          .revenuePerClick ||
-                        0
-                      )
-                    );
-
-                    metricLine(
-                      "Revenue Per Conversion",
-                      money(
-                        action
-                          .revenuePerConversion ||
-                        0
-                      )
-                    );
-
-                    doc.moveDown(0.75);
-
-                    doc
-                      .strokeColor(
-                        "#e5e7eb"
-                      )
-                      .lineWidth(0.7)
-                      .moveTo(
-                        doc.page
-                          .margins.left,
-                        doc.y
-                      )
-                      .lineTo(
-                        doc.page.width -
-                          doc.page
-                            .margins.right,
-                        doc.y
-                      )
-                      .stroke();
-
-                    doc.moveDown(0.75);
                   }
                 );
             }
 
-            ensureSpace(120);
-
-            sectionTitle(
-              "Campaign Reconciliation"
+            drawKeyValueTable(
+              "Campaign Totals",
+              [
+                [
+                  "Visitors",
+                  Number(
+                    campaign.visitors ||
+                    0
+                  ).toLocaleString()
+                ],
+                [
+                  "Clicks",
+                  Number(
+                    campaign.clicks ||
+                    0
+                  ).toLocaleString()
+                ],
+                [
+                  "Conversions",
+                  Number(
+                    campaign
+                      .conversions ||
+                    0
+                  ).toLocaleString()
+                ],
+                [
+                  "Revenue Generated",
+                  money(
+                    campaign
+                      .revenueGenerated ||
+                    0
+                  )
+                ]
+              ]
             );
-
-            metricLine(
-              "Campaign Visitors",
-              Number(
-                campaign.visitors || 0
-              ).toLocaleString()
-            );
-
-            metricLine(
-              "Campaign Clicks",
-              Number(
-                campaign.clicks || 0
-              ).toLocaleString()
-            );
-
-          metricLine(
-  "Campaign Conversions",
-  Number(
-    campaign.conversions || 0
-  ).toLocaleString()
-);
-
-metricLine(
-  "Campaign Revenue Generated",
-  money(
-    campaign.revenueGenerated || 0
-  )
-);
           }
         );
       }
@@ -47167,13 +46874,18 @@ metricLine(
         err
       );
 
-      return res.status(500).send(
-        "PDF REPORT ERROR: " +
-        err.message
-      );
+      return res
+        .status(500)
+        .send(
+          "PDF REPORT ERROR: " +
+          err.message
+        );
     }
   }
 );
+ 
+
+ 
 
 app.get("/analytics", async (req, res) => {
   const result = await q(`SELECT COUNT(*) FILTER (WHERE type='scan') AS scans, COUNT(*) FILTER (WHERE type='offer') AS offer_clicks, COUNT(*) FILTER (WHERE type='maps') AS maps_clicks, COUNT(*) FILTER (WHERE type='waze') AS waze_clicks, COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks FROM events`);
