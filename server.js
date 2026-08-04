@@ -36826,7 +36826,7 @@ MAX(e.created_at) FILTER (
                 ">
                   <table style="
                     width:100%;
-                    min-width:1700px;
+                    min-width:1825px;
                   ">
                     <tr>
                       <th style="text-align:center;">
