@@ -34957,7 +34957,7 @@ app.get(
       Clicks:
       Every destination_click event.
 
-      Unique Journeys:
+      Visitors:
       Distinct vivid_click_id values.
 
       Conversions and Revenue:
