@@ -34817,7 +34817,770 @@ ${hasCampaigns
     res.send("MY SETUP ERROR: " + err.message);
   }
 });
+app.get(
+  "/admin/destination/:id/clicks",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const destinationId = Number(req.params.id);
 
+      if (
+        !Number.isInteger(destinationId) ||
+        destinationId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid Customer Action ID required."
+        );
+      }
+
+      const isSuperAdmin =
+        req.session.user.role === "super_admin";
+
+      const safe = value =>
+        String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+
+      const formatDateTime = value => {
+        if (!value) {
+          return "—";
+        }
+
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+          return "—";
+        }
+
+        return date.toLocaleString(
+          "en-US",
+          {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit"
+          }
+        );
+      };
+
+      /*
+      =========================================================
+      CUSTOMER ACTION + CAMPAIGN ACCESS
+
+      Super Admin may view any destination.
+
+      Customer users may view only destinations belonging
+      to one of their campaigns.
+      =========================================================
+      */
+
+      const destinationResult = await q(
+        isSuperAdmin
+          ? `
+              SELECT
+                cd.id,
+                cd.campaign_id,
+                cd.name,
+                cd.destination_type,
+                cd.destination_url,
+                cd.conversion_url,
+                cd.estimated_value,
+                cd.display_order,
+                cd.is_active,
+
+                c.name AS campaign_name,
+                c.advertiser,
+                c.user_id
+
+              FROM campaign_destinations cd
+
+              JOIN campaigns c
+                ON c.id = cd.campaign_id
+
+              WHERE cd.id = $1
+
+              LIMIT 1
+            `
+          : `
+              SELECT
+                cd.id,
+                cd.campaign_id,
+                cd.name,
+                cd.destination_type,
+                cd.destination_url,
+                cd.conversion_url,
+                cd.estimated_value,
+                cd.display_order,
+                cd.is_active,
+
+                c.name AS campaign_name,
+                c.advertiser,
+                c.user_id
+
+              FROM campaign_destinations cd
+
+              JOIN campaigns c
+                ON c.id = cd.campaign_id
+
+              WHERE cd.id = $1
+                AND c.user_id = $2
+
+              LIMIT 1
+            `,
+        isSuperAdmin
+          ? [destinationId]
+          : [
+              destinationId,
+              req.session.user.id
+            ]
+      );
+
+      const destination =
+        destinationResult.rows[0];
+
+      if (!destination) {
+        return res.status(404).send(
+          "Customer Action not found or access denied."
+        );
+      }
+
+      /*
+      =========================================================
+      CUSTOMER ACTION SUMMARY
+
+      All metrics come from the existing events table.
+
+      Clicks:
+      Every destination_click event.
+
+      Unique Journeys:
+      Distinct vivid_click_id values.
+
+      Conversions and Revenue:
+      Conversion events connected through the same
+      vivid_click_id values that clicked this destination.
+      =========================================================
+      */
+
+      const summaryResult = await q(
+        `
+          WITH destination_clicks AS (
+            SELECT
+              id,
+              vivid_click_id,
+              created_at
+
+            FROM events
+
+            WHERE campaign_destination_id = $1
+              AND type = 'destination_click'
+          ),
+
+          destination_journeys AS (
+            SELECT DISTINCT
+              vivid_click_id
+
+            FROM destination_clicks
+
+            WHERE vivid_click_id IS NOT NULL
+              AND TRIM(vivid_click_id) <> ''
+          ),
+
+          conversion_metrics AS (
+            SELECT
+              COUNT(e.id)::int AS conversions,
+
+              COALESCE(
+                SUM(e.value),
+                0
+              )::numeric AS revenue
+
+            FROM events e
+
+            JOIN destination_journeys dj
+              ON dj.vivid_click_id =
+                 e.vivid_click_id
+
+            WHERE e.type = 'conversion'
+          )
+
+          SELECT
+            (
+              SELECT COUNT(*)::int
+              FROM destination_clicks
+            ) AS clicks,
+
+            (
+              SELECT COUNT(*)::int
+              FROM destination_journeys
+            ) AS unique_journeys,
+
+            (
+              SELECT MAX(created_at)
+              FROM destination_clicks
+            ) AS last_activity,
+
+            COALESCE(
+              conversion_metrics.conversions,
+              0
+            )::int AS conversions,
+
+            COALESCE(
+              conversion_metrics.revenue,
+              0
+            )::numeric AS revenue
+
+          FROM conversion_metrics
+        `,
+        [destinationId]
+      );
+
+      const summary =
+        summaryResult.rows[0] || {};
+
+      const clicks =
+        Number(summary.clicks || 0);
+
+      const uniqueJourneys =
+        Number(
+          summary.unique_journeys || 0
+        );
+
+      const conversions =
+        Number(summary.conversions || 0);
+
+      const revenue =
+        Number(summary.revenue || 0);
+
+      const conversionRate =
+        uniqueJourneys > 0
+          ? (
+              conversions /
+              uniqueJourneys *
+              100
+            )
+          : 0;
+
+      /*
+      =========================================================
+      INDIVIDUAL CLICK EVENTS
+
+      Each row is the lowest captured destination-click event.
+
+      Conversion information is connected through the
+      existing vivid_click_id.
+      =========================================================
+      */
+
+      const clickEventsResult = await q(
+        `
+          SELECT
+            e.id AS event_id,
+            e.qr_id,
+            e.campaign_id,
+            e.campaign_destination_id,
+            e.vivid_click_id,
+            e.created_at,
+
+            qr.name AS qr_name,
+
+            s.id AS location_id,
+            s.name AS location_name,
+            s.location AS market,
+
+            COALESCE(
+              journey.conversions,
+              0
+            )::int AS conversions,
+
+            COALESCE(
+              journey.revenue,
+              0
+            )::numeric AS revenue,
+
+            journey.last_conversion_at
+
+          FROM events e
+
+          LEFT JOIN qr_codes qr
+            ON qr.id = e.qr_id
+
+          LEFT JOIN spaces s
+            ON s.id = qr.space_id
+
+          LEFT JOIN LATERAL (
+            SELECT
+              COUNT(conversion_event.id)::int
+                AS conversions,
+
+              COALESCE(
+                SUM(conversion_event.value),
+                0
+              )::numeric AS revenue,
+
+              MAX(conversion_event.created_at)
+                AS last_conversion_at
+
+            FROM events conversion_event
+
+            WHERE conversion_event.type =
+                  'conversion'
+
+              AND e.vivid_click_id IS NOT NULL
+
+              AND conversion_event.vivid_click_id =
+                  e.vivid_click_id
+          ) journey
+            ON true
+
+          WHERE e.campaign_destination_id = $1
+            AND e.type = 'destination_click'
+
+          ORDER BY
+            e.created_at DESC,
+            e.id DESC
+        `,
+        [destinationId]
+      );
+
+      const clickRows =
+        clickEventsResult.rows.length
+          ? clickEventsResult.rows
+              .map(
+                click => `
+                  <tr>
+                    <td style="
+                      padding:15px 16px;
+                      border-bottom:1px solid #e7eee7;
+                      white-space:nowrap;
+                    ">
+                      ${Number(click.event_id)}
+                    </td>
+
+                    <td style="
+                      padding:15px 16px;
+                      border-bottom:1px solid #e7eee7;
+                      white-space:nowrap;
+                    ">
+                      ${formatDateTime(
+                        click.created_at
+                      )}
+                    </td>
+
+                    <td style="
+                      padding:15px 16px;
+                      border-bottom:1px solid #e7eee7;
+                      min-width:180px;
+                    ">
+                      ${
+                        click.qr_id
+                          ? `
+                              <a
+                                href="/admin/view-qr/${click.qr_id}"
+                                style="
+                                  color:#073b22;
+                                  font-weight:bold;
+                                  text-decoration:none;
+                                "
+                              >
+                                ${safe(
+                                  click.qr_name ||
+                                  `QR ${click.qr_id}`
+                                )}
+                              </a>
+                            `
+                          : "QR not available"
+                      }
+                    </td>
+
+                    <td style="
+                      padding:15px 16px;
+                      border-bottom:1px solid #e7eee7;
+                      min-width:210px;
+                    ">
+                      ${
+                        click.location_id
+                          ? `
+                              <a
+                                href="/admin/view-location/${click.location_id}"
+                                style="
+                                  color:#073b22;
+                                  font-weight:bold;
+                                  text-decoration:none;
+                                "
+                              >
+                                ${safe(
+                                  click.location_name ||
+                                  "Unnamed Location"
+                                )}
+                              </a>
+
+                              <div style="
+                                color:#65776b;
+                                font-size:12px;
+                                margin-top:4px;
+                              ">
+                                ${safe(
+                                  click.market ||
+                                  "Market not set"
+                                )}
+                              </div>
+                            `
+                          : "Location not available"
+                      }
+                    </td>
+
+                    <td style="
+                      padding:15px 16px;
+                      border-bottom:1px solid #e7eee7;
+                      min-width:315px;
+                      font-family:monospace;
+                      font-size:12px;
+                      overflow-wrap:anywhere;
+                    ">
+                      ${safe(
+                        click.vivid_click_id ||
+                        "Not available"
+                      )}
+                    </td>
+
+                    <td style="
+                      padding:15px 16px;
+                      border-bottom:1px solid #e7eee7;
+                      text-align:center;
+                      white-space:nowrap;
+                    ">
+                      ${Number(
+                        click.conversions || 0
+                      ).toLocaleString()}
+                    </td>
+
+                    <td style="
+                      padding:15px 16px;
+                      border-bottom:1px solid #e7eee7;
+                      text-align:right;
+                      white-space:nowrap;
+                    ">
+                      <strong>
+                        ${money(
+                          click.revenue || 0
+                        )}
+                      </strong>
+                    </td>
+
+                    <td style="
+                      padding:15px 16px;
+                      border-bottom:1px solid #e7eee7;
+                      white-space:nowrap;
+                    ">
+                      ${
+                        click.last_conversion_at
+                          ? formatDateTime(
+                              click.last_conversion_at
+                            )
+                          : "Not converted"
+                      }
+                    </td>
+                  </tr>
+                `
+              )
+              .join("")
+          : `
+              <tr>
+                <td
+                  colspan="8"
+                  style="
+                    padding:42px;
+                    text-align:center;
+                  "
+                >
+                  <h3 style="margin:0 0 8px;">
+                    No Customer Action Clicks
+                  </h3>
+
+                  <div style="color:#65776b;">
+                    This Customer Action has not received
+                    any tracked clicks yet.
+                  </div>
+                </td>
+              </tr>
+            `;
+
+      return res.send(
+        page(
+          "Customer Action Clicks",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Spots
+              </div>
+
+              <h1>
+                Customer Action Analytics
+              </h1>
+
+              <p class="subtitle">
+                ${safe(destination.advertiser)}
+                —
+                ${safe(destination.campaign_name)}
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:16px;
+                flex-wrap:wrap;
+                margin-bottom:22px;
+              ">
+                <div>
+                  <h2 style="margin:0 0 5px;">
+                    ${safe(
+                      destination.name ||
+                      "Customer Action"
+                    )}
+                  </h2>
+
+                  <div style="
+                    color:#65776b;
+                    overflow-wrap:anywhere;
+                  ">
+                    ${safe(
+                      destination.destination_url ||
+                      ""
+                    )}
+                  </div>
+                </div>
+
+                <a
+                  class="btn secondary"
+                  href="/admin/view-campaign/${destination.campaign_id}"
+                >
+                  Back to Campaign
+                </a>
+              </div>
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(
+                    auto-fit,
+                    minmax(180px,1fr)
+                  );
+                gap:16px;
+                margin-bottom:24px;
+              ">
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                  ">
+                    Clicks
+                  </div>
+
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                    margin-top:7px;
+                  ">
+                    ${clicks.toLocaleString()}
+                  </div>
+                </div>
+
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                  ">
+                    Unique Journeys
+                  </div>
+
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                    margin-top:7px;
+                  ">
+                    ${uniqueJourneys.toLocaleString()}
+                  </div>
+                </div>
+
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                  ">
+                    Conversions
+                  </div>
+
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                    margin-top:7px;
+                  ">
+                    ${conversions.toLocaleString()}
+                  </div>
+                </div>
+
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                  ">
+                    Conversion Rate
+                  </div>
+
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                    margin-top:7px;
+                  ">
+                    ${conversionRate.toFixed(1)}%
+                  </div>
+                </div>
+
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                  ">
+                    Revenue
+                  </div>
+
+                  <div style="
+                    font-size:30px;
+                    font-weight:bold;
+                    margin-top:7px;
+                  ">
+                    ${money(revenue)}
+                  </div>
+                </div>
+
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                  ">
+                    Last Activity
+                  </div>
+
+                  <div style="
+                    font-size:17px;
+                    font-weight:bold;
+                    margin-top:11px;
+                  ">
+                    ${formatDateTime(
+                      summary.last_activity
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div style="
+                background:white;
+                border-radius:18px;
+                overflow:hidden;
+                box-shadow:
+                  0 8px 22px
+                  rgba(0,0,0,.08);
+              ">
+                <div style="overflow-x:auto;">
+                  <table style="
+                    width:100%;
+                    min-width:1400px;
+                    border-collapse:collapse;
+                    margin:0;
+                  ">
+                    <thead>
+                      <tr style="background:#eaf3e8;">
+                        <th style="
+                          padding:16px;
+                          text-align:left;
+                        ">
+                          Event ID
+                        </th>
+
+                        <th style="
+                          padding:16px;
+                          text-align:left;
+                        ">
+                          Click Time
+                        </th>
+
+                        <th style="
+                          padding:16px;
+                          text-align:left;
+                        ">
+                          QR Placement
+                        </th>
+
+                        <th style="
+                          padding:16px;
+                          text-align:left;
+                        ">
+                          Location
+                        </th>
+
+                        <th style="
+                          padding:16px;
+                          text-align:left;
+                        ">
+                          Journey ID
+                        </th>
+
+                        <th style="
+                          padding:16px;
+                          text-align:center;
+                        ">
+                          Conversions
+                        </th>
+
+                        <th style="
+                          padding:16px;
+                          text-align:right;
+                        ">
+                          Revenue
+                        </th>
+
+                        <th style="
+                          padding:16px;
+                          text-align:left;
+                        ">
+                          Conversion Activity
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      ${clickRows}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "CUSTOMER ACTION CLICKS ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load Customer Action analytics: " +
+        err.message
+      );
+    }
+  }
+);
 app.get("/admin/view-location/:id", requireLogin, async (req, res) => {
   const id = Number(req.params.id);
 
