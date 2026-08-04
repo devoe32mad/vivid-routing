@@ -35694,8 +35694,8 @@ MAX(e.created_at) FILTER (
       const clicks =
         Number(summary.clicks || 0);
 
-   const visitors =
-  Number(summary.visitors || 0);
+  const visitors =
+  Number(summary.unique_journeys || 0);
 
       const conversions =
         Number(summary.conversions || 0);
