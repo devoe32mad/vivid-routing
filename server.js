@@ -37063,18 +37063,17 @@ MAX(e.created_at) FILTER (
       </div>
     </div>
 
-    <div class="card">
-      <div class="label">
-        Visitors Converted
-      </div>
+<div class="card">
+  <div class="label">
+    Revenue Per Conversion
+  </div>
 
-      <div class="num">
-        ${Number(
-          campaignMetrics.visitorsConverted || 0
-        ).toLocaleString()}
-      </div>
-    </div>
-
+  <div class="num">
+    ${money(
+      campaignMetrics.revenuePerConversion || 0
+    )}
+  </div>
+</div>
     <div class="card">
       <div class="label">
         Visitor Conversion Rate
