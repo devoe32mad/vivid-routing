@@ -36289,84 +36289,179 @@ const qrListHtml = qrList.rows.length
 app.get("/admin/view-qr/:id", requireLogin, async (req, res) => {
   const id = Number(req.params.id);
 
-const result = await q(`
-SELECT
-  qr.*,
- COALESCE(s.name, '') AS display_location,
-COALESCE(s.location, '') AS display_market
-, COALESCE(c.advertiser, '') AS display_advertiser
-FROM qr_codes qr
-LEFT JOIN spaces s
-  ON s.id = qr.space_id
-  LEFT JOIN qr_campaigns qc
-  ON qc.qr_id = qr.id
+  const result = await q(`
+    SELECT
+      qr.*,
+      COALESCE(s.name,'') AS display_location,
+      COALESCE(s.location,'') AS display_market,
+      COALESCE(c.advertiser,'') AS display_advertiser
+    FROM qr_codes qr
 
-LEFT JOIN campaigns c
-  ON c.id = qc.campaign_id
-WHERE qr.id = $1
-LIMIT 1
-`, [id]);
+    LEFT JOIN spaces s
+      ON s.id = qr.space_id
+
+    LEFT JOIN qr_campaigns qc
+      ON qc.qr_id = qr.id
+
+    LEFT JOIN campaigns c
+      ON c.id = qc.campaign_id
+
+    WHERE qr.id = $1
+    LIMIT 1
+  `,[id]);
 
   const qr = result.rows[0];
-  const campaignList = await q(`
-  SELECT
-    c.id,
-    c.name,
-    c.advertiser,
-    BOOL_OR(COALESCE(qc.is_active,true)) AS is_active
-  FROM qr_campaigns qc
-  JOIN campaigns c ON c.id = qc.campaign_id
-  WHERE qc.qr_id = $1
-  GROUP BY c.id, c.name, c.advertiser
-  ORDER BY c.name ASC
-`, [id]);
 
-const campaignListHtml = campaignList.rows.length
-  ? campaignList.rows.map(c => `
-      <li>
-        <a href="/admin/view-campaign/${c.id}">${c.advertiser} - ${c.name}</a>
-        - ${c.is_active ? "Active" : "Archived"}
-      </li>
-    `).join("")
-  : "<li>No campaigns assigned</li>";
-console.log("VIEW QR DATA:", qr);
   if (!qr) {
     return res.status(404).send("QR Code not found");
   }
 
-  res.send(page("View QR Code", `
+  const qrMetrics =
+    await getPerformanceMetrics({
+      qrId: qr.id
+    });
+
+  const campaignList = await q(`
+    SELECT
+      c.id,
+      c.name,
+      c.advertiser,
+      BOOL_OR(COALESCE(qc.is_active,true)) AS is_active
+    FROM qr_campaigns qc
+    JOIN campaigns c
+      ON c.id = qc.campaign_id
+    WHERE qc.qr_id = $1
+    GROUP BY
+      c.id,
+      c.name,
+      c.advertiser
+    ORDER BY c.name
+  `,[id]);
+
+  const campaignListHtml =
+    campaignList.rows.length
+      ? campaignList.rows.map(c => `
+          <li>
+            <a href="/admin/view-campaign/${c.id}">
+              ${c.advertiser} - ${c.name}
+            </a>
+            - ${c.is_active ? "Active" : "Archived"}
+          </li>
+        `).join("")
+      : "<li>No campaigns assigned</li>";
+
+  res.send(page("View QR Code",`
+
     <div class="wrap">
+
       <h1>View QR Code</h1>
 
       <div class="card">
+
         <p><b>Name:</b> ${qr.name || ""}</p>
+
         <p><b>Advertiser:</b> ${qr.display_advertiser || "Not set"}</p>
+
         <p><b>Type:</b> ${qr.is_imported ? "Imported" : "Native"}</p>
+
         <p><b>Market:</b> ${qr.display_market || "Not set"}</p>
-<p><b>Location:</b> ${qr.display_location || qr.space_name || "Not set"}</p>
+
+        <p><b>Location:</b> ${qr.display_location || "Not set"}</p>
+
         <p><b>Live Date:</b> ${qr.live_date || "Not set"}</p>
+
         <p><b>End Date:</b> ${qr.end_date ? dayLabel(qr.end_date) : "Not set"}</p>
-<p><b>Contract Days:</b> ${
-  qr.live_date && qr.end_date
-    ? daysBetween(qr.live_date, qr.end_date)
-    : "Not set"
-}</p>
-<p><b>Assigned Campaigns:</b> ${campaignList.rows.length}</p>
-<ul>
-  ${campaignListHtml}
-</ul>
+
+        <p><b>Contract Days:</b> ${
+          qr.live_date && qr.end_date
+            ? daysBetween(qr.live_date, qr.end_date)
+            : "Not set"
+        }</p>
+
+        <p><b>Assigned Campaigns:</b> ${campaignList.rows.length}</p>
+
+        <ul>
+          ${campaignListHtml}
+        </ul>
+
         <p><b>Annual Impressions:</b> ${qr.annual_impressions || 0}</p>
-        <p><b>Annual Cost:</b> $${qr.annual_cost || 0}</p>
+
+        <p><b>Annual Cost:</b> ${money(qr.annual_cost || 0)}</p>
+
         <p><b>Status:</b> ${qr.is_archived ? "Archived" : "Active"}</p>
 
-        <br>
-
-        <a class="btn" href="/admin/edit-qr/${qr.id}">Edit QR Code</a>
-        <a class="btn" href="/admin/setup">Back to My Setup</a>
       </div>
+
+      <div class="card">
+
+        <h2 style="margin-top:0;">
+          QR Performance
+        </h2>
+
+        <div class="cards">
+
+          <div class="card">
+            <div class="label">Visitors</div>
+            <div class="num">${qrMetrics.visitors.toLocaleString()}</div>
+          </div>
+
+          <div class="card">
+            <div class="label">Clicks</div>
+            <div class="num">${qrMetrics.clicks.toLocaleString()}</div>
+          </div>
+
+          <div class="card">
+            <div class="label">Conversions</div>
+            <div class="num">${qrMetrics.conversions.toLocaleString()}</div>
+          </div>
+
+          <div class="card">
+            <div class="label">Revenue Per Conversion</div>
+            <div class="num">${money(qrMetrics.revenuePerConversion)}</div>
+          </div>
+
+          <div class="card">
+            <div class="label">Visitor Conversion Rate</div>
+            <div class="num">${qrMetrics.visitorConversionRate.toFixed(1)}%</div>
+          </div>
+
+          <div class="card">
+            <div class="label">Revenue Generated</div>
+            <div class="num">${money(qrMetrics.revenueGenerated)}</div>
+          </div>
+
+          <div class="card">
+            <div class="label">Revenue Per Visitor</div>
+            <div class="num">${money(qrMetrics.revenuePerVisitor)}</div>
+          </div>
+
+          <div class="card">
+            <div class="label">Revenue Per Click</div>
+            <div class="num">${money(qrMetrics.revenuePerClick)}</div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div style="margin-top:25px;">
+
+        <a class="btn" href="/admin/edit-qr/${qr.id}">
+          Edit QR Code
+        </a>
+
+        <a class="btn secondary" href="/admin/setup">
+          Back to My Setup
+        </a>
+
+      </div>
+
     </div>
+
   `));
 });
+
+
 app.get(
   "/admin/view-campaign/:id",
   requireLogin,
