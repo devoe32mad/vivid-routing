@@ -5208,28 +5208,40 @@ async function getPerformanceMetrics({
       row.visitors_converted || 0
     );
 
-  return {
-    visitors,
-    clicks:
-      Number(row.clicks || 0),
-    conversions:
-      Number(row.conversions || 0),
-    visitorsConverted,
-    visitorConversionRate:
-      visitors > 0
-        ? (
-            visitorsConverted /
-            visitors *
-            100
-          )
-        : 0,
-    revenueGenerated:
-      Number(
-        row.revenue_generated || 0
-      ),
-    lastActivity:
-      row.last_activity || null
-  };
+const clicks =
+  Number(row.clicks || 0);
+
+const revenueGenerated =
+  Number(
+    row.revenue_generated || 0
+  );
+
+return {
+  visitors,
+  clicks,
+  conversions:
+    Number(row.conversions || 0),
+  visitorsConverted,
+  visitorConversionRate:
+    visitors > 0
+      ? (
+          visitorsConverted /
+          visitors *
+          100
+        )
+      : 0,
+  revenueGenerated,
+  revenuePerVisitor:
+    visitors > 0
+      ? revenueGenerated / visitors
+      : 0,
+  revenuePerClick:
+    clicks > 0
+      ? revenueGenerated / clicks
+      : 0,
+  lastActivity:
+    row.last_activity || null
+};
 }
 async function activeCampaignForQr(qrId) {
   const result = await q(`
