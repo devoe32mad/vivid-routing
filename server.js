@@ -35028,30 +35028,63 @@ app.get(
       );
 
       const destinationsResult = await q(
-        `
-          SELECT
-            id,
-            campaign_id,
-            name,
-            destination_type,
-            destination_url,
-            conversion_url,
-            estimated_value,
-            display_order,
-            is_active,
-            created_at,
-            updated_at
+  `
+    SELECT
+      cd.id,
+      cd.campaign_id,
+      cd.name,
+      cd.destination_type,
+      cd.destination_url,
+      cd.conversion_url,
+      cd.estimated_value,
+      cd.display_order,
+      cd.is_active,
+      cd.created_at,
+      cd.updated_at,
 
-          FROM campaign_destinations
+      COUNT(e.id) FILTER (
+        WHERE e.type = 'destination_click'
+      )::int AS clicks,
 
-          WHERE campaign_id = $1
+      COUNT(
+        DISTINCT e.vivid_click_id
+      ) FILTER (
+        WHERE e.type = 'destination_click'
+          AND e.vivid_click_id IS NOT NULL
+      )::int AS unique_journeys,
 
-          ORDER BY
-            display_order ASC,
-            id ASC
-        `,
-        [id]
-      );
+      MAX(e.created_at) FILTER (
+        WHERE e.type = 'destination_click'
+      ) AS last_activity
+
+    FROM campaign_destinations cd
+
+    LEFT JOIN events e
+      ON e.campaign_destination_id = cd.id
+     AND e.campaign_id = cd.campaign_id
+
+    WHERE cd.campaign_id = $1
+
+    GROUP BY
+      cd.id,
+      cd.campaign_id,
+      cd.name,
+      cd.destination_type,
+      cd.destination_url,
+      cd.conversion_url,
+      cd.estimated_value,
+      cd.display_order,
+      cd.is_active,
+      cd.created_at,
+      cd.updated_at
+
+    ORDER BY
+      cd.display_order ASC,
+      cd.id ASC
+  `,
+  [id]
+);
+        
 
       const qrListHtml = qrList.rows.length
         ? qrList.rows
