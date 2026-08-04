@@ -36423,14 +36423,25 @@ MAX(e.created_at) FILTER (
                       }
                     </td>
 
-                    <td style="
-                      text-align:right;
-                      white-space:nowrap;
-                    ">
-                      ${money(
-                        destination.estimated_value || 0
-                      )}
-                    </td>
+                  <td style="
+  text-align:right;
+  white-space:nowrap;
+  font-weight:bold;
+  color:#176b3a;
+">
+  ${money(
+    destination.conversion_revenue || 0
+  )}
+</td>
+
+<td style="
+  text-align:right;
+  white-space:nowrap;
+">
+  ${money(
+    destination.estimated_value || 0
+  )}
+</td>
 
                     <td style="
                       text-align:center;
