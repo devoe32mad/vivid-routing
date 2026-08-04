@@ -37005,7 +37005,85 @@ MAX(e.created_at) FILTER (
 </div>
 </div>
 
-<!-- Campaign Performance goes here -->
+<div class="card">
+  <h2 style="margin-top:0;">
+    Campaign Performance
+  </h2>
+
+  <div class="cards">
+    <div class="card">
+      <div class="label">
+        Visitors
+      </div>
+
+      <div class="num">
+        ${Number(
+          campaignMetrics.visitors || 0
+        ).toLocaleString()}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">
+        Clicks
+      </div>
+
+      <div class="num">
+        ${Number(
+          campaignMetrics.clicks || 0
+        ).toLocaleString()}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">
+        Conversions
+      </div>
+
+      <div class="num">
+        ${Number(
+          campaignMetrics.conversions || 0
+        ).toLocaleString()}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">
+        Visitors Converted
+      </div>
+
+      <div class="num">
+        ${Number(
+          campaignMetrics.visitorsConverted || 0
+        ).toLocaleString()}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">
+        Visitor Conversion Rate
+      </div>
+
+      <div class="num">
+        ${Number(
+          campaignMetrics.visitorConversionRate || 0
+        ).toFixed(1)}%
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">
+        Revenue Generated
+      </div>
+
+      <div class="num">
+        ${money(
+          campaignMetrics.revenueGenerated || 0
+        )}
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="card">
                 <div style="
