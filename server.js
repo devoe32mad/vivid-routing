@@ -4518,6 +4518,48 @@ Remove after testing.
 =========================================================
 */
 app.get(
+  "/debug/performance/campaign/:campaignId",
+  async (req, res) => {
+    try {
+      const campaignId = Number(
+        req.params.campaignId
+      );
+
+      if (
+        !Number.isInteger(campaignId) ||
+        campaignId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Valid campaign ID required."
+        });
+      }
+
+      const metrics =
+        await getPerformanceMetrics({
+          campaignId
+        });
+
+      return res.json({
+        success: true,
+        campaign_id: campaignId,
+        metrics
+      });
+    } catch (err) {
+      console.error(
+        "DEBUG CAMPAIGN PERFORMANCE ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: err.message
+      });
+    }
+  }
+);
+app.get(
   "/debug-campaign-destinations/:campaignId",
   async (req, res) => {
     try {
