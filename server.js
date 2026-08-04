@@ -34817,49 +34817,7 @@ ${hasCampaigns
     res.send("MY SETUP ERROR: " + err.message);
   }
 });
-app.get("/admin/destination/:id/clicks", async (req, res) => {
-  try {
 
-    const destinationId = Number(req.params.id);
-
-    const destinationResult = await q(
-      `
-      SELECT *
-      FROM campaign_destinations
-      WHERE id = $1
-      `,
-      [destinationId]
-    );
-
-    if (!destinationResult.rows.length) {
-      return res.send("Destination not found.");
-    }
-
-    const destination = destinationResult.rows[0];
-
-    const eventsResult = await q(
-      `
-      SELECT
-        e.*,
-        qr.name AS qr_name,
-        c.name AS campaign_name
-
-      FROM events e
-
-      LEFT JOIN qr_codes qr
-        ON qr.id = e.qr_id
-
-      LEFT JOIN campaigns c
-        ON c.id = e.campaign_id
-
-      WHERE
-        e.campaign_destination_id = $1
-
-      ORDER BY
-        e.created_at DESC
-      `,
-      [destinationId]
-    );
 app.get("/admin/view-location/:id", requireLogin, async (req, res) => {
   const id = Number(req.params.id);
 
