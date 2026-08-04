@@ -35596,7 +35596,17 @@ app.get(
                       <th>
                         Type
                       </th>
+<th style="text-align:center;">
+  Clicks
+</th>
 
+<th style="text-align:center;">
+  Unique Journeys
+</th>
+
+<th>
+  Last Activity
+</th>
                       <th>
                         Destination
                       </th>
