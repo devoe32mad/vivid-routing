@@ -4997,6 +4997,198 @@ WHERE id IN (7,12)
     campaigns: campaigns.rows
   });
 });
+async function getPerformanceMetrics({
+  campaignId = null,
+  qrId = null,
+  locationId = null,
+  organizationId = null,
+  startDate = null,
+  endDate = null
+} = {}) {
+  const conditions = [];
+  const values = [];
+
+  function addCondition(sql, value) {
+    values.push(value);
+    conditions.push(
+      sql.replace(
+        "?",
+        `$${values.length}`
+      )
+    );
+  }
+
+  if (
+    Number.isInteger(Number(campaignId)) &&
+    Number(campaignId) > 0
+  ) {
+    addCondition(
+      "e.campaign_id = ?",
+      Number(campaignId)
+    );
+  }
+
+  if (
+    Number.isInteger(Number(qrId)) &&
+    Number(qrId) > 0
+  ) {
+    addCondition(
+      "e.qr_id = ?",
+      Number(qrId)
+    );
+  }
+
+  if (
+    Number.isInteger(Number(locationId)) &&
+    Number(locationId) > 0
+  ) {
+    addCondition(
+      "s.id = ?",
+      Number(locationId)
+    );
+  }
+
+  if (
+    Number.isInteger(Number(organizationId)) &&
+    Number(organizationId) > 0
+  ) {
+    addCondition(
+      "s.organization_id = ?",
+      Number(organizationId)
+    );
+  }
+
+  if (startDate) {
+    addCondition(
+      "e.created_at >= ?::date",
+      startDate
+    );
+  }
+
+  if (endDate) {
+    addCondition(
+      "e.created_at < (?::date + INTERVAL '1 day')",
+      endDate
+    );
+  }
+
+  const whereSql =
+    conditions.length
+      ? `WHERE ${conditions.join(" AND ")}`
+      : "";
+
+  const result = await q(
+    `
+      WITH filtered_events AS (
+        SELECT
+          e.id,
+          e.qr_id,
+          e.campaign_id,
+          e.campaign_destination_id,
+          e.type,
+          e.value,
+          e.vivid_click_id,
+          e.created_at
+
+        FROM events e
+
+        LEFT JOIN qr_codes qr
+          ON qr.id = e.qr_id
+
+        LEFT JOIN spaces s
+          ON s.id = qr.space_id
+
+        ${whereSql}
+      ),
+
+      visitor_journeys AS (
+        SELECT DISTINCT
+          vivid_click_id
+
+        FROM filtered_events
+
+        WHERE type = 'destination_click'
+          AND vivid_click_id IS NOT NULL
+          AND TRIM(vivid_click_id) <> ''
+      ),
+
+      converted_visitors AS (
+        SELECT DISTINCT
+          vivid_click_id
+
+        FROM filtered_events
+
+        WHERE type = 'conversion'
+          AND vivid_click_id IS NOT NULL
+          AND TRIM(vivid_click_id) <> ''
+      )
+
+      SELECT
+        COUNT(*) FILTER (
+          WHERE type = 'destination_click'
+        )::int AS clicks,
+
+        (
+          SELECT COUNT(*)::int
+          FROM visitor_journeys
+        ) AS visitors,
+
+        COUNT(*) FILTER (
+          WHERE type = 'conversion'
+        )::int AS conversions,
+
+        (
+          SELECT COUNT(*)::int
+          FROM converted_visitors
+        ) AS visitors_converted,
+
+        COALESCE(
+          SUM(value) FILTER (
+            WHERE type = 'conversion'
+          ),
+          0
+        )::numeric AS revenue_generated,
+
+        MAX(created_at) AS last_activity
+
+      FROM filtered_events
+    `,
+    values
+  );
+
+  const row = result.rows[0] || {};
+
+  const visitors =
+    Number(row.visitors || 0);
+
+  const visitorsConverted =
+    Number(
+      row.visitors_converted || 0
+    );
+
+  return {
+    visitors,
+    clicks:
+      Number(row.clicks || 0),
+    conversions:
+      Number(row.conversions || 0),
+    visitorsConverted,
+    visitorConversionRate:
+      visitors > 0
+        ? (
+            visitorsConverted /
+            visitors *
+            100
+          )
+        : 0,
+    revenueGenerated:
+      Number(
+        row.revenue_generated || 0
+      ),
+    lastActivity:
+      row.last_activity || null
+  };
+}
 async function activeCampaignForQr(qrId) {
   const result = await q(`
     SELECT
