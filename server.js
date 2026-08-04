@@ -35700,8 +35700,8 @@ MAX(e.created_at) FILTER (
       const conversions =
         Number(summary.conversions || 0);
 
-      const revenue =
-        Number(summary.revenue || 0);
+   const revenue =
+  Number(summary.conversion_revenue || 0);
 
       const conversionRate =
          visitors > 0
