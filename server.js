@@ -5405,93 +5405,438 @@ app.get("/r/:qrId", async (req, res) => {
 
 app.get("/conversion", async (req, res) => {
   try {
-    const vividClickId = req.query.vivid_click_id || req.query.click_id;
-    const pageUrl = req.query.page_url || "";
-    let value = req.query.value !== undefined
-  ? Number(req.query.value || 0)
-  : null;
+    const vividClickId = String(
+      req.query.vivid_click_id ||
+      req.query.click_id ||
+      ""
+    ).trim();
+
+    const pageUrl = String(
+      req.query.page_url || ""
+    ).trim();
+
+    const suppliedValue =
+      req.query.value !== undefined
+        ? Number(req.query.value || 0)
+        : null;
 
     if (!vividClickId) {
-      return res.status(400).send("Missing vivid_click_id");
+      return res.status(400).send(
+        "Missing vivid_click_id"
+      );
     }
 
-    const scanResult = await q(`
-      SELECT *
-      FROM events
-      WHERE vivid_click_id = $1
-      AND type = 'scan'
-      LIMIT 1
-    `, [vividClickId]);
+    if (!pageUrl) {
+      return res.status(400).send(
+        "Missing page URL"
+      );
+    }
+
+    /*
+    =========================================================
+    FIND THE ORIGINAL QR SCAN
+
+    This remains the source for:
+    - QR
+    - Campaign
+    - Store
+    - Journey / click ID
+    =========================================================
+    */
+
+    const scanResult = await q(
+      `
+        SELECT *
+        FROM events
+
+        WHERE vivid_click_id = $1
+          AND type = 'scan'
+
+        ORDER BY
+          created_at ASC,
+          id ASC
+
+        LIMIT 1
+      `,
+      [vividClickId]
+    );
 
     const scan = scanResult.rows[0];
 
     if (!scan) {
-      return res.status(400).send("Invalid vivid_click_id");
+      return res.status(400).send(
+        "Invalid vivid_click_id"
+      );
     }
 
-    if (scan.converted_at) {
-      return res.status(200).send("Conversion already tracked");
+    /*
+    =========================================================
+    LOAD CAMPAIGN FALLBACK VALUES
+
+    Existing campaigns continue using:
+    - campaigns.conversion_url
+    - campaigns.avg_customer_value
+    =========================================================
+    */
+
+    const campaignResult = await q(
+      `
+        SELECT
+          id,
+          conversion_url,
+          avg_customer_value
+
+        FROM campaigns
+
+        WHERE id = $1
+
+        LIMIT 1
+      `,
+      [scan.campaign_id]
+    );
+
+    const campaign =
+      campaignResult.rows[0];
+
+    if (!campaign) {
+      return res.status(400).send(
+        "Campaign not found"
+      );
     }
-const campaignValueResult = await q(
-  `
-  SELECT avg_customer_value, conversion_url
-  FROM campaigns
-  WHERE id = $1
-  LIMIT 1
-  `,
-  [scan.campaign_id]
-);
 
-const campaign = campaignValueResult.rows[0];
+    /*
+    =========================================================
+    FIND CUSTOMER ACTIONS CLICKED IN THIS JOURNEY
 
-if (!campaign) {
-  return res.status(400).send("Campaign not found");
-}
+    More than one Customer Action may have been clicked
+    after the same scan.
 
-if (!campaign.conversion_url) {
-  return res.status(400).send("Missing conversion URL");
-}
+    Newest click is listed first.
+    =========================================================
+    */
 
-if (!pageUrl) {
-  return res.status(400).send("Missing page URL");
-}
+    const destinationClicksResult = await q(
+      `
+        SELECT
+          e.id AS click_event_id,
+          e.campaign_destination_id,
+          e.created_at AS clicked_at,
 
-const expectedUrl = new URL(campaign.conversion_url);
-const actualUrl = new URL(pageUrl);
+          cd.name,
+          cd.destination_url,
+          cd.conversion_url,
+          cd.estimated_value
 
-const expectedPath = expectedUrl.pathname.replace(/\/$/, "");
-const actualPath = actualUrl.pathname.replace(/\/$/, "");
+        FROM events e
 
-if (
-  expectedUrl.hostname !== actualUrl.hostname ||
-  expectedPath !== actualPath
-) {
-  return res.status(200).send("Not conversion page");
-}
+        JOIN campaign_destinations cd
+          ON cd.id =
+             e.campaign_destination_id
 
-value = Number(campaign.avg_customer_value || 0);
-  
+        WHERE e.vivid_click_id = $1
+          AND e.campaign_id = $2
+          AND e.type = 'destination_click'
+
+        ORDER BY
+          e.created_at DESC,
+          e.id DESC
+      `,
+      [
+        vividClickId,
+        scan.campaign_id
+      ]
+    );
+
+    const destinationClicks =
+      destinationClicksResult.rows;
+
+    /*
+    =========================================================
+    SAFE URL MATCHING
+
+    Conversion page must match:
+    - hostname
+    - pathname
+
+    Query parameters do not prevent a match.
+    Trailing slashes do not prevent a match.
+    =========================================================
+    */
+
+    const urlsMatch = (
+      configuredUrl,
+      actualPageUrl
+    ) => {
+      if (
+        !configuredUrl ||
+        !actualPageUrl
+      ) {
+        return false;
+      }
+
+      try {
+        const expected =
+          new URL(configuredUrl);
+
+        const actual =
+          new URL(actualPageUrl);
+
+        const expectedPath =
+          expected.pathname.replace(
+            /\/$/,
+            ""
+          );
+
+        const actualPath =
+          actual.pathname.replace(
+            /\/$/,
+            ""
+          );
+
+        return (
+          expected.hostname
+            .toLowerCase() ===
+          actual.hostname
+            .toLowerCase() &&
+          expectedPath === actualPath
+        );
+      } catch (err) {
+        return false;
+      }
+    };
+
+    /*
+    =========================================================
+    RESOLVE THE CUSTOMER ACTION
+
+    Priority 1:
+    Exact Customer Action conversion URL match.
+
+    Priority 2:
+    Campaign conversion URL match, attributed to the most
+    recently clicked Customer Action.
+
+    Priority 3:
+    Legacy campaign conversion with no Customer Action.
+    =========================================================
+    */
+
+    let matchedDestination = null;
+
+    for (
+      const destination of
+      destinationClicks
+    ) {
+      if (
+        urlsMatch(
+          destination.conversion_url,
+          pageUrl
+        )
+      ) {
+        matchedDestination =
+          destination;
+
+        break;
+      }
+    }
+
+    const campaignUrlMatches =
+      urlsMatch(
+        campaign.conversion_url,
+        pageUrl
+      );
+
+    if (
+      !matchedDestination &&
+      campaignUrlMatches &&
+      destinationClicks.length
+    ) {
+      matchedDestination =
+        destinationClicks[0];
+    }
+
+    const destinationUrlMatched =
+      Boolean(matchedDestination);
+
+    const legacyCampaignMatched =
+      !destinationUrlMatched &&
+      campaignUrlMatches;
+
+    if (
+      !destinationUrlMatched &&
+      !legacyCampaignMatched
+    ) {
+      return res
+        .status(200)
+        .send("Not conversion page");
+    }
+
+    const campaignDestinationId =
+      matchedDestination
+        ? Number(
+            matchedDestination
+              .campaign_destination_id
+          )
+        : null;
+
+    /*
+    =========================================================
+    PREVENT DUPLICATE CONVERSIONS
+
+    Duplicate protection is now per:
+    - journey
+    - campaign
+    - Customer Action
+
+    This allows one journey to convert through more than
+    one Customer Action while preventing the same conversion
+    from being recorded repeatedly.
+    =========================================================
+    */
+
+    const duplicateResult = await q(
+      `
+        SELECT id
+        FROM events
+
+        WHERE vivid_click_id = $1
+          AND campaign_id = $2
+          AND type = 'conversion'
+
+          AND (
+            (
+              $3::int IS NULL
+              AND campaign_destination_id
+                  IS NULL
+            )
+            OR
+            campaign_destination_id =
+              $3::int
+          )
+
+        LIMIT 1
+      `,
+      [
+        vividClickId,
+        scan.campaign_id,
+        campaignDestinationId
+      ]
+    );
+
+    if (duplicateResult.rows.length) {
+      return res
+        .status(200)
+        .send(
+          "Conversion already tracked"
+        );
+    }
+
+    /*
+    =========================================================
+    RESOLVE CONVERSION VALUE
+
+    Priority:
+    1. Explicit transaction value supplied by the site
+    2. Customer Action estimated value
+    3. Campaign default customer value
+    =========================================================
+    */
+
+    let conversionValue = 0;
+
+    if (
+      suppliedValue !== null &&
+      Number.isFinite(suppliedValue)
+    ) {
+      conversionValue =
+        suppliedValue;
+    } else if (
+      matchedDestination &&
+      Number(
+        matchedDestination
+          .estimated_value || 0
+      ) > 0
+    ) {
+      conversionValue =
+        Number(
+          matchedDestination
+            .estimated_value || 0
+        );
+    } else {
+      conversionValue =
+        Number(
+          campaign.avg_customer_value ||
+          0
+        );
+    }
+
+    /*
+    =========================================================
+    SAVE THE ATTRIBUTED CONVERSION
+
+    The conversion now carries:
+    - QR
+    - Campaign
+    - Customer Action
+    - Journey ID
+    - Revenue value
+    =========================================================
+    */
 
     await saveEvent({
       qrId: scan.qr_id,
-      campaignId: scan.campaign_id,
-      storeId: scan.store_id,
+      campaignId:
+        scan.campaign_id,
+      storeId:
+        scan.store_id,
+      campaignDestinationId,
+      vividSessionId:
+        scan.vivid_session_id ||
+        null,
       type: "conversion",
-      value,
+      value: conversionValue,
       vividClickId
     });
 
-    await q(`
-      UPDATE events
-      SET converted_at = CURRENT_TIMESTAMP
-      WHERE id = $1
-    `, [scan.id]);
+    /*
+      Keep the original scan-level conversion timestamp
+      for compatibility with existing Vivid logic.
 
-    return res.status(200).send("Conversion tracked");
+      It is no longer used as the duplicate gate because
+      one journey may convert through multiple actions.
+    */
+
+    await q(
+      `
+        UPDATE events
+
+        SET converted_at =
+          COALESCE(
+            converted_at,
+            CURRENT_TIMESTAMP
+          )
+
+        WHERE id = $1
+      `,
+      [scan.id]
+    );
+
+    return res
+      .status(200)
+      .send("Conversion tracked");
   } catch (err) {
-    return res.status(500).send("CONVERSION TRACKING ERROR: " + err.message);
+    console.error(
+      "CONVERSION TRACKING ERROR:",
+      err
+    );
+
+    return res.status(500).send(
+      "CONVERSION TRACKING ERROR: " +
+      err.message
+    );
   }
 });
+
 app.get("/vivid-conversion.js", (req, res) => {
   res.type("application/javascript");
 
