@@ -36228,64 +36228,308 @@ MAX(e.created_at) FILTER (
     }
   }
 );
-app.get("/admin/view-location/:id", requireLogin, async (req, res) => {
-  const id = Number(req.params.id);
+app.get(
+  "/admin/view-location/:id",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
 
-const result = await q(`
-  SELECT
-    s.*,
-    COUNT(qr.id) AS qr_count
-  FROM spaces s
-  LEFT JOIN qr_codes qr ON qr.space_id = s.id
-  WHERE s.id = $1
-  GROUP BY s.id
-  LIMIT 1
-`, [id]);
+      if (
+        !Number.isInteger(id) ||
+        id <= 0
+      ) {
+        return res.status(400).send(
+          "Valid location ID required."
+        );
+      }
 
-  const s = result.rows[0];
-const qrList = await q(`
-  SELECT id, name, is_archived
-  FROM qr_codes
-  WHERE space_id = $1
-  ORDER BY name ASC
-`, [id]);
+      const result = await q(
+        `
+          SELECT
+            s.*,
+            COUNT(qr.id)::int AS qr_count
 
-const qrListHtml = qrList.rows.length
-  ? qrList.rows.map(qr => `
-      <li>
-        <a href="/admin/view-qr/${qr.id}">${qr.name}</a>
-        - ${qr.is_archived ? "Archived" : "Active"}
-      </li>
-    `).join("")
-  : "<li>No QR Codes assigned</li>";
-  if (!s) {
-    return res.status(404).send("Location not found");
+          FROM spaces s
+
+          LEFT JOIN qr_codes qr
+            ON qr.space_id = s.id
+
+          WHERE s.id = $1
+
+          GROUP BY s.id
+
+          LIMIT 1
+        `,
+        [id]
+      );
+
+      const location = result.rows[0];
+
+      if (!location) {
+        return res.status(404).send(
+          "Location not found"
+        );
+      }
+
+      const locationMetrics =
+        await getPerformanceMetrics({
+          locationId: location.id
+        });
+
+      const qrList = await q(
+        `
+          SELECT
+            id,
+            name,
+            is_archived
+
+          FROM qr_codes
+
+          WHERE space_id = $1
+
+          ORDER BY name ASC
+        `,
+        [id]
+      );
+
+      const qrListHtml =
+        qrList.rows.length
+          ? qrList.rows
+              .map(
+                qr => `
+                  <li style="margin-bottom:7px;">
+                    <a href="/admin/view-qr/${qr.id}">
+                      ${qr.name || `QR ${qr.id}`}
+                    </a>
+
+                    —
+                    ${
+                      qr.is_archived
+                        ? "Archived"
+                        : "Active"
+                    }
+                  </li>
+                `
+              )
+              .join("")
+          : `
+              <li>
+                No QR Codes assigned
+              </li>
+            `;
+
+      return res.send(
+        page(
+          "View Location",
+          `
+            <div class="wrap">
+
+              <h1>
+                View Location
+              </h1>
+
+              <div class="card">
+                <h2 style="margin-top:0;">
+                  Location Information
+                </h2>
+
+                <p>
+                  <b>Name:</b>
+                  ${location.name || ""}
+                </p>
+
+                <p>
+                  <b>Market:</b>
+                  ${location.location || ""}
+                </p>
+
+                <p>
+                  <b>Live Date:</b>
+                  ${
+                    location.live_date
+                      ? dayLabel(
+                          location.live_date
+                        )
+                      : "Not set"
+                  }
+                </p>
+
+                <p>
+                  <b>QR Count:</b>
+                  ${Number(
+                    location.qr_count || 0
+                  ).toLocaleString()}
+                </p>
+
+                <p>
+                  <b>QR Codes Assigned:</b>
+                </p>
+
+                <ul>
+                  ${qrListHtml}
+                </ul>
+
+                <p>
+                  <b>Status:</b>
+                  ${
+                    location.is_archived
+                      ? "Archived"
+                      : "Active"
+                  }
+                </p>
+              </div>
+
+              <div class="card">
+                <h2 style="margin-top:0;">
+                  Location Performance
+                </h2>
+
+                <div class="cards">
+
+                  <div class="card">
+                    <div class="label">
+                      Visitors
+                    </div>
+
+                    <div class="num">
+                      ${Number(
+                        locationMetrics.visitors || 0
+                      ).toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="label">
+                      Clicks
+                    </div>
+
+                    <div class="num">
+                      ${Number(
+                        locationMetrics.clicks || 0
+                      ).toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="label">
+                      Conversions
+                    </div>
+
+                    <div class="num">
+                      ${Number(
+                        locationMetrics.conversions || 0
+                      ).toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="label">
+                      Revenue Per Conversion
+                    </div>
+
+                    <div class="num">
+                      ${money(
+                        locationMetrics
+                          .revenuePerConversion || 0
+                      )}
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="label">
+                      Visitor Conversion Rate
+                    </div>
+
+                    <div class="num">
+                      ${Number(
+                        locationMetrics
+                          .visitorConversionRate || 0
+                      ).toFixed(1)}%
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="label">
+                      Revenue Generated
+                    </div>
+
+                    <div class="num">
+                      ${money(
+                        locationMetrics
+                          .revenueGenerated || 0
+                      )}
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="label">
+                      Revenue Per Visitor
+                    </div>
+
+                    <div class="num">
+                      ${money(
+                        locationMetrics
+                          .revenuePerVisitor || 0
+                      )}
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="label">
+                      Revenue Per Click
+                    </div>
+
+                    <div class="num">
+                      ${money(
+                        locationMetrics
+                          .revenuePerClick || 0
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <div style="
+                margin-top:25px;
+                display:flex;
+                gap:10px;
+                flex-wrap:wrap;
+              ">
+                <a
+                  class="btn"
+                  href="/admin/edit-location/${location.id}"
+                >
+                  Edit Location
+                </a>
+
+                <a
+                  class="btn secondary"
+                  href="/admin/setup"
+                >
+                  Back to My Setup
+                </a>
+              </div>
+
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "VIEW LOCATION ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load location: " +
+        err.message
+      );
+    }
   }
-
-  res.send(page("View Location", `
-    <div class="wrap">
-      <h1>View Location</h1>
-
-      <div class="card">
-        <p><b>Name:</b> ${s.name || ""}</p>
-        <p><b>Market:</b> ${s.location || ""}</p>
-        <p><b>Live Date:</b> ${s.live_date || "Not set"}</p>
-        <p><b>QR Count:</b> ${s.qr_count || 0}</p>
-<p><b>QR Codes Assigned:</b></p>
-<ul>
-  ${qrListHtml}
-</ul>
-
-        <p><b>Status:</b> ${s.is_archived ? "Archived" : "Active"}</p>
-
-        <br>
-
-        <a class="btn" href="/admin/edit-location/${s.id}">Edit Location</a>
-        <a class="btn" href="/admin/setup">Back to My Setup</a>
-      </div>
-    </div>
-  `));
-});
+);
+  
 app.get("/admin/view-qr/:id", requireLogin, async (req, res) => {
   const id = Number(req.params.id);
 
