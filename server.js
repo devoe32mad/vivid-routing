@@ -35149,7 +35149,53 @@ app.get(
                           )
                       )}
                     </td>
+<td style="
+  text-align:center;
+  white-space:nowrap;
+">
+  <a
+    href="/admin/destination/${destination.id}/clicks"
+    style="
+      color:#073b22;
+      font-weight:bold;
+      text-decoration:none;
+    "
+  >
+    ${Number(
+      destination.clicks || 0
+    ).toLocaleString()}
+  </a>
+</td>
 
+<td style="
+  text-align:center;
+  white-space:nowrap;
+">
+  ${Number(
+    destination.unique_journeys || 0
+  ).toLocaleString()}
+</td>
+
+<td style="
+  white-space:nowrap;
+">
+  ${
+    destination.last_activity
+      ? new Date(
+          destination.last_activity
+        ).toLocaleString(
+          "en-US",
+          {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit"
+          }
+        )
+      : "No activity"
+  }
+</td>
                     <td style="
                       max-width:340px;
                       overflow-wrap:anywhere;
