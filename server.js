@@ -36863,10 +36863,11 @@ app.get(
                       <th style="text-align:center;">
                         Status
                       </th>
-                    </tr>
-<th style="text-align:center;">
+                  <th style="text-align:center;">
   Actions
-</th>
+</th>    
+                    </tr>
+
                     ${destinationRows}
                   </table>
                 </div>
