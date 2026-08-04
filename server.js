@@ -46093,13 +46093,19 @@ app.get(
           }
         );
 
-      /*
-      =========================================================
-      CAMPAIGN AND CUSTOMER ACTION DETAIL
-      =========================================================
-      */
+     doc.addPage();
 
-      if (!reportRows.length) {
+sectionTitle("Campaign Summary");
+
+doc.moveDown();
+
+/*
+=========================================================
+CAMPAIGN AND CUSTOMER ACTION DETAIL
+=========================================================
+*/
+
+if (!reportRows.length) {
         doc.moveDown(2);
 
         doc
