@@ -36411,7 +36411,7 @@ app.get(
 </th>
 
 <th style="text-align:center;">
-  Unique Journeys
+  Visitors
 </th>
 
 <th>
