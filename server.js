@@ -10378,6 +10378,356 @@ advertisersSheet.getColumn(col).numFmt =
 "#,##0";
 
 }); 
+     /*
+=========================================================
+CAMPAIGNS WORKSHEET
+=========================================================
+*/
+
+const campaignsSheet =
+  workbook.addWorksheet("Campaigns");
+
+campaignsSheet.columns = [
+  {
+    header: "Advertiser",
+    key: "advertiser",
+    width: 26
+  },
+  {
+    header: "Campaign",
+    key: "campaignName",
+    width: 32
+  },
+  {
+    header: "Status",
+    key: "status",
+    width: 14
+  },
+  {
+    header: "Locations",
+    key: "locationNames",
+    width: 30
+  },
+  {
+    header: "QR Placements",
+    key: "qrNames",
+    width: 30
+  },
+  {
+    header: "Visitors",
+    key: "visitors",
+    width: 12
+  },
+  {
+    header: "Clicks",
+    key: "clicks",
+    width: 12
+  },
+  {
+    header: "Scans",
+    key: "scans",
+    width: 12
+  },
+  {
+    header: "Intent",
+    key: "intent",
+    width: 12
+  },
+  {
+    header: "Conversions",
+    key: "conversions",
+    width: 14
+  },
+  {
+    header: "Conversion Rate",
+    key: "visitorConversionRate",
+    width: 18
+  },
+  {
+    header: "Advertiser Revenue",
+    key: "advertiserRevenue",
+    width: 20
+  },
+  {
+    header: "Revenue Per Visitor",
+    key: "revenuePerVisitor",
+    width: 20
+  },
+  {
+    header: "Revenue Per Click",
+    key: "revenuePerClick",
+    width: 18
+  },
+  {
+    header: "Revenue Per Conversion",
+    key: "revenuePerConversion",
+    width: 22
+  },
+  {
+    header: "Last Activity",
+    key: "lastActivity",
+    width: 20
+  }
+];
+
+data.campaigns.forEach(row => {
+  campaignsSheet.addRow({
+    advertiser:
+      row.advertiser || "",
+
+    campaignName:
+      row.campaignName || "",
+
+    status:
+      row.status || "",
+
+    locationNames:
+      row.locationNames || "",
+
+    qrNames:
+      row.qrNames || "",
+
+    visitors:
+      Number(row.visitors || 0),
+
+    clicks:
+      Number(row.clicks || 0),
+
+    scans:
+      Number(row.scans || 0),
+
+    intent:
+      Number(row.intent || 0),
+
+    conversions:
+      Number(row.conversions || 0),
+
+    visitorConversionRate:
+      Number(
+        row.visitorConversionRate || 0
+      ) / 100,
+
+    advertiserRevenue:
+      Number(
+        row.advertiserRevenue || 0
+      ),
+
+    revenuePerVisitor:
+      Number(
+        row.revenuePerVisitor || 0
+      ),
+
+    revenuePerClick:
+      Number(
+        row.revenuePerClick || 0
+      ),
+
+    revenuePerConversion:
+      Number(
+        row.revenuePerConversion || 0
+      ),
+
+    lastActivity:
+      row.lastActivity
+        ? new Date(row.lastActivity)
+        : null
+  });
+});
+
+/*
+=========================================================
+CAMPAIGNS FORMATTING
+=========================================================
+*/
+
+const campaignsHeader =
+  campaignsSheet.getRow(1);
+
+campaignsHeader.height = 28;
+
+campaignsHeader.font = {
+  bold: true,
+  color: {
+    argb: "FFFFFFFF"
+  }
+};
+
+campaignsHeader.fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: {
+    argb: "FF1F4E78"
+  }
+};
+
+campaignsHeader.alignment = {
+  vertical: "middle",
+  horizontal: "center",
+  wrapText: true
+};
+
+[
+  "visitors",
+  "clicks",
+  "scans",
+  "intent",
+  "conversions"
+].forEach(columnKey => {
+  campaignsSheet.getColumn(
+    columnKey
+  ).numFmt = "#,##0";
+
+  campaignsSheet.getColumn(
+    columnKey
+  ).alignment = {
+    vertical: "middle",
+    horizontal: "right"
+  };
+});
+
+campaignsSheet.getColumn(
+  "visitorConversionRate"
+).numFmt = "0.0%";
+
+campaignsSheet.getColumn(
+  "visitorConversionRate"
+).alignment = {
+  vertical: "middle",
+  horizontal: "right"
+};
+
+[
+  "advertiserRevenue",
+  "revenuePerVisitor",
+  "revenuePerClick",
+  "revenuePerConversion"
+].forEach(columnKey => {
+  campaignsSheet.getColumn(
+    columnKey
+  ).numFmt = "$#,##0.00";
+
+  campaignsSheet.getColumn(
+    columnKey
+  ).alignment = {
+    vertical: "middle",
+    horizontal: "right"
+  };
+});
+
+campaignsSheet.getColumn(
+  "lastActivity"
+).numFmt = "mm/dd/yyyy h:mm AM/PM";
+
+campaignsSheet.getColumn(
+  "lastActivity"
+).alignment = {
+  vertical: "middle",
+  horizontal: "center"
+};
+
+[
+  "advertiser",
+  "campaignName",
+  "status",
+  "locationNames",
+  "qrNames"
+].forEach(columnKey => {
+  campaignsSheet.getColumn(
+    columnKey
+  ).alignment = {
+    vertical: "middle",
+    horizontal: "left",
+    wrapText: true
+  };
+});
+
+for (
+  let rowNumber = 2;
+  rowNumber <= campaignsSheet.rowCount;
+  rowNumber++
+) {
+  const row =
+    campaignsSheet.getRow(rowNumber);
+
+  row.height = 24;
+
+  if (rowNumber % 2 === 0) {
+    row.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: {
+        argb: "FFF3F6F4"
+      }
+    };
+  }
+}
+
+for (
+  let rowNumber = 1;
+  rowNumber <= campaignsSheet.rowCount;
+  rowNumber++
+) {
+  for (
+    let columnNumber = 1;
+    columnNumber <= 16;
+    columnNumber++
+  ) {
+    campaignsSheet.getCell(
+      rowNumber,
+      columnNumber
+    ).border = {
+      top: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      left: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      bottom: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      right: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      }
+    };
+  }
+}
+
+campaignsSheet.autoFilter = {
+  from: "A1",
+  to: "P1"
+};
+
+campaignsSheet.views = [
+  {
+    state: "frozen",
+    ySplit: 1
+  }
+];
+
+campaignsSheet.pageSetup = {
+  orientation: "landscape",
+  fitToPage: true,
+  fitToWidth: 1,
+  fitToHeight: 0,
+  printTitlesRow: "1:1"
+};
+
+campaignsSheet.headerFooter = {
+  oddFooter:
+    `&L${data.organization.name || "Organization"}&CConfidential&RPage &P of &N`
+}; 
 res.setHeader(
 "Content-Disposition",
 `attachment; filename="${String(
