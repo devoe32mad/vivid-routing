@@ -8124,6 +8124,105 @@ const campaigns =
         row.last_activity || null
     };
   });
+  /*
+=========================================================
+ADVERTISER PERFORMANCE
+Built from campaign rows already loaded above
+=========================================================
+*/
+
+const advertiserMap = new Map();
+
+campaigns.forEach(campaign => {
+  const key = String(
+    campaign.advertiser || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (!key) {
+    return;
+  }
+
+  if (!advertiserMap.has(key)) {
+    advertiserMap.set(key, {
+      advertiser:
+        campaign.advertiser || "",
+
+      campaigns: 0,
+      scans: 0,
+      intent: 0,
+      visitors: 0,
+      clicks: 0,
+      conversions: 0,
+      advertiserRevenue: 0
+    });
+  }
+
+  const advertiser =
+    advertiserMap.get(key);
+
+  advertiser.campaigns += 1;
+
+  advertiser.scans +=
+    Number(campaign.scans || 0);
+
+  advertiser.intent +=
+    Number(campaign.intent || 0);
+
+  advertiser.visitors +=
+    Number(campaign.visitors || 0);
+
+  advertiser.clicks +=
+    Number(campaign.clicks || 0);
+
+  advertiser.conversions +=
+    Number(campaign.conversions || 0);
+
+  advertiser.advertiserRevenue +=
+    Number(
+      campaign.advertiserRevenue || 0
+    );
+});
+
+const advertisers =
+  Array.from(
+    advertiserMap.values()
+  )
+    .map(advertiser => ({
+      ...advertiser,
+
+      conversionRate:
+        advertiser.visitors > 0
+          ? (
+              advertiser.conversions /
+              advertiser.visitors
+            ) * 100
+          : 0,
+
+      revenuePerVisitor:
+        advertiser.visitors > 0
+          ? advertiser.advertiserRevenue /
+            advertiser.visitors
+          : 0,
+
+      revenuePerClick:
+        advertiser.clicks > 0
+          ? advertiser.advertiserRevenue /
+            advertiser.clicks
+          : 0,
+
+      revenuePerConversion:
+        advertiser.conversions > 0
+          ? advertiser.advertiserRevenue /
+            advertiser.conversions
+          : 0
+    }))
+    .sort(
+      (a, b) =>
+        b.advertiserRevenue -
+        a.advertiserRevenue
+    );
   const approvedRevenue =
   approvedOpportunities.reduce(
     (total, row) =>
@@ -8184,7 +8283,7 @@ availableRevenue,
 
     locations,
     placements,
-    advertisers: [],
+    advertisers,
     campaigns,
     customerActions: [],
     approvedOpportunities,
