@@ -56277,9 +56277,7 @@ app.get("/admin/reports", requireLogin, async (req, res) => {
           </select>
         </div>
 
-   <button
-  type="submit"
->
+<button type="submit">
   Run Report
 </button>
 
@@ -56314,6 +56312,7 @@ app.get("/admin/reports", requireLogin, async (req, res) => {
 >
   Export Executive PDF
 </button>
+
       </form>
 
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:24px 0;">
