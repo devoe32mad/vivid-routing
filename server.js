@@ -8641,6 +8641,64 @@ const summary = {
   };
 }
 app.get(
+  "/org-export/report.xlsx",
+  async (req, res) => {
+    try {
+      const organizationId = Number(
+        req.query.organization_id
+      );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Valid organization is required."
+          );
+      }
+
+      const isSuperAdmin =
+        req.session.user?.role ===
+        "super_admin";
+
+      const isOrganizationUser =
+        req.session.orgUser &&
+        Number(
+          req.session.orgUser
+            .organization_id
+        ) === organizationId;
+
+      if (
+        !isSuperAdmin &&
+        !isOrganizationUser
+      ) {
+        return res
+          .status(403)
+          .send("Access denied");
+      }
+
+      return res.send(
+        "Organization Excel route working"
+      );
+
+    } catch (err) {
+      console.error(
+        "ORG EXCEL ROUTE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "ORG EXCEL ROUTE ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+app.get(
   "/org-organization/:id",
   async (req, res) => {
     try {
