@@ -7350,7 +7350,36 @@ const summary = {
   approvedSpots:
     approvedOpportunities.length,
 
-  approvedRevenue
+  approvedRevenue,
+
+  pendingSpots: 0,
+  pendingRevenue: 0,
+
+  availableSpots: 0,
+  availableRevenue: 0,
+
+  locations: 0,
+
+  placements: 0,
+
+  advertisers: 0,
+
+  campaigns: 0,
+
+  customerActions: 0,
+
+  scans: 0,
+
+  visitors: 0,
+
+  clicks: 0,
+
+  conversions: 0,
+
+  advertiserRevenue: 0,
+
+  economicImpact:
+    approvedRevenue
 };
   return {
     organization,
