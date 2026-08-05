@@ -7580,7 +7580,7 @@ LEFT JOIN campaigns c
     ON c.id=qc.campaign_id
 
 LEFT JOIN events e
-   LEFT JOIN events e
+   
     ON e.qr_id = qr.id
    AND e.campaign_id = c.id
 
