@@ -7212,7 +7212,58 @@ app.get("/org-organizations", requireLogin, requireSuperAdmin, async (req, res) 
     res.send("ERROR: " + err.message);
   }
 });
+async function buildOrganizationExportData(
+  req,
+  organizationId,
+  fromDate = "",
+  toDate = ""
+) {
+  const orgId = Number(organizationId);
 
+  if (!Number.isInteger(orgId) || orgId <= 0) {
+    throw new Error("Valid organization is required.");
+  }
+
+  const organizationResult = await q(
+    `
+      SELECT
+        id,
+        name,
+        organization_type,
+        is_active
+      FROM organizations
+      WHERE id = $1
+      LIMIT 1
+    `,
+    [orgId]
+  );
+
+  const organization = organizationResult.rows[0];
+
+  if (!organization) {
+    throw new Error("Organization not found.");
+  }
+
+  return {
+    organization,
+
+    reportingPeriod: {
+      fromDate: fromDate || null,
+      toDate: toDate || null
+    },
+
+    summary: {},
+
+    locations: [],
+    placements: [],
+    advertisers: [],
+    campaigns: [],
+    customerActions: [],
+    approvedOpportunities: [],
+    pendingOpportunities: [],
+    availableOpportunities: []
+  };
+}
 app.get(
   "/org-organization/:id",
   async (req, res) => {
