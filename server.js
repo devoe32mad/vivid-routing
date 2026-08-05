@@ -56277,10 +56277,43 @@ app.get("/admin/reports", requireLogin, async (req, res) => {
           </select>
         </div>
 
-        <button type="submit">Run Report</button>
-        <button type="submit" formaction="/export/events.csv" formmethod="get">Export Raw Events CSV</button>
-        <button type="submit" formaction="/export/report.csv" formmethod="get">Export Executive CSV</button>
-        <button type="submit" formaction="/export/report.pdf" formmethod="get">Export Executive PDF</button>
+   <button
+  type="submit"
+>
+  Run Report
+</button>
+
+<button
+  type="submit"
+  formaction="/export/events.csv"
+  formmethod="get"
+>
+  Export Raw Events CSV
+</button>
+
+<button
+  type="submit"
+  formaction="/export/report.csv"
+  formmethod="get"
+>
+  Export Executive CSV
+</button>
+
+<button
+  type="submit"
+  formaction="/export/report.xlsx"
+  formmethod="get"
+>
+  Export Executive Excel
+</button>
+
+<button
+  type="submit"
+  formaction="/export/report.pdf"
+  formmethod="get"
+>
+  Export Executive PDF
+</button>
       </form>
 
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:24px 0;">
