@@ -7897,6 +7897,233 @@ approvedOpportunities.forEach(r=>{
         };
 
     });
+  /*
+=========================================================
+CAMPAIGN PERFORMANCE
+Read-only organization reporting
+=========================================================
+*/
+
+const campaignsResult = await q(
+  `
+    WITH unique_assignments AS (
+      SELECT DISTINCT
+        qr_id,
+        campaign_id
+      FROM qr_campaigns
+    )
+
+    SELECT
+      c.id AS campaign_id,
+      c.name AS campaign_name,
+      c.advertiser,
+
+      COALESCE(
+        c.is_archived,
+        false
+      ) AS is_archived,
+
+      STRING_AGG(
+        DISTINCT qr.name,
+        ', '
+      ) AS qr_names,
+
+      STRING_AGG(
+        DISTINCT s.name,
+        ', '
+      ) AS location_names,
+
+      COUNT(e.id) FILTER (
+        WHERE e.type = 'scan'
+      )::int AS scans,
+
+      COUNT(e.id) FILTER (
+        WHERE e.type IN (
+          'offer',
+          'maps',
+          'waze'
+        )
+      )::int AS intent,
+
+      COUNT(e.id) FILTER (
+        WHERE e.type = 'destination_click'
+      )::int AS clicks,
+
+      COUNT(
+        DISTINCT e.vivid_click_id
+      ) FILTER (
+        WHERE e.type = 'destination_click'
+          AND NULLIF(
+                TRIM(e.vivid_click_id),
+                ''
+              ) IS NOT NULL
+      )::int AS visitors,
+
+      COUNT(e.id) FILTER (
+        WHERE e.type = 'conversion'
+      )::int AS conversions,
+
+      COUNT(
+        DISTINCT e.vivid_click_id
+      ) FILTER (
+        WHERE e.type = 'conversion'
+          AND NULLIF(
+                TRIM(e.vivid_click_id),
+                ''
+              ) IS NOT NULL
+      )::int AS visitors_converted,
+
+      COALESCE(
+        SUM(e.value) FILTER (
+          WHERE e.type = 'conversion'
+        ),
+        0
+      )::numeric AS advertiser_revenue,
+
+      MAX(e.created_at)
+        AS last_activity
+
+    FROM campaigns c
+
+    JOIN unique_assignments qc
+      ON qc.campaign_id = c.id
+
+    JOIN qr_codes qr
+      ON qr.id = qc.qr_id
+     AND COALESCE(
+           qr.is_archived,
+           false
+         ) = false
+
+    JOIN spaces s
+      ON s.id = qr.space_id
+     AND s.organization_id = $1
+     AND COALESCE(
+           s.is_archived,
+           false
+         ) = false
+
+    LEFT JOIN events e
+      ON e.campaign_id = c.id
+     AND e.qr_id = qr.id
+
+     AND (
+       NULLIF($2, '') IS NULL
+       OR e.created_at::date >=
+          NULLIF($2, '')::date
+     )
+
+     AND (
+       NULLIF($3, '') IS NULL
+       OR e.created_at::date <=
+          NULLIF($3, '')::date
+     )
+
+    GROUP BY
+      c.id,
+      c.name,
+      c.advertiser,
+      c.is_archived
+
+    ORDER BY
+      c.advertiser,
+      c.name
+  `,
+  [
+    orgId,
+    fromDate || "",
+    toDate || ""
+  ]
+);
+
+const campaigns =
+  campaignsResult.rows.map(row => {
+    const visitors =
+      Number(row.visitors || 0);
+
+    const clicks =
+      Number(row.clicks || 0);
+
+    const conversions =
+      Number(row.conversions || 0);
+
+    const visitorsConverted =
+      Number(
+        row.visitors_converted || 0
+      );
+
+    const advertiserRevenue =
+      Number(
+        row.advertiser_revenue || 0
+      );
+
+    return {
+      campaignId:
+        Number(row.campaign_id),
+
+      campaignName:
+        row.campaign_name || "",
+
+      advertiser:
+        row.advertiser || "",
+
+      qrNames:
+        row.qr_names || "",
+
+      locationNames:
+        row.location_names || "",
+
+      status:
+        row.is_archived
+          ? "Archived"
+          : "Active",
+
+      scans:
+        Number(row.scans || 0),
+
+      intent:
+        Number(row.intent || 0),
+
+      visitors,
+
+      clicks,
+
+      conversions,
+
+      visitorsConverted,
+
+      visitorConversionRate:
+        visitors > 0
+          ? (
+              visitorsConverted /
+              visitors
+            ) * 100
+          : 0,
+
+      advertiserRevenue,
+
+      revenuePerVisitor:
+        visitors > 0
+          ? advertiserRevenue /
+            visitors
+          : 0,
+
+      revenuePerClick:
+        clicks > 0
+          ? advertiserRevenue /
+            clicks
+          : 0,
+
+      revenuePerConversion:
+        conversions > 0
+          ? advertiserRevenue /
+            conversions
+          : 0,
+
+      lastActivity:
+        row.last_activity || null
+    };
+  });
   const approvedRevenue =
   approvedOpportunities.reduce(
     (total, row) =>
@@ -7958,7 +8185,7 @@ availableRevenue,
     locations,
     placements,
     advertisers: [],
-    campaigns: [],
+    campaigns,
     customerActions: [],
     approvedOpportunities,
     pendingOpportunities,
