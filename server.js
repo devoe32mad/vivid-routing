@@ -52084,7 +52084,7 @@ const qrId = req.query.qrId || req.query.qr_id || req.query.qr;
 } 
 });
 app.get(
-  "/export/report.xlsx",,
+  "/export/report.xlsx",
   requireLogin,
   async (req, res) => {
     try {
