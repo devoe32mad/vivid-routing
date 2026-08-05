@@ -52083,6 +52083,7 @@ const qrId = req.query.qrId || req.query.qr_id || req.query.qr;
   res.status(500).send(err.message);
 } 
 });
+
 app.get(
   "/export/report.xlsx",
   requireLogin,
@@ -52138,317 +52139,340 @@ app.get(
           status
         );
 
-   
-    
 
-/*
-=========================================================
-SHEET 3 — QR PLACEMENTS
-=========================================================
-*/
+      /*
+      =========================================================
+      LOCATION AND QR AGGREGATES
+      Uses the existing campaign reporting engine and the
+      currently selected date, location, QR, campaign, and
+      status filters.
+      =========================================================
+      */
 
-const qrSheet =
-  workbook.addWorksheet(
-    "QR Placements",
-    {
-      views: [
-        {
-          state: "frozen",
-          ySplit: 4,
-          xSplit: 2,
-          showGridLines: false
-        }
-      ]
-    }
-  );
+      const coreReportUser =
+        req.session.user;
 
-qrSheet.columns = [
-  {
-    header: "QR Placement",
-    key: "qr",
-    width: 34
-  },
-  {
-    header: "Location",
-    key: "location",
-    width: 32
-  },
-  {
-    header: "Campaigns",
-    key: "campaigns",
-    width: 14
-  },
-  {
-    header: "Scans",
-    key: "scans",
-    width: 12
-  },
-  {
-    header: "Offer Clicks",
-    key: "offerClicks",
-    width: 15
-  },
-  {
-    header: "Map Clicks",
-    key: "mapClicks",
-    width: 14
-  },
-  {
-    header: "Waze Clicks",
-    key: "wazeClicks",
-    width: 14
-  },
-  {
-    header: "Intent",
-    key: "intent",
-    width: 12
-  },
-  {
-    header: "Visitors",
-    key: "visitors",
-    width: 12
-  },
-  {
-    header: "Clicks",
-    key: "clicks",
-    width: 12
-  },
-  {
-    header: "Conversions",
-    key: "conversions",
-    width: 14
-  },
-  {
-    header: "Revenue Generated",
-    key: "revenueGenerated",
-    width: 20
-  },
-  {
-    header: "Allocated Cost",
-    key: "allocatedCost",
-    width: 18
-  },
-  {
-    header: "CAC",
-    key: "cac",
-    width: 14
-  },
-  {
-    header: "ROI",
-    key: "roi",
-    width: 12
-  }
-];
+      const coreReportIsSuperAdmin =
+        coreReportUser.role ===
+        "super_admin";
 
-qrSheet.insertRow(
-  1,
-  [
-    "Vivid QR Placement Performance"
-  ]
-);
+      const coreReportUserId =
+        coreReportIsSuperAdmin
+          ? null
+          : coreReportUser.id;
 
-qrSheet.mergeCells(
-  1,
-  1,
-  1,
-  qrSheet.columnCount
-);
+      const coreLocationOptionsResult =
+        await q(
+          `
+            SELECT DISTINCT
+              s.id,
+              s.name
 
-styleTitleRow(
-  qrSheet.getRow(1)
-);
+            FROM spaces s
 
-qrSheet.insertRow(
-  2,
-  [
-    `Reporting Period: ${startDate} through ${endDate}`
-  ]
-);
+            JOIN qr_codes qr
+              ON qr.space_id = s.id
 
-qrSheet.mergeCells(
-  2,
-  1,
-  2,
-  qrSheet.columnCount
-);
+            JOIN qr_campaigns qc
+              ON qc.qr_id = qr.id
+             AND COALESCE(
+                   qc.is_active,
+                   true
+                 ) = true
 
-qrSheet.getCell(
-  "A2"
-).font = {
-  italic: true,
-  color: {
-    argb: colors.grayText
-  }
-};
+            JOIN campaigns c
+              ON c.id = qc.campaign_id
 
-qrSheet.insertRow(
-  3,
-  []
-);
+            WHERE (
+              $1::int IS NULL
+              OR s.user_id = $1
+              OR c.user_id = $1
+            )
 
-const qrHeaderRow =
-  qrSheet.getRow(4);
+              AND (
+                $2::text = ''
+                OR s.id::text = $2::text
+              )
 
-qrSheet.columns.forEach(
-  (column, index) => {
-    qrHeaderRow.getCell(
-      index + 1
-    ).value =
-      column.header;
-  }
-);
+              AND (
+                $3::text = ''
+                OR qr.id::text = $3::text
+              )
 
-styleHeaderRow(
-  qrHeaderRow
-);
+              AND (
+                $4::text = ''
+                OR c.id::text = $4::text
+              )
 
-qrRows.forEach(row => {
-  qrSheet.addRow({
-    qr:
-      row.qrName,
+              AND (
+                $5::text = 'all'
 
-    location:
-      row.locationName,
+                OR (
+                  $5::text = 'active'
+                  AND COALESCE(
+                        c.is_archived,
+                        false
+                      ) = false
+                )
 
-    campaigns:
-      row.campaigns,
+                OR (
+                  $5::text = 'archived'
+                  AND COALESCE(
+                        c.is_archived,
+                        false
+                      ) = true
+                )
+              )
 
-    scans:
-      row.scans,
+            ORDER BY
+              s.name
+          `,
+          [
+            coreReportUserId,
+            locationId || "",
+            qrId || "",
+            campaignId || "",
+            status || "all"
+          ]
+        );
 
-    offerClicks:
-      row.offerClicks,
+      const coreQrOptionsResult =
+        await q(
+          `
+            SELECT DISTINCT
+              qr.id,
+              qr.name,
+              s.name AS location_name
 
-    mapClicks:
-      row.mapClicks,
+            FROM qr_codes qr
 
-    wazeClicks:
-      row.wazeClicks,
+            JOIN spaces s
+              ON s.id = qr.space_id
 
-    intent:
-      row.intent,
+            JOIN qr_campaigns qc
+              ON qc.qr_id = qr.id
+             AND COALESCE(
+                   qc.is_active,
+                   true
+                 ) = true
 
-    visitors:
-      row.visitors,
+            JOIN campaigns c
+              ON c.id = qc.campaign_id
 
-    clicks:
-      row.clicks,
+            WHERE (
+              $1::int IS NULL
+              OR s.user_id = $1
+              OR c.user_id = $1
+            )
 
-    conversions:
-      row.conversions,
+              AND (
+                $2::text = ''
+                OR s.id::text = $2::text
+              )
 
-    revenueGenerated:
-      row.revenueGenerated,
+              AND (
+                $3::text = ''
+                OR qr.id::text = $3::text
+              )
 
-    allocatedCost:
-      row.allocatedCost,
+              AND (
+                $4::text = ''
+                OR c.id::text = $4::text
+              )
 
-    cac:
-      row.cac,
+              AND (
+                $5::text = 'all'
 
-    roi:
-      row.roi / 100
-  });
-});
+                OR (
+                  $5::text = 'active'
+                  AND COALESCE(
+                        c.is_archived,
+                        false
+                      ) = false
+                )
 
-const qrStartRow = 5;
+                OR (
+                  $5::text = 'archived'
+                  AND COALESCE(
+                        c.is_archived,
+                        false
+                      ) = true
+                )
+              )
 
-if (
-  qrSheet.rowCount >=
-  qrStartRow
-) {
-  styleDataRows(
-    qrSheet,
-    qrStartRow,
-    qrSheet.rowCount
-  );
-}
+            ORDER BY
+              s.name,
+              qr.name
+          `,
+          [
+            coreReportUserId,
+            locationId || "",
+            qrId || "",
+            campaignId || "",
+            status || "all"
+          ]
+        );
 
-[
-  "C",
-  "D",
-  "E",
-  "F",
-  "G",
-  "H",
-  "I",
-  "J",
-  "K"
-].forEach(columnLetter => {
-  for (
-    let rowNumber =
-      qrStartRow;
-    rowNumber <=
-      qrSheet.rowCount;
-    rowNumber++
-  ) {
-    qrSheet.getCell(
-      `${columnLetter}${rowNumber}`
-    ).numFmt =
-      integerFormat;
-  }
-});
+      const summarizeCoreReportRows =
+        rows => {
+          const totals =
+            rows.reduce(
+              (
+                aggregate,
+                row
+              ) => {
+                aggregate.campaigns += 1;
 
-[
-  "L",
-  "M",
-  "N"
-].forEach(columnLetter => {
-  for (
-    let rowNumber =
-      qrStartRow;
-    rowNumber <=
-      qrSheet.rowCount;
-    rowNumber++
-  ) {
-    qrSheet.getCell(
-      `${columnLetter}${rowNumber}`
-    ).numFmt =
-      currencyFormat;
-  }
-});
+                aggregate.scans +=
+                  Number(
+                    row.scans || 0
+                  );
 
-qrSheet.getColumn(
-  "O"
-).numFmt =
-  percentageFormat;
+                aggregate.offerClicks +=
+                  Number(
+                    row.offerClicks || 0
+                  );
 
-qrSheet.autoFilter = {
-  from: {
-    row: 4,
-    column: 1
-  },
-  to: {
-    row: Math.max(
-      4,
-      qrSheet.rowCount
-    ),
-    column:
-      qrSheet.columnCount
-  }
-};
+                aggregate.mapClicks +=
+                  Number(
+                    row.mapClicks || 0
+                  );
 
-setPrintSettings(
-  qrSheet
-);
+                aggregate.wazeClicks +=
+                  Number(
+                    row.wazeClicks || 0
+                  );
 
-qrSheet.views = [
-  {
-    state: "frozen",
-    ySplit: 4,
-    xSplit: 2,
-    showGridLines: false
-  }
-];
+                aggregate.intent +=
+                  Number(
+                    row.intent || 0
+                  );
 
-qrSheet.pageSetup.printTitlesRow =
-  "1:4";
+                aggregate.visitors +=
+                  Number(
+                    row.visitors || 0
+                  );
 
-qrSheet.pageSetup.printArea =
-  `A1:O${Math.max(
-    4,
-    qrSheet.rowCount
-  )}`;
+                aggregate.clicks +=
+                  Number(
+                    row.clicks || 0
+                  );
+
+                aggregate.conversions +=
+                  Number(
+                    row.conversions || 0
+                  );
+
+                aggregate.revenueGenerated +=
+                  Number(
+                    row.revenueGenerated || 0
+                  );
+
+                aggregate.allocatedCost +=
+                  Number(
+                    row.allocatedCost || 0
+                  );
+
+                return aggregate;
+              },
+              {
+                campaigns: 0,
+                scans: 0,
+                offerClicks: 0,
+                mapClicks: 0,
+                wazeClicks: 0,
+                intent: 0,
+                visitors: 0,
+                clicks: 0,
+                conversions: 0,
+                revenueGenerated: 0,
+                allocatedCost: 0
+              }
+            );
+
+          totals.cac =
+            totals.conversions > 0
+              ? totals.allocatedCost /
+                totals.conversions
+              : 0;
+
+          totals.roi =
+            totals.allocatedCost > 0
+              ? (
+                  (
+                    totals.revenueGenerated -
+                    totals.allocatedCost
+                  ) /
+                  totals.allocatedCost
+                ) * 100
+              : 0;
+
+          return totals;
+        };
+
+      const coreLocationRows = [];
+
+      for (
+        const location of
+        coreLocationOptionsResult.rows
+      ) {
+        const rows =
+          await buildExportReportRows(
+            req,
+            startDate,
+            endDate,
+            String(location.id),
+            qrId,
+            campaignId,
+            status
+          );
+
+        coreLocationRows.push({
+          locationId:
+            Number(location.id),
+
+          locationName:
+            location.name || "",
+
+          ...summarizeCoreReportRows(
+            rows
+          )
+        });
+      }
+
+      const coreQrRows = [];
+
+      for (
+        const qr of
+        coreQrOptionsResult.rows
+      ) {
+        const rows =
+          await buildExportReportRows(
+            req,
+            startDate,
+            endDate,
+            locationId,
+            String(qr.id),
+            campaignId,
+            status
+          );
+
+        coreQrRows.push({
+          qrId:
+            Number(qr.id),
+
+          qrName:
+            qr.name || "",
+
+          locationName:
+            qr.location_name || "",
+
+          ...summarizeCoreReportRows(
+            rows
+          )
+        });
+      }
+
       /*
       =========================================================
       EXECUTIVE TOTALS
@@ -53038,615 +53062,653 @@ qrSheet.pageSetup.printArea =
 
       executiveSheet.pageSetup.printArea =
         `A1:B${executiveSheet.rowCount}`;
-/*
-=========================================================
-SHEET 2 — LOCATIONS
-=========================================================
-*/
 
-const locationsSheet =
-  workbook.addWorksheet(
-    "Locations",
-    {
-      views: [
+
+      /*
+      =========================================================
+      SHEET 2 — LOCATIONS
+      =========================================================
+      */
+
+      const coreLocationSummarySheet =
+        workbook.addWorksheet(
+          "Locations",
+          {
+            views: [
+              {
+                state: "frozen",
+                ySplit: 4,
+                xSplit: 1,
+                showGridLines: false
+              }
+            ]
+          }
+        );
+
+      coreLocationSummarySheet.columns = [
+        {
+          header: "Location",
+          key: "location",
+          width: 34
+        },
+        {
+          header: "Campaigns",
+          key: "campaigns",
+          width: 14
+        },
+        {
+          header: "Scans",
+          key: "scans",
+          width: 12
+        },
+        {
+          header: "Offer Clicks",
+          key: "offerClicks",
+          width: 15
+        },
+        {
+          header: "Map Clicks",
+          key: "mapClicks",
+          width: 14
+        },
+        {
+          header: "Waze Clicks",
+          key: "wazeClicks",
+          width: 14
+        },
+        {
+          header: "Intent",
+          key: "intent",
+          width: 12
+        },
+        {
+          header: "Visitors",
+          key: "visitors",
+          width: 12
+        },
+        {
+          header: "Clicks",
+          key: "clicks",
+          width: 12
+        },
+        {
+          header: "Conversions",
+          key: "conversions",
+          width: 14
+        },
+        {
+          header:
+            "Revenue Generated",
+          key:
+            "revenueGenerated",
+          width: 20
+        },
+        {
+          header:
+            "Allocated Cost",
+          key:
+            "allocatedCost",
+          width: 18
+        },
+        {
+          header: "CAC",
+          key: "cac",
+          width: 14
+        },
+        {
+          header: "ROI",
+          key: "roi",
+          width: 12
+        }
+      ];
+
+      coreLocationSummarySheet.insertRow(
+        1,
+        [
+          "Vivid Location Performance"
+        ]
+      );
+
+      coreLocationSummarySheet.mergeCells(
+        1,
+        1,
+        1,
+        coreLocationSummarySheet.columnCount
+      );
+
+      styleTitleRow(
+        coreLocationSummarySheet.getRow(1)
+      );
+
+      coreLocationSummarySheet.insertRow(
+        2,
+        [
+          `Reporting Period: ${startDate} through ${endDate}`
+        ]
+      );
+
+      coreLocationSummarySheet.mergeCells(
+        2,
+        1,
+        2,
+        coreLocationSummarySheet.columnCount
+      );
+
+      coreLocationSummarySheet.getCell(
+        "A2"
+      ).font = {
+        italic: true,
+        color: {
+          argb: colors.grayText
+        }
+      };
+
+      coreLocationSummarySheet.insertRow(
+        3,
+        []
+      );
+
+      const coreLocationHeaderRow =
+        coreLocationSummarySheet.getRow(4);
+
+      coreLocationSummarySheet.columns.forEach(
+        (
+          column,
+          index
+        ) => {
+          coreLocationHeaderRow.getCell(
+            index + 1
+          ).value =
+            column.header;
+        }
+      );
+
+      styleHeaderRow(
+        coreLocationHeaderRow
+      );
+
+      coreLocationRows.forEach(
+        row => {
+          coreLocationSummarySheet.addRow({
+            location:
+              row.locationName,
+
+            campaigns:
+              row.campaigns,
+
+            scans:
+              row.scans,
+
+            offerClicks:
+              row.offerClicks,
+
+            mapClicks:
+              row.mapClicks,
+
+            wazeClicks:
+              row.wazeClicks,
+
+            intent:
+              row.intent,
+
+            visitors:
+              row.visitors,
+
+            clicks:
+              row.clicks,
+
+            conversions:
+              row.conversions,
+
+            revenueGenerated:
+              row.revenueGenerated,
+
+            allocatedCost:
+              row.allocatedCost,
+
+            cac:
+              row.cac,
+
+            roi:
+              row.roi / 100
+          });
+        }
+      );
+
+      const coreLocationStartRow = 5;
+
+      if (
+        coreLocationSummarySheet.rowCount >=
+        coreLocationStartRow
+      ) {
+        styleDataRows(
+          coreLocationSummarySheet,
+          coreLocationStartRow,
+          coreLocationSummarySheet.rowCount
+        );
+      }
+
+      [
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H",
+        "I",
+        "J"
+      ].forEach(
+        columnLetter => {
+          for (
+            let rowNumber =
+              coreLocationStartRow;
+            rowNumber <=
+              coreLocationSummarySheet.rowCount;
+            rowNumber++
+          ) {
+            coreLocationSummarySheet.getCell(
+              `${columnLetter}${rowNumber}`
+            ).numFmt =
+              integerFormat;
+          }
+        }
+      );
+
+      [
+        "K",
+        "L",
+        "M"
+      ].forEach(
+        columnLetter => {
+          for (
+            let rowNumber =
+              coreLocationStartRow;
+            rowNumber <=
+              coreLocationSummarySheet.rowCount;
+            rowNumber++
+          ) {
+            coreLocationSummarySheet.getCell(
+              `${columnLetter}${rowNumber}`
+            ).numFmt =
+              currencyFormat;
+          }
+        }
+      );
+
+      coreLocationSummarySheet.getColumn(
+        "N"
+      ).numFmt =
+        percentageFormat;
+
+      coreLocationSummarySheet.autoFilter = {
+        from: {
+          row: 4,
+          column: 1
+        },
+        to: {
+          row:
+            Math.max(
+              4,
+              coreLocationSummarySheet.rowCount
+            ),
+          column:
+            coreLocationSummarySheet.columnCount
+        }
+      };
+
+      setPrintSettings(
+        coreLocationSummarySheet
+      );
+
+      coreLocationSummarySheet.views = [
         {
           state: "frozen",
           ySplit: 4,
           xSplit: 1,
           showGridLines: false
         }
-      ]
-    }
-  );
+      ];
 
-locationsSheet.columns = [
-  {
-    header: "Location",
-    key: "location",
-    width: 34
-  },
-  {
-    header: "Campaigns",
-    key: "campaigns",
-    width: 14
-  },
-  {
-    header: "Scans",
-    key: "scans",
-    width: 12
-  },
-  {
-    header: "Offer Clicks",
-    key: "offerClicks",
-    width: 15
-  },
-  {
-    header: "Map Clicks",
-    key: "mapClicks",
-    width: 14
-  },
-  {
-    header: "Waze Clicks",
-    key: "wazeClicks",
-    width: 14
-  },
-  {
-    header: "Intent",
-    key: "intent",
-    width: 12
-  },
-  {
-    header: "Visitors",
-    key: "visitors",
-    width: 12
-  },
-  {
-    header: "Clicks",
-    key: "clicks",
-    width: 12
-  },
-  {
-    header: "Conversions",
-    key: "conversions",
-    width: 14
-  },
-  {
-    header: "Revenue Generated",
-    key: "revenueGenerated",
-    width: 20
-  },
-  {
-    header: "Allocated Cost",
-    key: "allocatedCost",
-    width: 18
-  },
-  {
-    header: "CAC",
-    key: "cac",
-    width: 14
-  },
-  {
-    header: "ROI",
-    key: "roi",
-    width: 12
-  }
-];
+      coreLocationSummarySheet.pageSetup.printTitlesRow =
+        "1:4";
 
-locationsSheet.insertRow(
-  1,
-  [
-    "Vivid Location Performance"
-  ]
-);
+      coreLocationSummarySheet.pageSetup.printArea =
+        `A1:N${Math.max(
+          4,
+          coreLocationSummarySheet.rowCount
+        )}`;
 
-locationsSheet.mergeCells(
-  1,
-  1,
-  1,
-  locationsSheet.columnCount
-);
+      /*
+      =========================================================
+      SHEET 3 — QR PLACEMENTS
+      =========================================================
+      */
 
-styleTitleRow(
-  locationsSheet.getRow(1)
-);
+      const coreQrSummarySheet =
+        workbook.addWorksheet(
+          "QR Placements",
+          {
+            views: [
+              {
+                state: "frozen",
+                ySplit: 4,
+                xSplit: 2,
+                showGridLines: false
+              }
+            ]
+          }
+        );
 
-locationsSheet.insertRow(
-  2,
-  [
-    `Reporting Period: ${startDate} through ${endDate}`
-  ]
-);
+      coreQrSummarySheet.columns = [
+        {
+          header:
+            "QR Placement",
+          key: "qr",
+          width: 34
+        },
+        {
+          header: "Location",
+          key: "location",
+          width: 32
+        },
+        {
+          header: "Campaigns",
+          key: "campaigns",
+          width: 14
+        },
+        {
+          header: "Scans",
+          key: "scans",
+          width: 12
+        },
+        {
+          header:
+            "Offer Clicks",
+          key:
+            "offerClicks",
+          width: 15
+        },
+        {
+          header:
+            "Map Clicks",
+          key:
+            "mapClicks",
+          width: 14
+        },
+        {
+          header:
+            "Waze Clicks",
+          key:
+            "wazeClicks",
+          width: 14
+        },
+        {
+          header: "Intent",
+          key: "intent",
+          width: 12
+        },
+        {
+          header: "Visitors",
+          key: "visitors",
+          width: 12
+        },
+        {
+          header: "Clicks",
+          key: "clicks",
+          width: 12
+        },
+        {
+          header: "Conversions",
+          key: "conversions",
+          width: 14
+        },
+        {
+          header:
+            "Revenue Generated",
+          key:
+            "revenueGenerated",
+          width: 20
+        },
+        {
+          header:
+            "Allocated Cost",
+          key:
+            "allocatedCost",
+          width: 18
+        },
+        {
+          header: "CAC",
+          key: "cac",
+          width: 14
+        },
+        {
+          header: "ROI",
+          key: "roi",
+          width: 12
+        }
+      ];
 
-locationsSheet.mergeCells(
-  2,
-  1,
-  2,
-  locationsSheet.columnCount
-);
+      coreQrSummarySheet.insertRow(
+        1,
+        [
+          "Vivid QR Placement Performance"
+        ]
+      );
 
-locationsSheet.getCell(
-  "A2"
-).font = {
-  italic: true,
-  color: {
-    argb: colors.grayText
-  }
-};
+      coreQrSummarySheet.mergeCells(
+        1,
+        1,
+        1,
+        coreQrSummarySheet.columnCount
+      );
 
-locationsSheet.insertRow(
-  3,
-  []
-);
+      styleTitleRow(
+        coreQrSummarySheet.getRow(1)
+      );
 
-const locationsHeaderRow =
-  locationsSheet.getRow(4);
+      coreQrSummarySheet.insertRow(
+        2,
+        [
+          `Reporting Period: ${startDate} through ${endDate}`
+        ]
+      );
 
-locationsSheet.columns.forEach(
-  (column, index) => {
-    locationsHeaderRow.getCell(
-      index + 1
-    ).value =
-      column.header;
-  }
-);
+      coreQrSummarySheet.mergeCells(
+        2,
+        1,
+        2,
+        coreQrSummarySheet.columnCount
+      );
 
-styleHeaderRow(
-  locationsHeaderRow
-);
+      coreQrSummarySheet.getCell(
+        "A2"
+      ).font = {
+        italic: true,
+        color: {
+          argb: colors.grayText
+        }
+      };
 
-locationRows.forEach(row => {
-  locationsSheet.addRow({
-    location:
-      row.locationName,
+      coreQrSummarySheet.insertRow(
+        3,
+        []
+      );
 
-    campaigns:
-      row.campaigns,
+      const coreQrHeaderRow =
+        coreQrSummarySheet.getRow(4);
 
-    scans:
-      row.scans,
+      coreQrSummarySheet.columns.forEach(
+        (
+          column,
+          index
+        ) => {
+          coreQrHeaderRow.getCell(
+            index + 1
+          ).value =
+            column.header;
+        }
+      );
 
-    offerClicks:
-      row.offerClicks,
+      styleHeaderRow(
+        coreQrHeaderRow
+      );
 
-    mapClicks:
-      row.mapClicks,
+      coreQrRows.forEach(
+        row => {
+          coreQrSummarySheet.addRow({
+            qr:
+              row.qrName,
 
-    wazeClicks:
-      row.wazeClicks,
+            location:
+              row.locationName,
 
-    intent:
-      row.intent,
+            campaigns:
+              row.campaigns,
 
-    visitors:
-      row.visitors,
+            scans:
+              row.scans,
 
-    clicks:
-      row.clicks,
+            offerClicks:
+              row.offerClicks,
 
-    conversions:
-      row.conversions,
+            mapClicks:
+              row.mapClicks,
 
-    revenueGenerated:
-      row.revenueGenerated,
+            wazeClicks:
+              row.wazeClicks,
 
-    allocatedCost:
-      row.allocatedCost,
+            intent:
+              row.intent,
 
-    cac:
-      row.cac,
+            visitors:
+              row.visitors,
 
-    roi:
-      row.roi / 100
-  });
-});
+            clicks:
+              row.clicks,
 
-const locationsStartRow = 5;
+            conversions:
+              row.conversions,
 
-if (
-  locationsSheet.rowCount >=
-  locationsStartRow
-) {
-  styleDataRows(
-    locationsSheet,
-    locationsStartRow,
-    locationsSheet.rowCount
-  );
-}
+            revenueGenerated:
+              row.revenueGenerated,
 
-[
-  "B",
-  "C",
-  "D",
-  "E",
-  "F",
-  "G",
-  "H",
-  "I",
-  "J"
-].forEach(columnLetter => {
-  for (
-    let rowNumber =
-      locationsStartRow;
-    rowNumber <=
-      locationsSheet.rowCount;
-    rowNumber++
-  ) {
-    locationsSheet.getCell(
-      `${columnLetter}${rowNumber}`
-    ).numFmt =
-      integerFormat;
-  }
-});
+            allocatedCost:
+              row.allocatedCost,
 
-[
-  "K",
-  "L",
-  "M"
-].forEach(columnLetter => {
-  for (
-    let rowNumber =
-      locationsStartRow;
-    rowNumber <=
-      locationsSheet.rowCount;
-    rowNumber++
-  ) {
-    locationsSheet.getCell(
-      `${columnLetter}${rowNumber}`
-    ).numFmt =
-      currencyFormat;
-  }
-});
+            cac:
+              row.cac,
 
-locationsSheet.getColumn(
-  "N"
-).numFmt =
-  percentageFormat;
+            roi:
+              row.roi / 100
+          });
+        }
+      );
 
-locationsSheet.autoFilter = {
-  from: {
-    row: 4,
-    column: 1
-  },
-  to: {
-    row: Math.max(
-      4,
-      locationsSheet.rowCount
-    ),
-    column:
-      locationsSheet.columnCount
-  }
-};
+      const coreQrStartRow = 5;
 
-setPrintSettings(
-  locationsSheet
-);
+      if (
+        coreQrSummarySheet.rowCount >=
+        coreQrStartRow
+      ) {
+        styleDataRows(
+          coreQrSummarySheet,
+          coreQrStartRow,
+          coreQrSummarySheet.rowCount
+        );
+      }
 
-locationsSheet.views = [
-  {
-    state: "frozen",
-    ySplit: 4,
-    xSplit: 1,
-    showGridLines: false
-  }
-];
+      [
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H",
+        "I",
+        "J",
+        "K"
+      ].forEach(
+        columnLetter => {
+          for (
+            let rowNumber =
+              coreQrStartRow;
+            rowNumber <=
+              coreQrSummarySheet.rowCount;
+            rowNumber++
+          ) {
+            coreQrSummarySheet.getCell(
+              `${columnLetter}${rowNumber}`
+            ).numFmt =
+              integerFormat;
+          }
+        }
+      );
 
-locationsSheet.pageSetup.printTitlesRow =
-  "1:4";
+      [
+        "L",
+        "M",
+        "N"
+      ].forEach(
+        columnLetter => {
+          for (
+            let rowNumber =
+              coreQrStartRow;
+            rowNumber <=
+              coreQrSummarySheet.rowCount;
+            rowNumber++
+          ) {
+            coreQrSummarySheet.getCell(
+              `${columnLetter}${rowNumber}`
+            ).numFmt =
+              currencyFormat;
+          }
+        }
+      );
 
-locationsSheet.pageSetup.printArea =
-  `A1:N${Math.max(
-    4,
-    locationsSheet.rowCount
-  )}`;
+      coreQrSummarySheet.getColumn(
+        "O"
+      ).numFmt =
+        percentageFormat;
 
-/*
-=========================================================
-SHEET 3 — QR PLACEMENTS
-=========================================================
-*/
+      coreQrSummarySheet.autoFilter = {
+        from: {
+          row: 4,
+          column: 1
+        },
+        to: {
+          row:
+            Math.max(
+              4,
+              coreQrSummarySheet.rowCount
+            ),
+          column:
+            coreQrSummarySheet.columnCount
+        }
+      };
 
-const qrSheet =
-  workbook.addWorksheet(
-    "QR Placements",
-    {
-      views: [
+      setPrintSettings(
+        coreQrSummarySheet
+      );
+
+      coreQrSummarySheet.views = [
         {
           state: "frozen",
           ySplit: 4,
           xSplit: 2,
           showGridLines: false
         }
-      ]
-    }
-  );
+      ];
 
-qrSheet.columns = [
-  {
-    header: "QR Placement",
-    key: "qr",
-    width: 34
-  },
-  {
-    header: "Location",
-    key: "location",
-    width: 32
-  },
-  {
-    header: "Campaigns",
-    key: "campaigns",
-    width: 14
-  },
-  {
-    header: "Scans",
-    key: "scans",
-    width: 12
-  },
-  {
-    header: "Offer Clicks",
-    key: "offerClicks",
-    width: 15
-  },
-  {
-    header: "Map Clicks",
-    key: "mapClicks",
-    width: 14
-  },
-  {
-    header: "Waze Clicks",
-    key: "wazeClicks",
-    width: 14
-  },
-  {
-    header: "Intent",
-    key: "intent",
-    width: 12
-  },
-  {
-    header: "Visitors",
-    key: "visitors",
-    width: 12
-  },
-  {
-    header: "Clicks",
-    key: "clicks",
-    width: 12
-  },
-  {
-    header: "Conversions",
-    key: "conversions",
-    width: 14
-  },
-  {
-    header: "Revenue Generated",
-    key: "revenueGenerated",
-    width: 20
-  },
-  {
-    header: "Allocated Cost",
-    key: "allocatedCost",
-    width: 18
-  },
-  {
-    header: "CAC",
-    key: "cac",
-    width: 14
-  },
-  {
-    header: "ROI",
-    key: "roi",
-    width: 12
-  }
-];
+      coreQrSummarySheet.pageSetup.printTitlesRow =
+        "1:4";
 
-qrSheet.insertRow(
-  1,
-  [
-    "Vivid QR Placement Performance"
-  ]
-);
+      coreQrSummarySheet.pageSetup.printArea =
+        `A1:O${Math.max(
+          4,
+          coreQrSummarySheet.rowCount
+        )}`;
 
-qrSheet.mergeCells(
-  1,
-  1,
-  1,
-  qrSheet.columnCount
-);
-
-styleTitleRow(
-  qrSheet.getRow(1)
-);
-
-qrSheet.insertRow(
-  2,
-  [
-    `Reporting Period: ${startDate} through ${endDate}`
-  ]
-);
-
-qrSheet.mergeCells(
-  2,
-  1,
-  2,
-  qrSheet.columnCount
-);
-
-qrSheet.getCell(
-  "A2"
-).font = {
-  italic: true,
-  color: {
-    argb: colors.grayText
-  }
-};
-
-qrSheet.insertRow(
-  3,
-  []
-);
-
-const qrHeaderRow =
-  qrSheet.getRow(4);
-
-qrSheet.columns.forEach(
-  (column, index) => {
-    qrHeaderRow.getCell(
-      index + 1
-    ).value =
-      column.header;
-  }
-);
-
-styleHeaderRow(
-  qrHeaderRow
-);
-
-qrRows.forEach(row => {
-  qrSheet.addRow({
-    qr:
-      row.qrName,
-
-    location:
-      row.locationName,
-
-    campaigns:
-      row.campaigns,
-
-    scans:
-      row.scans,
-
-    offerClicks:
-      row.offerClicks,
-
-    mapClicks:
-      row.mapClicks,
-
-    wazeClicks:
-      row.wazeClicks,
-
-    intent:
-      row.intent,
-
-    visitors:
-      row.visitors,
-
-    clicks:
-      row.clicks,
-
-    conversions:
-      row.conversions,
-
-    revenueGenerated:
-      row.revenueGenerated,
-
-    allocatedCost:
-      row.allocatedCost,
-
-    cac:
-      row.cac,
-
-    roi:
-      row.roi / 100
-  });
-});
-
-const qrStartRow = 5;
-
-if (
-  qrSheet.rowCount >=
-  qrStartRow
-) {
-  styleDataRows(
-    qrSheet,
-    qrStartRow,
-    qrSheet.rowCount
-  );
-}
-
-[
-  "C",
-  "D",
-  "E",
-  "F",
-  "G",
-  "H",
-  "I",
-  "J",
-  "K"
-].forEach(columnLetter => {
-  for (
-    let rowNumber =
-      qrStartRow;
-    rowNumber <=
-      qrSheet.rowCount;
-    rowNumber++
-  ) {
-    qrSheet.getCell(
-      `${columnLetter}${rowNumber}`
-    ).numFmt =
-      integerFormat;
-  }
-});
-
-[
-  "L",
-  "M",
-  "N"
-].forEach(columnLetter => {
-  for (
-    let rowNumber =
-      qrStartRow;
-    rowNumber <=
-      qrSheet.rowCount;
-    rowNumber++
-  ) {
-    qrSheet.getCell(
-      `${columnLetter}${rowNumber}`
-    ).numFmt =
-      currencyFormat;
-  }
-});
-
-qrSheet.getColumn(
-  "O"
-).numFmt =
-  percentageFormat;
-
-qrSheet.autoFilter = {
-  from: {
-    row: 4,
-    column: 1
-  },
-  to: {
-    row: Math.max(
-      4,
-      qrSheet.rowCount
-    ),
-    column:
-      qrSheet.columnCount
-  }
-};
-
-setPrintSettings(
-  qrSheet
-);
-
-qrSheet.views = [
-  {
-    state: "frozen",
-    ySplit: 4,
-    xSplit: 2,
-    showGridLines: false
-  }
-];
-
-qrSheet.pageSetup.printTitlesRow =
-  "1:4";
-
-qrSheet.pageSetup.printArea =
-  `A1:O${Math.max(
-    4,
-    qrSheet.rowCount
-  )}`;
       /*
       =========================================================
       SHEET 2 — CAMPAIGN SUMMARY
@@ -54952,9 +55014,13 @@ qrSheet.pageSetup.printArea =
       }
 
       res.end();
-    }
-  }
-);
+       
+
+   
+    
+
+
+
 
 app.get(
   "/export/report.pdf",
