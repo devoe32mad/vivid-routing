@@ -11139,7 +11139,1674 @@ res.end();
 ORGANIZATION EXPORT CENTER
 =========================================================
 */
+/*
+=========================================================
+ORGANIZATION EXECUTIVE PDF
+=========================================================
+*/
 
+app.get(
+  "/org-export/report.pdf",
+  async (req, res) => {
+    try {
+      const organizationId = Number(
+        req.query.organization_id
+      );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Valid organization is required."
+          );
+      }
+
+      const isSuperAdmin =
+        req.session.user?.role ===
+        "super_admin";
+
+      const organizationUser =
+        req.session.orgUser;
+
+      const isOrganizationUser =
+        organizationUser &&
+        Number(
+          organizationUser.organization_id
+        ) === organizationId;
+
+      if (
+        !isSuperAdmin &&
+        !isOrganizationUser
+      ) {
+        return res
+          .status(403)
+          .send("Access denied");
+      }
+
+      const organizationRole =
+        String(
+          organizationUser
+            ?.organization_role || ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const hasOrganizationWideAccess =
+        isSuperAdmin ||
+        [
+          "owner",
+          "organization_admin",
+          "district_admin"
+        ].includes(organizationRole);
+
+      /*
+      Until location scoping is added to the shared
+      report helper, prevent local managers from receiving
+      organization-wide data.
+      */
+
+      if (!hasOrganizationWideAccess) {
+        return res
+          .status(403)
+          .send(
+            "Location-scoped reporting is being configured for this account."
+          );
+      }
+
+      const dateFilter =
+        getOrgDateFilter(req);
+
+      if (dateFilter.error) {
+        return res
+          .status(400)
+          .send(dateFilter.error);
+      }
+
+      const {
+        fromDate,
+        toDate
+      } = dateFilter;
+
+      const data =
+        await buildOrganizationExportData(
+          req,
+          organizationId,
+          fromDate,
+          toDate
+        );
+
+      const generatedAt =
+        new Date();
+
+      const generatedBy =
+        req.session.user?.name ||
+        req.session.user?.email ||
+        organizationUser?.name ||
+        organizationUser?.email ||
+        "Organization User";
+
+      const safeOrganizationName =
+        String(
+          data.organization.name ||
+          "Organization"
+        )
+          .replace(
+            /[^a-z0-9-_ ]/gi,
+            ""
+          )
+          .trim()
+          .replace(/\s+/g, "-");
+
+      res.setHeader(
+        "Content-Type",
+        "application/pdf"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${safeOrganizationName}-Executive-Report.pdf"`
+      );
+
+      const doc =
+        new PDFDocument({
+          size: "LETTER",
+          margin: 42,
+          bufferPages: true,
+          info: {
+            Title:
+              `${data.organization.name} Executive Report`,
+            Author: "Vivid",
+            Subject:
+              "Organization Executive Performance Report"
+          }
+        });
+
+      doc.pipe(res);
+
+      /*
+      =====================================================
+      HELPERS
+      =====================================================
+      */
+
+      const green =
+        "#123d25";
+
+      const mediumGreen =
+        "#2f7d46";
+
+      const lightGreen =
+        "#eef5ef";
+
+      const borderColor =
+        "#d8e4d8";
+
+      const textColor =
+        "#111827";
+
+      const mutedColor =
+        "#64748b";
+
+      const moneyValue = value =>
+        Number(value || 0)
+          .toLocaleString(
+            "en-US",
+            {
+              style: "currency",
+              currency: "USD"
+            }
+          );
+
+      const numberValue = value =>
+        Number(value || 0)
+          .toLocaleString(
+            "en-US"
+          );
+
+      const percentValue = value =>
+        `${Number(value || 0).toFixed(1)}%`;
+
+      const dateValue = value => {
+        if (!value) {
+          return "";
+        }
+
+        const date =
+          new Date(value);
+
+        if (
+          Number.isNaN(
+            date.getTime()
+          )
+        ) {
+          return "";
+        }
+
+        return date.toLocaleDateString(
+          "en-US"
+        );
+      };
+
+      const dateTimeValue = value => {
+        if (!value) {
+          return "";
+        }
+
+        const date =
+          new Date(value);
+
+        if (
+          Number.isNaN(
+            date.getTime()
+          )
+        ) {
+          return "";
+        }
+
+        return date.toLocaleString(
+          "en-US"
+        );
+      };
+
+      const reportingPeriod =
+        fromDate || toDate
+          ? `${fromDate || "Beginning"} through ${toDate || "Current"}`
+          : "All available reporting data";
+
+      const ensureSpace = height => {
+        const bottom =
+          doc.page.height -
+          doc.page.margins.bottom;
+
+        if (
+          doc.y + height >
+          bottom
+        ) {
+          doc.addPage();
+        }
+      };
+
+      const sectionTitle = title => {
+        ensureSpace(42);
+
+        doc
+          .fillColor(green)
+          .fontSize(16)
+          .font("Helvetica-Bold")
+          .text(title);
+
+        doc.moveDown(0.35);
+
+        doc
+          .strokeColor(
+            borderColor
+          )
+          .lineWidth(1)
+          .moveTo(
+            doc.page.margins.left,
+            doc.y
+          )
+          .lineTo(
+            doc.page.width -
+              doc.page.margins.right,
+            doc.y
+          )
+          .stroke();
+
+        doc.moveDown(0.75);
+      };
+
+      const drawMetricTable = rows => {
+        const left =
+          doc.page.margins.left;
+
+        const totalWidth =
+          doc.page.width -
+          doc.page.margins.left -
+          doc.page.margins.right;
+
+        const labelWidth =
+          totalWidth * 0.62;
+
+        const valueWidth =
+          totalWidth -
+          labelWidth;
+
+        const rowHeight = 25;
+
+        rows.forEach(
+          (row, index) => {
+            ensureSpace(rowHeight);
+
+            const y =
+              doc.y;
+
+            if (
+              index % 2 === 0
+            ) {
+              doc
+                .rect(
+                  left,
+                  y,
+                  totalWidth,
+                  rowHeight
+                )
+                .fill(
+                  lightGreen
+                );
+            }
+
+            doc
+              .strokeColor(
+                borderColor
+              )
+              .lineWidth(0.5)
+              .rect(
+                left,
+                y,
+                totalWidth,
+                rowHeight
+              )
+              .stroke();
+
+            doc
+              .fillColor(
+                textColor
+              )
+              .font(
+                "Helvetica"
+              )
+              .fontSize(9)
+              .text(
+                String(
+                  row.label || ""
+                ),
+                left + 8,
+                y + 8,
+                {
+                  width:
+                    labelWidth - 16
+                }
+              );
+
+            doc
+              .fillColor(
+                green
+              )
+              .font(
+                "Helvetica-Bold"
+              )
+              .fontSize(9)
+              .text(
+                String(
+                  row.value ?? ""
+                ),
+                left +
+                  labelWidth,
+                y + 8,
+                {
+                  width:
+                    valueWidth - 8,
+                  align: "right"
+                }
+              );
+
+            doc.y =
+              y + rowHeight;
+          }
+        );
+
+        doc.moveDown(0.75);
+      };
+
+      const drawTable = ({
+        columns,
+        rows,
+        rowMapper,
+        fontSize = 7,
+        minimumRowHeight = 24
+      }) => {
+        const left =
+          doc.page.margins.left;
+
+        const totalWidth =
+          doc.page.width -
+          doc.page.margins.left -
+          doc.page.margins.right;
+
+        const normalizedColumns =
+          columns.map(column => ({
+            ...column,
+            width:
+              totalWidth *
+              column.ratio
+          }));
+
+        const drawHeader = () => {
+          ensureSpace(32);
+
+          const y =
+            doc.y;
+
+          doc
+            .rect(
+              left,
+              y,
+              totalWidth,
+              28
+            )
+            .fill(green);
+
+          let x = left;
+
+          normalizedColumns.forEach(
+            column => {
+              doc
+                .fillColor(
+                  "#ffffff"
+                )
+                .font(
+                  "Helvetica-Bold"
+                )
+                .fontSize(
+                  fontSize
+                )
+                .text(
+                  column.label,
+                  x + 4,
+                  y + 7,
+                  {
+                    width:
+                      column.width -
+                      8,
+                    align:
+                      column.align ||
+                      "left"
+                  }
+                );
+
+              x +=
+                column.width;
+            }
+          );
+
+          doc.y =
+            y + 28;
+        };
+
+        drawHeader();
+
+        if (!rows.length) {
+          ensureSpace(28);
+
+          doc
+            .fillColor(
+              mutedColor
+            )
+            .font(
+              "Helvetica"
+            )
+            .fontSize(9)
+            .text(
+              "No records found for the selected reporting period."
+            );
+
+          doc.moveDown();
+          return;
+        }
+
+        rows.forEach(
+          (sourceRow, index) => {
+            const values =
+              rowMapper(
+                sourceRow
+              );
+
+            let rowHeight =
+              minimumRowHeight;
+
+            normalizedColumns.forEach(
+              (column, columnIndex) => {
+                const value =
+                  String(
+                    values[
+                      columnIndex
+                    ] ?? ""
+                  );
+
+                const height =
+                  doc.heightOfString(
+                    value,
+                    {
+                      width:
+                        column.width -
+                        8,
+                      align:
+                        column.align ||
+                        "left"
+                    }
+                  ) + 12;
+
+                rowHeight =
+                  Math.max(
+                    rowHeight,
+                    height
+                  );
+              }
+            );
+
+            const pageBottom =
+              doc.page.height -
+              doc.page.margins.bottom;
+
+            if (
+              doc.y +
+                rowHeight >
+              pageBottom
+            ) {
+              doc.addPage();
+              drawHeader();
+            }
+
+            const y =
+              doc.y;
+
+            if (
+              index % 2 === 0
+            ) {
+              doc
+                .rect(
+                  left,
+                  y,
+                  totalWidth,
+                  rowHeight
+                )
+                .fill(
+                  lightGreen
+                );
+            }
+
+            let x = left;
+
+            normalizedColumns.forEach(
+              (column, columnIndex) => {
+                doc
+                  .strokeColor(
+                    borderColor
+                  )
+                  .lineWidth(
+                    0.4
+                  )
+                  .rect(
+                    x,
+                    y,
+                    column.width,
+                    rowHeight
+                  )
+                  .stroke();
+
+                doc
+                  .fillColor(
+                    textColor
+                  )
+                  .font(
+                    "Helvetica"
+                  )
+                  .fontSize(
+                    fontSize
+                  )
+                  .text(
+                    String(
+                      values[
+                        columnIndex
+                      ] ?? ""
+                    ),
+                    x + 4,
+                    y + 6,
+                    {
+                      width:
+                        column.width -
+                        8,
+                      align:
+                        column.align ||
+                        "left"
+                    }
+                  );
+
+                x +=
+                  column.width;
+              }
+            );
+
+            doc.y =
+              y + rowHeight;
+          }
+        );
+
+        doc.moveDown(0.75);
+      };
+
+      /*
+      =====================================================
+      COVER PAGE
+      =====================================================
+      */
+
+      doc
+        .rect(
+          0,
+          0,
+          doc.page.width,
+          165
+        )
+        .fill(green);
+
+      doc
+        .fillColor(
+          "#d7eadb"
+        )
+        .font(
+          "Helvetica-Bold"
+        )
+        .fontSize(11)
+        .text(
+          "VIVID ORGANIZATIONS",
+          42,
+          48,
+          {
+            characterSpacing: 1.5
+          }
+        );
+
+      doc
+        .fillColor(
+          "#ffffff"
+        )
+        .font(
+          "Helvetica-Bold"
+        )
+        .fontSize(27)
+        .text(
+          "Executive Report",
+          42,
+          78
+        );
+
+      doc
+        .fillColor(
+          "#ffffff"
+        )
+        .font(
+          "Helvetica"
+        )
+        .fontSize(15)
+        .text(
+          data.organization.name,
+          42,
+          119
+        );
+
+      doc.y = 210;
+
+      drawMetricTable([
+        {
+          label:
+            "Organization",
+          value:
+            data.organization.name
+        },
+        {
+          label:
+            "Report Type",
+          value:
+            "Organization Executive Report"
+        },
+        {
+          label:
+            "Reporting Period",
+          value:
+            reportingPeriod
+        },
+        {
+          label:
+            "Generated",
+          value:
+            dateTimeValue(
+              generatedAt
+            )
+        },
+        {
+          label:
+            "Generated By",
+          value:
+            generatedBy
+        },
+        {
+          label:
+            "Classification",
+          value:
+            "Confidential"
+        }
+      ]);
+
+      doc.moveDown(2);
+
+      doc
+        .fillColor(
+          mutedColor
+        )
+        .font(
+          "Helvetica"
+        )
+        .fontSize(9)
+        .text(
+          "This report combines organization advertising revenue, inventory, advertiser performance, conversions, and attributed advertiser revenue from the existing Vivid reporting data.",
+          {
+            align: "center"
+          }
+        );
+
+      /*
+      =====================================================
+      EXECUTIVE SUMMARY
+      =====================================================
+      */
+
+      doc.addPage();
+
+      sectionTitle(
+        "Executive Summary"
+      );
+
+      drawMetricTable([
+        {
+          label:
+            "Approved Revenue",
+          value:
+            moneyValue(
+              data.summary
+                .approvedRevenue
+            )
+        },
+        {
+          label:
+            "Pending Revenue",
+          value:
+            moneyValue(
+              data.summary
+                .pendingRevenue
+            )
+        },
+        {
+          label:
+            "Available Revenue",
+          value:
+            moneyValue(
+              data.summary
+                .availableRevenue
+            )
+        },
+        {
+          label:
+            "Advertiser Revenue",
+          value:
+            moneyValue(
+              data.summary
+                .advertiserRevenue
+            )
+        },
+        {
+          label:
+            "Economic Impact",
+          value:
+            moneyValue(
+              data.summary
+                .economicImpact
+            )
+        },
+        {
+          label:
+            "Placement Value",
+          value:
+            moneyValue(
+              data.summary
+                .placementValue
+            )
+        },
+        {
+          label:
+            "Inventory Utilization",
+          value:
+            percentValue(
+              data.summary
+                .inventoryUtilization
+            )
+        },
+        {
+          label:
+            "Locations",
+          value:
+            numberValue(
+              data.summary.locations
+            )
+        },
+        {
+          label:
+            "QR Placements",
+          value:
+            numberValue(
+              data.summary.placements
+            )
+        },
+        {
+          label:
+            "Advertisers",
+          value:
+            numberValue(
+              data.summary.advertisers
+            )
+        },
+        {
+          label:
+            "Campaigns",
+          value:
+            numberValue(
+              data.summary.campaigns
+            )
+        },
+        {
+          label:
+            "Customer Actions",
+          value:
+            numberValue(
+              data.summary
+                .customerActions
+            )
+        },
+        {
+          label:
+            "Visitors",
+          value:
+            numberValue(
+              data.summary.visitors
+            )
+        },
+        {
+          label:
+            "Clicks",
+          value:
+            numberValue(
+              data.summary.clicks
+            )
+        },
+        {
+          label:
+            "Scans",
+          value:
+            numberValue(
+              data.summary.scans
+            )
+        },
+        {
+          label:
+            "Intent",
+          value:
+            numberValue(
+              data.summary.intent
+            )
+        },
+        {
+          label:
+            "Conversions",
+          value:
+            numberValue(
+              data.summary
+                .conversions
+            )
+        },
+        {
+          label:
+            "Conversion Rate",
+          value:
+            percentValue(
+              data.summary
+                .conversionRate
+            )
+        }
+      ]);
+
+      /*
+      =====================================================
+      LOCATIONS
+      =====================================================
+      */
+
+      doc.addPage();
+
+      sectionTitle(
+        "Location Performance"
+      );
+
+      drawTable({
+        columns: [
+          {
+            label: "Location",
+            ratio: 0.22
+          },
+          {
+            label: "Placements",
+            ratio: 0.09,
+            align: "right"
+          },
+          {
+            label: "Campaigns",
+            ratio: 0.09,
+            align: "right"
+          },
+          {
+            label: "Advertisers",
+            ratio: 0.09,
+            align: "right"
+          },
+          {
+            label: "Internal Revenue",
+            ratio: 0.14,
+            align: "right"
+          },
+          {
+            label: "Advertiser Revenue",
+            ratio: 0.14,
+            align: "right"
+          },
+          {
+            label: "Economic Impact",
+            ratio: 0.14,
+            align: "right"
+          },
+          {
+            label: "Conversions",
+            ratio: 0.09,
+            align: "right"
+          }
+        ],
+        rows:
+          data.locations,
+        rowMapper: row => [
+          row.locationName ||
+            "",
+          numberValue(
+            row.placements
+          ),
+          numberValue(
+            row.campaigns
+          ),
+          numberValue(
+            row.advertisers
+          ),
+          moneyValue(
+            row.internalRevenue
+          ),
+          moneyValue(
+            row.advertiserRevenue
+          ),
+          moneyValue(
+            row.economicImpact
+          ),
+          numberValue(
+            row.conversions
+          )
+        ]
+      });
+
+      /*
+      =====================================================
+      QR PLACEMENTS
+      =====================================================
+      */
+
+      doc.addPage();
+
+      sectionTitle(
+        "QR Placement Performance"
+      );
+
+      drawTable({
+        columns: [
+          {
+            label:
+              "QR Placement",
+            ratio: 0.22
+          },
+          {
+            label:
+              "Location",
+            ratio: 0.20
+          },
+          {
+            label:
+              "Placement Value",
+            ratio: 0.13,
+            align: "right"
+          },
+          {
+            label:
+              "Internal Revenue",
+            ratio: 0.13,
+            align: "right"
+          },
+          {
+            label:
+              "Advertiser Revenue",
+            ratio: 0.13,
+            align: "right"
+          },
+          {
+            label:
+              "Economic Impact",
+            ratio: 0.12,
+            align: "right"
+          },
+          {
+            label:
+              "Conversions",
+            ratio: 0.07,
+            align: "right"
+          }
+        ],
+        rows:
+          data.placements,
+        rowMapper: row => [
+          row.qrName || "",
+          row.locationName ||
+            "",
+          moneyValue(
+            row.placementValue
+          ),
+          moneyValue(
+            row.internalRevenue
+          ),
+          moneyValue(
+            row.advertiserRevenue
+          ),
+          moneyValue(
+            row.economicImpact
+          ),
+          numberValue(
+            row.conversions
+          )
+        ]
+      });
+
+      /*
+      =====================================================
+      APPROVED OPPORTUNITIES
+      =====================================================
+      */
+
+      doc.addPage();
+
+      sectionTitle(
+        "Approved Opportunities"
+      );
+
+      drawTable({
+        columns: [
+          {
+            label:
+              "Advertiser",
+            ratio: 0.19
+          },
+          {
+            label:
+              "Opportunity",
+            ratio: 0.27
+          },
+          {
+            label:
+              "Location",
+            ratio: 0.22
+          },
+          {
+            label:
+              "Approved Price",
+            ratio: 0.14,
+            align: "right"
+          },
+          {
+            label:
+              "Pricing Unit",
+            ratio: 0.10
+          },
+          {
+            label:
+              "Approved",
+            ratio: 0.08
+          }
+        ],
+        rows:
+          data.approvedOpportunities,
+        rowMapper: row => [
+          row.advertiser || "",
+          row.opportunityName ||
+            "",
+          row.locationName ||
+            "",
+          moneyValue(
+            row.approvedPrice
+          ),
+          row.pricingUnit ||
+            "",
+          dateValue(
+            row.approvedAt
+          )
+        ]
+      });
+
+      /*
+      =====================================================
+      PENDING AND AVAILABLE
+      =====================================================
+      */
+
+      doc.addPage();
+
+      sectionTitle(
+        "Pending Opportunities"
+      );
+
+      drawTable({
+        columns: [
+          {
+            label:
+              "Advertiser",
+            ratio: 0.22
+          },
+          {
+            label:
+              "Opportunity",
+            ratio: 0.28
+          },
+          {
+            label:
+              "Location",
+            ratio: 0.25
+          },
+          {
+            label:
+              "Pending Price",
+            ratio: 0.15,
+            align: "right"
+          },
+          {
+            label:
+              "Submitted",
+            ratio: 0.10
+          }
+        ],
+        rows:
+          data.pendingOpportunities,
+        rowMapper: row => [
+          row.advertiser || "",
+          row.opportunityName ||
+            "",
+          row.locationName ||
+            "",
+          moneyValue(
+            row.pendingPrice
+          ),
+          dateValue(
+            row.submittedAt
+          )
+        ]
+      });
+
+      sectionTitle(
+        "Available Opportunities"
+      );
+
+      drawTable({
+        columns: [
+          {
+            label:
+              "Opportunity",
+            ratio: 0.34
+          },
+          {
+            label:
+              "Location",
+            ratio: 0.30
+          },
+          {
+            label:
+              "Available Price",
+            ratio: 0.18,
+            align: "right"
+          },
+          {
+            label:
+              "Status",
+            ratio: 0.18
+          }
+        ],
+        rows:
+          data.availableOpportunities,
+        rowMapper: row => [
+          row.opportunityName ||
+            "",
+          row.locationName ||
+            "",
+          moneyValue(
+            row.availablePrice
+          ),
+          row.status ||
+            "Available"
+        ]
+      });
+
+      /*
+      =====================================================
+      ADVERTISERS
+      =====================================================
+      */
+
+      doc.addPage();
+
+      sectionTitle(
+        "Advertiser Performance"
+      );
+
+      drawTable({
+        columns: [
+          {
+            label:
+              "Advertiser",
+            ratio: 0.21
+          },
+          {
+            label:
+              "Campaigns",
+            ratio: 0.08,
+            align: "right"
+          },
+          {
+            label:
+              "Locations",
+            ratio: 0.08,
+            align: "right"
+          },
+          {
+            label:
+              "Scans",
+            ratio: 0.08,
+            align: "right"
+          },
+          {
+            label:
+              "Intent",
+            ratio: 0.08,
+            align: "right"
+          },
+          {
+            label:
+              "Conversions",
+            ratio: 0.09,
+            align: "right"
+          },
+          {
+            label:
+              "Advertiser Revenue",
+            ratio: 0.13,
+            align: "right"
+          },
+          {
+            label:
+              "Internal Revenue",
+            ratio: 0.12,
+            align: "right"
+          },
+          {
+            label:
+              "Economic Impact",
+            ratio: 0.13,
+            align: "right"
+          }
+        ],
+        rows:
+          data.advertisers,
+        rowMapper: row => [
+          row.advertiser || "",
+          numberValue(
+            row.campaigns
+          ),
+          numberValue(
+            row.locations
+          ),
+          numberValue(
+            row.scans
+          ),
+          numberValue(
+            row.intent
+          ),
+          numberValue(
+            row.conversions
+          ),
+          moneyValue(
+            row.advertiserRevenue
+          ),
+          moneyValue(
+            row.internalRevenue
+          ),
+          moneyValue(
+            row.economicImpact
+          )
+        ],
+        fontSize: 6.8
+      });
+
+      /*
+      =====================================================
+      CAMPAIGNS
+      =====================================================
+      */
+
+      doc.addPage();
+
+      sectionTitle(
+        "Campaign Performance"
+      );
+
+      drawTable({
+        columns: [
+          {
+            label:
+              "Advertiser",
+            ratio: 0.15
+          },
+          {
+            label:
+              "Campaign",
+            ratio: 0.20
+          },
+          {
+            label:
+              "Visitors",
+            ratio: 0.08,
+            align: "right"
+          },
+          {
+            label:
+              "Clicks",
+            ratio: 0.08,
+            align: "right"
+          },
+          {
+            label:
+              "Scans",
+            ratio: 0.08,
+            align: "right"
+          },
+          {
+            label:
+              "Conversions",
+            ratio: 0.09,
+            align: "right"
+          },
+          {
+            label:
+              "Conversion Rate",
+            ratio: 0.12,
+            align: "right"
+          },
+          {
+            label:
+              "Advertiser Revenue",
+            ratio: 0.12,
+            align: "right"
+          },
+          {
+            label:
+              "Last Activity",
+            ratio: 0.08
+          }
+        ],
+        rows:
+          data.campaigns,
+        rowMapper: row => [
+          row.advertiser || "",
+          row.campaignName ||
+            "",
+          numberValue(
+            row.visitors
+          ),
+          numberValue(
+            row.clicks
+          ),
+          numberValue(
+            row.scans
+          ),
+          numberValue(
+            row.conversions
+          ),
+          percentValue(
+            row.visitorConversionRate
+          ),
+          moneyValue(
+            row.advertiserRevenue
+          ),
+          dateValue(
+            row.lastActivity
+          )
+        ],
+        fontSize: 6.6
+      });
+
+      /*
+      =====================================================
+      CUSTOMER ACTIONS
+      =====================================================
+      */
+
+      doc.addPage();
+
+      sectionTitle(
+        "Customer Actions and URLs"
+      );
+
+      data.customerActions.forEach(
+        (action, index) => {
+          ensureSpace(190);
+
+          doc
+            .fillColor(
+              mediumGreen
+            )
+            .font(
+              "Helvetica-Bold"
+            )
+            .fontSize(12)
+            .text(
+              `${index + 1}. ${
+                action.customerActionName ||
+                "Customer Action"
+              }`
+            );
+
+          doc.moveDown(0.3);
+
+          drawMetricTable([
+            {
+              label:
+                "Advertiser",
+              value:
+                action.advertiser ||
+                ""
+            },
+            {
+              label:
+                "Campaign",
+              value:
+                action.campaignName ||
+                ""
+            },
+            {
+              label:
+                "Destination URL",
+              value:
+                action.destinationUrl ||
+                ""
+            },
+            {
+              label:
+                "Conversion URL",
+              value:
+                action.conversionUrl ||
+                ""
+            },
+            {
+              label:
+                "Visitors",
+              value:
+                numberValue(
+                  action.visitors
+                )
+            },
+            {
+              label:
+                "Clicks",
+              value:
+                numberValue(
+                  action.clicks
+                )
+            },
+            {
+              label:
+                "Conversions",
+              value:
+                numberValue(
+                  action.conversions
+                )
+            },
+            {
+              label:
+                "Conversion Rate",
+              value:
+                percentValue(
+                  action.conversionRate
+                )
+            },
+            {
+              label:
+                "Advertiser Revenue",
+              value:
+                moneyValue(
+                  action.advertiserRevenue
+                )
+            },
+            {
+              label:
+                "Revenue Per Conversion",
+              value:
+                moneyValue(
+                  action.revenuePerConversion
+                )
+            },
+            {
+              label:
+                "Status",
+              value:
+                action.status ||
+                ""
+            },
+            {
+              label:
+                "Last Activity",
+              value:
+                dateTimeValue(
+                  action.lastActivity
+                )
+            }
+          ]);
+
+          doc.moveDown(0.75);
+        }
+      );
+
+      /*
+      =====================================================
+      PAGE HEADERS AND FOOTERS
+      =====================================================
+      */
+
+      const pageRange =
+        doc.bufferedPageRange();
+
+      for (
+        let pageIndex = 0;
+        pageIndex <
+        pageRange.count;
+        pageIndex++
+      ) {
+        doc.switchToPage(
+          pageIndex
+        );
+
+        const pageNumber =
+          pageIndex + 1;
+
+        if (pageIndex > 0) {
+          doc
+            .fillColor(
+              mutedColor
+            )
+            .font(
+              "Helvetica"
+            )
+            .fontSize(7)
+            .text(
+              `Vivid Organizations • ${data.organization.name} • ${reportingPeriod}`,
+              doc.page.margins.left,
+              18,
+              {
+                width:
+                  doc.page.width -
+                  doc.page.margins.left -
+                  doc.page.margins.right,
+                align: "center"
+              }
+            );
+        }
+
+        doc
+          .fillColor(
+            mutedColor
+          )
+          .font(
+            "Helvetica"
+          )
+          .fontSize(7)
+          .text(
+            `Confidential • Generated ${dateTimeValue(
+              generatedAt
+            )}`,
+            doc.page.margins.left,
+            doc.page.height - 28,
+            {
+              width:
+                doc.page.width -
+                doc.page.margins.left -
+                doc.page.margins.right,
+              align: "left"
+            }
+          );
+
+        doc
+          .fillColor(
+            mutedColor
+          )
+          .font(
+            "Helvetica"
+          )
+          .fontSize(7)
+          .text(
+            `Page ${pageNumber} of ${pageRange.count}`,
+            doc.page.margins.left,
+            doc.page.height - 28,
+            {
+              width:
+                doc.page.width -
+                doc.page.margins.left -
+                doc.page.margins.right,
+              align: "right"
+            }
+          );
+      }
+
+      doc.end();
+
+    } catch (err) {
+      console.error(
+        "ORG PDF REPORT ERROR:",
+        err
+      );
+
+      if (!res.headersSent) {
+        return res
+          .status(500)
+          .send(
+            "ORG PDF REPORT ERROR: " +
+            err.message
+          );
+      }
+
+      try {
+        res.end();
+      } catch (_) {}
+    }
+  }
+);
 app.get(
   "/org-export",
   async (req, res) => {
