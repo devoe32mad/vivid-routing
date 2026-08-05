@@ -10144,6 +10144,141 @@ availableSheet.headerFooter={
 oddFooter:
 `&L${data.organization.name}&CConfidential&RPage &P of &N`
 };
+     /*
+=========================================================
+ADVERTISERS WORKSHEET
+=========================================================
+*/
+
+const advertisersSheet =
+    workbook.addWorksheet("Advertisers");
+
+advertisersSheet.columns = [
+
+{ header:"Advertiser", key:"advertiser", width:30 },
+
+{ header:"Campaigns", key:"campaigns", width:12 },
+
+{ header:"Locations", key:"locations", width:12 },
+
+{ header:"Scans", key:"scans", width:12 },
+
+{ header:"Intent", key:"intent", width:12 },
+
+{ header:"Conversions", key:"conversions", width:14 },
+
+{ header:"Advertiser Revenue", key:"advertiserRevenue", width:20 },
+
+{ header:"Internal Revenue", key:"internalRevenue", width:20 },
+
+{ header:"Economic Impact", key:"economicImpact", width:20 }
+
+];
+
+data.advertisers.forEach(row=>{
+
+    advertisersSheet.addRow({
+
+        advertiser:
+            row.advertiser || "",
+
+        campaigns:
+            Number(row.campaigns || 0),
+
+        locations:
+            Number(row.locations || 0),
+
+        scans:
+            Number(row.scans || 0),
+
+        intent:
+            Number(row.intent || 0),
+
+        conversions:
+            Number(row.conversions || 0),
+
+        advertiserRevenue:
+            Number(row.advertiserRevenue || 0),
+
+        internalRevenue:
+            Number(row.internalRevenue || 0),
+
+        economicImpact:
+            Number(row.economicImpact || 0)
+
+    });
+
+});
+
+/*
+=========================================================
+HEADER
+=========================================================
+*/
+
+const advertisersHeader =
+    advertisersSheet.getRow(1);
+
+advertisersHeader.height = 26;
+
+advertisersHeader.font = {
+    bold:true,
+    color:{argb:"FFFFFFFF"}
+};
+
+advertisersHeader.fill = {
+    type:"pattern",
+    pattern:"solid",
+    fgColor:{argb:"FF1F4E78"}
+};
+
+advertisersHeader.alignment = {
+    vertical:"middle",
+    horizontal:"center",
+    wrapText:true
+};
+
+advertisersSheet.views=[
+{
+state:"frozen",
+ySplit:1
+}
+];
+
+advertisersSheet.autoFilter={
+from:"A1",
+to:"I1"
+};
+
+/*
+=========================================================
+NUMBER FORMATS
+=========================================================
+*/
+
+[
+"advertiserRevenue",
+"internalRevenue",
+"economicImpact"
+].forEach(col=>{
+
+advertisersSheet.getColumn(col).numFmt =
+"$#,##0.00";
+
+});
+
+[
+"campaigns",
+"locations",
+"scans",
+"intent",
+"conversions"
+].forEach(col=>{
+
+advertisersSheet.getColumn(col).numFmt =
+"#,##0";
+
+}); 
 res.setHeader(
 "Content-Disposition",
 `attachment; filename="${String(
