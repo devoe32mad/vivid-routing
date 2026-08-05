@@ -8476,44 +8476,150 @@ const customerActions =
     0
   );
 
+const advertiserRevenue =
+  campaigns.reduce(
+    (total, row) =>
+      total +
+      Number(
+        row.advertiserRevenue || 0
+      ),
+    0
+  );
+
+const visitors =
+  campaigns.reduce(
+    (total, row) =>
+      total +
+      Number(row.visitors || 0),
+    0
+  );
+
+const clicks =
+  campaigns.reduce(
+    (total, row) =>
+      total +
+      Number(row.clicks || 0),
+    0
+  );
+
+const scans =
+  campaigns.reduce(
+    (total, row) =>
+      total +
+      Number(row.scans || 0),
+    0
+  );
+
+const intent =
+  campaigns.reduce(
+    (total, row) =>
+      total +
+      Number(row.intent || 0),
+    0
+  );
+
+const conversions =
+  campaigns.reduce(
+    (total, row) =>
+      total +
+      Number(row.conversions || 0),
+    0
+  );
+
+const placementValue =
+  placements.reduce(
+    (total, row) =>
+      total +
+      Number(
+        row.placementValue || 0
+      ),
+    0
+  );
+
 const summary = {
+  locations:
+    locations.length,
+
+  placements:
+    placements.length,
+
+  advertisers:
+    advertisers.length,
+
+  campaigns:
+    campaigns.length,
+
+  customerActions:
+    customerActions.length,
+
   approvedSpots:
     approvedOpportunities.length,
 
   approvedRevenue,
 
- pendingSpots:
-  pendingOpportunities.length,
+  pendingSpots:
+    pendingOpportunities.length,
 
-pendingRevenue,
+  pendingRevenue,
 
-availableSpots:
+  availableSpots:
     availableOpportunities.length,
 
-availableRevenue,
-  locations: 0,
+  availableRevenue,
 
-  placements: 0,
+  placementValue,
 
-  advertisers: 0,
+  visitors,
 
-  campaigns: 0,
+  clicks,
 
-  customerActions: 0,
+  scans,
 
-  scans: 0,
+  intent,
 
-  visitors: 0,
+  conversions,
 
-  clicks: 0,
-
-  conversions: 0,
-
-  advertiserRevenue: 0,
+  advertiserRevenue,
 
   economicImpact:
-    approvedRevenue
+    approvedRevenue +
+    advertiserRevenue,
+
+  conversionRate:
+    visitors > 0
+      ? (
+          conversions /
+          visitors
+        ) * 100
+      : 0,
+
+  revenuePerAdvertiser:
+    advertisers.length > 0
+      ? approvedRevenue /
+        advertisers.length
+      : 0,
+
+  revenuePerLocation:
+    locations.length > 0
+      ? approvedRevenue /
+        locations.length
+      : 0,
+
+  inventoryUtilization:
+    (
+      approvedOpportunities.length +
+      availableOpportunities.length
+    ) > 0
+      ? (
+          approvedOpportunities.length /
+          (
+            approvedOpportunities.length +
+            availableOpportunities.length
+          )
+        ) * 100
+      : 0
 };
+
   return {
     organization,
 
