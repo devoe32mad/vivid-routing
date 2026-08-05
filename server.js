@@ -9309,6 +9309,127 @@ locationsSheet.headerFooter = {
   oddFooter:
     `&L${data.organization.name || "Organization"}&CConfidential&RPage &P of &N`
 };
+      /*
+=========================================================
+QR PLACEMENTS WORKSHEET
+=========================================================
+*/
+
+const placementsSheet =
+  workbook.addWorksheet("QR Placements");
+      placementsSheet.columns = [
+
+{ header:"QR Placement", key:"qrName", width:32 },
+
+{ header:"Location", key:"locationName", width:30 },
+
+{ header:"Market", key:"market", width:20 },
+
+{ header:"Placement Value", key:"placementValue", width:18 },
+
+{ header:"Internal Revenue", key:"internalRevenue", width:18 },
+
+{ header:"Advertiser Revenue", key:"advertiserRevenue", width:18 },
+
+{ header:"Economic Impact", key:"economicImpact", width:18 },
+
+{ header:"Campaigns", key:"campaigns", width:12 },
+
+{ header:"Advertisers", key:"advertisers", width:28 },
+
+{ header:"Scans", key:"scans", width:12 },
+
+{ header:"Intent", key:"intent", width:12 },
+
+{ header:"Conversions", key:"conversions", width:14 }
+
+];
+      data.placements.forEach(row=>{
+
+    placementsSheet.addRow({
+
+        qrName: row.qrName,
+
+        locationName: row.locationName,
+
+        market: row.market,
+
+        placementValue: row.placementValue,
+
+        internalRevenue: row.internalRevenue,
+
+        advertiserRevenue: row.advertiserRevenue,
+
+        economicImpact: row.economicImpact,
+
+        campaigns: row.campaigns,
+
+        advertisers: row.advertisers,
+
+        scans: row.scans,
+
+        intent: row.intent,
+
+        conversions: row.conversions
+
+    });
+
+});
+const placementsHeader =
+    placementsSheet.getRow(1);
+
+placementsHeader.height = 26;
+
+placementsHeader.font = {
+    bold:true,
+    color:{argb:"FFFFFFFF"}
+};
+
+placementsHeader.fill = {
+    type:"pattern",
+    pattern:"solid",
+    fgColor:{argb:"FF1F4E78"}
+};
+
+placementsHeader.alignment = {
+    vertical:"middle",
+    horizontal:"center",
+    wrapText:true
+};
+      placementsSheet.views = [
+{
+state:"frozen",
+ySplit:1
+}
+];
+
+placementsSheet.autoFilter = {
+from:"A1",
+to:"L1"
+};
+      [
+"placementValue",
+"internalRevenue",
+"advertiserRevenue",
+"economicImpact"
+].forEach(col=>{
+
+placementsSheet.getColumn(col).numFmt =
+"$#,##0.00";
+
+});
+
+[
+"campaigns",
+"scans",
+"intent",
+"conversions"
+].forEach(col=>{
+
+placementsSheet.getColumn(col).numFmt =
+"#,##0";
+
+});
 res.setHeader(
 "Content-Disposition",
 `attachment; filename="${String(
