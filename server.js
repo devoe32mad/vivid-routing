@@ -7212,12 +7212,7 @@ app.get("/org-organizations", requireLogin, requireSuperAdmin, async (req, res) 
     res.send("ERROR: " + err.message);
   }
 });
-async function buildOrganizationExportData(
-  req,
-  organizationId,
-  fromDate,
-  toDate
-  ) {
+
 )app.get(
   "/org-organization/:id",
   async (req, res) => {
