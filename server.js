@@ -7336,6 +7336,115 @@ const approvedOpportunities =
     approvedAt:
       row.approved_at || null
   }));
+  /*
+=========================================================
+PENDING OPPORTUNITIES
+Read-only. Uses the latest request for each opportunity.
+=========================================================
+*/
+
+const pendingResult = await q(
+  `
+    WITH latest_requests AS (
+      SELECT DISTINCT ON (r.opportunity_id)
+        r.id AS request_id,
+        r.organization_id,
+        r.location_id,
+        r.opportunity_id,
+        r.business_name AS advertiser,
+        r.opportunity_name,
+        r.status,
+        r.submitted_at,
+
+        COALESCE(
+          NULLIF(r.price, 0),
+          NULLIF(oo.price, 0),
+          oo.annual_price,
+          0
+        )::numeric AS pending_price,
+
+        s.name AS location_name,
+        s.location AS market
+
+      FROM organization_advertising_requests r
+
+      JOIN spaces s
+        ON s.id = r.location_id
+       AND s.organization_id = r.organization_id
+
+      LEFT JOIN organization_opportunities oo
+        ON oo.id = r.opportunity_id
+       AND oo.organization_id = r.organization_id
+
+      WHERE r.organization_id = $1
+
+      ORDER BY
+        r.opportunity_id,
+        r.created_at DESC,
+        r.id DESC
+    )
+
+    SELECT *
+    FROM latest_requests
+
+    WHERE LOWER(
+      TRIM(
+        COALESCE(status, '')
+      )
+    ) = 'pending'
+
+    ORDER BY
+      submitted_at DESC NULLS LAST,
+      request_id DESC
+  `,
+  [orgId]
+);
+
+const pendingOpportunities =
+  pendingResult.rows.map(row => ({
+    requestId:
+      Number(row.request_id),
+
+    organizationId:
+      Number(row.organization_id),
+
+    locationId:
+      Number(row.location_id),
+
+    opportunityId:
+      row.opportunity_id
+        ? Number(row.opportunity_id)
+        : null,
+
+    advertiser:
+      row.advertiser || "",
+
+    opportunityName:
+      row.opportunity_name || "",
+
+    locationName:
+      row.location_name || "",
+
+    market:
+      row.market || "",
+
+    pendingPrice:
+      Number(row.pending_price || 0),
+
+    status:
+      row.status || "Pending",
+
+    submittedAt:
+      row.submitted_at || null
+  }));
+
+const pendingRevenue =
+  pendingOpportunities.reduce(
+    (total, row) =>
+      total +
+      Number(row.pendingPrice || 0),
+    0
+  );
   const approvedRevenue =
   approvedOpportunities.reduce(
     (total, row) =>
@@ -7352,8 +7461,10 @@ const summary = {
 
   approvedRevenue,
 
-  pendingSpots: 0,
-  pendingRevenue: 0,
+ pendingSpots:
+  pendingOpportunities.length,
+
+pendingRevenue,
 
   availableSpots: 0,
   availableRevenue: 0,
@@ -7397,7 +7508,7 @@ const summary = {
     campaigns: [],
     customerActions: [],
     approvedOpportunities,
-    pendingOpportunities: [],
+    pendingOpportunities,
     availableOpportunities: []
   };
 }
