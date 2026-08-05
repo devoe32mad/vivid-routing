@@ -7688,6 +7688,215 @@ approvedOpportunities.forEach(r=>{
         };
 
     });
+  /*
+=========================================================
+QR PLACEMENT PERFORMANCE
+=========================================================
+*/
+
+const placementsResult = await q(
+`
+SELECT
+
+    qr.id,
+    qr.name,
+
+    s.id AS location_id,
+    s.name AS location_name,
+    s.location AS market,
+
+    COALESCE(
+        qr.total_cost,
+        qr.annual_cost,
+        0
+    )::numeric AS placement_value,
+
+    COUNT(DISTINCT c.id)::int AS campaigns,
+
+    STRING_AGG(
+        DISTINCT c.advertiser,
+        ', '
+    )
+    FILTER(
+        WHERE NULLIF(
+            TRIM(c.advertiser),
+            ''
+        ) IS NOT NULL
+    ) AS advertisers,
+
+    COUNT(e.id)
+        FILTER(
+            WHERE e.type='scan'
+        )::int AS scans,
+
+    COUNT(e.id)
+        FILTER(
+            WHERE e.type IN(
+                'offer',
+                'maps',
+                'waze'
+            )
+        )::int AS intent,
+
+    COUNT(e.id)
+        FILTER(
+            WHERE e.type='conversion'
+        )::int AS conversions,
+
+    COALESCE(
+        SUM(e.value)
+            FILTER(
+                WHERE e.type='conversion'
+            ),
+        0
+    )::numeric AS advertiser_revenue
+
+FROM qr_codes qr
+
+JOIN spaces s
+    ON s.id=qr.space_id
+   AND s.organization_id=$1
+
+LEFT JOIN qr_campaigns qc
+    ON qc.qr_id=qr.id
+
+LEFT JOIN campaigns c
+    ON c.id=qc.campaign_id
+
+LEFT JOIN events e
+    ON e.qr_id=qr.id
+   AND e.campaign_id=c.id
+
+   AND (
+       NULLIF($2,'') IS NULL
+       OR e.created_at::date>=NULLIF($2,'')::date
+   )
+
+   AND (
+       NULLIF($3,'') IS NULL
+       OR e.created_at::date<=NULLIF($3,'')::date
+   )
+
+WHERE
+    COALESCE(
+        qr.is_archived,
+        false
+    )=false
+
+GROUP BY
+
+    qr.id,
+    qr.name,
+
+    s.id,
+    s.name,
+    s.location,
+
+    qr.total_cost,
+    qr.annual_cost
+
+ORDER BY
+
+    s.name,
+    qr.name
+`,
+[
+    orgId,
+    fromDate || "",
+    toDate || ""
+]
+);
+  const internalRevenueByQr =
+    new Map();
+
+approvedOpportunities.forEach(r=>{
+
+    if(!r.qrId) return;
+
+    const current =
+        internalRevenueByQr.get(
+            r.qrId
+        ) || 0;
+
+    internalRevenueByQr.set(
+
+        r.qrId,
+
+        current +
+        Number(
+            r.approvedPrice || 0
+        )
+
+    );
+
+});
+  const placements =
+    placementsResult.rows.map(r=>{
+
+        const qrId =
+            Number(r.id);
+
+        const internalRevenue =
+            Number(
+                internalRevenueByQr.get(
+                    qrId
+                ) || 0
+            );
+
+        const advertiserRevenue =
+            Number(
+                r.advertiser_revenue || 0
+            );
+
+        return{
+
+            qrId,
+
+            qrName:r.name,
+
+            locationId:Number(
+                r.location_id
+            ),
+
+            locationName:
+                r.location_name,
+
+            market:r.market,
+
+            placementValue:Number(
+                r.placement_value || 0
+            ),
+
+            internalRevenue,
+
+            advertiserRevenue,
+
+            economicImpact:
+                internalRevenue +
+                advertiserRevenue,
+
+            campaigns:Number(
+                r.campaigns || 0
+            ),
+
+            advertisers:
+                r.advertisers || "",
+
+            scans:Number(
+                r.scans || 0
+            ),
+
+            intent:Number(
+                r.intent || 0
+            ),
+
+            conversions:Number(
+                r.conversions || 0
+            )
+
+        };
+
+    });
   const approvedRevenue =
   approvedOpportunities.reduce(
     (total, row) =>
@@ -7747,7 +7956,7 @@ availableRevenue,
     summary,
 
     locations,
-    placements: [],
+    placements,
     advertisers: [],
     campaigns: [],
     customerActions: [],
