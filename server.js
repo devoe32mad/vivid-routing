@@ -8679,10 +8679,31 @@ app.get(
           .send("Access denied");
       }
 
-      return res.send(
-        "Organization Excel route working"
-      );
+const dateFilter = getOrgDateFilter(req);
 
+if (dateFilter.error) {
+  return res
+    .status(400)
+    .send(dateFilter.error);
+}
+
+const data =
+  await buildOrganizationExportData(
+    req,
+    organizationId,
+    dateFilter.fromDate,
+    dateFilter.toDate
+  );
+
+return res.json({
+  success: true,
+  organization:
+    data.organization.name,
+  reportingPeriod:
+    data.reportingPeriod,
+  summary:
+    data.summary
+});
     } catch (err) {
       console.error(
         "ORG EXCEL ROUTE ERROR:",
