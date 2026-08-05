@@ -7217,8 +7217,8 @@ async function buildOrganizationExportData(
   organizationId,
   fromDate,
   toDate
-)
-app.get(
+  ) {
+)app.get(
   "/org-organization/:id",
   async (req, res) => {
     try {
