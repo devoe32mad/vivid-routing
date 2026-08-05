@@ -7570,7 +7570,8 @@ SELECT
 FROM spaces s
 
 LEFT JOIN qr_codes qr
-    ON qr.space_id=s.id
+    ON qr.space_id = s.id
+   AND COALESCE(qr.is_archived, false) = false
 
 LEFT JOIN qr_campaigns qc
     ON qc.qr_id=qr.id
@@ -7579,10 +7580,22 @@ LEFT JOIN campaigns c
     ON c.id=qc.campaign_id
 
 LEFT JOIN events e
-    ON e.qr_id=qr.id
-   AND e.campaign_id=c.id
+   LEFT JOIN events e
+    ON e.qr_id = qr.id
+   AND e.campaign_id = c.id
 
-WHERE s.organization_id=$1
+   AND (
+     NULLIF($2, '') IS NULL
+     OR e.created_at::date >= NULLIF($2, '')::date
+   )
+
+   AND (
+     NULLIF($3, '') IS NULL
+     OR e.created_at::date <= NULLIF($3, '')::date
+   )
+
+WHERE s.organization_id = $1
+  AND COALESCE(s.is_archived, false) = false
 
 GROUP BY
     s.id,
@@ -7592,7 +7605,11 @@ GROUP BY
 ORDER BY
     s.name
 `,
-[orgId]
+[
+  orgId,
+  fromDate || "",
+  toDate || ""
+]
 );
   const internalRevenueByLocation =
     new Map();
