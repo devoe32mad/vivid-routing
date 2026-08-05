@@ -8996,7 +8996,319 @@ executive.views = [
 "Content-Type",
 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 );
+/*
+=========================================================
+LOCATIONS WORKSHEET
+=========================================================
+*/
 
+const locationsSheet =
+  workbook.addWorksheet("Locations");
+
+locationsSheet.columns = [
+  {
+    header: "Location",
+    key: "locationName",
+    width: 34
+  },
+  {
+    header: "Market",
+    key: "market",
+    width: 22
+  },
+  {
+    header: "Placements",
+    key: "placements",
+    width: 14
+  },
+  {
+    header: "Campaigns",
+    key: "campaigns",
+    width: 14
+  },
+  {
+    header: "Advertisers",
+    key: "advertisers",
+    width: 14
+  },
+  {
+    header: "Internal Revenue",
+    key: "internalRevenue",
+    width: 19
+  },
+  {
+    header: "Advertiser Revenue",
+    key: "advertiserRevenue",
+    width: 20
+  },
+  {
+    header: "Economic Impact",
+    key: "economicImpact",
+    width: 19
+  },
+  {
+    header: "Scans",
+    key: "scans",
+    width: 12
+  },
+  {
+    header: "Intent",
+    key: "intent",
+    width: 12
+  },
+  {
+    header: "Conversions",
+    key: "conversions",
+    width: 14
+  }
+];
+
+data.locations.forEach(row => {
+  locationsSheet.addRow({
+    locationName:
+      row.locationName || "",
+
+    market:
+      row.market || "",
+
+    placements:
+      Number(row.placements || 0),
+
+    campaigns:
+      Number(row.campaigns || 0),
+
+    advertisers:
+      Number(row.advertisers || 0),
+
+    internalRevenue:
+      Number(row.internalRevenue || 0),
+
+    advertiserRevenue:
+      Number(row.advertiserRevenue || 0),
+
+    economicImpact:
+      Number(row.economicImpact || 0),
+
+    scans:
+      Number(row.scans || 0),
+
+    intent:
+      Number(row.intent || 0),
+
+    conversions:
+      Number(row.conversions || 0)
+  });
+});
+
+/*
+=========================================================
+LOCATIONS HEADER
+=========================================================
+*/
+
+const locationsHeader =
+  locationsSheet.getRow(1);
+
+locationsHeader.height = 26;
+
+locationsHeader.font = {
+  bold: true,
+  color: {
+    argb: "FFFFFFFF"
+  }
+};
+
+locationsHeader.fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: {
+    argb: "FF1F4E78"
+  }
+};
+
+locationsHeader.alignment = {
+  vertical: "middle",
+  horizontal: "center",
+  wrapText: true
+};
+
+/*
+=========================================================
+LOCATIONS NUMBER FORMATS
+=========================================================
+*/
+
+[
+  "internalRevenue",
+  "advertiserRevenue",
+  "economicImpact"
+].forEach(columnKey => {
+  locationsSheet.getColumn(
+    columnKey
+  ).numFmt = "$#,##0.00";
+});
+
+[
+  "placements",
+  "campaigns",
+  "advertisers",
+  "scans",
+  "intent",
+  "conversions"
+].forEach(columnKey => {
+  locationsSheet.getColumn(
+    columnKey
+  ).numFmt = "#,##0";
+});
+
+/*
+=========================================================
+LOCATIONS ALIGNMENT AND ROW FORMATTING
+=========================================================
+*/
+
+locationsSheet.getColumn(
+  "locationName"
+).alignment = {
+  vertical: "middle",
+  horizontal: "left",
+  wrapText: true
+};
+
+locationsSheet.getColumn(
+  "market"
+).alignment = {
+  vertical: "middle",
+  horizontal: "left",
+  wrapText: true
+};
+
+[
+  "placements",
+  "campaigns",
+  "advertisers",
+  "internalRevenue",
+  "advertiserRevenue",
+  "economicImpact",
+  "scans",
+  "intent",
+  "conversions"
+].forEach(columnKey => {
+  locationsSheet.getColumn(
+    columnKey
+  ).alignment = {
+    vertical: "middle",
+    horizontal: "right"
+  };
+});
+
+for (
+  let rowNumber = 2;
+  rowNumber <= locationsSheet.rowCount;
+  rowNumber++
+) {
+  const row =
+    locationsSheet.getRow(rowNumber);
+
+  row.height = 22;
+
+  if (rowNumber % 2 === 0) {
+    row.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: {
+        argb: "FFF3F6F4"
+      }
+    };
+  }
+}
+
+/*
+=========================================================
+LOCATIONS BORDERS
+=========================================================
+*/
+
+for (
+  let rowNumber = 1;
+  rowNumber <= locationsSheet.rowCount;
+  rowNumber++
+) {
+  for (
+    let columnNumber = 1;
+    columnNumber <= 11;
+    columnNumber++
+  ) {
+    locationsSheet.getCell(
+      rowNumber,
+      columnNumber
+    ).border = {
+      top: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      left: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      bottom: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      right: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      }
+    };
+  }
+}
+
+/*
+=========================================================
+LOCATIONS FILTERS, FREEZE AND PRINT SETTINGS
+=========================================================
+*/
+
+locationsSheet.autoFilter = {
+  from: "A1",
+  to: "K1"
+};
+
+locationsSheet.views = [
+  {
+    state: "frozen",
+    ySplit: 1
+  }
+];
+
+locationsSheet.pageSetup = {
+  orientation: "landscape",
+  fitToPage: true,
+  fitToWidth: 1,
+  fitToHeight: 0,
+  printTitlesRow: "1:1",
+  margins: {
+    left: 0.25,
+    right: 0.25,
+    top: 0.5,
+    bottom: 0.5,
+    header: 0.2,
+    footer: 0.2
+  }
+};
+
+locationsSheet.headerFooter = {
+  oddFooter:
+    `&L${data.organization.name || "Organization"}&CConfidential&RPage &P of &N`
+};
 res.setHeader(
 "Content-Disposition",
 `attachment; filename="${String(
