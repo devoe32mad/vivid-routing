@@ -8695,15 +8695,165 @@ const data =
     dateFilter.toDate
   );
 
-return res.json({
-  success: true,
-  organization:
-    data.organization.name,
-  reportingPeriod:
-    data.reportingPeriod,
-  summary:
-    data.summary
-});
+const workbook =
+    new ExcelJS.Workbook();
+
+workbook.creator =
+    "Vivid";
+
+workbook.company =
+    "Vivid";
+
+workbook.subject =
+    "Organization Executive Report";
+
+workbook.title =
+    `${data.organization.name} Executive Report`;
+
+workbook.created =
+    new Date();
+     const executive =
+    workbook.addWorksheet(
+        "Executive Summary"
+    );
+      executive.columns = [
+
+    {
+        header:"Metric",
+        key:"metric",
+        width:42
+    },
+
+    {
+        header:"Value",
+        key:"value",
+        width:22
+    }
+
+];
+      const header =
+    executive.getRow(1);
+
+header.font = {
+    bold:true,
+    color:{
+        argb:"FFFFFFFF"
+    }
+};
+
+header.fill = {
+    type:"pattern",
+    pattern:"solid",
+    fgColor:{
+        argb:"FF1F4E78"
+    }
+};
+
+header.alignment = {
+    horizontal:"center"
+};
+
+executive.views = [
+    {
+        state:"frozen",
+        ySplit:1
+    }
+];
+      executive.addRows([
+
+["Approved Revenue",
+money(
+data.summary.approvedRevenue
+)],
+
+["Pending Revenue",
+money(
+data.summary.pendingRevenue
+)],
+
+["Available Revenue",
+money(
+data.summary.availableRevenue
+)],
+
+["Advertiser Revenue",
+money(
+data.summary.advertiserRevenue
+)],
+
+["Economic Impact",
+money(
+data.summary.economicImpact
+)],
+
+["Placement Value",
+money(
+data.summary.placementValue
+)],
+
+[],
+
+["Locations",
+data.summary.locations],
+
+["QR Placements",
+data.summary.placements],
+
+["Advertisers",
+data.summary.advertisers],
+
+["Campaigns",
+data.summary.campaigns],
+
+["Customer Actions",
+data.summary.customerActions],
+
+[],
+
+["Visitors",
+data.summary.visitors],
+
+["Clicks",
+data.summary.clicks],
+
+["Scans",
+data.summary.scans],
+
+["Intent",
+data.summary.intent],
+
+["Conversions",
+data.summary.conversions],
+
+["Conversion Rate",
+pct(
+data.summary.conversionRate
+)],
+
+["Inventory Utilization",
+pct(
+data.summary.inventoryUtilization
+)]
+
+]);
+      res.setHeader(
+"Content-Type",
+"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+);
+
+res.setHeader(
+"Content-Disposition",
+`attachment; filename="${String(
+  data.organization.name || "Organization"
+)
+  .replace(/[^a-z0-9-_ ]/gi, "")
+  .trim()
+  .replace(/\s+/g, "-")}-Executive-Report.xlsx"`
+);
+
+await workbook.xlsx.write(res);
+
+res.end();
     } catch (err) {
       console.error(
         "ORG EXCEL ROUTE ERROR:",
