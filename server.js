@@ -9905,6 +9905,245 @@ pendingSheet.headerFooter = {
   oddFooter:
     `&L${data.organization.name || "Organization"}&CConfidential&RPage &P of &N`
 };
+      /*
+=========================================================
+AVAILABLE OPPORTUNITIES WORKSHEET
+=========================================================
+*/
+
+const availableSheet =
+    workbook.addWorksheet(
+        "Available Opportunities"
+    );
+
+availableSheet.columns = [
+
+{
+header:"Opportunity",
+key:"opportunityName",
+width:34
+},
+
+{
+header:"Location",
+key:"locationName",
+width:30
+},
+
+{
+header:"Market",
+key:"market",
+width:20
+},
+
+{
+header:"Available Price",
+key:"availablePrice",
+width:18
+},
+
+{
+header:"Pricing Unit",
+key:"pricingUnit",
+width:18
+},
+
+{
+header:"Status",
+key:"status",
+width:14
+}
+
+];
+
+data.availableOpportunities.forEach(row=>{
+
+    availableSheet.addRow({
+
+        opportunityName:
+            row.opportunityName || "",
+
+        locationName:
+            row.locationName || "",
+
+        market:
+            row.market || "",
+
+        availablePrice:
+            Number(
+                row.availablePrice || 0
+            ),
+
+        pricingUnit:
+            row.pricingUnit || "",
+
+        status:
+            row.status || "Available"
+
+    });
+
+});
+
+/*
+=========================================================
+FORMATTING
+=========================================================
+*/
+
+const availableHeader =
+    availableSheet.getRow(1);
+
+availableHeader.height = 26;
+
+availableHeader.font = {
+    bold:true,
+    color:{
+        argb:"FFFFFFFF"
+    }
+};
+
+availableHeader.fill = {
+    type:"pattern",
+    pattern:"solid",
+    fgColor:{
+        argb:"FF1F4E78"
+    }
+};
+
+availableHeader.alignment = {
+    vertical:"middle",
+    horizontal:"center",
+    wrapText:true
+};
+
+availableSheet.getColumn(
+    "availablePrice"
+).numFmt =
+"$#,##0.00";
+
+availableSheet.getColumn(
+    "availablePrice"
+).alignment = {
+    vertical:"middle",
+    horizontal:"right"
+};
+
+[
+"opportunityName",
+"locationName",
+"market",
+"pricingUnit",
+"status"
+].forEach(col=>{
+
+availableSheet.getColumn(col).alignment={
+vertical:"middle",
+horizontal:"left",
+wrapText:true
+};
+
+});
+
+for(
+let r=2;
+r<=availableSheet.rowCount;
+r++
+){
+
+const row=
+availableSheet.getRow(r);
+
+row.height=22;
+
+if(r%2===0){
+
+row.fill={
+type:"pattern",
+pattern:"solid",
+fgColor:{
+argb:"FFF3F6F4"
+}
+};
+
+}
+
+}
+
+for(
+let r=1;
+r<=availableSheet.rowCount;
+r++
+){
+
+for(
+let c=1;
+c<=6;
+c++
+){
+
+availableSheet.getCell(
+r,
+c
+).border={
+
+top:{
+style:"thin",
+color:{
+argb:"FFD9E2DC"
+}
+},
+
+left:{
+style:"thin",
+color:{
+argb:"FFD9E2DC"
+}
+},
+
+bottom:{
+style:"thin",
+color:{
+argb:"FFD9E2DC"
+}
+},
+
+right:{
+style:"thin",
+color:{
+argb:"FFD9E2DC"
+}
+}
+
+};
+
+}
+
+}
+
+availableSheet.autoFilter={
+from:"A1",
+to:"F1"
+};
+
+availableSheet.views=[
+{
+state:"frozen",
+ySplit:1
+}
+];
+
+availableSheet.pageSetup={
+orientation:"landscape",
+fitToPage:true,
+fitToWidth:1,
+fitToHeight:0,
+printTitlesRow:"1:1"
+};
+
+availableSheet.headerFooter={
+oddFooter:
+`&L${data.organization.name}&CConfidential&RPage &P of &N`
+};
 res.setHeader(
 "Content-Disposition",
 `attachment; filename="${String(
