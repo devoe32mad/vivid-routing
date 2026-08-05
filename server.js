@@ -8759,83 +8759,239 @@ executive.views = [
         ySplit:1
     }
 ];
-      executive.addRows([
+      
+executive.addRows([
+  ["Approved Revenue", Number(data.summary.approvedRevenue || 0)],
+  ["Pending Revenue", Number(data.summary.pendingRevenue || 0)],
+  ["Available Revenue", Number(data.summary.availableRevenue || 0)],
+  ["Advertiser Revenue", Number(data.summary.advertiserRevenue || 0)],
+  ["Economic Impact", Number(data.summary.economicImpact || 0)],
+  ["Placement Value", Number(data.summary.placementValue || 0)],
 
-["Approved Revenue",
-money(
-data.summary.approvedRevenue
-)],
+  ["", ""],
 
-["Pending Revenue",
-money(
-data.summary.pendingRevenue
-)],
+  ["Locations", Number(data.summary.locations || 0)],
+  ["QR Placements", Number(data.summary.placements || 0)],
+  ["Advertisers", Number(data.summary.advertisers || 0)],
+  ["Campaigns", Number(data.summary.campaigns || 0)],
+  ["Customer Actions", Number(data.summary.customerActions || 0)],
 
-["Available Revenue",
-money(
-data.summary.availableRevenue
-)],
+  ["", ""],
 
-["Advertiser Revenue",
-money(
-data.summary.advertiserRevenue
-)],
-
-["Economic Impact",
-money(
-data.summary.economicImpact
-)],
-
-["Placement Value",
-money(
-data.summary.placementValue
-)],
-
-[],
-
-["Locations",
-data.summary.locations],
-
-["QR Placements",
-data.summary.placements],
-
-["Advertisers",
-data.summary.advertisers],
-
-["Campaigns",
-data.summary.campaigns],
-
-["Customer Actions",
-data.summary.customerActions],
-
-[],
-
-["Visitors",
-data.summary.visitors],
-
-["Clicks",
-data.summary.clicks],
-
-["Scans",
-data.summary.scans],
-
-["Intent",
-data.summary.intent],
-
-["Conversions",
-data.summary.conversions],
-
-["Conversion Rate",
-pct(
-data.summary.conversionRate
-)],
-
-["Inventory Utilization",
-pct(
-data.summary.inventoryUtilization
-)]
-
+  ["Visitors", Number(data.summary.visitors || 0)],
+  ["Clicks", Number(data.summary.clicks || 0)],
+  ["Scans", Number(data.summary.scans || 0)],
+  ["Intent", Number(data.summary.intent || 0)],
+  ["Conversions", Number(data.summary.conversions || 0)],
+  [
+    "Conversion Rate",
+    Number(data.summary.conversionRate || 0) / 100
+  ],
+  [
+    "Inventory Utilization",
+    Number(data.summary.inventoryUtilization || 0) / 100
+  ]
 ]);
+
+/*
+=========================================================
+EXECUTIVE SUMMARY FORMATTING
+=========================================================
+*/
+
+executive.getColumn("A").width = 34;
+executive.getColumn("B").width = 20;
+
+executive.getColumn("A").alignment = {
+  vertical: "middle",
+  horizontal: "left"
+};
+
+executive.getColumn("B").alignment = {
+  vertical: "middle",
+  horizontal: "right"
+};
+
+executive.getRow(1).height = 24;
+
+executive.getRow(1).font = {
+  bold: true,
+  color: {
+    argb: "FFFFFFFF"
+  }
+};
+
+executive.getRow(1).fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: {
+    argb: "FF1F4E78"
+  }
+};
+
+executive.getRow(1).alignment = {
+  vertical: "middle",
+  horizontal: "center"
+};
+
+/*
+Currency rows:
+2–7
+*/
+
+for (let rowNumber = 2; rowNumber <= 7; rowNumber++) {
+  executive.getCell(`B${rowNumber}`).numFmt = '$#,##0.00';
+}
+
+/*
+Whole-number rows:
+9–13 and 15–19
+*/
+
+[
+  9, 10, 11, 12, 13,
+  15, 16, 17, 18, 19
+].forEach(rowNumber => {
+  executive.getCell(`B${rowNumber}`).numFmt = '#,##0';
+});
+
+/*
+Percentage rows:
+20–21
+*/
+
+executive.getCell("B20").numFmt = "0.0%";
+executive.getCell("B21").numFmt = "0.0%";
+
+/*
+Alternating row shading
+*/
+
+for (
+  let rowNumber = 2;
+  rowNumber <= executive.rowCount;
+  rowNumber++
+) {
+  const row = executive.getRow(rowNumber);
+
+  if (
+    rowNumber !== 8 &&
+    rowNumber !== 14 &&
+    rowNumber % 2 === 0
+  ) {
+    row.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: {
+        argb: "FFF3F6F4"
+      }
+    };
+  }
+
+  row.height = 21;
+}
+
+/*
+Section spacer rows
+*/
+
+[8, 14].forEach(rowNumber => {
+  const row = executive.getRow(rowNumber);
+
+  row.height = 10;
+
+  row.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: {
+      argb: "FFFFFFFF"
+    }
+  };
+});
+
+/*
+Borders
+*/
+
+for (
+  let rowNumber = 1;
+  rowNumber <= executive.rowCount;
+  rowNumber++
+) {
+  for (
+    let columnNumber = 1;
+    columnNumber <= 2;
+    columnNumber++
+  ) {
+    executive.getCell(
+      rowNumber,
+      columnNumber
+    ).border = {
+      top: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      left: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      bottom: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      right: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      }
+    };
+  }
+}
+
+/*
+Print setup
+*/
+
+executive.pageSetup = {
+  orientation: "portrait",
+  fitToPage: true,
+  fitToWidth: 1,
+  fitToHeight: 1,
+  margins: {
+    left: 0.35,
+    right: 0.35,
+    top: 0.5,
+    bottom: 0.5,
+    header: 0.2,
+    footer: 0.2
+  }
+};
+
+executive.pageMargins = {
+  left: 0.35,
+  right: 0.35,
+  top: 0.5,
+  bottom: 0.5,
+  header: 0.2,
+  footer: 0.2
+};
+
+executive.views = [
+  {
+    state: "frozen",
+    ySplit: 1
+  }
+];
+
+
+
       res.setHeader(
 "Content-Type",
 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
