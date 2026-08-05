@@ -7445,6 +7445,78 @@ const pendingRevenue =
       Number(row.pendingPrice || 0),
     0
   );
+  /*
+=========================================================
+AVAILABLE OPPORTUNITIES
+Read-only
+=========================================================
+*/
+
+const availableResult = await q(
+`
+SELECT
+    oo.id,
+    oo.space_id,
+    oo.title,
+    oo.status,
+
+    COALESCE(
+        NULLIF(oo.price,0),
+        oo.annual_price,
+        0
+    )::numeric AS available_price,
+
+    s.name AS location_name,
+    s.location AS market
+
+FROM organization_opportunities oo
+
+JOIN spaces s
+  ON s.id = oo.space_id
+ AND s.organization_id = oo.organization_id
+
+WHERE oo.organization_id = $1
+
+  AND LOWER(
+        TRIM(
+          COALESCE(oo.status,'')
+        )
+      )='available'
+
+ORDER BY
+    s.name,
+    oo.title
+`,
+[orgId]
+);
+
+const availableOpportunities =
+    availableResult.rows.map(r => ({
+        opportunityId:Number(r.id),
+
+        locationId:Number(r.space_id),
+
+        opportunityName:r.title || "",
+
+        locationName:r.location_name || "",
+
+        market:r.market || "",
+
+        availablePrice:Number(
+            r.available_price || 0
+        ),
+
+        status:r.status || "Available"
+    }));
+
+const availableRevenue =
+    availableOpportunities.reduce(
+        (t,r)=>
+            t+Number(
+                r.availablePrice||0
+            ),
+        0
+    );
   const approvedRevenue =
   approvedOpportunities.reduce(
     (total, row) =>
@@ -7466,9 +7538,10 @@ const summary = {
 
 pendingRevenue,
 
-  availableSpots: 0,
-  availableRevenue: 0,
+availableSpots:
+    availableOpportunities.length,
 
+availableRevenue,
   locations: 0,
 
   placements: 0,
@@ -7509,7 +7582,7 @@ pendingRevenue,
     customerActions: [],
     approvedOpportunities,
     pendingOpportunities,
-    availableOpportunities: []
+    availableOpportunities,
   };
 }
 app.get(
