@@ -11202,12 +11202,6 @@ app.get(
           "district_admin"
         ].includes(organizationRole);
 
-      /*
-      Until location scoping is added to the shared
-      report helper, prevent local managers from receiving
-      organization-wide data.
-      */
-
       if (!hasOrganizationWideAccess) {
         return res
           .status(403)
@@ -11288,7 +11282,7 @@ app.get(
 
       /*
       =====================================================
-      HELPERS
+      COLORS
       =====================================================
       */
 
@@ -11310,6 +11304,12 @@ app.get(
       const mutedColor =
         "#64748b";
 
+      /*
+      =====================================================
+      VALUE HELPERS
+      =====================================================
+      */
+
       const moneyValue = value =>
         Number(value || 0)
           .toLocaleString(
@@ -11322,9 +11322,7 @@ app.get(
 
       const numberValue = value =>
         Number(value || 0)
-          .toLocaleString(
-            "en-US"
-          );
+          .toLocaleString("en-US");
 
       const percentValue = value =>
         `${Number(value || 0).toFixed(1)}%`;
@@ -11376,34 +11374,49 @@ app.get(
           ? `${fromDate || "Beginning"} through ${toDate || "Current"}`
           : "All available reporting data";
 
+      /*
+      =====================================================
+      PAGE HELPERS
+      =====================================================
+      */
+
       const ensureSpace = height => {
-        const bottom =
+        const pageBottom =
           doc.page.height -
-          doc.page.margins.bottom;
+          doc.page.margins.bottom -
+          18;
 
         if (
           doc.y + height >
-          bottom
+          pageBottom
         ) {
           doc.addPage();
         }
       };
 
       const sectionTitle = title => {
-        ensureSpace(42);
+        ensureSpace(50);
 
         doc
           .fillColor(green)
-          .fontSize(16)
           .font("Helvetica-Bold")
-          .text(title);
+          .fontSize(16)
+          .text(
+            String(title || ""),
+            doc.page.margins.left,
+            doc.y,
+            {
+              width:
+                doc.page.width -
+                doc.page.margins.left -
+                doc.page.margins.right
+            }
+          );
 
         doc.moveDown(0.35);
 
         doc
-          .strokeColor(
-            borderColor
-          )
+          .strokeColor(borderColor)
           .lineWidth(1)
           .moveTo(
             doc.page.margins.left,
@@ -11419,6 +11432,12 @@ app.get(
         doc.moveDown(0.75);
       };
 
+      /*
+      =====================================================
+      METRIC TABLE
+      =====================================================
+      */
+
       const drawMetricTable = rows => {
         const left =
           doc.page.margins.left;
@@ -11429,16 +11448,58 @@ app.get(
           doc.page.margins.right;
 
         const labelWidth =
-          totalWidth * 0.62;
+          totalWidth * 0.55;
 
         const valueWidth =
-          totalWidth -
-          labelWidth;
-
-        const rowHeight = 25;
+          totalWidth - labelWidth;
 
         rows.forEach(
           (row, index) => {
+            const labelText =
+              String(
+                row.label || ""
+              );
+
+            const valueText =
+              String(
+                row.value ?? ""
+              );
+
+            doc
+              .font("Helvetica")
+              .fontSize(9);
+
+            const labelHeight =
+              doc.heightOfString(
+                labelText,
+                {
+                  width:
+                    labelWidth - 16
+                }
+              );
+
+            doc
+              .font("Helvetica-Bold")
+              .fontSize(9);
+
+            const valueHeight =
+              doc.heightOfString(
+                valueText,
+                {
+                  width:
+                    valueWidth - 16,
+                  align: "right",
+                  lineGap: 1
+                }
+              );
+
+            const rowHeight =
+              Math.max(
+                25,
+                labelHeight + 14,
+                valueHeight + 14
+              );
+
             ensureSpace(rowHeight);
 
             const y =
@@ -11454,15 +11515,11 @@ app.get(
                   totalWidth,
                   rowHeight
                 )
-                .fill(
-                  lightGreen
-                );
+                .fill(lightGreen);
             }
 
             doc
-              .strokeColor(
-                borderColor
-              )
+              .strokeColor(borderColor)
               .lineWidth(0.5)
               .rect(
                 left,
@@ -11473,44 +11530,35 @@ app.get(
               .stroke();
 
             doc
-              .fillColor(
-                textColor
-              )
-              .font(
-                "Helvetica"
-              )
+              .fillColor(textColor)
+              .font("Helvetica")
               .fontSize(9)
               .text(
-                String(
-                  row.label || ""
-                ),
+                labelText,
                 left + 8,
-                y + 8,
+                y + 7,
                 {
                   width:
-                    labelWidth - 16
+                    labelWidth - 16,
+                  lineGap: 1
                 }
               );
 
             doc
-              .fillColor(
-                green
-              )
-              .font(
-                "Helvetica-Bold"
-              )
+              .fillColor(green)
+              .font("Helvetica-Bold")
               .fontSize(9)
               .text(
-                String(
-                  row.value ?? ""
-                ),
+                valueText,
                 left +
-                  labelWidth,
-                y + 8,
+                  labelWidth +
+                  8,
+                y + 7,
                 {
                   width:
-                    valueWidth - 8,
-                  align: "right"
+                    valueWidth - 16,
+                  align: "right",
+                  lineGap: 1
                 }
               );
 
@@ -11521,6 +11569,12 @@ app.get(
 
         doc.moveDown(0.75);
       };
+
+      /*
+      =====================================================
+      STANDARD TABLE
+      =====================================================
+      */
 
       const drawTable = ({
         columns,
@@ -11546,7 +11600,7 @@ app.get(
           }));
 
         const drawHeader = () => {
-          ensureSpace(32);
+          ensureSpace(34);
 
           const y =
             doc.y;
@@ -11560,28 +11614,22 @@ app.get(
             )
             .fill(green);
 
-          let x = left;
+          let x =
+            left;
 
           normalizedColumns.forEach(
             column => {
               doc
-                .fillColor(
-                  "#ffffff"
-                )
-                .font(
-                  "Helvetica-Bold"
-                )
-                .fontSize(
-                  fontSize
-                )
+                .fillColor("#ffffff")
+                .font("Helvetica-Bold")
+                .fontSize(fontSize)
                 .text(
                   column.label,
                   x + 4,
                   y + 7,
                   {
                     width:
-                      column.width -
-                      8,
+                      column.width - 8,
                     align:
                       column.align ||
                       "left"
@@ -11600,15 +11648,11 @@ app.get(
         drawHeader();
 
         if (!rows.length) {
-          ensureSpace(28);
+          ensureSpace(30);
 
           doc
-            .fillColor(
-              mutedColor
-            )
-            .font(
-              "Helvetica"
-            )
+            .fillColor(mutedColor)
+            .font("Helvetica")
             .fontSize(9)
             .text(
               "No records found for the selected reporting period."
@@ -11621,21 +11665,26 @@ app.get(
         rows.forEach(
           (sourceRow, index) => {
             const values =
-              rowMapper(
-                sourceRow
-              );
+              rowMapper(sourceRow);
 
             let rowHeight =
               minimumRowHeight;
 
             normalizedColumns.forEach(
-              (column, columnIndex) => {
+              (
+                column,
+                columnIndex
+              ) => {
                 const value =
                   String(
                     values[
                       columnIndex
                     ] ?? ""
                   );
+
+                doc
+                  .font("Helvetica")
+                  .fontSize(fontSize);
 
                 const height =
                   doc.heightOfString(
@@ -11646,7 +11695,8 @@ app.get(
                         8,
                       align:
                         column.align ||
-                        "left"
+                        "left",
+                      lineGap: 1
                     }
                   ) + 12;
 
@@ -11660,7 +11710,8 @@ app.get(
 
             const pageBottom =
               doc.page.height -
-              doc.page.margins.bottom;
+              doc.page.margins.bottom -
+              18;
 
             if (
               doc.y +
@@ -11684,22 +11735,22 @@ app.get(
                   totalWidth,
                   rowHeight
                 )
-                .fill(
-                  lightGreen
-                );
+                .fill(lightGreen);
             }
 
-            let x = left;
+            let x =
+              left;
 
             normalizedColumns.forEach(
-              (column, columnIndex) => {
+              (
+                column,
+                columnIndex
+              ) => {
                 doc
                   .strokeColor(
                     borderColor
                   )
-                  .lineWidth(
-                    0.4
-                  )
+                  .lineWidth(0.4)
                   .rect(
                     x,
                     y,
@@ -11709,15 +11760,9 @@ app.get(
                   .stroke();
 
                 doc
-                  .fillColor(
-                    textColor
-                  )
-                  .font(
-                    "Helvetica"
-                  )
-                  .fontSize(
-                    fontSize
-                  )
+                  .fillColor(textColor)
+                  .font("Helvetica")
+                  .fontSize(fontSize)
                   .text(
                     String(
                       values[
@@ -11732,7 +11777,8 @@ app.get(
                         8,
                       align:
                         column.align ||
-                        "left"
+                        "left",
+                      lineGap: 1
                     }
                   );
 
@@ -11751,6 +11797,55 @@ app.get(
 
       /*
       =====================================================
+      FULL-WIDTH URL BLOCK
+      =====================================================
+      */
+
+      const drawUrlBlock = (
+        label,
+        url
+      ) => {
+        const value =
+          String(url || "");
+
+        if (!value) {
+          return;
+        }
+
+        ensureSpace(60);
+
+        doc
+          .fillColor(textColor)
+          .font("Helvetica-Bold")
+          .fontSize(8)
+          .text(label);
+
+        doc.moveDown(0.15);
+
+        doc
+          .fillColor(green)
+          .font("Helvetica")
+          .fontSize(8)
+          .text(
+            value,
+            {
+              width:
+                doc.page.width -
+                doc.page.margins.left -
+                doc.page.margins.right,
+              link:
+                value ||
+                undefined,
+              underline: false,
+              lineGap: 2
+            }
+          );
+
+        doc.moveDown(0.55);
+      };
+
+      /*
+      =====================================================
       COVER PAGE
       =====================================================
       */
@@ -11765,12 +11860,8 @@ app.get(
         .fill(green);
 
       doc
-        .fillColor(
-          "#d7eadb"
-        )
-        .font(
-          "Helvetica-Bold"
-        )
+        .fillColor("#d7eadb")
+        .font("Helvetica-Bold")
         .fontSize(11)
         .text(
           "VIVID ORGANIZATIONS",
@@ -11782,12 +11873,8 @@ app.get(
         );
 
       doc
-        .fillColor(
-          "#ffffff"
-        )
-        .font(
-          "Helvetica-Bold"
-        )
+        .fillColor("#ffffff")
+        .font("Helvetica-Bold")
         .fontSize(27)
         .text(
           "Executive Report",
@@ -11796,12 +11883,8 @@ app.get(
         );
 
       doc
-        .fillColor(
-          "#ffffff"
-        )
-        .font(
-          "Helvetica"
-        )
+        .fillColor("#ffffff")
+        .font("Helvetica")
         .fontSize(15)
         .text(
           data.organization.name,
@@ -11809,7 +11892,8 @@ app.get(
           119
         );
 
-      doc.y = 210;
+      doc.y =
+        210;
 
       drawMetricTable([
         {
@@ -11855,15 +11939,11 @@ app.get(
       doc.moveDown(2);
 
       doc
-        .fillColor(
-          mutedColor
-        )
-        .font(
-          "Helvetica"
-        )
+        .fillColor(mutedColor)
+        .font("Helvetica")
         .fontSize(9)
         .text(
-          "This report combines organization advertising revenue, inventory, advertiser performance, conversions, and attributed advertiser revenue from the existing Vivid reporting data.",
+          "This report combines organization advertising revenue, available inventory, advertiser performance, conversions, and attributed advertiser revenue from Vivid.",
           {
             align: "center"
           }
@@ -12053,68 +12133,85 @@ app.get(
       drawTable({
         columns: [
           {
-            label: "Location",
+            label:
+              "Location",
             ratio: 0.22
           },
           {
-            label: "Placements",
+            label:
+              "Placements",
             ratio: 0.09,
             align: "right"
           },
           {
-            label: "Campaigns",
+            label:
+              "Campaigns",
             ratio: 0.09,
             align: "right"
           },
           {
-            label: "Advertisers",
+            label:
+              "Advertisers",
             ratio: 0.09,
             align: "right"
           },
           {
-            label: "Internal Revenue",
+            label:
+              "Internal Revenue",
             ratio: 0.14,
             align: "right"
           },
           {
-            label: "Advertiser Revenue",
+            label:
+              "Advertiser Revenue",
             ratio: 0.14,
             align: "right"
           },
           {
-            label: "Economic Impact",
+            label:
+              "Economic Impact",
             ratio: 0.14,
             align: "right"
           },
           {
-            label: "Conversions",
+            label:
+              "Conversions",
             ratio: 0.09,
             align: "right"
           }
         ],
+
         rows:
           data.locations,
+
         rowMapper: row => [
           row.locationName ||
             "",
+
           numberValue(
             row.placements
           ),
+
           numberValue(
             row.campaigns
           ),
+
           numberValue(
             row.advertisers
           ),
+
           moneyValue(
             row.internalRevenue
           ),
+
           moneyValue(
             row.advertiserRevenue
           ),
+
           moneyValue(
             row.economicImpact
           ),
+
           numberValue(
             row.conversions
           )
@@ -12176,24 +12273,32 @@ app.get(
             align: "right"
           }
         ],
+
         rows:
           data.placements,
+
         rowMapper: row => [
           row.qrName || "",
+
           row.locationName ||
             "",
+
           moneyValue(
             row.placementValue
           ),
+
           moneyValue(
             row.internalRevenue
           ),
+
           moneyValue(
             row.advertiserRevenue
           ),
+
           moneyValue(
             row.economicImpact
           ),
+
           numberValue(
             row.conversions
           )
@@ -12246,19 +12351,26 @@ app.get(
             ratio: 0.08
           }
         ],
+
         rows:
           data.approvedOpportunities,
+
         rowMapper: row => [
           row.advertiser || "",
+
           row.opportunityName ||
             "",
+
           row.locationName ||
             "",
+
           moneyValue(
             row.approvedPrice
           ),
+
           row.pricingUnit ||
             "",
+
           dateValue(
             row.approvedAt
           )
@@ -12267,7 +12379,7 @@ app.get(
 
       /*
       =====================================================
-      PENDING AND AVAILABLE
+      PENDING OPPORTUNITIES
       =====================================================
       */
 
@@ -12306,22 +12418,36 @@ app.get(
             ratio: 0.10
           }
         ],
+
         rows:
           data.pendingOpportunities,
+
         rowMapper: row => [
           row.advertiser || "",
+
           row.opportunityName ||
             "",
+
           row.locationName ||
             "",
+
           moneyValue(
             row.pendingPrice
           ),
+
           dateValue(
             row.submittedAt
           )
         ]
       });
+
+      /*
+      =====================================================
+      AVAILABLE OPPORTUNITIES
+      =====================================================
+      */
+
+      doc.addPage();
 
       sectionTitle(
         "Available Opportunities"
@@ -12351,16 +12477,21 @@ app.get(
             ratio: 0.18
           }
         ],
+
         rows:
           data.availableOpportunities,
+
         rowMapper: row => [
           row.opportunityName ||
             "",
+
           row.locationName ||
             "",
+
           moneyValue(
             row.availablePrice
           ),
+
           row.status ||
             "Available"
         ]
@@ -12434,35 +12565,46 @@ app.get(
             align: "right"
           }
         ],
+
         rows:
           data.advertisers,
+
         rowMapper: row => [
           row.advertiser || "",
+
           numberValue(
             row.campaigns
           ),
+
           numberValue(
             row.locations
           ),
+
           numberValue(
             row.scans
           ),
+
           numberValue(
             row.intent
           ),
+
           numberValue(
             row.conversions
           ),
+
           moneyValue(
             row.advertiserRevenue
           ),
+
           moneyValue(
             row.internalRevenue
           ),
+
           moneyValue(
             row.economicImpact
           )
         ],
+
         fontSize: 6.8
       });
 
@@ -12532,34 +12674,45 @@ app.get(
             ratio: 0.08
           }
         ],
+
         rows:
           data.campaigns,
+
         rowMapper: row => [
           row.advertiser || "",
+
           row.campaignName ||
             "",
+
           numberValue(
             row.visitors
           ),
+
           numberValue(
             row.clicks
           ),
+
           numberValue(
             row.scans
           ),
+
           numberValue(
             row.conversions
           ),
+
           percentValue(
             row.visitorConversionRate
           ),
+
           moneyValue(
             row.advertiserRevenue
           ),
+
           dateValue(
             row.lastActivity
           )
         ],
+
         fontSize: 6.6
       });
 
@@ -12575,9 +12728,24 @@ app.get(
         "Customer Actions and URLs"
       );
 
+      if (
+        !data.customerActions.length
+      ) {
+        doc
+          .fillColor(mutedColor)
+          .font("Helvetica")
+          .fontSize(9)
+          .text(
+            "No customer actions found for the selected reporting period."
+          );
+      }
+
       data.customerActions.forEach(
-        (action, index) => {
-          ensureSpace(190);
+        (
+          action,
+          index
+        ) => {
+          ensureSpace(280);
 
           doc
             .fillColor(
@@ -12594,7 +12762,17 @@ app.get(
               }`
             );
 
-          doc.moveDown(0.3);
+          doc.moveDown(0.45);
+
+          drawUrlBlock(
+            "Destination URL",
+            action.destinationUrl
+          );
+
+          drawUrlBlock(
+            "Conversion URL",
+            action.conversionUrl
+          );
 
           drawMetricTable([
             {
@@ -12613,16 +12791,16 @@ app.get(
             },
             {
               label:
-                "Destination URL",
+                "Locations",
               value:
-                action.destinationUrl ||
+                action.locationNames ||
                 ""
             },
             {
               label:
-                "Conversion URL",
+                "QR Placements",
               value:
-                action.conversionUrl ||
+                action.qrNames ||
                 ""
             },
             {
@@ -12667,10 +12845,34 @@ app.get(
             },
             {
               label:
+                "Revenue Per Visitor",
+              value:
+                moneyValue(
+                  action.revenuePerVisitor
+                )
+            },
+            {
+              label:
+                "Revenue Per Click",
+              value:
+                moneyValue(
+                  action.revenuePerClick
+                )
+            },
+            {
+              label:
                 "Revenue Per Conversion",
               value:
                 moneyValue(
                   action.revenuePerConversion
+                )
+            },
+            {
+              label:
+                "Estimated Value",
+              value:
+                moneyValue(
+                  action.estimatedValue
                 )
             },
             {
@@ -12690,7 +12892,7 @@ app.get(
             }
           ]);
 
-          doc.moveDown(0.75);
+          doc.moveDown(1);
         }
       );
 
@@ -12718,12 +12920,8 @@ app.get(
 
         if (pageIndex > 0) {
           doc
-            .fillColor(
-              mutedColor
-            )
-            .font(
-              "Helvetica"
-            )
+            .fillColor(mutedColor)
+            .font("Helvetica")
             .fontSize(7)
             .text(
               `Vivid Organizations • ${data.organization.name} • ${reportingPeriod}`,
@@ -12734,18 +12932,15 @@ app.get(
                   doc.page.width -
                   doc.page.margins.left -
                   doc.page.margins.right,
-                align: "center"
+                align: "center",
+                lineBreak: false
               }
             );
         }
 
         doc
-          .fillColor(
-            mutedColor
-          )
-          .font(
-            "Helvetica"
-          )
+          .fillColor(mutedColor)
+          .font("Helvetica")
           .fontSize(7)
           .text(
             `Confidential • Generated ${dateTimeValue(
@@ -12758,17 +12953,14 @@ app.get(
                 doc.page.width -
                 doc.page.margins.left -
                 doc.page.margins.right,
-              align: "left"
+              align: "left",
+              lineBreak: false
             }
           );
 
         doc
-          .fillColor(
-            mutedColor
-          )
-          .font(
-            "Helvetica"
-          )
+          .fillColor(mutedColor)
+          .font("Helvetica")
           .fontSize(7)
           .text(
             `Page ${pageNumber} of ${pageRange.count}`,
@@ -12779,7 +12971,8 @@ app.get(
                 doc.page.width -
                 doc.page.margins.left -
                 doc.page.margins.right,
-              align: "right"
+              align: "right",
+              lineBreak: false
             }
           );
       }
@@ -12807,6 +13000,12 @@ app.get(
     }
   }
 );
+
+      
+
+      
+      
+
 app.get(
   "/org-export",
   async (req, res) => {
