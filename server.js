@@ -56291,14 +56291,6 @@ app.get("/admin/reports", requireLogin, async (req, res) => {
 
 <button
   type="submit"
-  formaction="/export/report.csv"
-  formmethod="get"
->
-  Export Executive CSV
-</button>
-
-<button
-  type="submit"
   formaction="/export/report.xlsx"
   formmethod="get"
 >
@@ -56312,6 +56304,7 @@ app.get("/admin/reports", requireLogin, async (req, res) => {
 >
   Export Executive PDF
 </button>
+
 
       </form>
 
