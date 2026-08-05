@@ -11134,6 +11134,654 @@ res.end();
     }
   }
 );
+/*
+=========================================================
+ORGANIZATION EXPORT CENTER
+=========================================================
+*/
+
+app.get(
+  "/org-export",
+  async (req, res) => {
+    try {
+      const organizationId = Number(
+        req.query.organization_id
+      );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Valid organization is required."
+          );
+      }
+
+      const isSuperAdmin =
+        req.session.user?.role ===
+        "super_admin";
+
+      const organizationUser =
+        req.session.orgUser;
+
+      const isOrganizationUser =
+        organizationUser &&
+        Number(
+          organizationUser.organization_id
+        ) === organizationId;
+
+      if (
+        !isSuperAdmin &&
+        !isOrganizationUser
+      ) {
+        return res
+          .status(403)
+          .send("Access denied");
+      }
+
+      /*
+      Local-manager data scoping will be added before
+      exposing unrestricted organization-wide exports.
+      */
+
+      const organizationRole =
+        String(
+          organizationUser
+            ?.organization_role || ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const hasOrganizationWideAccess =
+        isSuperAdmin ||
+        [
+          "owner",
+          "organization_admin",
+          "district_admin"
+        ].includes(organizationRole);
+
+      if (!hasOrganizationWideAccess) {
+        return res
+          .status(403)
+          .send(
+            "Location-scoped reporting is being configured for this account."
+          );
+      }
+
+      const dateFilter =
+        getOrgDateFilter(req);
+
+      if (dateFilter.error) {
+        return res
+          .status(400)
+          .send(dateFilter.error);
+      }
+
+      const {
+        fromDate,
+        toDate
+      } = dateFilter;
+
+      const data =
+        await buildOrganizationExportData(
+          req,
+          organizationId,
+          fromDate,
+          toDate
+        );
+
+      const escapeHtml = value =>
+        String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+
+      const formatMoney = value =>
+        Number(value || 0)
+          .toLocaleString(
+            "en-US",
+            {
+              style: "currency",
+              currency: "USD"
+            }
+          );
+
+      const formatNumber = value =>
+        Number(value || 0)
+          .toLocaleString("en-US");
+
+      const formatPercent = value =>
+        `${Number(value || 0).toFixed(1)}%`;
+
+      const exportQuery =
+        new URLSearchParams();
+
+      exportQuery.set(
+        "organization_id",
+        String(organizationId)
+      );
+
+      if (fromDate) {
+        exportQuery.set(
+          "from",
+          fromDate
+        );
+      }
+
+      if (toDate) {
+        exportQuery.set(
+          "to",
+          toDate
+        );
+      }
+
+      const generatedBy =
+        req.session.user?.name ||
+        req.session.user?.email ||
+        organizationUser?.name ||
+        organizationUser?.email ||
+        "Organization User";
+
+      const card = (
+        label,
+        value,
+        href = ""
+      ) => {
+        const inner = `
+          <div
+            style="
+              color:#64748b;
+              font-size:13px;
+              font-weight:700;
+              margin-bottom:8px;
+            "
+          >
+            ${escapeHtml(label)}
+          </div>
+
+          <div
+            style="
+              color:#123d25;
+              font-size:27px;
+              font-weight:800;
+              line-height:1.15;
+            "
+          >
+            ${escapeHtml(value)}
+          </div>
+        `;
+
+        if (href) {
+          return `
+            <a
+              href="${escapeHtml(href)}"
+              style="
+                display:block;
+                background:white;
+                border-radius:16px;
+                padding:18px;
+                box-shadow:0 7px 20px rgba(0,0,0,.07);
+                text-decoration:none;
+                border:1px solid #e3ebe4;
+              "
+            >
+              ${inner}
+            </a>
+          `;
+        }
+
+        return `
+          <div
+            style="
+              background:white;
+              border-radius:16px;
+              padding:18px;
+              box-shadow:0 7px 20px rgba(0,0,0,.07);
+              border:1px solid #e3ebe4;
+            "
+          >
+            ${inner}
+          </div>
+        `;
+      };
+
+      return res.send(
+        orgPage(
+          `${data.organization.name} Export Center`,
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Export Center
+              </h1>
+
+              <p class="subtitle">
+                ${escapeHtml(
+                  data.organization.name
+                )}
+                Executive Reporting
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div
+                style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:center;
+                  gap:16px;
+                  flex-wrap:wrap;
+                  margin-bottom:18px;
+                "
+              >
+                <div>
+                  <a
+                    href="/org-organization/${organizationId}"
+                    style="
+                      text-decoration:none;
+                    "
+                  >
+                    ← Back to
+                    ${escapeHtml(
+                      data.organization.name
+                    )}
+                  </a>
+                </div>
+
+                <div
+                  style="
+                    color:#64748b;
+                    font-size:13px;
+                  "
+                >
+                  Generated by
+                  ${escapeHtml(generatedBy)}
+                </div>
+              </div>
+
+              <div class="card">
+                <h2
+                  style="
+                    margin-top:0;
+                    margin-bottom:6px;
+                  "
+                >
+                  Reporting Filters
+                </h2>
+
+                <p
+                  style="
+                    margin-top:0;
+                    color:#64748b;
+                  "
+                >
+                  Select a reporting period and run the
+                  report before exporting.
+                </p>
+
+                <form
+                  method="GET"
+                  action="/org-export"
+                >
+                  <input
+                    type="hidden"
+                    name="organization_id"
+                    value="${organizationId}"
+                  />
+
+                  <div
+                    style="
+                      display:grid;
+                      grid-template-columns:
+                        repeat(
+                          auto-fit,
+                          minmax(220px,1fr)
+                        );
+                      gap:16px;
+                    "
+                  >
+                    <div>
+                      <label
+                        for="from"
+                        style="
+                          display:block;
+                          font-weight:700;
+                        "
+                      >
+                        Start Date
+                      </label>
+
+                      <input
+                        id="from"
+                        type="date"
+                        name="from"
+                        value="${escapeHtml(
+                          fromDate
+                        )}"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        for="to"
+                        style="
+                          display:block;
+                          font-weight:700;
+                        "
+                      >
+                        End Date
+                      </label>
+
+                      <input
+                        id="to"
+                        type="date"
+                        name="to"
+                        value="${escapeHtml(
+                          toDate
+                        )}"
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    style="
+                      display:flex;
+                      gap:10px;
+                      flex-wrap:wrap;
+                      margin-top:4px;
+                    "
+                  >
+                    <button
+                      type="submit"
+                      class="btn"
+                    >
+                      Run Report
+                    </button>
+
+                    <a
+                      class="btn secondary"
+                      href="/org-export?organization_id=${organizationId}"
+                    >
+                      Clear Filters
+                    </a>
+                  </div>
+                </form>
+              </div>
+
+              <div
+                style="
+                  display:flex;
+                  gap:12px;
+                  flex-wrap:wrap;
+                  margin:18px 0;
+                "
+              >
+                <a
+                  class="btn"
+                  href="/org-export/report.xlsx?${escapeHtml(
+                    exportQuery.toString()
+                  )}"
+                >
+                  Export Executive Excel
+                </a>
+
+                <span
+                  class="btn secondary"
+                  style="
+                    opacity:.55;
+                    cursor:not-allowed;
+                  "
+                  title="Organization PDF is the next build step."
+                >
+                  Export Executive PDF
+                </span>
+              </div>
+
+              <div class="card">
+                <h2
+                  style="
+                    margin-top:0;
+                    margin-bottom:4px;
+                  "
+                >
+                  Executive Snapshot
+                </h2>
+
+                <p
+                  style="
+                    margin-top:0;
+                    color:#64748b;
+                  "
+                >
+                  ${
+                    fromDate || toDate
+                      ? `Reporting period:
+                         ${escapeHtml(
+                           fromDate || "Beginning"
+                         )}
+                         through
+                         ${escapeHtml(
+                           toDate || "Current"
+                         )}`
+                      : "All available reporting data"
+                  }
+                </p>
+              </div>
+
+              <h2>
+                Organization Revenue
+              </h2>
+
+              <div
+                style="
+                  display:grid;
+                  grid-template-columns:
+                    repeat(
+                      auto-fit,
+                      minmax(190px,1fr)
+                    );
+                  gap:14px;
+                  margin-bottom:24px;
+                "
+              >
+                ${card(
+                  "Approved Revenue",
+                  formatMoney(
+                    data.summary
+                      .approvedRevenue
+                  )
+                )}
+
+                ${card(
+                  "Pending Revenue",
+                  formatMoney(
+                    data.summary
+                      .pendingRevenue
+                  )
+                )}
+
+                ${card(
+                  "Available Revenue",
+                  formatMoney(
+                    data.summary
+                      .availableRevenue
+                  )
+                )}
+
+                ${card(
+                  "Placement Value",
+                  formatMoney(
+                    data.summary
+                      .placementValue
+                  )
+                )}
+
+                ${card(
+                  "Inventory Utilization",
+                  formatPercent(
+                    data.summary
+                      .inventoryUtilization
+                  )
+                )}
+              </div>
+
+              <h2>
+                Advertiser Performance
+              </h2>
+
+              <div
+                style="
+                  display:grid;
+                  grid-template-columns:
+                    repeat(
+                      auto-fit,
+                      minmax(190px,1fr)
+                    );
+                  gap:14px;
+                  margin-bottom:24px;
+                "
+              >
+                ${card(
+                  "Advertiser Revenue",
+                  formatMoney(
+                    data.summary
+                      .advertiserRevenue
+                  )
+                )}
+
+                ${card(
+                  "Economic Impact",
+                  formatMoney(
+                    data.summary
+                      .economicImpact
+                  )
+                )}
+
+                ${card(
+                  "Visitors",
+                  formatNumber(
+                    data.summary.visitors
+                  )
+                )}
+
+                ${card(
+                  "Clicks",
+                  formatNumber(
+                    data.summary.clicks
+                  )
+                )}
+
+                ${card(
+                  "Conversions",
+                  formatNumber(
+                    data.summary
+                      .conversions
+                  )
+                )}
+
+                ${card(
+                  "Conversion Rate",
+                  formatPercent(
+                    data.summary
+                      .conversionRate
+                  )
+                )}
+              </div>
+
+              <h2>
+                Program Overview
+              </h2>
+
+              <div
+                style="
+                  display:grid;
+                  grid-template-columns:
+                    repeat(
+                      auto-fit,
+                      minmax(170px,1fr)
+                    );
+                  gap:14px;
+                "
+              >
+                ${card(
+                  "Locations",
+                  formatNumber(
+                    data.summary.locations
+                  ),
+                  `/org-locations?organization_id=${organizationId}`
+                )}
+
+                ${card(
+                  "QR Placements",
+                  formatNumber(
+                    data.summary.placements
+                  )
+                )}
+
+                ${card(
+                  "Advertisers",
+                  formatNumber(
+                    data.summary.advertisers
+                  )
+                )}
+
+                ${card(
+                  "Campaigns",
+                  formatNumber(
+                    data.summary.campaigns
+                  )
+                )}
+
+                ${card(
+                  "Customer Actions",
+                  formatNumber(
+                    data.summary
+                      .customerActions
+                  )
+                )}
+
+                ${card(
+                  "Scans",
+                  formatNumber(
+                    data.summary.scans
+                  )
+                )}
+
+                ${card(
+                  "Intent",
+                  formatNumber(
+                    data.summary.intent
+                  )
+                )}
+              </div>
+
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "ORG EXPORT CENTER ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "ORG EXPORT CENTER ERROR: " +
+          err.message
+        );
+    }
+  }
+);
 app.get(
   "/org-organization/:id",
   async (req, res) => {
