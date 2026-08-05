@@ -7336,6 +7336,22 @@ const approvedOpportunities =
     approvedAt:
       row.approved_at || null
   }));
+  const approvedRevenue =
+  approvedOpportunities.reduce(
+    (total, row) =>
+      total +
+      Number(
+        row.approvedPrice || 0
+      ),
+    0
+  );
+
+const summary = {
+  approvedSpots:
+    approvedOpportunities.length,
+
+  approvedRevenue
+};
   return {
     organization,
 
