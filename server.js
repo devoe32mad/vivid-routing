@@ -7360,7 +7360,7 @@ const summary = {
       toDate: toDate || null
     },
 
-    summary: {},
+    summary,
 
     locations: [],
     placements: [],
