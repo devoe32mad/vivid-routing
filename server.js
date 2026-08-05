@@ -7517,6 +7517,160 @@ const availableRevenue =
             ),
         0
     );
+  /*
+=========================================================
+LOCATION PERFORMANCE
+=========================================================
+*/
+
+const locationsResult = await q(
+`
+SELECT
+
+    s.id,
+    s.name,
+    s.location,
+
+    COUNT(DISTINCT qr.id)::int AS placements,
+
+    COUNT(DISTINCT c.id)::int AS campaigns,
+
+    COUNT(DISTINCT LOWER(TRIM(c.advertiser)))
+        FILTER (
+            WHERE NULLIF(TRIM(c.advertiser),'') IS NOT NULL
+        )::int AS advertisers,
+
+    COUNT(e.id)
+        FILTER (
+            WHERE e.type='scan'
+        )::int AS scans,
+
+    COUNT(e.id)
+        FILTER (
+            WHERE e.type IN (
+                'offer',
+                'maps',
+                'waze'
+            )
+        )::int AS intent,
+
+    COUNT(e.id)
+        FILTER (
+            WHERE e.type='conversion'
+        )::int AS conversions,
+
+    COALESCE(
+        SUM(e.value)
+            FILTER (
+                WHERE e.type='conversion'
+            ),
+        0
+    )::numeric AS advertiser_revenue
+
+FROM spaces s
+
+LEFT JOIN qr_codes qr
+    ON qr.space_id=s.id
+
+LEFT JOIN qr_campaigns qc
+    ON qc.qr_id=qr.id
+
+LEFT JOIN campaigns c
+    ON c.id=qc.campaign_id
+
+LEFT JOIN events e
+    ON e.qr_id=qr.id
+   AND e.campaign_id=c.id
+
+WHERE s.organization_id=$1
+
+GROUP BY
+    s.id,
+    s.name,
+    s.location
+
+ORDER BY
+    s.name
+`,
+[orgId]
+);
+  const internalRevenueByLocation =
+    new Map();
+
+approvedOpportunities.forEach(r=>{
+
+    const current =
+        internalRevenueByLocation.get(
+            r.locationId
+        ) || 0;
+
+    internalRevenueByLocation.set(
+        r.locationId,
+        current +
+        Number(
+            r.approvedPrice || 0
+        )
+    );
+
+});
+  const locations =
+    locationsResult.rows.map(r=>{
+
+        const internalRevenue =
+            Number(
+                internalRevenueByLocation.get(
+                    Number(r.id)
+                ) || 0
+            );
+
+        const advertiserRevenue =
+            Number(
+                r.advertiser_revenue || 0
+            );
+
+        return{
+
+            locationId:Number(r.id),
+
+            locationName:r.name,
+
+            market:r.location,
+
+            placements:Number(
+                r.placements || 0
+            ),
+
+            campaigns:Number(
+                r.campaigns || 0
+            ),
+
+            advertisers:Number(
+                r.advertisers || 0
+            ),
+
+            scans:Number(
+                r.scans || 0
+            ),
+
+            intent:Number(
+                r.intent || 0
+            ),
+
+            conversions:Number(
+                r.conversions || 0
+            ),
+
+            internalRevenue,
+
+            advertiserRevenue,
+
+            economicImpact:
+                internalRevenue +
+                advertiserRevenue
+
+        };
+
+    });
   const approvedRevenue =
   approvedOpportunities.reduce(
     (total, row) =>
@@ -7575,7 +7729,7 @@ availableRevenue,
 
     summary,
 
-    locations: [],
+    locations,
     placements: [],
     advertisers: [],
     campaigns: [],
