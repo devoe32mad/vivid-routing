@@ -7213,7 +7213,7 @@ app.get("/org-organizations", requireLogin, requireSuperAdmin, async (req, res) 
   }
 });
 
-)app.get(
+app.get(
   "/org-organization/:id",
   async (req, res) => {
     try {
