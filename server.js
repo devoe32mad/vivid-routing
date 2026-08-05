@@ -9672,6 +9672,239 @@ approvedSheet.headerFooter = {
   oddFooter:
     `&L${data.organization.name || "Organization"}&CConfidential&RPage &P of &N`
 };
+      /*
+=========================================================
+PENDING OPPORTUNITIES WORKSHEET
+=========================================================
+*/
+
+const pendingSheet =
+  workbook.addWorksheet(
+    "Pending Opportunities"
+  );
+
+pendingSheet.columns = [
+  {
+    header: "Advertiser",
+    key: "advertiser",
+    width: 28
+  },
+  {
+    header: "Opportunity",
+    key: "opportunityName",
+    width: 34
+  },
+  {
+    header: "Location",
+    key: "locationName",
+    width: 30
+  },
+  {
+    header: "Market",
+    key: "market",
+    width: 20
+  },
+  {
+    header: "Pending Price",
+    key: "pendingPrice",
+    width: 18
+  },
+  {
+    header: "Submitted Date",
+    key: "submittedAt",
+    width: 18
+  },
+  {
+    header: "Status",
+    key: "status",
+    width: 14
+  }
+];
+
+data.pendingOpportunities.forEach(row => {
+  pendingSheet.addRow({
+    advertiser:
+      row.advertiser || "",
+
+    opportunityName:
+      row.opportunityName || "",
+
+    locationName:
+      row.locationName || "",
+
+    market:
+      row.market || "",
+
+    pendingPrice:
+      Number(row.pendingPrice || 0),
+
+    submittedAt:
+      row.submittedAt
+        ? new Date(row.submittedAt)
+        : null,
+
+    status:
+      row.status || "Pending"
+  });
+});
+
+/*
+=========================================================
+PENDING OPPORTUNITIES FORMATTING
+=========================================================
+*/
+
+const pendingHeader =
+  pendingSheet.getRow(1);
+
+pendingHeader.height = 26;
+
+pendingHeader.font = {
+  bold: true,
+  color: {
+    argb: "FFFFFFFF"
+  }
+};
+
+pendingHeader.fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: {
+    argb: "FF1F4E78"
+  }
+};
+
+pendingHeader.alignment = {
+  vertical: "middle",
+  horizontal: "center",
+  wrapText: true
+};
+
+pendingSheet.getColumn(
+  "pendingPrice"
+).numFmt = "$#,##0.00";
+
+pendingSheet.getColumn(
+  "submittedAt"
+).numFmt = "mm/dd/yyyy";
+
+pendingSheet.getColumn(
+  "pendingPrice"
+).alignment = {
+  vertical: "middle",
+  horizontal: "right"
+};
+
+pendingSheet.getColumn(
+  "submittedAt"
+).alignment = {
+  vertical: "middle",
+  horizontal: "center"
+};
+
+[
+  "advertiser",
+  "opportunityName",
+  "locationName",
+  "market",
+  "status"
+].forEach(columnKey => {
+  pendingSheet.getColumn(
+    columnKey
+  ).alignment = {
+    vertical: "middle",
+    horizontal: "left",
+    wrapText: true
+  };
+});
+
+for (
+  let rowNumber = 2;
+  rowNumber <= pendingSheet.rowCount;
+  rowNumber++
+) {
+  const row =
+    pendingSheet.getRow(rowNumber);
+
+  row.height = 22;
+
+  if (rowNumber % 2 === 0) {
+    row.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: {
+        argb: "FFF3F6F4"
+      }
+    };
+  }
+}
+
+for (
+  let rowNumber = 1;
+  rowNumber <= pendingSheet.rowCount;
+  rowNumber++
+) {
+  for (
+    let columnNumber = 1;
+    columnNumber <= 7;
+    columnNumber++
+  ) {
+    pendingSheet.getCell(
+      rowNumber,
+      columnNumber
+    ).border = {
+      top: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      left: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      bottom: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      right: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      }
+    };
+  }
+}
+
+pendingSheet.autoFilter = {
+  from: "A1",
+  to: "G1"
+};
+
+pendingSheet.views = [
+  {
+    state: "frozen",
+    ySplit: 1
+  }
+];
+
+pendingSheet.pageSetup = {
+  orientation: "landscape",
+  fitToPage: true,
+  fitToWidth: 1,
+  fitToHeight: 0,
+  printTitlesRow: "1:1"
+};
+
+pendingSheet.headerFooter = {
+  oddFooter:
+    `&L${data.organization.name || "Organization"}&CConfidential&RPage &P of &N`
+};
 res.setHeader(
 "Content-Disposition",
 `attachment; filename="${String(
