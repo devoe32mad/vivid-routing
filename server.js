@@ -9430,6 +9430,248 @@ placementsSheet.getColumn(col).numFmt =
 "#,##0";
 
 });
+      /*
+=========================================================
+APPROVED OPPORTUNITIES WORKSHEET
+=========================================================
+*/
+
+const approvedSheet =
+  workbook.addWorksheet(
+    "Approved Opportunities"
+  );
+
+approvedSheet.columns = [
+  {
+    header: "Advertiser",
+    key: "advertiser",
+    width: 28
+  },
+  {
+    header: "Opportunity",
+    key: "opportunityName",
+    width: 34
+  },
+  {
+    header: "Location",
+    key: "locationName",
+    width: 30
+  },
+  {
+    header: "Market",
+    key: "market",
+    width: 20
+  },
+  {
+    header: "Approved Price",
+    key: "approvedPrice",
+    width: 18
+  },
+  {
+    header: "Pricing Unit",
+    key: "pricingUnit",
+    width: 18
+  },
+  {
+    header: "Approved Date",
+    key: "approvedAt",
+    width: 18
+  },
+  {
+    header: "Status",
+    key: "status",
+    width: 14
+  }
+];
+
+data.approvedOpportunities.forEach(row => {
+  approvedSheet.addRow({
+    advertiser:
+      row.advertiser || "",
+
+    opportunityName:
+      row.opportunityName || "",
+
+    locationName:
+      row.locationName || "",
+
+    market:
+      row.market || "",
+
+    approvedPrice:
+      Number(row.approvedPrice || 0),
+
+    pricingUnit:
+      row.pricingUnit || "",
+
+    approvedAt:
+      row.approvedAt
+        ? new Date(row.approvedAt)
+        : null,
+
+    status:
+      row.status || "Approved"
+  });
+});
+
+/*
+=========================================================
+APPROVED OPPORTUNITIES FORMATTING
+=========================================================
+*/
+
+const approvedHeader =
+  approvedSheet.getRow(1);
+
+approvedHeader.height = 26;
+
+approvedHeader.font = {
+  bold: true,
+  color: {
+    argb: "FFFFFFFF"
+  }
+};
+
+approvedHeader.fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: {
+    argb: "FF1F4E78"
+  }
+};
+
+approvedHeader.alignment = {
+  vertical: "middle",
+  horizontal: "center",
+  wrapText: true
+};
+
+approvedSheet.getColumn(
+  "approvedPrice"
+).numFmt = "$#,##0.00";
+
+approvedSheet.getColumn(
+  "approvedAt"
+).numFmt = "mm/dd/yyyy";
+
+approvedSheet.getColumn(
+  "approvedPrice"
+).alignment = {
+  vertical: "middle",
+  horizontal: "right"
+};
+
+approvedSheet.getColumn(
+  "approvedAt"
+).alignment = {
+  vertical: "middle",
+  horizontal: "center"
+};
+
+[
+  "advertiser",
+  "opportunityName",
+  "locationName",
+  "market",
+  "pricingUnit",
+  "status"
+].forEach(columnKey => {
+  approvedSheet.getColumn(
+    columnKey
+  ).alignment = {
+    vertical: "middle",
+    horizontal: "left",
+    wrapText: true
+  };
+});
+
+for (
+  let rowNumber = 2;
+  rowNumber <= approvedSheet.rowCount;
+  rowNumber++
+) {
+  const row =
+    approvedSheet.getRow(rowNumber);
+
+  row.height = 22;
+
+  if (rowNumber % 2 === 0) {
+    row.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: {
+        argb: "FFF3F6F4"
+      }
+    };
+  }
+}
+
+for (
+  let rowNumber = 1;
+  rowNumber <= approvedSheet.rowCount;
+  rowNumber++
+) {
+  for (
+    let columnNumber = 1;
+    columnNumber <= 8;
+    columnNumber++
+  ) {
+    approvedSheet.getCell(
+      rowNumber,
+      columnNumber
+    ).border = {
+      top: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      left: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      bottom: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      right: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      }
+    };
+  }
+}
+
+approvedSheet.autoFilter = {
+  from: "A1",
+  to: "H1"
+};
+
+approvedSheet.views = [
+  {
+    state: "frozen",
+    ySplit: 1
+  }
+];
+
+approvedSheet.pageSetup = {
+  orientation: "landscape",
+  fitToPage: true,
+  fitToWidth: 1,
+  fitToHeight: 0,
+  printTitlesRow: "1:1"
+};
+
+approvedSheet.headerFooter = {
+  oddFooter:
+    `&L${data.organization.name || "Organization"}&CConfidential&RPage &P of &N`
+};
 res.setHeader(
 "Content-Disposition",
 `attachment; filename="${String(
