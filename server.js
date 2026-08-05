@@ -7243,7 +7243,99 @@ async function buildOrganizationExportData(
   if (!organization) {
     throw new Error("Organization not found.");
   }
+/*
+=========================================================
+APPROVED OPPORTUNITIES — INTERNAL REVENUE
+Read-only. No data is changed.
+=========================================================
+*/
 
+const approvedResult = await q(
+  `
+    SELECT
+      r.id AS request_id,
+      r.organization_id,
+      r.location_id,
+      r.opportunity_id,
+      r.business_name AS advertiser,
+      r.opportunity_name,
+      r.price AS approved_price,
+      r.pricing_unit,
+      r.status,
+      r.approved_at,
+
+      s.name AS location_name,
+      s.location AS market
+
+    FROM organization_advertising_requests r
+
+    JOIN spaces s
+      ON s.id = r.location_id
+     AND s.organization_id = r.organization_id
+
+    WHERE r.organization_id = $1
+      AND LOWER(TRIM(COALESCE(r.status, ''))) = 'approved'
+
+      AND (
+        NULLIF($2, '') IS NULL
+        OR r.approved_at::date >= NULLIF($2, '')::date
+      )
+
+      AND (
+        NULLIF($3, '') IS NULL
+        OR r.approved_at::date <= NULLIF($3, '')::date
+      )
+
+    ORDER BY
+      r.approved_at DESC NULLS LAST,
+      r.id DESC
+  `,
+  [
+    orgId,
+    fromDate || "",
+    toDate || ""
+  ]
+);
+
+const approvedOpportunities =
+  approvedResult.rows.map(row => ({
+    requestId: Number(row.request_id),
+
+    organizationId:
+      Number(row.organization_id),
+
+    locationId:
+      Number(row.location_id),
+
+    opportunityId:
+      row.opportunity_id
+        ? Number(row.opportunity_id)
+        : null,
+
+    advertiser:
+      row.advertiser || "",
+
+    opportunityName:
+      row.opportunity_name || "",
+
+    locationName:
+      row.location_name || "",
+
+    market:
+      row.market || "",
+
+    approvedPrice:
+      Number(row.approved_price || 0),
+
+    pricingUnit:
+      row.pricing_unit || "",
+
+    status:
+      row.status || "Approved",
+
+    approvedAt:
+      row.approved_at || null
+  }));
   return {
     organization,
 
@@ -7259,7 +7351,7 @@ async function buildOrganizationExportData(
     advertisers: [],
     campaigns: [],
     customerActions: [],
-    approvedOpportunities: [],
+    approvedOpportunities,
     pendingOpportunities: [],
     availableOpportunities: []
   };
