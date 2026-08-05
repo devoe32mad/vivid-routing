@@ -10728,6 +10728,384 @@ campaignsSheet.headerFooter = {
   oddFooter:
     `&L${data.organization.name || "Organization"}&CConfidential&RPage &P of &N`
 }; 
+      /*
+=========================================================
+CUSTOMER ACTIONS WORKSHEET
+=========================================================
+*/
+
+const customerActionsSheet =
+  workbook.addWorksheet("Customer Actions");
+
+customerActionsSheet.columns = [
+  {
+    header: "Advertiser",
+    key: "advertiser",
+    width: 26
+  },
+  {
+    header: "Campaign",
+    key: "campaignName",
+    width: 30
+  },
+  {
+    header: "Customer Action",
+    key: "customerActionName",
+    width: 30
+  },
+  {
+    header: "Type",
+    key: "destinationType",
+    width: 16
+  },
+  {
+    header: "Destination URL",
+    key: "destinationUrl",
+    width: 48
+  },
+  {
+    header: "Conversion URL",
+    key: "conversionUrl",
+    width: 48
+  },
+  {
+    header: "Locations",
+    key: "locationNames",
+    width: 30
+  },
+  {
+    header: "QR Placements",
+    key: "qrNames",
+    width: 30
+  },
+  {
+    header: "Visitors",
+    key: "visitors",
+    width: 12
+  },
+  {
+    header: "Clicks",
+    key: "clicks",
+    width: 12
+  },
+  {
+    header: "Conversions",
+    key: "conversions",
+    width: 14
+  },
+  {
+    header: "Conversion Rate",
+    key: "conversionRate",
+    width: 18
+  },
+  {
+    header: "Advertiser Revenue",
+    key: "advertiserRevenue",
+    width: 20
+  },
+  {
+    header: "Revenue Per Visitor",
+    key: "revenuePerVisitor",
+    width: 20
+  },
+  {
+    header: "Revenue Per Click",
+    key: "revenuePerClick",
+    width: 18
+  },
+  {
+    header: "Revenue Per Conversion",
+    key: "revenuePerConversion",
+    width: 22
+  },
+  {
+    header: "Estimated Value",
+    key: "estimatedValue",
+    width: 18
+  },
+  {
+    header: "Status",
+    key: "status",
+    width: 14
+  },
+  {
+    header: "Last Activity",
+    key: "lastActivity",
+    width: 20
+  }
+];
+
+data.customerActions.forEach(row => {
+  customerActionsSheet.addRow({
+    advertiser:
+      row.advertiser || "",
+
+    campaignName:
+      row.campaignName || "",
+
+    customerActionName:
+      row.customerActionName || "",
+
+    destinationType:
+      row.destinationType || "",
+
+    destinationUrl:
+      row.destinationUrl || "",
+
+    conversionUrl:
+      row.conversionUrl || "",
+
+    locationNames:
+      row.locationNames || "",
+
+    qrNames:
+      row.qrNames || "",
+
+    visitors:
+      Number(row.visitors || 0),
+
+    clicks:
+      Number(row.clicks || 0),
+
+    conversions:
+      Number(row.conversions || 0),
+
+    conversionRate:
+      Number(row.conversionRate || 0) / 100,
+
+    advertiserRevenue:
+      Number(row.advertiserRevenue || 0),
+
+    revenuePerVisitor:
+      Number(row.revenuePerVisitor || 0),
+
+    revenuePerClick:
+      Number(row.revenuePerClick || 0),
+
+    revenuePerConversion:
+      Number(row.revenuePerConversion || 0),
+
+    estimatedValue:
+      Number(row.estimatedValue || 0),
+
+    status:
+      row.status || "",
+
+    lastActivity:
+      row.lastActivity
+        ? new Date(row.lastActivity)
+        : null
+  });
+});
+
+/*
+=========================================================
+CUSTOMER ACTIONS FORMATTING
+=========================================================
+*/
+
+const customerActionsHeader =
+  customerActionsSheet.getRow(1);
+
+customerActionsHeader.height = 30;
+
+customerActionsHeader.font = {
+  bold: true,
+  color: {
+    argb: "FFFFFFFF"
+  }
+};
+
+customerActionsHeader.fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: {
+    argb: "FF1F4E78"
+  }
+};
+
+customerActionsHeader.alignment = {
+  vertical: "middle",
+  horizontal: "center",
+  wrapText: true
+};
+
+[
+  "visitors",
+  "clicks",
+  "conversions"
+].forEach(columnKey => {
+  customerActionsSheet.getColumn(
+    columnKey
+  ).numFmt = "#,##0";
+
+  customerActionsSheet.getColumn(
+    columnKey
+  ).alignment = {
+    vertical: "middle",
+    horizontal: "right"
+  };
+});
+
+customerActionsSheet.getColumn(
+  "conversionRate"
+).numFmt = "0.0%";
+
+customerActionsSheet.getColumn(
+  "conversionRate"
+).alignment = {
+  vertical: "middle",
+  horizontal: "right"
+};
+
+[
+  "advertiserRevenue",
+  "revenuePerVisitor",
+  "revenuePerClick",
+  "revenuePerConversion",
+  "estimatedValue"
+].forEach(columnKey => {
+  customerActionsSheet.getColumn(
+    columnKey
+  ).numFmt = "$#,##0.00";
+
+  customerActionsSheet.getColumn(
+    columnKey
+  ).alignment = {
+    vertical: "middle",
+    horizontal: "right"
+  };
+});
+
+customerActionsSheet.getColumn(
+  "lastActivity"
+).numFmt = "mm/dd/yyyy h:mm AM/PM";
+
+customerActionsSheet.getColumn(
+  "lastActivity"
+).alignment = {
+  vertical: "middle",
+  horizontal: "center"
+};
+
+[
+  "advertiser",
+  "campaignName",
+  "customerActionName",
+  "destinationType",
+  "locationNames",
+  "qrNames",
+  "status"
+].forEach(columnKey => {
+  customerActionsSheet.getColumn(
+    columnKey
+  ).alignment = {
+    vertical: "middle",
+    horizontal: "left",
+    wrapText: true
+  };
+});
+
+[
+  "destinationUrl",
+  "conversionUrl"
+].forEach(columnKey => {
+  customerActionsSheet.getColumn(
+    columnKey
+  ).alignment = {
+    vertical: "middle",
+    horizontal: "left",
+    wrapText: true
+  };
+});
+
+for (
+  let rowNumber = 2;
+  rowNumber <= customerActionsSheet.rowCount;
+  rowNumber++
+) {
+  const row =
+    customerActionsSheet.getRow(rowNumber);
+
+  row.height = 42;
+
+  if (rowNumber % 2 === 0) {
+    row.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: {
+        argb: "FFF3F6F4"
+      }
+    };
+  }
+}
+
+for (
+  let rowNumber = 1;
+  rowNumber <= customerActionsSheet.rowCount;
+  rowNumber++
+) {
+  for (
+    let columnNumber = 1;
+    columnNumber <= 19;
+    columnNumber++
+  ) {
+    customerActionsSheet.getCell(
+      rowNumber,
+      columnNumber
+    ).border = {
+      top: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      left: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      bottom: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      },
+      right: {
+        style: "thin",
+        color: {
+          argb: "FFD9E2DC"
+        }
+      }
+    };
+  }
+}
+
+customerActionsSheet.autoFilter = {
+  from: "A1",
+  to: "S1"
+};
+
+customerActionsSheet.views = [
+  {
+    state: "frozen",
+    ySplit: 1
+  }
+];
+
+customerActionsSheet.pageSetup = {
+  orientation: "landscape",
+  fitToPage: true,
+  fitToWidth: 1,
+  fitToHeight: 0,
+  printTitlesRow: "1:1"
+};
+
+customerActionsSheet.headerFooter = {
+  oddFooter:
+    `&L${data.organization.name || "Organization"}&CConfidential&RPage &P of &N`
+};
 res.setHeader(
 "Content-Disposition",
 `attachment; filename="${String(
