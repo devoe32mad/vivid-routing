@@ -28071,215 +28071,153 @@ const statusStyle = status => {
           </option>
         `)
       ].join("");
+tLabel =
+                
+const requestRows =
+  requests.length
+    ? requests
+        .map(request => {
+          const investmentLabel =
+            request.pricing_unit
+              ? `${formatMoney(
+                  request.price
+                )} / ${escapeHtml(
+                  String(
+                    request.pricing_unit
+                  ).replace(
+                    /^Per\s+/i,
+                    ""
+                  )
+                )}`
+              : formatMoney(
+                  request.price
+                );
 
-      const requestCards =
-        requests.length
-          ? requests
-              .map(request => {
-                const investmentLabel =
-                  request.pricing_unit
-                    ? `${formatMoney(
-                        request.price
-                      )} / ${escapeHtml(
-                        String(
-                          request.pricing_unit
-                        ).replace(
-                          /^Per\s+/i,
-                          ""
-                        )
-                      )}`
-                    : formatMoney(
-                        request.price
-                      );
+          return `
+            <tr>
+              <td style="
+                padding:14px 16px;
+                border-bottom:1px solid #e7eee7;
+                vertical-align:middle;
+              ">
+                <strong>
+                  ${escapeHtml(
+                    request.business_name || ""
+                  )}
+                </strong>
 
-                return `
-                  <article
-                    class="marketplace-card"
-                    style="
-                      display:flex;
-                      flex-direction:column;
-                      min-height:390px;
-                    "
-                  >
-                    <div style="
-                      display:flex;
-                      justify-content:
-                        space-between;
-                      align-items:flex-start;
-                      gap:14px;
-                      margin-bottom:20px;
-                    ">
-
-                      <div>
-                        <div style="
-                          color:#65776b;
-                          font-size:12px;
-                          font-weight:bold;
-                          letter-spacing:.06em;
-                          text-transform:
-                            uppercase;
-                          margin-bottom:7px;
-                        ">
-                          Business
-                        </div>
-
-                        <h2 style="
-                          margin:0;
-                          color:#24382c;
-                          font-size:22px;
-                        ">
-                          ${escapeHtml(
-                            request.business_name
-                          )}
-                        </h2>
-                      </div>
-
-                      <span style="
-                        ${statusStyle(
-                          request.status
-                        )}
-                        padding:7px 11px;
-                        border-radius:999px;
-                        font-size:12px;
-                        font-weight:bold;
-                        white-space:nowrap;
-                      ">
-                        ${escapeHtml(
-                          request.status ||
-                          "Pending"
-                        )}
-                      </span>
-
-                    </div>
-
-                    <div class="
-                      marketplace-label
-                    ">
-                      Advertising Opportunity
-                    </div>
-
-                    <div class="
-                      marketplace-value
-                    ">
-                      ${escapeHtml(
-                        request.opportunity_name
-                      )}
-                    </div>
-
-                    <div class="
-                      marketplace-label
-                    ">
-                      Location
-                    </div>
-
-                    <div class="
-                      marketplace-value
-                    ">
-                      ${escapeHtml(
-                        request.location_name
-                      )}
-                    </div>
-
-                    <div class="
-                      marketplace-label
-                    ">
-                      Submitted
-                    </div>
-
-                    <div class="
-                      marketplace-value
-                    ">
-                      ${formatDate(
-                        request.submitted_at
-                      )}
-                    </div>
-
-                    <div class="
-                      marketplace-label
-                    ">
-                      Investment
-                    </div>
-
-                    <div class="
-                      marketplace-value
-                    ">
-                      ${investmentLabel}
-                    </div>
-
-                    <div class="
-                      marketplace-label
-                    ">
-                      Contact
-                    </div>
-
-                    <div class="
-                      marketplace-value
-                    ">
-                      ${escapeHtml(
-                        request.contact_name
-                      )}
-
-                      <div style="
-                        color:#65776b;
-                        font-size:13px;
-                        margin-top:3px;
-                        overflow-wrap:anywhere;
-                      ">
-                        ${escapeHtml(
-                          request.email
-                        )}
-                      </div>
-                    </div>
-
-                    <div style="
-                      margin-top:auto;
-                      padding-top:18px;
-                      border-top:
-                        1px solid #e7eee7;
-                    ">
-                      <a
-                        class="marketplace-btn"
-                        href="/org-advertising-request/${request.id}?organization_id=${organizationId}"
-                        style="
-                          display:block;
-                          margin:0;
-                          text-align:center;
-                        "
-                      >
-                        Open Request
-                      </a>
-                    </div>
-
-                  </article>
-                `;
-              })
-              .join("")
-          : `
-              <div
-                class="marketplace-card"
-                style="
-                  grid-column:1 / -1;
-                  text-align:center;
-                  padding:44px 28px;
-                "
-              >
-                <h2 style="
-                  margin:0 0 10px;
-                ">
-                  No Advertising Requests
-                </h2>
-
-                <p style="
+                <div style="
+                  margin-top:4px;
                   color:#65776b;
-                  line-height:1.6;
-                  margin:0;
+                  font-size:13px;
                 ">
-                  No requests match the
-                  selected filters.
-                </p>
-              </div>
-            `;
+                  ${escapeHtml(
+                    request.contact_name || ""
+                  )}
+                </div>
+              </td>
 
+              <td style="
+                padding:14px 16px;
+                border-bottom:1px solid #e7eee7;
+                vertical-align:middle;
+              ">
+                ${escapeHtml(
+                  request.location_name || ""
+                )}
+              </td>
+
+              <td style="
+                padding:14px 16px;
+                border-bottom:1px solid #e7eee7;
+                vertical-align:middle;
+              ">
+                ${escapeHtml(
+                  request.opportunity_name || ""
+                )}
+              </td>
+
+              <td style="
+                padding:14px 16px;
+                border-bottom:1px solid #e7eee7;
+                text-align:right;
+                vertical-align:middle;
+                white-space:nowrap;
+              ">
+                ${investmentLabel}
+              </td>
+
+              <td style="
+                padding:14px 16px;
+                border-bottom:1px solid #e7eee7;
+                vertical-align:middle;
+                white-space:nowrap;
+              ">
+                ${formatDate(
+                  request.submitted_at
+                )}
+              </td>
+
+              <td style="
+                padding:14px 16px;
+                border-bottom:1px solid #e7eee7;
+                vertical-align:middle;
+              ">
+                <span style="
+                  ${statusStyle(
+                    request.status
+                  )}
+                  display:inline-block;
+                  padding:6px 10px;
+                  border-radius:999px;
+                  font-size:12px;
+                  font-weight:bold;
+                  white-space:nowrap;
+                ">
+                  ${escapeHtml(
+                    request.status || "Pending"
+                  )}
+                </span>
+              </td>
+
+              <td style="
+                padding:14px 16px;
+                border-bottom:1px solid #e7eee7;
+                text-align:right;
+                vertical-align:middle;
+              ">
+                <a
+                  class="marketplace-btn"
+                  href="/org-advertising-request/${request.id}?organization_id=${organizationId}"
+                  style="
+                    margin:0;
+                    padding:8px 13px;
+                    font-size:13px;
+                    white-space:nowrap;
+                  "
+                >
+                  Open
+                </a>
+              </td>
+            </tr>
+          `;
+        })
+        .join("")
+    : `
+        <tr>
+          <td
+            colspan="7"
+            style="
+              padding:40px 20px;
+              text-align:center;
+              color:#65776b;
+            "
+          >
+            No advertising requests match the selected
+            filters.
+          </td>
+        </tr>
+      `;
       const filterQuery = new URLSearchParams();
 
       if (cleanSearch) {
