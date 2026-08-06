@@ -489,8 +489,8 @@ ${navItem(
 )}
 ${navItem(
   "Revenue Pipeline",
-  `/org-advertising-requests?organization_id=${organizationId}`,
-  "requests"
+  `/org-revenue-pipeline?organization_id=${organizationId}`,
+  "pipeline"
 )}
 
 
