@@ -12,28 +12,50 @@ async function sendOrganizationNotification({
   to,
   subject,
   html,
+  senderName = "Vivid",
   replyTo = "mike@vividspots.com"
 }) {
   try {
+    const cleanSenderName =
+      String(senderName || "Vivid")
+        .replace(/[\r\n<>"]/g, "")
+        .trim() || "Vivid";
+
     const { data, error } = await resend.emails.send({
-      from: "Vivid <notifications@vividspots.com>",
+      from:
+        `${cleanSenderName} <notifications@vividspots.com>`,
+
       to,
+
       replyTo,
+
       subject,
+
       html
     });
 
     if (error) {
-      console.error("Resend Error:", error);
+      console.error(
+        "ORGANIZATION NOTIFICATION ERROR:",
+        error
+      );
+
       return false;
     }
 
-    console.log("Email sent:", data);
+    console.log(
+      "ORGANIZATION NOTIFICATION SENT:",
+      data
+    );
 
     return true;
 
   } catch (err) {
-    console.error("Email Exception:", err);
+    console.error(
+      "ORGANIZATION NOTIFICATION EXCEPTION:",
+      err
+    );
+
     return false;
   }
 }
