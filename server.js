@@ -29454,7 +29454,7 @@ const locationPipelineCards =
                 </div>
 
                 <strong>
-                  ${formatMoney(pipelineValue)}
+                  ${money(pipelineValue)}
                 </strong>
 
                 <div style="color:#52645a;">
@@ -29462,7 +29462,7 @@ const locationPipelineCards =
                 </div>
 
                 <strong>
-                  ${formatMoney(availableRevenue)}
+                  ${money(availableRevenue)}
                 </strong>
 
                 <div style="color:#52645a;">
@@ -29470,7 +29470,7 @@ const locationPipelineCards =
                 </div>
 
                 <strong>
-                  ${formatMoney(pendingRevenue)}
+                  ${money(pendingRevenue)}
                 </strong>
 
                 <div style="color:#52645a;">
