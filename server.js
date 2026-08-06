@@ -27565,7 +27565,14 @@ const locationsResult = await q(
      AND r.location_id = s.id
 
     WHERE
-      ${locationWhereParts.join("\nAND ")}
+${locationWhereParts
+  .map(part =>
+    part
+      .replace(/^organization_id\b/, "s.organization_id")
+      .replace(/^COALESCE\(is_archived/, "COALESCE(s.is_archived")
+      .replace(/^id = ANY/, "s.id = ANY")
+  )
+  .join("\nAND ")}
 
     GROUP BY
       s.id,
