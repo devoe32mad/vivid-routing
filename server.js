@@ -5,7 +5,9 @@ const PDFDocument = require("pdfkit");
 const multer = require("multer");
 const ExcelJS = require("exceljs");
 const crypto = require("crypto");
+const { Resend } = require("resend");
 const app = express();
+const resend = new Resend(process.env.RESEND_API_KEY);
 const port = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || "https://vivid-routing-production.up.railway.app";
 /*
