@@ -28314,11 +28314,7 @@ const requestRows =
               ">
 
                 <div>
-                  <span class="
-                    marketplace-preview
-                  ">
-                    Revenue Pipeline
-                  </span>
+               
 
                   <h2 style="
                     margin:8px 0 0;
