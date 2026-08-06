@@ -30007,11 +30007,12 @@ approvingOrganizationUserId =
       const requestResult = await client.query(
         `
           SELECT
-            r.*,
-            o.name AS organization_name,
-            s.name AS location_name,
-            oo.title AS current_opportunity_name,
-            oo.qr_id AS opportunity_qr_id
+           r.*,
+o.name AS organization_name,
+o.contact_email AS organization_contact_email,
+s.name AS location_name,
+oo.title AS current_opportunity_name,
+oo.qr_id AS opportunity_qr_id
 
           FROM organization_advertising_requests r
 
@@ -30263,7 +30264,127 @@ approvingOrganizationUserId =
 
       const setupUrl =
         `${BASE_URL}/vivid-account-setup/${rawSetupToken}`;
+const notificationSent =
+  await sendOrganizationNotification({
+    to: advertiserEmail,
 
+    senderName:
+      advertisingRequest.organization_name,
+
+    replyTo:
+      advertisingRequest.organization_contact_email ||
+      "mike@vividspots.com",
+
+    subject:
+      `Your advertising request with ${advertisingRequest.organization_name} has been approved`,
+
+    html: `
+      <div style="
+        max-width:640px;
+        margin:0 auto;
+        padding:32px;
+        font-family:Arial,sans-serif;
+        color:#173f2a;
+        line-height:1.6;
+      ">
+
+        <h1 style="
+          margin:0 0 18px;
+          font-size:28px;
+          color:#173f2a;
+        ">
+          Your Advertising Request Has Been Approved
+        </h1>
+
+        <p>
+          Hello ${escapeHtml(
+            advertisingRequest.contact_name ||
+            advertisingRequest.business_name ||
+            "there"
+          )},
+        </p>
+
+        <p>
+          Great news! Your request to advertise with
+          <strong>
+            ${escapeHtml(
+              advertisingRequest.organization_name
+            )}
+          </strong>
+          has been approved.
+        </p>
+
+        <p>
+          <strong>Location:</strong>
+          ${escapeHtml(
+            advertisingRequest.location_name
+          )}
+          <br>
+          <strong>Opportunity:</strong>
+          ${escapeHtml(
+            advertisingRequest.current_opportunity_name ||
+            "Advertising Opportunity"
+          )}
+        </p>
+
+        <p>
+          Your Vivid account has already been connected,
+          and the information from your advertising request
+          will carry into the setup process.
+        </p>
+
+        <p style="margin:28px 0;">
+          <a
+            href="${setupUrl}"
+            style="
+              display:inline-block;
+              padding:14px 24px;
+              border-radius:8px;
+              background:#17733b;
+              color:#ffffff;
+              text-decoration:none;
+              font-weight:700;
+            "
+          >
+            Complete Your Advertising Setup
+          </a>
+        </p>
+
+        <p style="
+          color:#65776b;
+          font-size:14px;
+        ">
+          This secure setup link expires in seven days.
+        </p>
+
+        <p>
+          Questions? Reply directly to this email to contact
+          ${escapeHtml(
+            advertisingRequest.organization_name
+          )}.
+        </p>
+
+        <p style="
+          margin-top:32px;
+          color:#65776b;
+          font-size:12px;
+        ">
+          Powered by Vivid
+        </p>
+
+      </div>
+    `
+  });
+
+console.log(
+  notificationSent
+    ? "MARKETPLACE APPROVAL EMAIL SENT"
+    : "MARKETPLACE APPROVAL EMAIL FAILED",
+  {
+    requestId,
+    advertiserEmail
+  }
+);
       /*
         Email delivery comes next.
 
