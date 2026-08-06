@@ -27452,7 +27452,10 @@ if (!isSuperAdmin) {
         )
           ? requestedStatus
           : "All";
-
+const selectedLocationId =
+  Number(
+    req.query.location_id || 0
+  );
       const requestedLocationId = Number(
         req.query.location_id
       );
@@ -27687,7 +27690,15 @@ oo.status AS inventory_status,
 );
       const requests =
         requestsResult.rows;
-
+const filteredRequests =
+  selectedLocationId
+    ? requests.filter(
+        request =>
+          Number(
+            request.location_id
+          ) === selectedLocationId
+      )
+    : requests;
       /*
         Summary metrics are organization-wide.
         They do not change with page filters.
@@ -28074,9 +28085,9 @@ const statusStyle = status => {
 
                 
 const requestRows =
-  requests.length
-    ? requests
-        .map(request => {
+  filteredRequests.length
+    ? filteredRequests
+  .map(request => {
           const investmentLabel =
             request.pricing_unit
               ? `${formatMoney(
