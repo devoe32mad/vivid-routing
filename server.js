@@ -31278,7 +31278,7 @@ app.get(
           );
         }
 
-        return res.redirect("/my-setup");
+        return res.redirect("/admin/new-location");
       });
 
     } catch (err) {
