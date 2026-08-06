@@ -8,6 +8,35 @@ const crypto = require("crypto");
 const { Resend } = require("resend");
 const app = express();
 const resend = new Resend(process.env.RESEND_API_KEY);
+async function sendOrganizationNotification({
+  to,
+  subject,
+  html,
+  replyTo = "mike@vividspots.com"
+}) {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: "Vivid <notifications@vividspots.com>",
+      to,
+      replyTo,
+      subject,
+      html
+    });
+
+    if (error) {
+      console.error("Resend Error:", error);
+      return false;
+    }
+
+    console.log("Email sent:", data);
+
+    return true;
+
+  } catch (err) {
+    console.error("Email Exception:", err);
+    return false;
+  }
+}
 const port = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || "https://vivid-routing-production.up.railway.app";
 /*
