@@ -27526,6 +27526,59 @@ const locationsResult = await q(
 
       const locations =
         locationsResult.rows;
+      const requestLocationSummaryResult = await q(
+  `
+    SELECT
+      s.id AS location_id,
+      s.name AS location_name,
+
+      COUNT(r.id)::integer AS total_requests,
+
+      COUNT(r.id) FILTER (
+        WHERE LOWER(
+          COALESCE(r.status, 'Pending')
+        ) = 'pending'
+      )::integer AS pending_requests,
+
+      COUNT(r.id) FILTER (
+        WHERE LOWER(
+          COALESCE(r.status, '')
+        ) = 'approved'
+      )::integer AS approved_requests,
+
+      COUNT(r.id) FILTER (
+        WHERE LOWER(
+          COALESCE(r.status, '')
+        ) = 'rejected'
+      )::integer AS rejected_requests,
+
+      COUNT(r.id) FILTER (
+        WHERE LOWER(
+          COALESCE(r.status, '')
+        ) = 'closed'
+      )::integer AS closed_requests
+
+    FROM spaces s
+
+    LEFT JOIN organization_advertising_requests r
+      ON r.organization_id = s.organization_id
+     AND r.location_id = s.id
+
+    WHERE
+      ${locationWhereParts.join("\nAND ")}
+
+    GROUP BY
+      s.id,
+      s.name
+
+    ORDER BY
+      s.name
+  `,
+  locationQueryValues
+);
+
+const requestLocationSummaries =
+  requestLocationSummaryResult.rows;
 if (
   selectedLocationId &&
   locationScope.restricted &&
@@ -28040,6 +28093,153 @@ const statusStyle = status => {
     color:#92400e;
   `;
 };
+      const requestLocationCards =
+  requestLocationSummaries.length
+    ? requestLocationSummaries
+        .map(location => {
+          const locationId =
+            Number(location.location_id);
+
+          const locationUrl =
+            `/org-advertising-requests` +
+            `?organization_id=${organizationId}` +
+            `&location_id=${locationId}`;
+
+          return `
+            <a
+              href="${locationUrl}"
+              style="
+                display:flex;
+                flex-direction:column;
+                min-height:330px;
+                padding:22px;
+                background:#ffffff;
+                border:1px solid #dce5dd;
+                border-radius:18px;
+                box-shadow:
+                  0 8px 22px
+                  rgba(0,0,0,.06);
+                text-decoration:none;
+                color:#173f2a;
+                box-sizing:border-box;
+                transition:
+                  transform .15s ease,
+                  box-shadow .15s ease;
+              "
+              onmouseover="
+                this.style.transform=
+                  'translateY(-2px)';
+                this.style.boxShadow=
+                  '0 12px 28px rgba(0,0,0,.10)';
+              "
+              onmouseout="
+                this.style.transform='none';
+                this.style.boxShadow=
+                  '0 8px 22px rgba(0,0,0,.06)';
+              "
+            >
+              <div style="
+                padding-bottom:17px;
+                margin-bottom:18px;
+                border-bottom:
+                  1px solid #e7eee7;
+              ">
+                <h2 style="
+                  margin:0;
+                  font-size:20px;
+                  line-height:1.3;
+                ">
+                  ${escapeHtml(
+                    location.location_name ||
+                    "Unnamed Location"
+                  )}
+                </h2>
+              </div>
+
+              <div style="
+                display:grid;
+                grid-template-columns:1fr auto;
+                gap:14px 20px;
+                align-items:center;
+              ">
+                <div style="color:#52645a;">
+                  Pending
+                </div>
+
+                <strong>
+                  ${Number(
+                    location.pending_requests || 0
+                  )}
+                </strong>
+
+                <div style="color:#52645a;">
+                  Approved
+                </div>
+
+                <strong>
+                  ${Number(
+                    location.approved_requests || 0
+                  )}
+                </strong>
+
+                <div style="color:#52645a;">
+                  Rejected
+                </div>
+
+                <strong>
+                  ${Number(
+                    location.rejected_requests || 0
+                  )}
+                </strong>
+
+                <div style="color:#52645a;">
+                  Closed
+                </div>
+
+                <strong>
+                  ${Number(
+                    location.closed_requests || 0
+                  )}
+                </strong>
+              </div>
+
+              <div style="
+                display:grid;
+                grid-template-columns:1fr auto;
+                gap:20px;
+                margin-top:22px;
+                padding-top:18px;
+                border-top:
+                  1px solid #e7eee7;
+              ">
+                <strong>
+                  Total Requests
+                </strong>
+
+                <strong>
+                  ${Number(
+                    location.total_requests || 0
+                  )}
+                </strong>
+              </div>
+
+              <div style="
+                margin-top:auto;
+                padding-top:22px;
+                color:#176b3a;
+                font-weight:700;
+              ">
+                Open Requests →
+              </div>
+            </a>
+          `;
+        })
+        .join("")
+    : `
+        <div class="marketplace-card">
+          No active locations were found.
+        </div>
+      `;
       const statusOptions =
         allowedStatuses
           .map(status => `
