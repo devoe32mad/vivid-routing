@@ -28715,83 +28715,146 @@ const requestRows =
 
               </section>
 
-              <div style="
-                display:flex;
-                justify-content:
-                  space-between;
-                align-items:center;
-                gap:12px;
-                margin-bottom:16px;
+              ${
+  selectedLocationId
+    ? `
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:16px;
+          flex-wrap:wrap;
+          margin-bottom:18px;
+        ">
+          <div>
+            <h2 style="margin:0 0 5px;">
+              Requests
+            </h2>
+
+            <div style="
+              color:#65776b;
+              font-size:14px;
+              font-weight:bold;
+            ">
+              ${
+                filteredRequests.length === 1
+                  ? "1 request"
+                  : `${filteredRequests.length} requests`
+              }
+            </div>
+          </div>
+
+          <a
+            href="/org-advertising-requests?organization_id=${organizationId}"
+            style="
+              color:#176b3a;
+              font-weight:700;
+              text-decoration:none;
+            "
+          >
+            ← View All Locations
+          </a>
+        </div>
+
+        <div style="
+          overflow-x:auto;
+          border:1px solid #dce5dd;
+          border-radius:14px;
+          background:#fff;
+        ">
+          <table style="
+            width:100%;
+            border-collapse:collapse;
+          ">
+            <thead>
+              <tr style="
+                background:#f7faf8;
+                border-bottom:2px solid #dce5dd;
               ">
-                <h2 style="margin:0;">
-                  Requests
-                </h2>
+                <th style="padding:14px 16px;text-align:left;">
+                  Advertiser
+                </th>
 
-                <div style="
-                  color:#65776b;
-                  font-size:14px;
-                  font-weight:bold;
-                ">
-                  ${
-                    requests.length === 1
-                      ? "1 request"
-                      : `${requests.length} requests`
-                  }
-                </div>
-              </div>
+                <th style="padding:14px 16px;text-align:left;">
+                  Location
+                </th>
 
-           <div
-  style="
-    overflow-x:auto;
-    border:1px solid #dce5dd;
-    border-radius:14px;
-    background:#fff;
-  "
->
+                <th style="padding:14px 16px;text-align:left;">
+                  Opportunity
+                </th>
 
-<table
-  style="
-    width:100%;
-    border-collapse:collapse;
-  "
->
+                <th style="padding:14px 16px;text-align:right;">
+                  Investment
+                </th>
 
-<thead>
+                <th style="padding:14px 16px;text-align:left;">
+                  Submitted
+                </th>
 
-<tr
-  style="
-    background:#f7faf8;
-    border-bottom:2px solid #dce5dd;
-  "
->
+                <th style="padding:14px 16px;text-align:left;">
+                  Status
+                </th>
 
-<th style="padding:14px 16px;text-align:left;">Advertiser</th>
+                <th style="padding:14px 16px;text-align:right;">
+                  Action
+                </th>
+              </tr>
+            </thead>
 
-<th style="padding:14px 16px;text-align:left;">Location</th>
+            <tbody>
+              ${requestRows}
+            </tbody>
+          </table>
+        </div>
+      `
+    : `
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:16px;
+          flex-wrap:wrap;
+          margin-bottom:18px;
+        ">
+          <div>
+            <h2 style="margin:0 0 5px;">
+              Requests by Location
+            </h2>
 
-<th style="padding:14px 16px;text-align:left;">Opportunity</th>
+            <div style="
+              color:#65776b;
+              font-size:14px;
+            ">
+              Select a location to review and manage
+              its advertising requests.
+            </div>
+          </div>
 
-<th style="padding:14px 16px;text-align:right;">Investment</th>
+          <div style="
+            color:#65776b;
+            font-weight:700;
+          ">
+            ${requestLocationSummaries.length}
+            ${
+              requestLocationSummaries.length === 1
+                ? "location"
+                : "locations"
+            }
+          </div>
+        </div>
 
-<th style="padding:14px 16px;text-align:left;">Submitted</th>
+        <div style="
+          display:grid;
+          grid-template-columns:
+            repeat(auto-fit, minmax(270px, 1fr));
+          gap:20px;
+          align-items:stretch;
+        ">
+          ${requestLocationCards}
+        </div>
+      `
+}
 
-<th style="padding:14px 16px;text-align:left;">Status</th>
-
-<th style="padding:14px 16px;text-align:right;">Action</th>
-
-</tr>
-
-</thead>
-
-<tbody>
-
-${requestRows}
-
-</tbody>
-
-</table>
-
-</div>
 
             </main>
 
