@@ -29333,20 +29333,13 @@ const locationPipelineResult = await q(
         0
       )::integer AS advertiser_count
 
-    FROM spaces s
+ FROM spaces s
 
-    WHERE s.organization_id = $1
+WHERE s.organization_id = $1
   AND COALESCE(s.is_archived, false) = false
 
-  AND NOT EXISTS (
-    SELECT 1
-    FROM organization_advertising_requests created_request
-    WHERE created_request.created_location_id = s.id
-  )
-      
-
-    ORDER BY
-      s.name
+ORDER BY
+  s.name
   `,
   [organizationId]
 );
