@@ -1503,7 +1503,80 @@ await q(`
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS location_id INTEGER
+`);
 
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS qr_id INTEGER
+`);
+
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS opportunity_id INTEGER
+`);
+
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS advertising_request_id INTEGER
+`);
+
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS contract_number TEXT
+`);
+
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS expiration_date DATE
+`);
+
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS renewal_date DATE
+`);
+
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS owner_user_id INTEGER
+`);
+
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS source_type TEXT DEFAULT 'Manual'
+`);
+
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS renewed_from_contract_id INTEGER
+`);
+
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS contract_version INTEGER DEFAULT 1
+`);
+
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP
+`);
+
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP
+`);
+
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS terminated_at TIMESTAMP
+`);
+
+await q(`
+  ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS renewed_at TIMESTAMP
+`);
   await q(`
     CREATE TABLE IF NOT EXISTS contract_items (
       id SERIAL PRIMARY KEY,
