@@ -477,9 +477,8 @@ ${navItem(
   `/org-advertisers?organization_id=${organizationId}`,
   "advertisers"
 )}
-
 ${navItem(
-  "Advertising Opportunities",
+  "Advertising Inventory",
   `/org-marketplace?organization_id=${organizationId}`,
   "marketplace"
 )}
