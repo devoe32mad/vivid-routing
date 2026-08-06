@@ -29173,6 +29173,156 @@ ${infoIcon(
 );
 /*
 =========================================================
+ORGANIZATION REVENUE PIPELINE
+=========================================================
+
+Organization-level revenue view.
+
+The top-level page will summarize revenue by location.
+Location cards will drill into location-level detail.
+
+Do not display individual advertising opportunities here.
+=========================================================
+*/
+
+app.get(
+  "/org-revenue-pipeline",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      /*
+        Organization Portal access.
+      */
+      if (
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      /*
+        Super Admin access.
+      */
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(403)
+          .send("Revenue Pipeline access denied.");
+      }
+
+      const organizationResult = await q(
+        `
+          SELECT
+            id,
+            name
+
+          FROM organizations
+
+          WHERE id = $1
+            AND COALESCE(is_active, true) = true
+
+          LIMIT 1
+        `,
+        [organizationId]
+      );
+
+      const organization =
+        organizationResult.rows[0] || null;
+
+      if (!organization) {
+        return res
+          .status(404)
+          .send("Organization not found.");
+      }
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        req.session.user?.name ||
+        req.session.user?.email ||
+        "";
+
+      return res.send(
+        orgPage(
+          `Revenue Pipeline - ${organization.name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(organization.name),
+              activePage: "pipeline",
+              userName: escapeHtml(userName)
+            })}
+
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Revenue Pipeline
+              </h1>
+
+              <p class="subtitle">
+                Monitor advertising revenue and pipeline
+                value across your organization's locations.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div class="card">
+
+                <h2 style="margin-top:0;">
+                  Revenue by Location
+                </h2>
+
+                <p style="
+                  color:#65776b;
+                  line-height:1.6;
+                  margin-bottom:0;
+                ">
+                  Location-level revenue summaries will
+                  appear here. Select a location to review
+                  its opportunities, requests, advertisers,
+                  contracts, and renewals.
+                </p>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "ORGANIZATION REVENUE PIPELINE ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load Revenue Pipeline: " +
+        err.message
+      );
+    }
+  }
+);
+/*
+=========================================================
 ORGANIZATION ADVERTISING REQUEST DETAIL
 
 Single request review page.
