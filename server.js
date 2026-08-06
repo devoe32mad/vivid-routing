@@ -30452,32 +30452,26 @@ console.log(
                 </p>
 
                 <div style="
-                  margin:24px 0;
-                  padding:18px;
-                  background:#f4f7f1;
-                  border-radius:14px;
-                ">
-                  <strong>
-                    Temporary Setup Link
-                  </strong>
+  margin:24px 0;
+  padding:18px;
+  background:#f4f7f1;
+  border-radius:14px;
+">
+  <strong>
+    Setup Email Sent
+  </strong>
 
-                  <div style="
-                    margin-top:10px;
-                    overflow-wrap:anywhere;
-                  ">
-                    <a href="${setupUrl}">
-                      ${setupUrl}
-                    </a>
-                  </div>
-
-                  <div style="
-                    color:#65776b;
-                    font-size:13px;
-                    margin-top:10px;
-                  ">
-                    This link expires in seven days.
-                  </div>
-                </div>
+  <div style="
+    margin-top:10px;
+    color:#52645a;
+    line-height:1.5;
+  ">
+    A secure setup email was sent to
+    <strong>${escapeHtml(advertiserEmail)}</strong>.
+    The setup link expires in seven days.
+  </div>
+</div>
+              
 
                 <a
                   class="marketplace-btn"
