@@ -29616,7 +29616,261 @@ Supports:
 - Super Admin users
 =========================================================
 */
+/*
+=========================================================
+LOCATION REVENUE PIPELINE
+=========================================================
+*/
 
+app.get(
+  "/org-revenue-pipeline/location/:locationId",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      if (
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      const locationId =
+        Number(req.params.locationId);
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !Number.isInteger(locationId) ||
+        locationId <= 0
+      ) {
+        return res
+          .status(403)
+          .send("Location Revenue Pipeline access denied.");
+      }
+
+      const locationResult = await q(
+        `
+          SELECT
+            s.id,
+            s.name,
+            s.location,
+            o.name AS organization_name
+
+          FROM spaces s
+
+          JOIN organizations o
+            ON o.id = s.organization_id
+
+          WHERE s.id = $1
+            AND s.organization_id = $2
+            AND COALESCE(s.is_archived, false) = false
+
+          LIMIT 1
+        `,
+        [
+          locationId,
+          organizationId
+        ]
+      );
+
+      const location =
+        locationResult.rows[0] || null;
+
+      if (!location) {
+        return res
+          .status(404)
+          .send("Location not found.");
+      }
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        req.session.user?.name ||
+        req.session.user?.email ||
+        "";
+
+      const detailCard = ({
+        title,
+        description,
+        href
+      }) => `
+        <a
+          href="${href}"
+          class="card"
+          style="
+            display:block;
+            text-decoration:none;
+            color:#173f2a;
+            min-height:150px;
+          "
+        >
+          <h2 style="margin-top:0;">
+            ${escapeHtml(title)}
+          </h2>
+
+          <p style="
+            color:#65776b;
+            line-height:1.5;
+            margin-bottom:18px;
+          ">
+            ${escapeHtml(description)}
+          </p>
+
+          <div style="
+            color:#176b3a;
+            font-weight:700;
+          ">
+            Open →
+          </div>
+        </a>
+      `;
+
+      return res.send(
+        orgPage(
+          `Revenue Pipeline - ${location.name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(
+                  location.organization_name
+                ),
+              activePage: "pipeline",
+              userName: escapeHtml(userName)
+            })}
+
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                ${escapeHtml(location.name)}
+              </h1>
+
+              <p class="subtitle">
+                Location Revenue Pipeline
+                ${
+                  location.location
+                    ? ` — ${escapeHtml(
+                        location.location
+                      )}`
+                    : ""
+                }
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                margin-bottom:22px;
+              ">
+                <a
+                  href="/org-revenue-pipeline?organization_id=${organizationId}"
+                  style="
+                    color:#176b3a;
+                    font-weight:700;
+                    text-decoration:none;
+                  "
+                >
+                  ← Back to Revenue by Location
+                </a>
+              </div>
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(auto-fit, minmax(260px, 1fr));
+                gap:18px;
+              ">
+
+                ${detailCard({
+                  title: "Revenue",
+                  description:
+                    "Review available, pending, approved, and active revenue.",
+                  href:
+                    `/org-revenue-pipeline/location/${locationId}/revenue?organization_id=${organizationId}`
+                })}
+
+                ${detailCard({
+                  title: "Advertising Inventory",
+                  description:
+                    "Review advertising opportunities available at this location.",
+                  href:
+                    `/org-marketplace?organization_id=${organizationId}&location_id=${locationId}`
+                })}
+
+                ${detailCard({
+                  title: "Advertising Requests",
+                  description:
+                    "Review advertiser requests submitted for this location.",
+                  href:
+                    `/org-advertising-requests?organization_id=${organizationId}&location_id=${locationId}`
+                })}
+
+                ${detailCard({
+                  title: "Advertisers",
+                  description:
+                    "Review advertisers connected to this location.",
+                  href:
+                    `/org-advertisers?organization_id=${organizationId}&location_id=${locationId}`
+                })}
+
+                ${detailCard({
+                  title: "Contracts",
+                  description:
+                    "Review contracts associated with this location.",
+                  href:
+                    `/org-contracts?organization_id=${organizationId}&location_id=${locationId}`
+                })}
+
+                ${detailCard({
+                  title: "Renewals",
+                  description:
+                    "Review upcoming renewals and revenue at risk.",
+                  href:
+                    `/org-contracts?organization_id=${organizationId}&location_id=${locationId}&renewal_window=90`
+                })}
+
+                ${detailCard({
+                  title: "Performance",
+                  description:
+                    "Review advertiser performance generated at this location.",
+                  href:
+                    `/org-location/${locationId}?organization_id=${organizationId}`
+                })}
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "LOCATION REVENUE PIPELINE ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load Location Revenue Pipeline: " +
+        err.message
+      );
+    }
+  }
+);
 app.get(
   "/org-advertising-request/:requestId",
   async (req, res) => {
