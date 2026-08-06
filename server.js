@@ -29336,7 +29336,14 @@ const locationPipelineResult = await q(
     FROM spaces s
 
     WHERE s.organization_id = $1
-      AND COALESCE(s.is_archived, false) = false
+  AND COALESCE(s.is_archived, false) = false
+
+  AND NOT EXISTS (
+    SELECT 1
+    FROM organization_advertising_requests created_request
+    WHERE created_request.created_location_id = s.id
+  )
+      
 
     ORDER BY
       s.name
