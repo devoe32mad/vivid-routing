@@ -30983,7 +30983,7 @@ oo.qr_id AS opportunity_qr_id
 
       let vividUserId =
         existingUserResult.rows[0]?.id || null;
-
+let vividUserWasCreated = false;
       /*
         Create the Vivid Core customer account only when
         the email does not already exist.
@@ -31026,6 +31026,7 @@ oo.qr_id AS opportunity_qr_id
 
         vividUserId =
           newUserResult.rows[0].id;
+        vividUserWasCreated = true;
       }
 
       /*
