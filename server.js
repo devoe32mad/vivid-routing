@@ -28904,15 +28904,58 @@ ${infoIcon(
                 </div>
               </div>
 
-              <section
-                class="marketplace-grid"
-                style="
-                  margin:0;
-                  align-items:stretch;
-                "
-              >
-                ${requestCards}
-              </section>
+           <div
+  style="
+    overflow-x:auto;
+    border:1px solid #dce5dd;
+    border-radius:14px;
+    background:#fff;
+  "
+>
+
+<table
+  style="
+    width:100%;
+    border-collapse:collapse;
+  "
+>
+
+<thead>
+
+<tr
+  style="
+    background:#f7faf8;
+    border-bottom:2px solid #dce5dd;
+  "
+>
+
+<th style="padding:14px 16px;text-align:left;">Advertiser</th>
+
+<th style="padding:14px 16px;text-align:left;">Location</th>
+
+<th style="padding:14px 16px;text-align:left;">Opportunity</th>
+
+<th style="padding:14px 16px;text-align:right;">Investment</th>
+
+<th style="padding:14px 16px;text-align:left;">Submitted</th>
+
+<th style="padding:14px 16px;text-align:left;">Status</th>
+
+<th style="padding:14px 16px;text-align:right;">Action</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+${requestRows}
+
+</tbody>
+
+</table>
+
+</div>
 
             </main>
 
