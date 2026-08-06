@@ -52335,6 +52335,145 @@ for (
     ...locationSummary
   });
 }
+/*
+=========================================================
+CORE QR SUMMARY DATA
+=========================================================
+*/
+
+const coreExcelQrResult =
+  await q(
+    `
+      SELECT DISTINCT
+        qr.id,
+        qr.name,
+        s.name AS location_name
+
+      FROM qr_codes qr
+
+      JOIN spaces s
+        ON s.id = qr.space_id
+
+      JOIN qr_campaigns qc
+        ON qc.qr_id = qr.id
+       AND COALESCE(qc.is_active, true) = true
+
+      JOIN campaigns c
+        ON c.id = qc.campaign_id
+
+      WHERE (
+        $1::int IS NULL
+        OR s.user_id = $1
+        OR c.user_id = $1
+      )
+
+      AND (
+        $2::text = ''
+        OR s.id::text = $2::text
+      )
+
+      AND (
+        $3::text = ''
+        OR qr.id::text = $3::text
+      )
+
+      AND (
+        $4::text = ''
+        OR c.id::text = $4::text
+      )
+
+      ORDER BY
+        s.name,
+        qr.name
+    `,
+    [
+      coreExcelUserId,
+      locationId || "",
+      qrId || "",
+      campaignId || ""
+    ]
+  );
+
+const coreExcelQrRows = [];
+
+for (const qr of coreExcelQrResult.rows) {
+
+  const qrReportRows =
+    await buildExportReportRows(
+      req,
+      startDate,
+      endDate,
+      locationId,
+      String(qr.id),
+      campaignId,
+      status
+    );
+
+  const totals =
+    qrReportRows.reduce(
+      (t, row) => {
+
+        t.campaigns++;
+
+        t.scans += Number(row.scans || 0);
+        t.offerClicks += Number(row.offerClicks || 0);
+        t.mapClicks += Number(row.mapClicks || 0);
+        t.wazeClicks += Number(row.wazeClicks || 0);
+        t.intent += Number(row.intent || 0);
+
+        t.visitors += Number(row.visitors || 0);
+        t.clicks += Number(row.clicks || 0);
+        t.conversions += Number(row.conversions || 0);
+
+        t.revenueGenerated += Number(row.revenueGenerated || 0);
+        t.allocatedCost += Number(row.allocatedCost || 0);
+
+        return t;
+
+      },{
+        campaigns:0,
+        scans:0,
+        offerClicks:0,
+        mapClicks:0,
+        wazeClicks:0,
+        intent:0,
+        visitors:0,
+        clicks:0,
+        conversions:0,
+        revenueGenerated:0,
+        allocatedCost:0
+      });
+
+  totals.cac =
+    totals.conversions
+      ? totals.allocatedCost /
+        totals.conversions
+      : 0;
+
+  totals.roi =
+    totals.allocatedCost
+      ? (
+          (
+            totals.revenueGenerated -
+            totals.allocatedCost
+          ) /
+          totals.allocatedCost
+        ) * 100
+      : 0;
+
+  coreExcelQrRows.push({
+
+    qrName:
+      qr.name,
+
+    locationName:
+      qr.location_name,
+
+    ...totals
+
+  });
+
+}
       /*
       =========================================================
       EXECUTIVE TOTALS
