@@ -47643,12 +47643,23 @@ if (
 ) {
   const marketplaceRequestResult = await q(
     `
-      SELECT
-        ar.id,
-        ar.created_location_id,
-        ar.created_qr_id
+     SELECT
+  ar.id,
+  ar.organization_id,
+  ar.location_id,
+  ar.opportunity_id,
+  ar.business_name,
+  ar.created_advertiser_id,
+  ar.created_location_id,
+  ar.created_qr_id,
 
-      FROM organization_advertising_requests ar
+  oo.title AS opportunity_title,
+  oo.annual_price AS opportunity_price
+FROM organization_advertising_requests ar
+      LEFT JOIN organization_opportunities oo
+  ON oo.id = ar.opportunity_id
+ AND oo.organization_id = ar.organization_id
+ AND oo.space_id = ar.location_id
 
       WHERE ar.id = $1
         AND ar.created_vivid_user_id = $2
@@ -47743,20 +47754,119 @@ annualCost,
 
     const qrId = newQr.rows[0].id;
 if (approvedMarketplaceRequest) {
+  const existingContractResult = await q(
+    `
+      SELECT id
+      FROM contracts
+      WHERE advertising_request_id = $1
+      LIMIT 1
+    `,
+    [marketplaceRequestId]
+  );
+
+  let contractId =
+    existingContractResult.rows[0]?.id || null;
+
+  if (!contractId) {
+    const createdContractResult = await q(
+      `
+        INSERT INTO contracts (
+          customer_id,
+          organization_id,
+          advertiser_id,
+          location_id,
+          qr_id,
+          opportunity_id,
+          advertising_request_id,
+          contract_name,
+          contract_type,
+          start_date,
+          end_date,
+          expiration_date,
+          renewal_date,
+          total_contract_value,
+          billing_frequency,
+          status,
+          owner_user_id,
+          source_type,
+          contract_version,
+          notes,
+          created_at,
+          updated_at
+        )
+
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7,
+          $8,
+          'Advertising',
+          NULLIF($9, '')::date,
+          NULLIF($10, '')::date,
+          NULLIF($10, '')::date,
+          CASE
+            WHEN NULLIF($10, '')::date IS NOT NULL
+            THEN NULLIF($10, '')::date - INTERVAL '90 days'
+            ELSE NULL
+          END,
+          $11,
+          'Annual',
+          'Draft',
+          NULL,
+          'Marketplace',
+          1,
+          'Draft contract created automatically from approved Marketplace request.',
+          CURRENT_TIMESTAMP,
+          CURRENT_TIMESTAMP
+        )
+
+        RETURNING id
+      `,
+      [
+        currentUser.customer_id || currentUser.id,
+        approvedMarketplaceRequest.organization_id,
+        approvedMarketplaceRequest.created_advertiser_id || null,
+        spaceId,
+        qrId,
+        approvedMarketplaceRequest.opportunity_id || null,
+        marketplaceRequestId,
+        approvedMarketplaceRequest.opportunity_title ||
+          approvedMarketplaceRequest.business_name ||
+          qrName,
+        liveDate,
+        endDate,
+        Number(
+          approvedMarketplaceRequest.opportunity_price ||
+          annualCost ||
+          0
+        )
+      ]
+    );
+
+    contractId =
+      createdContractResult.rows[0].id;
+  }
+
   await q(
     `
       UPDATE organization_advertising_requests
 
       SET
         created_qr_id = $1,
+        created_contract_id = $2,
         setup_status = 'QR Created',
         updated_at = CURRENT_TIMESTAMP
 
-      WHERE id = $2
-        AND created_vivid_user_id = $3
+      WHERE id = $3
+        AND created_vivid_user_id = $4
     `,
     [
       qrId,
+      contractId,
       marketplaceRequestId,
       currentUser.id
     ]
