@@ -27452,10 +27452,7 @@ if (!isSuperAdmin) {
         )
           ? requestedStatus
           : "All";
-const selectedLocationId =
-  Number(
-    req.query.location_id || 0
-  );
+
       const requestedLocationId = Number(
         req.query.location_id
       );
