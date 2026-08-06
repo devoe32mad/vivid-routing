@@ -1577,6 +1577,56 @@ await q(`
   ALTER TABLE contracts
   ADD COLUMN IF NOT EXISTS renewed_at TIMESTAMP
 `);
+  /*
+=========================================================
+CONTRACT DOCUMENTS
+=========================================================
+*/
+
+await q(`
+  CREATE TABLE IF NOT EXISTS contract_documents (
+    id SERIAL PRIMARY KEY,
+
+    contract_id INTEGER NOT NULL
+      REFERENCES contracts(id)
+      ON DELETE CASCADE,
+
+    document_type TEXT NOT NULL,
+
+    file_name TEXT NOT NULL,
+
+    file_url TEXT NOT NULL,
+
+    uploaded_by_user_id INTEGER
+      REFERENCES users(id)
+      ON DELETE SET NULL,
+
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    version INTEGER DEFAULT 1,
+
+    is_current BOOLEAN DEFAULT true,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+    idx_contract_documents_contract_id
+  ON contract_documents(contract_id)
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+    idx_contract_documents_current
+  ON contract_documents(
+    contract_id,
+    is_current
+  )
+`);
   await q(`
     CREATE TABLE IF NOT EXISTS contract_items (
       id SERIAL PRIMARY KEY,
