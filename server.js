@@ -47415,24 +47415,41 @@ app.get("/admin/new-qr", requireLogin, async (req, res) => {
   Optional. This description is for your reference and can be edited
   to help you identify this advertising placement.
 </p>
-                <label>
-                  Advertising Investment ($)
-                </label>
+               <label>
+  Advertising Investment ($)
+</label>
 
-                <input
-                  type="number"
-                  name="annual_cost"
-                  value="${marketplacePrice}"
-                  min="0"
-                  step="0.01"
-                  required
-                />
+<input
+  type="text"
+  value="${marketplacePrice.toFixed(2)}"
+  readonly
+  style="
+    background:#f4f7f1;
+    cursor:not-allowed;
+  "
+/>
 
-                <input
-                  type="hidden"
-                  name="total_cost"
-                  value="${marketplacePrice}"
-                />
+<input
+  type="hidden"
+  name="annual_cost"
+  value="${marketplacePrice}"
+/>
+
+<input
+  type="hidden"
+  name="total_cost"
+  value="${marketplacePrice}"
+/>
+
+<p style="
+  font-size:13px;
+  color:#65776b;
+  margin-top:6px;
+  margin-bottom:18px;
+">
+  This investment was established by the approved
+  advertising opportunity and cannot be changed here.
+</p>
 
                 <label>Live Date</label>
 
