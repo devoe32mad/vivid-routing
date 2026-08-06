@@ -57678,6 +57678,31 @@ app.get(
     }
   }
 );
+app.get("/test-email", async (req, res) => {
+
+  const success = await sendOrganizationNotification({
+
+    to: "mike@vividspots.com",
+
+    subject: "Vivid Notification Test",
+
+    html: `
+      <h2>Congratulations!</h2>
+
+      <p>Your new Notification Engine is working.</p>
+
+      <p>This email was successfully sent using Resend.</p>
+    `
+
+  });
+
+  if (success) {
+    return res.send("Email sent successfully.");
+  }
+
+  return res.status(500).send("Email failed.");
+
+});
 app.listen(port, () => {
   console.log("Server running on port " + port);
 });
