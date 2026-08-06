@@ -53365,6 +53365,316 @@ coreLocationSummarySheet.pageSetup.printArea =
     4,
     coreLocationSummarySheet.rowCount
   )}`;
+ /*
+=========================================================
+QR PLACEMENTS
+=========================================================
+*/
+
+const coreQrSummarySheet =
+  workbook.addWorksheet(
+    "QR Placements",
+    {
+      views: [
+        {
+          state: "frozen",
+          ySplit: 4,
+          xSplit: 2,
+          showGridLines: false
+        }
+      ]
+    }
+  );
+
+coreQrSummarySheet.columns = [
+  {
+    header: "QR Placement",
+    key: "qr",
+    width: 34
+  },
+  {
+    header: "Location",
+    key: "location",
+    width: 32
+  },
+  {
+    header: "Campaigns",
+    key: "campaigns",
+    width: 14
+  },
+  {
+    header: "Scans",
+    key: "scans",
+    width: 12
+  },
+  {
+    header: "Offer Clicks",
+    key: "offerClicks",
+    width: 15
+  },
+  {
+    header: "Map Clicks",
+    key: "mapClicks",
+    width: 14
+  },
+  {
+    header: "Waze Clicks",
+    key: "wazeClicks",
+    width: 14
+  },
+  {
+    header: "Intent",
+    key: "intent",
+    width: 12
+  },
+  {
+    header: "Visitors",
+    key: "visitors",
+    width: 12
+  },
+  {
+    header: "Clicks",
+    key: "clicks",
+    width: 12
+  },
+  {
+    header: "Conversions",
+    key: "conversions",
+    width: 14
+  },
+  {
+    header: "Revenue Generated",
+    key: "revenueGenerated",
+    width: 20
+  },
+  {
+    header: "Allocated Cost",
+    key: "allocatedCost",
+    width: 18
+  },
+  {
+    header: "CAC",
+    key: "cac",
+    width: 14
+  },
+  {
+    header: "ROI",
+    key: "roi",
+    width: 12
+  }
+];
+
+coreQrSummarySheet.insertRow(
+  1,
+  [
+    "Vivid QR Placement Performance"
+  ]
+);
+
+coreQrSummarySheet.mergeCells(
+  1,
+  1,
+  1,
+  coreQrSummarySheet.columnCount
+);
+
+styleTitleRow(
+  coreQrSummarySheet.getRow(1)
+);
+
+coreQrSummarySheet.insertRow(
+  2,
+  [
+    `Reporting Period: ${startDate} through ${endDate}`
+  ]
+);
+
+coreQrSummarySheet.mergeCells(
+  2,
+  1,
+  2,
+  coreQrSummarySheet.columnCount
+);
+
+coreQrSummarySheet.getCell(
+  "A2"
+).font = {
+  italic: true,
+  color: {
+    argb: colors.grayText
+  }
+};
+
+coreQrSummarySheet.insertRow(
+  3,
+  []
+);
+
+const coreQrHeaderRow =
+  coreQrSummarySheet.getRow(4);
+
+coreQrSummarySheet.columns.forEach(
+  (column, index) => {
+    coreQrHeaderRow.getCell(
+      index + 1
+    ).value =
+      column.header;
+  }
+);
+
+styleHeaderRow(
+  coreQrHeaderRow
+);
+
+coreExcelQrRows.forEach(
+  row => {
+    coreQrSummarySheet.addRow({
+      qr:
+        row.qrName,
+
+      location:
+        row.locationName,
+
+      campaigns:
+        row.campaigns,
+
+      scans:
+        row.scans,
+
+      offerClicks:
+        row.offerClicks,
+
+      mapClicks:
+        row.mapClicks,
+
+      wazeClicks:
+        row.wazeClicks,
+
+      intent:
+        row.intent,
+
+      visitors:
+        row.visitors,
+
+      clicks:
+        row.clicks,
+
+      conversions:
+        row.conversions,
+
+      revenueGenerated:
+        row.revenueGenerated,
+
+      allocatedCost:
+        row.allocatedCost,
+
+      cac:
+        row.cac,
+
+      roi:
+        row.roi / 100
+    });
+  }
+);
+
+const coreQrStartRow = 5;
+
+if (
+  coreQrSummarySheet.rowCount >=
+  coreQrStartRow
+) {
+  styleDataRows(
+    coreQrSummarySheet,
+    coreQrStartRow,
+    coreQrSummarySheet.rowCount
+  );
+}
+
+[
+  "C",
+  "D",
+  "E",
+  "F",
+  "G",
+  "H",
+  "I",
+  "J",
+  "K"
+].forEach(columnLetter => {
+  for (
+    let rowNumber =
+      coreQrStartRow;
+    rowNumber <=
+      coreQrSummarySheet.rowCount;
+    rowNumber++
+  ) {
+    coreQrSummarySheet.getCell(
+      `${columnLetter}${rowNumber}`
+    ).numFmt =
+      integerFormat;
+  }
+});
+
+[
+  "L",
+  "M",
+  "N"
+].forEach(columnLetter => {
+  for (
+    let rowNumber =
+      coreQrStartRow;
+    rowNumber <=
+      coreQrSummarySheet.rowCount;
+    rowNumber++
+  ) {
+    coreQrSummarySheet.getCell(
+      `${columnLetter}${rowNumber}`
+    ).numFmt =
+      currencyFormat;
+  }
+});
+
+coreQrSummarySheet.getColumn(
+  "O"
+).numFmt =
+  percentageFormat;
+
+coreQrSummarySheet.autoFilter = {
+  from: {
+    row: 4,
+    column: 1
+  },
+  to: {
+    row: Math.max(
+      4,
+      coreQrSummarySheet.rowCount
+    ),
+    column:
+      coreQrSummarySheet.columnCount
+  }
+};
+
+setPrintSettings(
+  coreQrSummarySheet
+);
+
+coreQrSummarySheet.views = [
+  {
+    state: "frozen",
+    ySplit: 4,
+    xSplit: 2,
+    showGridLines: false
+  }
+];
+
+coreQrSummarySheet.pageSetup.printTitlesRow =
+  "1:4";
+
+coreQrSummarySheet.pageSetup.printArea =
+  `A1:O${Math.max(
+    4,
+    coreQrSummarySheet.rowCount
+  )}`;
       /*
       =========================================================
       SHEET 2 — CAMPAIGN SUMMARY
