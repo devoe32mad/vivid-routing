@@ -29254,7 +29254,266 @@ app.get(
         req.session.user?.name ||
         req.session.user?.email ||
         "";
+const locationPipelineResult = await q(
+  `
+    SELECT
+      s.id AS location_id,
+      s.name AS location_name,
+      s.location AS market,
 
+      COALESCE(
+        (
+          SELECT SUM(
+            COALESCE(
+              oo.price,
+              oo.annual_price,
+              0
+            )
+          )
+          FROM organization_opportunities oo
+          WHERE oo.organization_id = s.organization_id
+            AND oo.space_id = s.id
+            AND COALESCE(oo.is_active, true) = true
+        ),
+        0
+      )::numeric AS pipeline_value,
+
+      COALESCE(
+        (
+          SELECT SUM(
+            COALESCE(
+              oo.price,
+              oo.annual_price,
+              0
+            )
+          )
+          FROM organization_opportunities oo
+          WHERE oo.organization_id = s.organization_id
+            AND oo.space_id = s.id
+            AND COALESCE(oo.is_active, true) = true
+            AND LOWER(TRIM(oo.status)) = 'available'
+        ),
+        0
+      )::numeric AS available_revenue,
+
+      COALESCE(
+        (
+          SELECT SUM(
+            COALESCE(
+              oo.price,
+              oo.annual_price,
+              0
+            )
+          )
+          FROM organization_opportunities oo
+          WHERE oo.organization_id = s.organization_id
+            AND oo.space_id = s.id
+            AND COALESCE(oo.is_active, true) = true
+            AND LOWER(TRIM(oo.status)) = 'pending'
+        ),
+        0
+      )::numeric AS pending_revenue,
+
+      COALESCE(
+        (
+          SELECT COUNT(
+            DISTINCT LOWER(
+              TRIM(ar.email)
+            )
+          )
+          FROM organization_advertising_requests ar
+          WHERE ar.organization_id = s.organization_id
+            AND ar.location_id = s.id
+            AND LOWER(TRIM(ar.status)) = 'approved'
+            AND NULLIF(
+              TRIM(ar.email),
+              ''
+            ) IS NOT NULL
+        ),
+        0
+      )::integer AS advertiser_count
+
+    FROM spaces s
+
+    WHERE s.organization_id = $1
+      AND COALESCE(s.is_archived, false) = false
+
+    ORDER BY
+      s.name
+  `,
+  [organizationId]
+);
+
+const locationPipelineRows =
+  locationPipelineResult.rows;
+
+const locationPipelineCards =
+  locationPipelineRows.length === 0
+    ? `
+        <div class="card">
+          <h2 style="margin-top:0;">
+            No Locations
+          </h2>
+
+          <p style="
+            color:#65776b;
+            margin-bottom:0;
+          ">
+            No active locations are available for this
+            organization.
+          </p>
+        </div>
+      `
+    : locationPipelineRows
+        .map(location => {
+
+          const locationId =
+            Number(location.location_id);
+
+          const pipelineValue =
+            Number(location.pipeline_value || 0);
+
+          const availableRevenue =
+            Number(location.available_revenue || 0);
+
+          const pendingRevenue =
+            Number(location.pending_revenue || 0);
+
+          const advertiserCount =
+            Number(location.advertiser_count || 0);
+
+          return `
+            <a
+              href="/org-revenue-pipeline/location/${locationId}?organization_id=${organizationId}"
+              style="
+                display:flex;
+                flex-direction:column;
+                min-height:390px;
+                padding:24px;
+                background:#ffffff;
+                border:1px solid #dce5dd;
+                border-radius:18px;
+                box-shadow:0 8px 22px rgba(0,0,0,.06);
+                text-decoration:none;
+                color:#173f2a;
+                box-sizing:border-box;
+                transition:
+                  transform .15s ease,
+                  box-shadow .15s ease;
+              "
+              onmouseover="
+                this.style.transform='translateY(-2px)';
+                this.style.boxShadow='0 12px 28px rgba(0,0,0,.10)';
+              "
+              onmouseout="
+                this.style.transform='none';
+                this.style.boxShadow='0 8px 22px rgba(0,0,0,.06)';
+              "
+            >
+
+              <div style="
+                padding-bottom:18px;
+                margin-bottom:18px;
+                border-bottom:1px solid #e7eee7;
+              ">
+                <h2 style="
+                  margin:0;
+                  font-size:21px;
+                  line-height:1.3;
+                ">
+                  ${escapeHtml(
+                    location.location_name ||
+                    "Unnamed Location"
+                  )}
+                </h2>
+
+                ${
+                  location.market
+                    ? `
+                        <div style="
+                          margin-top:6px;
+                          color:#65776b;
+                          font-size:14px;
+                        ">
+                          ${escapeHtml(location.market)}
+                        </div>
+                      `
+                    : ""
+                }
+              </div>
+
+              <div style="
+                display:grid;
+                grid-template-columns:1fr auto;
+                gap:14px 20px;
+                align-items:center;
+              ">
+
+                <div style="color:#52645a;">
+                  Pipeline Value
+                </div>
+
+                <strong>
+                  ${formatMoney(pipelineValue)}
+                </strong>
+
+                <div style="color:#52645a;">
+                  Available
+                </div>
+
+                <strong>
+                  ${formatMoney(availableRevenue)}
+                </strong>
+
+                <div style="color:#52645a;">
+                  Pending
+                </div>
+
+                <strong>
+                  ${formatMoney(pendingRevenue)}
+                </strong>
+
+                <div style="color:#52645a;">
+                  Active
+                </div>
+
+                <strong>—</strong>
+
+                <div style="color:#52645a;">
+                  Advertisers
+                </div>
+
+                <strong>
+                  ${advertiserCount}
+                </strong>
+
+                <div style="color:#52645a;">
+                  Renewals (90d)
+                </div>
+
+                <strong>—</strong>
+
+                <div style="color:#52645a;">
+                  Renewal Value
+                </div>
+
+                <strong>—</strong>
+
+              </div>
+
+              <div style="
+                margin-top:auto;
+                padding-top:24px;
+                color:#176b3a;
+                font-weight:700;
+              ">
+                Open Revenue Pipeline →
+              </div>
+
+            </a>
+          `;
+        })
+        .join("");
       return res.send(
         orgPage(
           `Revenue Pipeline - ${organization.name}`,
@@ -29284,26 +29543,37 @@ app.get(
 
             <div class="wrap">
 
-              <div class="card">
+  <div style="
+    margin-bottom:18px;
+  ">
+    <h2 style="
+      margin:0 0 6px;
+      color:#173f2a;
+    ">
+      Revenue by Location
+    </h2>
 
-                <h2 style="margin-top:0;">
-                  Revenue by Location
-                </h2>
+    <div style="
+      color:#65776b;
+      line-height:1.5;
+    ">
+      Select a location to review its complete
+      advertising revenue pipeline.
+    </div>
+  </div>
 
-                <p style="
-                  color:#65776b;
-                  line-height:1.6;
-                  margin-bottom:0;
-                ">
-                  Location-level revenue summaries will
-                  appear here. Select a location to review
-                  its opportunities, requests, advertisers,
-                  contracts, and renewals.
-                </p>
+  <div style="
+    display:grid;
+    grid-template-columns:
+      repeat(auto-fit, minmax(310px, 1fr));
+    gap:20px;
+    align-items:stretch;
+  ">
+    ${locationPipelineCards}
+  </div>
 
-              </div>
+</div>
 
-            </div>
           `
         )
       );
