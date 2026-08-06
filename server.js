@@ -52137,7 +52137,204 @@ app.get(
           campaignId,
           status
         );
+/*
+=========================================================
+CORE LOCATION SUMMARY DATA
+=========================================================
+*/
 
+const coreExcelCurrentUser =
+  req.session.user;
+
+const coreExcelUserId =
+  coreExcelCurrentUser.role ===
+  "super_admin"
+    ? null
+    : coreExcelCurrentUser.id;
+
+const coreExcelLocationsResult =
+  await q(
+    `
+      SELECT DISTINCT
+        s.id,
+        s.name
+
+      FROM spaces s
+
+      JOIN qr_codes qr
+        ON qr.space_id = s.id
+
+      JOIN qr_campaigns qc
+        ON qc.qr_id = qr.id
+       AND COALESCE(
+             qc.is_active,
+             true
+           ) = true
+
+      JOIN campaigns c
+        ON c.id = qc.campaign_id
+
+      WHERE (
+        $1::int IS NULL
+        OR s.user_id = $1
+        OR c.user_id = $1
+      )
+
+        AND (
+          $2::text = ''
+          OR s.id::text = $2::text
+        )
+
+        AND (
+          $3::text = ''
+          OR qr.id::text = $3::text
+        )
+
+        AND (
+          $4::text = ''
+          OR c.id::text = $4::text
+        )
+
+        AND (
+          $5::text = 'all'
+
+          OR (
+            $5::text = 'active'
+            AND COALESCE(
+                  c.is_archived,
+                  false
+                ) = false
+          )
+
+          OR (
+            $5::text = 'archived'
+            AND COALESCE(
+                  c.is_archived,
+                  false
+                ) = true
+          )
+        )
+
+      ORDER BY
+        s.name
+    `,
+    [
+      coreExcelUserId,
+      locationId || "",
+      qrId || "",
+      campaignId || "",
+      status || "all"
+    ]
+  );
+
+const coreExcelLocationRows = [];
+
+for (
+  const location of
+  coreExcelLocationsResult.rows
+) {
+  const locationReportRows =
+    await buildExportReportRows(
+      req,
+      startDate,
+      endDate,
+      String(location.id),
+      qrId,
+      campaignId,
+      status
+    );
+
+  const locationSummary =
+    locationReportRows.reduce(
+      (totals, row) => {
+        totals.campaigns += 1;
+
+        totals.scans +=
+          Number(row.scans || 0);
+
+        totals.offerClicks +=
+          Number(
+            row.offerClicks || 0
+          );
+
+        totals.mapClicks +=
+          Number(
+            row.mapClicks || 0
+          );
+
+        totals.wazeClicks +=
+          Number(
+            row.wazeClicks || 0
+          );
+
+        totals.intent +=
+          Number(row.intent || 0);
+
+        totals.visitors +=
+          Number(row.visitors || 0);
+
+        totals.clicks +=
+          Number(row.clicks || 0);
+
+        totals.conversions +=
+          Number(
+            row.conversions || 0
+          );
+
+        totals.revenueGenerated +=
+          Number(
+            row.revenueGenerated || 0
+          );
+
+        totals.allocatedCost +=
+          Number(
+            row.allocatedCost || 0
+          );
+
+        return totals;
+      },
+      {
+        campaigns: 0,
+        scans: 0,
+        offerClicks: 0,
+        mapClicks: 0,
+        wazeClicks: 0,
+        intent: 0,
+        visitors: 0,
+        clicks: 0,
+        conversions: 0,
+        revenueGenerated: 0,
+        allocatedCost: 0
+      }
+    );
+
+  locationSummary.cac =
+    locationSummary.conversions > 0
+      ? locationSummary.allocatedCost /
+        locationSummary.conversions
+      : 0;
+
+  locationSummary.roi =
+    locationSummary.allocatedCost > 0
+      ? (
+          (
+            locationSummary.revenueGenerated -
+            locationSummary.allocatedCost
+          ) /
+          locationSummary.allocatedCost
+        ) * 100
+      : 0;
+
+  coreExcelLocationRows.push({
+    locationId:
+      Number(location.id),
+
+    locationName:
+      location.name || "",
+
+    ...locationSummary
+  });
+}
       /*
       =========================================================
       EXECUTIVE TOTALS
