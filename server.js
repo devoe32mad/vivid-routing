@@ -29871,6 +29871,310 @@ app.get(
     }
   }
 );
+/*
+=========================================================
+LOCATION REVENUE DETAIL
+=========================================================
+*/
+
+app.get(
+  "/org-revenue-pipeline/location/:locationId/revenue",
+  async (req, res) => {
+    try {
+      let organizationId = null;
+
+      if (
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId = Number(
+          req.query.organization_id
+        );
+      }
+
+      const locationId =
+        Number(req.params.locationId);
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !Number.isInteger(locationId) ||
+        locationId <= 0
+      ) {
+        return res
+          .status(403)
+          .send("Location revenue access denied.");
+      }
+
+      const locationResult = await q(
+        `
+          SELECT
+            s.id,
+            s.name,
+            s.location,
+            o.name AS organization_name
+
+          FROM spaces s
+
+          JOIN organizations o
+            ON o.id = s.organization_id
+
+          WHERE s.id = $1
+            AND s.organization_id = $2
+            AND COALESCE(s.is_archived, false) = false
+
+          LIMIT 1
+        `,
+        [
+          locationId,
+          organizationId
+        ]
+      );
+
+      const location =
+        locationResult.rows[0] || null;
+
+      if (!location) {
+        return res
+          .status(404)
+          .send("Location not found.");
+      }
+
+      const revenueResult = await q(
+        `
+          SELECT
+            COALESCE(
+              SUM(
+                COALESCE(
+                  oo.price,
+                  oo.annual_price,
+                  0
+                )
+              ),
+              0
+            )::numeric AS pipeline_value,
+
+            COALESCE(
+              SUM(
+                COALESCE(
+                  oo.price,
+                  oo.annual_price,
+                  0
+                )
+              ) FILTER (
+                WHERE LOWER(TRIM(oo.status)) = 'available'
+              ),
+              0
+            )::numeric AS available_revenue,
+
+            COALESCE(
+              SUM(
+                COALESCE(
+                  oo.price,
+                  oo.annual_price,
+                  0
+                )
+              ) FILTER (
+                WHERE LOWER(TRIM(oo.status)) = 'pending'
+              ),
+              0
+            )::numeric AS pending_revenue,
+
+            COALESCE(
+              SUM(
+                COALESCE(
+                  oo.price,
+                  oo.annual_price,
+                  0
+                )
+              ) FILTER (
+                WHERE LOWER(TRIM(oo.status)) = 'approved'
+              ),
+              0
+            )::numeric AS approved_revenue
+
+          FROM organization_opportunities oo
+
+          WHERE oo.organization_id = $1
+            AND oo.space_id = $2
+            AND COALESCE(oo.is_active, true) = true
+        `,
+        [
+          organizationId,
+          locationId
+        ]
+      );
+
+      const revenue =
+        revenueResult.rows[0] || {};
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        req.session.user?.name ||
+        req.session.user?.email ||
+        "";
+
+      const revenueCard = ({
+        label,
+        value,
+        href
+      }) => `
+        <a
+          href="${href}"
+          class="card"
+          style="
+            display:block;
+            text-decoration:none;
+            color:#173f2a;
+            min-height:150px;
+          "
+        >
+          <div style="
+            color:#65776b;
+            font-weight:700;
+            margin-bottom:10px;
+          ">
+            ${escapeHtml(label)}
+          </div>
+
+          <div style="
+            font-size:32px;
+            font-weight:800;
+          ">
+            ${money(Number(value || 0))}
+          </div>
+
+          <div style="
+            margin-top:18px;
+            color:#176b3a;
+            font-weight:700;
+          ">
+            View Detail →
+          </div>
+        </a>
+      `;
+
+      return res.send(
+        orgPage(
+          `Revenue - ${location.name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(
+                  location.organization_name
+                ),
+              activePage: "pipeline",
+              userName: escapeHtml(userName)
+            })}
+
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Revenue
+              </h1>
+
+              <p class="subtitle">
+                ${escapeHtml(location.name)}
+                ${
+                  location.location
+                    ? ` — ${escapeHtml(
+                        location.location
+                      )}`
+                    : ""
+                }
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div style="margin-bottom:22px;">
+                <a
+                  href="/org-revenue-pipeline/location/${locationId}?organization_id=${organizationId}"
+                  style="
+                    color:#176b3a;
+                    font-weight:700;
+                    text-decoration:none;
+                  "
+                >
+                  ← Back to Location Revenue Pipeline
+                </a>
+              </div>
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(auto-fit, minmax(240px, 1fr));
+                gap:18px;
+              ">
+
+                ${revenueCard({
+                  label: "Pipeline Value",
+                  value: revenue.pipeline_value,
+                  href:
+                    `/org-marketplace?organization_id=${organizationId}&location_id=${locationId}`
+                })}
+
+                ${revenueCard({
+                  label: "Available Revenue",
+                  value: revenue.available_revenue,
+                  href:
+                    `/org-marketplace?organization_id=${organizationId}&location_id=${locationId}&status=Available`
+                })}
+
+                ${revenueCard({
+                  label: "Pending Revenue",
+                  value: revenue.pending_revenue,
+                  href:
+                    `/org-advertising-requests?organization_id=${organizationId}&location_id=${locationId}&status=Pending`
+                })}
+
+                ${revenueCard({
+                  label: "Approved Revenue",
+                  value: revenue.approved_revenue,
+                  href:
+                    `/org-advertising-requests?organization_id=${organizationId}&location_id=${locationId}&status=Approved`
+                })}
+
+                ${revenueCard({
+                  label: "Active Revenue",
+                  value: 0,
+                  href:
+                    `/org-contracts?organization_id=${organizationId}&location_id=${locationId}&status=Active`
+                })}
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "LOCATION REVENUE DETAIL ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load Location Revenue Detail: " +
+        err.message
+      );
+    }
+  }
+);
 app.get(
   "/org-advertising-request/:requestId",
   async (req, res) => {
