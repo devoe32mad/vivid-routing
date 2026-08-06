@@ -32080,7 +32080,110 @@ app.get(
           </div>
         `);
       }
+if (
+  String(setup.setup_status || "").trim() ===
+  "Password Setup Required"
+) {
+  return res.send(
+    marketplacePage(
+      "Create Your Vivid Password",
+      `
+        <div class="marketplace-topbar">
+          <div class="marketplace-brand">
+            Vivid
+          </div>
 
+          <h1>
+            Create Your Password
+          </h1>
+
+          <p class="marketplace-subtitle">
+            Your email address will be your Vivid user ID.
+            Create a password to continue your advertising
+            setup.
+          </p>
+        </div>
+
+        <main class="marketplace-wrap">
+          <section
+            class="marketplace-card"
+            style="
+              max-width:620px;
+              margin:0 auto;
+            "
+          >
+            <form
+              method="POST"
+              action="/vivid-account-setup/${encodeURIComponent(
+                rawToken
+              )}"
+            >
+              <label>
+                Email Address
+              </label>
+
+              <input
+                type="email"
+                value="${String(
+                  setup.vivid_user_email || ""
+                ).replace(/"/g, "&quot;")}"
+                readonly
+                style="
+                  background:#f4f7f1;
+                  cursor:not-allowed;
+                "
+              >
+
+              <p style="
+                margin-top:7px;
+                color:#65776b;
+                font-size:13px;
+              ">
+                This email address is your Vivid user ID.
+              </p>
+
+              <label>
+                Create Password
+              </label>
+
+              <input
+                type="password"
+                name="password"
+                required
+                minlength="8"
+                autocomplete="new-password"
+              >
+
+              <label>
+                Confirm Password
+              </label>
+
+              <input
+                type="password"
+                name="confirm_password"
+                required
+                minlength="8"
+                autocomplete="new-password"
+              >
+
+              <button
+                type="submit"
+                class="marketplace-btn"
+                style="
+                  border:0;
+                  cursor:pointer;
+                  margin-top:20px;
+                "
+              >
+                Create Password &amp; Continue
+              </button>
+            </form>
+          </section>
+        </main>
+      `
+    )
+  );
+}
       /*
         Use the same Vivid Core session structure already
         used by the normal login route.
