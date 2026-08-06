@@ -483,7 +483,11 @@ ${navItem(
   `/org-marketplace?organization_id=${organizationId}`,
   "marketplace"
 )}
-
+${navItem(
+  "Advertising Requests",
+  `/org-advertising-requests?organization_id=${organizationId}`,
+  "advertising-requests"
+)}
 ${navItem(
   "Revenue Pipeline",
   `/org-advertising-requests?organization_id=${organizationId}`,
