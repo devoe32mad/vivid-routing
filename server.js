@@ -31065,7 +31065,11 @@ let vividUserWasCreated = false;
 
             rejection_reason = NULL,
 
-            setup_status = 'Account Setup Required',
+            setup_status = '${
+  vividUserWasCreated
+    ? "Password Setup Required"
+    : "Account Setup Required"
+}',
 
             setup_token = $2,
 
