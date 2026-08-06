@@ -30902,12 +30902,7 @@ const opportunityResult = await q(`
   flex-wrap:wrap;
 ">
 
-  <a
-    class="marketplace-btn"
-    href="/org-advertising-requests?organization_id=${organizationId}"
-  >
-    Advertising Requests
-  </a>
+  
 
   <a
     class="marketplace-btn secondary"
@@ -30986,7 +30981,12 @@ const opportunityResult = await q(`
 </form>
 
                   </div>
-
+<a
+  class="marketplace-btn"
+  href="/org-advertising-requests?organization_id=${organizationId}"
+>
+  Advertising Requests
+</a>
                   <a
                     class="marketplace-btn"
                 href="/org-opportunity/new?organization_id=${organization.id}&space_id=${selectedLocationId}"
