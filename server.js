@@ -32270,6 +32270,240 @@ if (
     }
   }
 );
+/*
+=========================================================
+SAVE VIVID MARKETPLACE PASSWORD
+=========================================================
+*/
+app.post(
+  "/vivid-account-setup/:token",
+  async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+      const rawToken = String(
+        req.params.token || ""
+      ).trim();
+
+      const password = String(
+        req.body.password || ""
+      );
+
+      const confirmPassword = String(
+        req.body.confirm_password || ""
+      );
+
+      if (!rawToken) {
+        return res
+          .status(400)
+          .send("A valid setup link is required.");
+      }
+
+      if (password.length < 8) {
+        return res.status(400).send(`
+          Password must contain at least 8 characters.
+          <br><br>
+          <a href="/vivid-account-setup/${encodeURIComponent(
+            rawToken
+          )}">
+            Back to Create Password
+          </a>
+        `);
+      }
+
+      if (password !== confirmPassword) {
+        return res.status(400).send(`
+          Passwords do not match.
+          <br><br>
+          <a href="/vivid-account-setup/${encodeURIComponent(
+            rawToken
+          )}">
+            Back to Create Password
+          </a>
+        `);
+      }
+
+      const hashedToken =
+        crypto
+          .createHash("sha256")
+          .update(rawToken)
+          .digest("hex");
+
+      await client.query("BEGIN");
+
+      const setupResult =
+        await client.query(
+          `
+            SELECT
+              r.id AS request_id,
+              r.organization_id,
+              r.location_id,
+              r.opportunity_id,
+              r.created_vivid_user_id,
+              r.setup_status,
+
+              u.id AS vivid_user_id,
+              u.name AS vivid_user_name,
+              u.email AS vivid_user_email,
+              u.role AS vivid_user_role,
+              u.customer_id AS vivid_customer_id
+
+            FROM organization_advertising_requests r
+
+            JOIN users u
+              ON u.id = r.created_vivid_user_id
+
+            WHERE r.setup_token = $1
+              AND LOWER(TRIM(r.status)) = 'approved'
+              AND r.setup_status =
+                  'Password Setup Required'
+              AND r.created_vivid_user_id IS NOT NULL
+              AND r.setup_token_expires_at IS NOT NULL
+              AND r.setup_token_expires_at >
+                  CURRENT_TIMESTAMP
+
+            LIMIT 1
+
+            FOR UPDATE OF r, u
+          `,
+          [hashedToken]
+        );
+
+      const setup =
+        setupResult.rows[0];
+
+      if (!setup) {
+        await client.query("ROLLBACK");
+
+        return res.status(400).send(`
+          <div style="
+            max-width:700px;
+            margin:60px auto;
+            padding:30px;
+            font-family:Arial,sans-serif;
+          ">
+            <h1>Setup Link Unavailable</h1>
+
+            <p>
+              This setup link is invalid, expired,
+              or has already been used.
+            </p>
+          </div>
+        `);
+      }
+
+      /*
+        Vivid currently uses the stored password directly
+        during login, so this follows the existing system.
+      */
+      await client.query(
+        `
+          UPDATE users
+
+          SET
+            password = $1,
+            account_status = 'active',
+            password_created_at =
+              CURRENT_TIMESTAMP
+
+          WHERE id = $2
+        `,
+        [
+          password,
+          setup.vivid_user_id
+        ]
+      );
+
+      await client.query(
+        `
+          UPDATE organization_advertising_requests
+
+          SET
+            setup_status = 'In Progress',
+
+            setup_started_at = COALESCE(
+              setup_started_at,
+              CURRENT_TIMESTAMP
+            ),
+
+            setup_token = NULL,
+            setup_token_expires_at = NULL,
+            updated_at = CURRENT_TIMESTAMP
+
+          WHERE id = $1
+            AND created_vivid_user_id = $2
+        `,
+        [
+          setup.request_id,
+          setup.vivid_user_id
+        ]
+      );
+
+      await client.query("COMMIT");
+
+      delete req.session.orgUser;
+
+      req.session.user = {
+        id: setup.vivid_user_id,
+        name: setup.vivid_user_name,
+        email: setup.vivid_user_email,
+        role: setup.vivid_user_role,
+        customer_id:
+          setup.vivid_customer_id
+      };
+
+      req.session.marketplaceSetup = {
+        request_id:
+          setup.request_id,
+
+        organization_id:
+          setup.organization_id,
+
+        location_id:
+          setup.location_id,
+
+        opportunity_id:
+          setup.opportunity_id
+      };
+
+      req.session.save(err => {
+        if (err) {
+          console.error(
+            "VIVID PASSWORD SETUP SESSION ERROR:",
+            err
+          );
+
+          return res.status(500).send(
+            "Your password was created, but Vivid " +
+            "could not begin your setup session."
+          );
+        }
+
+        return res.redirect(
+          "/admin/new-location"
+        );
+      });
+
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (_) {}
+
+      console.error(
+        "VIVID PASSWORD SETUP ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to create your Vivid password: " +
+        err.message
+      );
+
+    } finally {
+      client.release();
+    }
+  }
+);
 app.get(
   "/org-opportunities/bulk-template",
   async (req, res) => {
