@@ -48991,9 +48991,9 @@ app.get(
 
           FROM organization_advertising_requests ar
 
-          JOIN spaces s
-            ON s.id = ar.created_location_id
-           AND s.user_id = $1
+         JOIN spaces s
+  ON s.id = ar.created_location_id
+ AND s.organization_id = ar.organization_id
 
           JOIN organizations o
             ON o.id = ar.organization_id
