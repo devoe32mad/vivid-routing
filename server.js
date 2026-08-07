@@ -54369,14 +54369,21 @@ if (existing.rows.length === 0) {
   );
 }
 
-  res.send(successPage(
+res.send(successPage(
   "Campaign Assigned Successfully",
-  "Your campaign has been connected to this QR code.",
-  "Schedule when this campaign should run.",
+  "Your campaign has been connected to this placement.",
+  "Optional: Schedule specific days, hours, or priorities for when this campaign should run.",
   [
-    { label: "Manage Schedules", href: "/admin/schedule" },
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Back to My Setup", href: "/my-setup" }
+    {
+      label: "Manage Schedule",
+      href:
+        "/admin/schedule?qr_id=" +
+        Number(req.body.qr_id) +
+        "&campaign_id=" +
+        Number(req.body.campaign_id)
+    },
+    { label: "Back to My Setup", href: "/my-setup" },
+    { label: "Dashboard", href: "/dashboard" }
   ]
 ));
   } catch (err) {
