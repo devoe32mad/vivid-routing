@@ -49590,19 +49590,40 @@ LEFT JOIN contracts c
 
                 <label>Live Date</label>
 
-                <input
-                  type="date"
-                  name="live_date"
-                  required
-                />
+<input
+  type="date"
+  value="${marketplaceRequest.contract_start_date || ""}"
+  readonly
+  style="
+    background:#f4f7f1;
+    cursor:not-allowed;
+  "
+/>
 
-                <label>End Date</label>
+<input
+  type="hidden"
+  name="live_date"
+  value="${marketplaceRequest.contract_start_date || ""}"
+/>
 
-                <input
-                  type="date"
-                  name="end_date"
-                  required
-                />
+<label>End Date</label>
+
+<input
+  type="date"
+  value="${marketplaceRequest.contract_end_date || ""}"
+  readonly
+  style="
+    background:#f4f7f1;
+    cursor:not-allowed;
+  "
+/>
+
+<input
+  type="hidden"
+  name="end_date"
+  value="${marketplaceRequest.contract_end_date || ""}"
+/>
+                  
 
                 <div
                   id="contractDays"
