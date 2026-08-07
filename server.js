@@ -31252,6 +31252,32 @@ let vividUserWasCreated = false;
             advertisingRequest.location_id
           ]
         );
+      await client.query(
+  `
+    UPDATE organization_advertising_requests
+
+    SET
+      status = 'Closed',
+      rejection_reason = 'Opportunity Filled',
+      updated_at = CURRENT_TIMESTAMP
+
+    WHERE organization_id = $1
+      AND opportunity_id = $2
+      AND location_id = $3
+      AND id <> $4
+      AND LOWER(
+        TRIM(
+          COALESCE(status, '')
+        )
+      ) = 'pending'
+  `,
+  [
+    organizationId,
+    advertisingRequest.opportunity_id,
+    advertisingRequest.location_id,
+    requestId
+  ]
+);
       }
 
       await client.query("COMMIT");
