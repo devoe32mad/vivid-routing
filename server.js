@@ -49390,10 +49390,10 @@ const requestedMarketplaceRequestId =
 
           FROM organization_advertising_requests ar
 
-          JOIN spaces created_space
-            ON created_space.id = ar.created_location_id
-           AND created_space.user_id = $1
-
+JOIN spaces created_space
+  ON created_space.id = ar.created_location_id
+ AND created_space.organization_id = ar.organization_id
+ 
           LEFT JOIN organization_opportunities oo
             ON oo.id = ar.opportunity_id
            AND oo.organization_id = ar.organization_id
