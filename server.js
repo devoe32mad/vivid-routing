@@ -48261,7 +48261,8 @@ app.post("/admin/edit-organization/:id", requireLogin, async (req, res) => {
   app.get("/admin/new-location", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
-
+const requestedMarketplaceRequestId =
+  Number(req.query.marketplace_request_id);
     /*
     =========================================================
     MARKETPLACE LOCATION PREFILL
@@ -48311,18 +48312,16 @@ app.post("/admin/edit-organization/:id", requireLogin, async (req, res) => {
          AND oo.organization_id = ar.organization_id
          AND oo.space_id = ar.location_id
 
-        WHERE ar.created_vivid_user_id = $1
-          AND ar.status = 'Approved'
-          AND ar.created_location_id IS NULL
+  WHERE ar.created_vivid_user_id = $1
+  AND ar.status = 'Approved'
+  AND ar.id = $2
 
-        ORDER BY
-          ar.approved_at DESC NULLS LAST,
-          ar.id DESC
-
-        LIMIT 1
+LIMIT 1
       `,
-      [currentUser.id]
-    );
+      [
+        currentUser.id,
+        requestedMarketplaceRequestId
+      ]  );
 
     const marketplaceRequest =
       marketplaceRequestResult.rows[0] || null;
