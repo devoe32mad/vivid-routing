@@ -50222,7 +50222,13 @@ if (approvedMarketplaceRequest) {
       "Your QR code has been created and is ready to track scans.",
       "Create a campaign for this QR code.",
       [
-        { label: "Create Campaign", href: "/admin/new-campaign" },
+        {
+  label: "Create Campaign",
+  href:
+    `/admin/new-campaign` +
+    `?marketplace_request_id=${marketplaceRequestId}` +
+    `&qr_id=${qrId}`
+},
         { label: "Download QR Code", href: "/qr/" + qrId + ".png", target: "_blank" },
         { label: "Preview QR Destination", href: "/r/" + qrId, target: "_blank" },
         { label: "Back to My Setup", href: "/my-setup" }
