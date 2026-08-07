@@ -27675,10 +27675,7 @@ if (locationScope.restricted) {
 
 const requestsResult = await q(
   `
-    SELECT DISTINCT ON (
-      r.organization_id,
-      r.opportunity_id
-    )
+    SELECT
       r.id,
 
       r.organization_id,
@@ -27740,10 +27737,8 @@ oo.status AS inventory_status,
       ${whereParts.join("\nAND ")}
 
     ORDER BY
-      r.organization_id,
-      r.opportunity_id,
-      r.submitted_at DESC,
-      r.id DESC
+  r.submitted_at DESC,
+  r.id DESC
   `,
   queryValues
 );
