@@ -30741,7 +30741,14 @@ app.get(
             r.approved_at,
             r.rejected_at,
             r.setup_started_at,
-            r.setup_completed_at
+            r.setup_completed_at,
+
+c.id AS contract_id,
+c.start_date AS contract_start_date,
+c.end_date AS contract_end_date,
+c.total_contract_value AS contract_value,
+c.billing_frequency AS contract_billing_frequency,
+c.status AS contract_status
 
           FROM organization_advertising_requests r
 
@@ -30759,7 +30766,9 @@ app.get(
                r.organization_id
            AND oo.space_id =
                r.location_id
-
+LEFT JOIN contracts c
+  ON c.id = r.created_contract_id
+ AND c.organization_id = r.organization_id
           WHERE r.id = $1
             AND r.organization_id = $2
 
