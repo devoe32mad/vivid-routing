@@ -27534,11 +27534,13 @@ const locationsResult = await q(
 
       COUNT(r.id)::integer AS total_requests,
 
-      COUNT(r.id) FILTER (
-        WHERE LOWER(
-          COALESCE(r.status, 'Pending')
-        ) = 'pending'
-      )::integer AS pending_requests,
+   COUNT(r.id) FILTER (
+  WHERE LOWER(
+    TRIM(
+      COALESCE(r.status, '')
+    )
+  ) = 'pending'
+)::integer AS pending_requests,
 
       COUNT(r.id) FILTER (
         WHERE LOWER(
