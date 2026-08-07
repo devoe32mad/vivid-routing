@@ -31694,7 +31694,58 @@ oo.qr_id AS opportunity_qr_id
             `Only Pending requests may be approved. Current status: ${advertisingRequest.status}`
           );
       }
+const contractStartDate = String(
+  req.body.contract_start_date || ""
+).trim();
 
+const contractEndDate = String(
+  req.body.contract_end_date || ""
+).trim();
+
+const billingFrequency = String(
+  req.body.billing_frequency || "Annual"
+).trim();
+
+const allowedBillingFrequencies = [
+  "Annual",
+  "Quarterly",
+  "Monthly",
+  "One-Time"
+];
+
+if (
+  !contractStartDate ||
+  !contractEndDate
+) {
+  await client.query("ROLLBACK");
+
+  return res.status(400).send(
+    "Contract Start Date and Contract End Date are required."
+  );
+}
+
+if (
+  new Date(contractEndDate) <
+  new Date(contractStartDate)
+) {
+  await client.query("ROLLBACK");
+
+  return res.status(400).send(
+    "Contract End Date must be on or after Contract Start Date."
+  );
+}
+
+if (
+  !allowedBillingFrequencies.includes(
+    billingFrequency
+  )
+) {
+  await client.query("ROLLBACK");
+
+  return res.status(400).send(
+    "A valid billing frequency is required."
+  );
+}
       const advertiserEmail = String(
         advertisingRequest.email || ""
       )
