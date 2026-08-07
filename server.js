@@ -52345,6 +52345,13 @@ app.get(
   requireLogin,
   async (req, res) => {
     try {
+const currentUser = req.session.user;
+
+const marketplaceRequestId =
+  Number(req.query.marketplace_request_id);
+
+const requestedQrId =
+  Number(req.query.qr_id);
       const users = await q(`
         SELECT
           id,
@@ -52353,7 +52360,54 @@ app.get(
         WHERE role = 'customer'
         ORDER BY email
       `);
+let marketplaceRequest = null;
 
+if (
+  Number.isInteger(marketplaceRequestId) &&
+  marketplaceRequestId > 0 &&
+  Number.isInteger(requestedQrId) &&
+  requestedQrId > 0
+) {
+  const marketplaceResult = await q(
+    `
+      SELECT
+        ar.id AS request_id,
+        ar.business_name,
+        ar.campaign_name,
+        ar.destination_url,
+
+        c.start_date,
+        c.end_date,
+
+        q.id AS qr_id,
+        q.name AS qr_name
+
+      FROM organization_advertising_requests ar
+
+      LEFT JOIN contracts c
+        ON c.id = ar.created_contract_id
+       AND c.organization_id = ar.organization_id
+
+      JOIN qr_codes q
+        ON q.id = ar.created_qr_id
+
+      WHERE ar.id = $1
+        AND ar.created_vivid_user_id = $2
+        AND ar.created_qr_id = $3
+        AND ar.status = 'Approved'
+
+      LIMIT 1
+    `,
+    [
+      marketplaceRequestId,
+      currentUser.id,
+      requestedQrId
+    ]
+  );
+
+  marketplaceRequest =
+    marketplaceResult.rows[0] || null;
+}
       return res.send(
         page(
           "New Campaign",
@@ -52430,11 +52484,14 @@ app.get(
                         Advertiser
                       </label>
 
-                      <input
-                        name="advertiser"
-                        placeholder="Example: Chipotle"
-                        required
-                      >
+                     <input
+  name="advertiser"
+  value="${escapeHtml(
+    marketplaceRequest?.business_name || ""
+  )}"
+  placeholder="Example: Chipotle"
+  required
+>
                     </div>
 
                     <div>
@@ -52442,11 +52499,14 @@ app.get(
                         Campaign Name
                       </label>
 
-                      <input
-                        name="name"
-                        placeholder="Example: Summer Promotion"
-                        required
-                      >
+                    <input
+  name="name"
+  value="${escapeHtml(
+    marketplaceRequest?.campaign_name || ""
+  )}"
+  placeholder="Example: Summer Promotion"
+  required
+>
                     </div>
 
                     <div>
@@ -52454,10 +52514,22 @@ app.get(
                         Start Date
                       </label>
 
-                      <input
-                        type="date"
-                        name="start_date"
-                      >
+                   <input
+  type="date"
+  name="start_date"
+  value="${
+    marketplaceRequest?.start_date
+      ? new Date(
+          marketplaceRequest.start_date
+        ).toISOString().slice(0,10)
+      : ""
+  }"
+  ${
+    marketplaceRequest
+      ? "readonly"
+      : ""
+  }
+>
                     </div>
 
                     <div>
@@ -52465,10 +52537,22 @@ app.get(
                         End Date
                       </label>
 
-                      <input
-                        type="date"
-                        name="end_date"
-                      >
+<input
+  type="date"
+  name="end_date"
+  value="${
+    marketplaceRequest?.end_date
+      ? new Date(
+          marketplaceRequest.end_date
+        ).toISOString().slice(0,10)
+      : ""
+  }"
+  ${
+    marketplaceRequest
+      ? "readonly"
+      : ""
+  }
+>
 
                       <div
                         id="campaignDays"
