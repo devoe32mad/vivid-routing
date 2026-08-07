@@ -30696,26 +30696,166 @@ app.get(
                             Approve Request
                           </button>
                         </form>
+<form
+  method="POST"
+  action="/org-advertising-request/${request.request_id}/approve"
+  style="
+    margin:0;
+    width:100%;
+  "
+>
+  <input
+    type="hidden"
+    name="organization_id"
+    value="${organizationId}"
+  >
 
-                        <form
-                          method="POST"
-                          action="/org-advertising-request/${request.request_id}/reject"
-                          style="margin:0;"
-                        >
-                          <input
-                            type="hidden"
-                            name="organization_id"
-                            value="${organizationId}"
-                          >
+  <div style="
+    display:grid;
+    grid-template-columns:
+      repeat(auto-fit,minmax(210px,1fr));
+    gap:16px;
+    margin-bottom:18px;
+  ">
 
-                          <button
-                            type="submit"
-                            class="marketplace-btn secondary"
-                            onclick="return confirm('Reject this advertising request?')"
-                          >
-                            Reject Request
-                          </button>
-                        </form>
+    <div>
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        color:#65776b;
+        margin-bottom:7px;
+      ">
+        Advertising Investment
+      </label>
+
+      <div style="
+        padding:12px 14px;
+        border:1px solid #d7dfd8;
+        border-radius:10px;
+        background:#f4f7f1;
+        font-weight:700;
+      ">
+        ${investmentLabel}
+      </div>
+
+      <div style="
+        margin-top:6px;
+        color:#65776b;
+        font-size:12px;
+      ">
+        Set by the advertising opportunity and cannot
+        be changed during approval.
+      </div>
+    </div>
+
+    <div>
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        color:#65776b;
+        margin-bottom:7px;
+      ">
+        Contract Start Date
+      </label>
+
+      <input
+        type="date"
+        name="contract_start_date"
+        required
+        style="
+          width:100%;
+          padding:12px 14px;
+          border:1px solid #d7dfd8;
+          border-radius:10px;
+          box-sizing:border-box;
+          background:white;
+        "
+      >
+    </div>
+
+    <div>
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        color:#65776b;
+        margin-bottom:7px;
+      ">
+        Contract End Date
+      </label>
+
+      <input
+        type="date"
+        name="contract_end_date"
+        required
+        style="
+          width:100%;
+          padding:12px 14px;
+          border:1px solid #d7dfd8;
+          border-radius:10px;
+          box-sizing:border-box;
+          background:white;
+        "
+      >
+    </div>
+
+    <div>
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        color:#65776b;
+        margin-bottom:7px;
+      ">
+        Billing Frequency
+      </label>
+
+      <select
+        name="billing_frequency"
+        required
+        style="
+          width:100%;
+          padding:12px 14px;
+          border:1px solid #d7dfd8;
+          border-radius:10px;
+          box-sizing:border-box;
+          background:white;
+        "
+      >
+        <option value="Annual" selected>
+          Annual
+        </option>
+
+        <option value="Quarterly">
+          Quarterly
+        </option>
+
+        <option value="Monthly">
+          Monthly
+        </option>
+
+        <option value="One-Time">
+          One-Time
+        </option>
+      </select>
+    </div>
+
+  </div>
+
+  <button
+    type="submit"
+    class="marketplace-btn"
+    onclick="
+      return confirm(
+        'Approve this advertising request with these contract terms and create the advertiser Vivid account?'
+      )
+    "
+  >
+    Approve Request
+  </button>
+</form>
                       </div>
                     </section>
                   `
