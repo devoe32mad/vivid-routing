@@ -43246,13 +43246,28 @@ const locations = await q(
       WHERE COALESCE(is_archived,false) = false
       ORDER BY id DESC
     `
-    : `
-      SELECT *
-      FROM spaces
-      WHERE user_id = $1
-      AND COALESCE(is_archived,false) = false
-      ORDER BY id DESC
-    `,
+  : `
+  SELECT DISTINCT s.*
+
+  FROM spaces s
+
+  WHERE
+    (
+      s.user_id = $1
+
+      OR EXISTS (
+        SELECT 1
+        FROM organization_advertising_requests ar
+        WHERE ar.created_location_id = s.id
+          AND ar.created_vivid_user_id = $1
+          AND LOWER(TRIM(ar.status)) = 'approved'
+      )
+    )
+
+    AND COALESCE(s.is_archived,false) = false
+
+  ORDER BY s.id DESC
+`,
   isSuperAdmin ? [] : [currentUser.id]
 );
 
