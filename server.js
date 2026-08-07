@@ -31166,7 +31166,112 @@ let vividUserWasCreated = false;
           newUserResult.rows[0].id;
         vividUserWasCreated = true;
       }
+const existingContractResult =
+  await client.query(
+    `
+      SELECT id
 
+      FROM contracts
+
+      WHERE advertising_request_id = $1
+
+      LIMIT 1
+    `,
+    [requestId]
+  );
+
+let contractId =
+  existingContractResult.rows[0]?.id || null;
+
+if (!contractId) {
+  const contractValue =
+    Number(
+      advertisingRequest.price || 0
+    );
+
+  const contractName =
+    advertisingRequest.current_opportunity_name ||
+    advertisingRequest.opportunity_name ||
+    advertisingRequest.business_name ||
+    "Advertising Contract";
+
+  const createdContractResult =
+    await client.query(
+      `
+        INSERT INTO contracts (
+          customer_id,
+          organization_id,
+          advertiser_id,
+          location_id,
+          qr_id,
+          opportunity_id,
+          advertising_request_id,
+          contract_name,
+          contract_type,
+          start_date,
+          end_date,
+          expiration_date,
+          renewal_date,
+          total_contract_value,
+          billing_frequency,
+          status,
+          owner_user_id,
+          source_type,
+          contract_version,
+          notes,
+          created_at,
+          updated_at
+        )
+
+        VALUES (
+          $1,
+          $2,
+          NULL,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7,
+          'Advertising',
+          NULLIF($8, '')::date,
+          NULLIF($9, '')::date,
+          NULLIF($9, '')::date,
+          CASE
+            WHEN NULLIF($9, '')::date IS NOT NULL
+            THEN NULLIF($9, '')::date - INTERVAL '90 days'
+            ELSE NULL
+          END,
+          $10,
+          $11,
+          'Draft',
+          NULL,
+          'Marketplace',
+          1,
+          'Contract created from organization-approved advertising request.',
+          CURRENT_TIMESTAMP,
+          CURRENT_TIMESTAMP
+        )
+
+        RETURNING id
+      `,
+      [
+        vividUserId,
+        organizationId,
+        advertisingRequest.location_id,
+        advertisingRequest.opportunity_qr_id || null,
+        advertisingRequest.opportunity_id || null,
+        requestId,
+        contractName,
+        contractStartDate,
+        contractEndDate,
+        contractValue,
+        billingFrequency
+      ]
+    );
+
+  contractId =
+    createdContractResult.rows[0].id;
+}
       /*
         Generate a secure setup token.
 
