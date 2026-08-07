@@ -15749,61 +15749,62 @@ if (metric === "advertiser-revenue") {
 }
       if (metric === "pending") {
   const pendingResult = await q(
-    `
-      SELECT DISTINCT ON (r.opportunity_id)
-        r.id AS request_id,
-        r.organization_id,
-        r.location_id,
-        r.opportunity_id,
-        r.business_name,
-        r.contact_name,
-        r.email AS contact_email,
-        r.status,
-        r.created_at,
+  `
+    SELECT
+      r.id AS request_id,
+      r.organization_id,
+      r.location_id,
+      r.opportunity_id,
+      r.business_name,
+      r.contact_name,
+      r.email AS contact_email,
+      r.status,
+      r.created_at,
 
-        COALESCE(
-          r.price,
-          oo.price,
-          oo.annual_price,
-          0
-        )::numeric AS investment,
+      COALESCE(
+        r.price,
+        oo.price,
+        oo.annual_price,
+        0
+      )::numeric AS investment,
 
-        COALESCE(
-          NULLIF(TRIM(r.pricing_unit), ''),
-          NULLIF(TRIM(oo.pricing_unit), ''),
-          'Per Year'
-        ) AS pricing_unit,
+      COALESCE(
+        NULLIF(TRIM(r.pricing_unit), ''),
+        NULLIF(TRIM(oo.pricing_unit), ''),
+        'Per Year'
+      ) AS pricing_unit,
 
-        oo.title AS opportunity_title,
-        s.name AS location_name,
-        s.location AS market
+      oo.title AS opportunity_title,
+      s.name AS location_name,
+      s.location AS market
 
-      FROM organization_advertising_requests r
+    FROM organization_advertising_requests r
 
-      LEFT JOIN organization_opportunities oo
-        ON oo.id = r.opportunity_id
-       AND oo.organization_id = r.organization_id
+    LEFT JOIN organization_opportunities oo
+      ON oo.id = r.opportunity_id
+     AND oo.organization_id = r.organization_id
 
-      LEFT JOIN spaces s
-        ON s.id = r.location_id
-       AND s.organization_id = r.organization_id
+    LEFT JOIN spaces s
+      ON s.id = r.location_id
+     AND s.organization_id = r.organization_id
 
-      WHERE r.organization_id = $1
+    WHERE r.organization_id = $1
+      AND LOWER(
+        TRIM(
+          COALESCE(r.status, '')
+        )
+      ) = 'pending'
 
-      ORDER BY
-        r.opportunity_id,
-        r.created_at DESC,
-        r.id DESC
-    `,
-    [organizationId]
-  );
+    ORDER BY
+      r.created_at DESC,
+      r.id DESC
+  `,
+  [organizationId]
+);
 
-  const latestRequests = pendingResult.rows.filter(
-    row =>
-      String(row.status || "")
-        .trim()
-        .toLowerCase() === "pending"
-  );
+
+const latestRequests =
+  pendingResult.rows;
 
   const pendingRevenue = latestRequests.reduce(
     (total, row) =>
@@ -16021,7 +16022,7 @@ if (metric === "advertiser-revenue") {
               </h2>
 
               <div style="color:#65776b;">
-                Current pending requests, one latest request per advertising opportunity.
+                Current advertising requests awaiting organization review.
               </div>
             </div>
 
