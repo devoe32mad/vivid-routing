@@ -2605,7 +2605,24 @@ await q(`
   ALTER TABLE organization_advertising_requests
   ADD COLUMN IF NOT EXISTS rejection_reason TEXT
 `);
+await q(`
+  ALTER TABLE organization_advertising_requests
+  DROP CONSTRAINT IF EXISTS advertising_request_status_check
+`);
 
+await q(`
+  ALTER TABLE organization_advertising_requests
+  ADD CONSTRAINT advertising_request_status_check
+  CHECK (
+    status IN (
+      'Pending',
+      'Approved',
+      'Rejected',
+      'Withdrawn',
+      'Closed'
+    )
+  )
+`);
 await q(`
   ALTER TABLE organization_advertising_requests
   ADD COLUMN IF NOT EXISTS approved_by_organization_user_id INTEGER
