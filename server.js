@@ -43332,8 +43332,20 @@ const relationships = await q(`
   LEFT JOIN campaigns c
     ON c.id = COALESCE(qc.campaign_id, cs.campaign_id)
 
-  WHERE s.user_id = $1
-    AND COALESCE(s.is_archived,false) = false
+WHERE
+  (
+    s.user_id = $1
+
+    OR EXISTS (
+      SELECT 1
+      FROM organization_advertising_requests ar
+      WHERE ar.created_qr_id = qr.id
+        AND ar.created_vivid_user_id = $1
+        AND LOWER(TRIM(ar.status)) = 'approved'
+    )
+  )
+
+  AND COALESCE(s.is_archived,false) = false
 `, [currentUser.id]);
 const campaigns = await q(
   isSuperAdmin
