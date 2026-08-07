@@ -54018,6 +54018,11 @@ res.redirect(returnTo);
 app.get("/admin/schedule", async (req, res) => {
  const currentUser = req.session.user;
 const isSuperAdmin = currentUser.role === "super_admin";
+  const requestedQrId =
+  Number(req.query.qr_id);
+
+const requestedCampaignId =
+  Number(req.query.campaign_id);
   const qrs = await q(
   isSuperAdmin
     ? `SELECT * FROM qr_codes ORDER BY id`
