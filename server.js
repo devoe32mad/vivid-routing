@@ -14380,50 +14380,33 @@ const businessMetricsResult = await q(`
 `, [orgId]);
 
 const pendingMetricsResult = await q(`
-  WITH latest_requests AS (
-    SELECT DISTINCT ON (r.opportunity_id)
-      r.opportunity_id,
-      r.status,
-
-      COALESCE(
-        r.price,
-        oo.price,
-        oo.annual_price,
-        0
-      )::numeric AS investment
-
-    FROM organization_advertising_requests r
-
-    LEFT JOIN organization_opportunities oo
-      ON oo.id = r.opportunity_id
-     AND oo.organization_id = r.organization_id
-
-    WHERE r.organization_id = $1
-
-    ORDER BY
-      r.opportunity_id,
-      r.created_at DESC,
-      r.id DESC
-  )
-
   SELECT
-    COUNT(*) FILTER (
-      WHERE LOWER(
-        COALESCE(status, '')
-      ) = 'pending'
-    )::int AS pending_spots,
+    COUNT(DISTINCT r.opportunity_id)::int
+      AS pending_spots,
 
     COALESCE(
-      SUM(investment) FILTER (
-        WHERE LOWER(
-          COALESCE(status, '')
-        ) = 'pending'
+      SUM(
+        DISTINCT COALESCE(
+          r.price,
+          oo.price,
+          oo.annual_price,
+          0
+        )
       ),
       0
     )::numeric AS pending_revenue
 
-  FROM latest_requests
+  FROM organization_advertising_requests r
+
+  LEFT JOIN organization_opportunities oo
+    ON oo.id = r.opportunity_id
+   AND oo.organization_id = r.organization_id
+
+  WHERE r.organization_id = $1
+    AND LOWER(TRIM(COALESCE(r.status, ''))) =
+        'pending'
 `, [orgId]);
+
       const locations = locationResult.rows;
 
       const totals = locations.reduce(
