@@ -49720,6 +49720,7 @@ LEFT JOIN contracts c
                     'change',
                     updateContractDays
                   );
+                updateContractDays();
                 </script>
 
               </form>
