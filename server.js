@@ -53414,7 +53414,14 @@ for (
       "Your campaign has been saved.",
       "Assign this campaign to a QR code.",
       [
-        { label: "Assign Campaign", href: "/admin/assign" },
+        {
+  label: "Assign Campaign",
+  href:
+    `/admin/assign` +
+    `?marketplace_request_id=${marketplaceRequestId}` +
+    `&qr_id=${requestedQrId}` +
+    `&campaign_id=${campaignId}`
+},
         { label: "Back to My Setup", href: "/my-setup" },
         { label: "Dashboard", href: "/dashboard" }
       ]
