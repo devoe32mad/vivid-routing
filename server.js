@@ -49345,7 +49345,8 @@ app.get("/admin/new-qr", requireLogin, async (req, res) => {
 
     const requestedSpaceId =
       Number(req.query.space_id);
-
+const requestedMarketplaceRequestId =
+  Number(req.query.marketplace_request_id);
     /*
     =========================================================
     MARKETPLACE-AWARE QR SETUP
@@ -49398,8 +49399,9 @@ app.get("/admin/new-qr", requireLogin, async (req, res) => {
            AND oo.organization_id = ar.organization_id
 
           WHERE ar.created_vivid_user_id = $1
-            AND ar.created_location_id = $2
-            AND ar.status = 'Approved'
+  AND ar.created_location_id = $2
+  AND ar.id = $3
+  AND ar.status = 'Approved'
 
           ORDER BY
             ar.approved_at DESC NULLS LAST,
@@ -49407,10 +49409,11 @@ app.get("/admin/new-qr", requireLogin, async (req, res) => {
 
           LIMIT 1
         `,
-        [
-          currentUser.id,
-          requestedSpaceId
-        ]
+      [
+  currentUser.id,
+  requestedSpaceId,
+  requestedMarketplaceRequestId
+]
       );
 
       marketplaceRequest =
