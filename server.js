@@ -30963,7 +30963,91 @@ LEFT JOIN contracts c
                   }
 
                 </article>
+${
+  request.contract_id
+    ? `
+        <section
+          class="marketplace-card"
+          style="margin-top:22px;"
+        >
+          <h2 style="margin-top:0;">
+            Contract Terms
+          </h2>
 
+          <div style="
+            display:grid;
+            grid-template-columns:
+              repeat(auto-fit,minmax(180px,1fr));
+            gap:18px;
+          ">
+
+            <div>
+              <div class="marketplace-label">
+                Start Date
+              </div>
+
+              <div class="marketplace-value">
+                ${formatDate(
+                  request.contract_start_date
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div class="marketplace-label">
+                End Date
+              </div>
+
+              <div class="marketplace-value">
+                ${formatDate(
+                  request.contract_end_date
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div class="marketplace-label">
+                Contract Value
+              </div>
+
+              <div class="marketplace-value">
+                ${formatMoney(
+                  request.contract_value
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div class="marketplace-label">
+                Billing Frequency
+              </div>
+
+              <div class="marketplace-value">
+                ${escapeHtml(
+                  request.contract_billing_frequency ||
+                  "—"
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div class="marketplace-label">
+                Contract Status
+              </div>
+
+              <div class="marketplace-value">
+                ${escapeHtml(
+                  request.contract_status ||
+                  "Draft"
+                )}
+              </div>
+            </div>
+
+          </div>
+        </section>
+      `
+    : ""
+}
                 <article class="marketplace-card">
 
                   <h2 style="margin-top:0;">
