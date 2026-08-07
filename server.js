@@ -43292,7 +43292,7 @@ WHERE
   AND COALESCE(qr.is_archived,false) = false
 
 ORDER BY qr.id DESC
-`
+`,
       isSuperAdmin ? [] : [currentUser.id]
     );
 const relationships = await q(`
