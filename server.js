@@ -53134,7 +53134,9 @@ if (
                   addDestination({
                     name: "Visit Website",
                     type: "website",
-                    url: "",
+                    url: ${JSON.stringify(
+  marketplaceRequest?.destination_url || ""
+)},
                     conversionUrl: "",
                     estimatedValue: "35"
                   });
