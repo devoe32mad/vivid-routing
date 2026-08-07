@@ -54021,13 +54021,29 @@ const isSuperAdmin = currentUser.role === "super_admin";
   const qrs = await q(
   isSuperAdmin
     ? `SELECT * FROM qr_codes ORDER BY id`
-    : `
-      SELECT qr.*
-      FROM qr_codes qr
-      LEFT JOIN spaces s ON s.id = qr.space_id
-      WHERE s.user_id = $1
-      ORDER BY qr.id
-    `,
+  : `
+  SELECT qr.*
+  FROM qr_codes qr
+
+  LEFT JOIN spaces s
+    ON s.id = qr.space_id
+
+  WHERE
+    (
+      s.user_id = $1
+
+      OR EXISTS (
+        SELECT 1
+        FROM organization_advertising_requests ar
+        WHERE ar.created_qr_id = qr.id
+          AND ar.created_vivid_user_id = $1
+          AND LOWER(TRIM(ar.status)) = 'approved'
+      )
+    )
+
+  ORDER BY qr.id
+`
+    ,
   isSuperAdmin ? [] : [currentUser.id]
 );
 
