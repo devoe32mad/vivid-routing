@@ -47862,6 +47862,44 @@ if (!/^\d{4}-\d{2}-\d{2}$/.test(liveDate)) {
           "This Marketplace setup request is not valid for your account."
         );
       }
+const existingMarketplaceLocationId =
+  Number(
+    approvedMarketplaceRequest.location_id
+  );
+
+if (
+  !Number.isInteger(existingMarketplaceLocationId) ||
+  existingMarketplaceLocationId <= 0
+) {
+  return res.status(400).send(
+    "The approved advertising request is missing a valid location."
+  );
+}
+
+await q(
+  `
+    UPDATE organization_advertising_requests
+
+    SET
+      created_location_id = $1,
+      setup_status = 'Location Connected',
+      updated_at = CURRENT_TIMESTAMP
+
+    WHERE id = $2
+      AND created_vivid_user_id = $3
+  `,
+  [
+    existingMarketplaceLocationId,
+    marketplaceRequestId,
+    currentUser.id
+  ]
+);
+
+return res.redirect(
+  `/admin/qr-setup-choice` +
+  `?space_id=${existingMarketplaceLocationId}` +
+  `&marketplace_request_id=${marketplaceRequestId}`
+);
     } else {
       /*
       Normal Vivid users must retain the existing organization
