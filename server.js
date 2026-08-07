@@ -16828,23 +16828,541 @@ const totalIntent =
 );
       
 app.get("/org-contracts", async (req, res) => {
-  res.send(orgPage("Organization Contracts", `
-    <div class="topbar">
-      <div class="brand">Vivid Organizations</div>
-      <h1>Contracts</h1>
-      <p class="subtitle">Manage contract dates, pricing, renewals, and revenue sharing.</p>
-    </div>
+  try {
+    const organizationId = Number(
+      req.query.organization_id ||
+      req.session.orgUser?.organizationId ||
+      req.session.user?.organization_id
+    );
 
-    <div class="wrap">
-      <div class="card">
-        <h2>Contracts</h2>
-        <p>Organization contracts will live here.</p>
+    if (
+      !Number.isInteger(organizationId) ||
+      organizationId <= 0
+    ) {
+      return res
+        .status(400)
+        .send("A valid organization is required.");
+    }
 
-        <a class="btn secondary" href="/org-dashboard">Back to Organization Dashboard</a>
-      </div>
-    </div>
-  `));
+    const organizationResult = await q(
+      `
+        SELECT
+          id,
+          name
+
+        FROM organizations
+
+        WHERE id = $1
+
+        LIMIT 1
+      `,
+      [organizationId]
+    );
+
+    const organization =
+      organizationResult.rows[0];
+
+    if (!organization) {
+      return res
+        .status(404)
+        .send("Organization not found.");
+    }
+
+    const contractsResult = await q(
+      `
+        SELECT
+          c.id,
+          c.contract_name,
+          c.contract_type,
+          c.start_date,
+          c.end_date,
+          c.expiration_date,
+          c.renewal_date,
+          c.total_contract_value,
+          c.billing_frequency,
+          c.status,
+          c.source_type,
+          c.advertising_request_id,
+
+          s.name AS location_name,
+
+          COALESCE(
+            oo.title,
+            ar.opportunity_name,
+            c.contract_name
+          ) AS opportunity_name,
+
+          COALESCE(
+            ar.business_name,
+            u.name,
+            'Unknown Advertiser'
+          ) AS advertiser_name
+
+        FROM contracts c
+
+        LEFT JOIN spaces s
+          ON s.id = c.location_id
+
+        LEFT JOIN organization_opportunities oo
+          ON oo.id = c.opportunity_id
+         AND oo.organization_id = c.organization_id
+
+        LEFT JOIN organization_advertising_requests ar
+          ON ar.id = c.advertising_request_id
+         AND ar.organization_id = c.organization_id
+
+        LEFT JOIN users u
+          ON u.id = c.customer_id
+
+        WHERE c.organization_id = $1
+
+        ORDER BY
+          c.created_at DESC,
+          c.id DESC
+      `,
+      [organizationId]
+    );
+
+    const contracts =
+      contractsResult.rows;
+
+    const totalContracts =
+      contracts.length;
+
+    const draftContracts =
+      contracts.filter(
+        contract =>
+          String(contract.status || "")
+            .trim()
+            .toLowerCase() === "draft"
+      ).length;
+
+    const activeContracts =
+      contracts.filter(
+        contract =>
+          String(contract.status || "")
+            .trim()
+            .toLowerCase() === "active"
+      ).length;
+
+    const today = new Date();
+    const thirtyDaysFromNow =
+      new Date(
+        today.getTime() +
+        30 * 24 * 60 * 60 * 1000
+      );
+
+    const expiringSoon =
+      contracts.filter(contract => {
+        if (
+          String(contract.status || "")
+            .trim()
+            .toLowerCase() !== "active"
+        ) {
+          return false;
+        }
+
+        const endDate = new Date(
+          contract.end_date ||
+          contract.expiration_date
+        );
+
+        return (
+          !Number.isNaN(endDate.getTime()) &&
+          endDate >= today &&
+          endDate <= thirtyDaysFromNow
+        );
+      }).length;
+
+    const activeContractValue =
+      contracts.reduce(
+        (total, contract) => {
+          if (
+            String(contract.status || "")
+              .trim()
+              .toLowerCase() !== "active"
+          ) {
+            return total;
+          }
+
+          return (
+            total +
+            Number(
+              contract.total_contract_value || 0
+            )
+          );
+        },
+        0
+      );
+
+    const money = value =>
+      "$" +
+      Number(value || 0).toLocaleString(
+        "en-US",
+        {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }
+      );
+
+    const formatDate = value => {
+      if (!value) return "—";
+
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) {
+        return "—";
+      }
+
+      return date.toLocaleDateString(
+        "en-US",
+        {
+          month: "short",
+          day: "numeric",
+          year: "numeric"
+        }
+      );
+    };
+
+    const contractRows =
+      contracts.length
+        ? contracts
+            .map(contract => `
+              <tr>
+                <td style="
+                  padding:14px 16px;
+                  border-bottom:1px solid #e7eee7;
+                ">
+                  <strong>
+                    ${escapeHtml(
+                      contract.advertiser_name ||
+                      "Unknown Advertiser"
+                    )}
+                  </strong>
+                </td>
+
+                <td style="
+                  padding:14px 16px;
+                  border-bottom:1px solid #e7eee7;
+                ">
+                  ${escapeHtml(
+                    contract.location_name || "—"
+                  )}
+                </td>
+
+                <td style="
+                  padding:14px 16px;
+                  border-bottom:1px solid #e7eee7;
+                ">
+                  ${escapeHtml(
+                    contract.opportunity_name || "—"
+                  )}
+                </td>
+
+                <td style="
+                  padding:14px 16px;
+                  border-bottom:1px solid #e7eee7;
+                  white-space:nowrap;
+                ">
+                  ${formatDate(
+                    contract.start_date
+                  )}
+                </td>
+
+                <td style="
+                  padding:14px 16px;
+                  border-bottom:1px solid #e7eee7;
+                  white-space:nowrap;
+                ">
+                  ${formatDate(
+                    contract.end_date
+                  )}
+                </td>
+
+                <td style="
+                  padding:14px 16px;
+                  border-bottom:1px solid #e7eee7;
+                  text-align:right;
+                  white-space:nowrap;
+                ">
+                  ${money(
+                    contract.total_contract_value
+                  )}
+                </td>
+
+                <td style="
+                  padding:14px 16px;
+                  border-bottom:1px solid #e7eee7;
+                ">
+                  ${escapeHtml(
+                    contract.billing_frequency ||
+                    "—"
+                  )}
+                </td>
+
+                <td style="
+                  padding:14px 16px;
+                  border-bottom:1px solid #e7eee7;
+                ">
+                  <strong>
+                    ${escapeHtml(
+                      contract.status || "Draft"
+                    )}
+                  </strong>
+                </td>
+
+                <td style="
+                  padding:14px 16px;
+                  border-bottom:1px solid #e7eee7;
+                  text-align:right;
+                ">
+                  ${
+                    contract.advertising_request_id
+                      ? `
+                          <a
+                            class="btn"
+                            href="/org-advertising-request/${contract.advertising_request_id}?organization_id=${organizationId}"
+                            style="margin:0;"
+                          >
+                            Open
+                          </a>
+                        `
+                      : "—"
+                  }
+                </td>
+              </tr>
+            `)
+            .join("")
+        : `
+            <tr>
+              <td
+                colspan="9"
+                style="
+                  padding:40px 20px;
+                  text-align:center;
+                  color:#65776b;
+                "
+              >
+                No contracts found.
+              </td>
+            </tr>
+          `;
+
+    return res.send(
+      orgPage(
+        `Contracts - ${organization.name}`,
+        `
+          <div class="topbar">
+            <div class="brand">
+              Vivid Organizations
+            </div>
+
+            <h1>
+              Contracts
+            </h1>
+
+            <p class="subtitle">
+              Manage contract dates, pricing,
+              renewals, and revenue sharing.
+            </p>
+          </div>
+
+          <div class="wrap">
+
+            <div style="
+              display:grid;
+              grid-template-columns:
+                repeat(auto-fit,minmax(180px,1fr));
+              gap:16px;
+              margin-bottom:24px;
+            ">
+
+              <div class="card" style="margin:0;">
+                <div style="
+                  color:#65776b;
+                  font-size:13px;
+                ">
+                  Total Contracts
+                </div>
+
+                <div style="
+                  font-size:28px;
+                  font-weight:bold;
+                  margin-top:6px;
+                ">
+                  ${totalContracts}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="
+                  color:#65776b;
+                  font-size:13px;
+                ">
+                  Draft
+                </div>
+
+                <div style="
+                  font-size:28px;
+                  font-weight:bold;
+                  margin-top:6px;
+                ">
+                  ${draftContracts}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="
+                  color:#65776b;
+                  font-size:13px;
+                ">
+                  Active
+                </div>
+
+                <div style="
+                  font-size:28px;
+                  font-weight:bold;
+                  margin-top:6px;
+                ">
+                  ${activeContracts}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="
+                  color:#65776b;
+                  font-size:13px;
+                ">
+                  Expiring Soon
+                </div>
+
+                <div style="
+                  font-size:28px;
+                  font-weight:bold;
+                  margin-top:6px;
+                ">
+                  ${expiringSoon}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="
+                  color:#65776b;
+                  font-size:13px;
+                ">
+                  Active Contract Value
+                </div>
+
+                <div style="
+                  font-size:28px;
+                  font-weight:bold;
+                  margin-top:6px;
+                ">
+                  ${money(
+                    activeContractValue
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:16px;
+              margin-bottom:16px;
+              flex-wrap:wrap;
+            ">
+              <h2 style="margin:0;">
+                Contracts
+              </h2>
+
+              <a
+                class="btn secondary"
+                href="/org-organization/${organizationId}"
+              >
+                Back to Overview
+              </a>
+            </div>
+
+            <div style="
+              overflow-x:auto;
+              border:1px solid #dce5dd;
+              border-radius:14px;
+              background:white;
+            ">
+              <table style="
+                width:100%;
+                border-collapse:collapse;
+              ">
+                <thead>
+                  <tr style="
+                    background:#f7faf8;
+                    border-bottom:2px solid #dce5dd;
+                  ">
+                    <th style="padding:14px 16px;text-align:left;">
+                      Advertiser
+                    </th>
+
+                    <th style="padding:14px 16px;text-align:left;">
+                      Location
+                    </th>
+
+                    <th style="padding:14px 16px;text-align:left;">
+                      Advertising Opportunity
+                    </th>
+
+                    <th style="padding:14px 16px;text-align:left;">
+                      Start Date
+                    </th>
+
+                    <th style="padding:14px 16px;text-align:left;">
+                      End Date
+                    </th>
+
+                    <th style="padding:14px 16px;text-align:right;">
+                      Contract Value
+                    </th>
+
+                    <th style="padding:14px 16px;text-align:left;">
+                      Billing
+                    </th>
+
+                    <th style="padding:14px 16px;text-align:left;">
+                      Status
+                    </th>
+
+                    <th style="padding:14px 16px;text-align:right;">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  ${contractRows}
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        `
+      )
+    );
+
+  } catch (err) {
+    console.error(
+      "ORGANIZATION CONTRACTS ERROR:",
+      err
+    );
+
+    return res.status(500).send(
+      "Unable to load Organization Contracts: " +
+      err.message
+    );
+  }
 });
+ 
 app.get(
   "/org-locations",
   async (req, res) => {
