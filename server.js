@@ -49383,10 +49383,20 @@ const requestedMarketplaceRequestId =
             ) AS advertising_space_description,
 
             COALESCE(
-              oo.price,
-              oo.annual_price,
-              0
-            ) AS marketplace_price
+  oo.price,
+  oo.annual_price,
+  0
+) AS marketplace_price,
+
+TO_CHAR(
+  c.start_date,
+  'YYYY-MM-DD'
+) AS contract_start_date,
+
+TO_CHAR(
+  c.end_date,
+  'YYYY-MM-DD'
+) AS contract_end_date
 
           FROM organization_advertising_requests ar
 
@@ -49398,6 +49408,10 @@ JOIN spaces created_space
             ON oo.id = ar.opportunity_id
            AND oo.organization_id = ar.organization_id
 
+LEFT JOIN contracts c
+  ON c.id = ar.created_contract_id
+ AND c.organization_id = ar.organization_id
+ 
           WHERE ar.created_vivid_user_id = $1
   AND ar.created_location_id = $2
   AND ar.id = $3
