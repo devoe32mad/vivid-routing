@@ -48278,109 +48278,47 @@ app.post("/admin/edit-organization/:id", requireLogin, async (req, res) => {
     =========================================================
     */
 
-    if (marketplaceRequest) {
-      return res.send(
-        page(
-          "Add Location",
-          `
-            <div class="topbar">
-              <div class="brand">Vivid Spots</div>
-              <h1>Add Location / Space</h1>
-            </div>
+  if (marketplaceRequest) {
+  const existingLocationId =
+    Number(
+      marketplaceRequest.source_space_id
+    );
 
-            <div class="wrap">
+  if (
+    !Number.isInteger(existingLocationId) ||
+    existingLocationId <= 0
+  ) {
+    return res.status(400).send(
+      "The approved advertising request does not contain a valid location."
+    );
+  }
 
-              <div
-                style="
-                  margin-bottom:24px;
-                  padding:16px 18px;
-                  background:#f4f7f1;
-                  border-left:5px solid #2f7d46;
-                  border-radius:10px;
-                "
-              >
-                <strong>
-                  Imported from your approved advertising request
-                </strong>
+  await q(
+    `
+      UPDATE organization_advertising_requests
 
-                <div
-                  style="
-                    margin-top:6px;
-                    color:#52645a;
-                    line-height:1.5;
-                  "
-                >
-                  Review the advertising location below and
-                  click Save &amp; Continue.
-                </div>
-              </div>
+      SET
+        created_location_id = $1,
+        setup_status = 'Location Connected',
+        updated_at = CURRENT_TIMESTAMP
 
-              <form method="POST" action="/admin/new-location">
+      WHERE id = $2
+        AND created_vivid_user_id = $3
+    `,
+    [
+      existingLocationId,
+      marketplaceRequest.request_id,
+      currentUser.id
+    ]
+  );
 
-                <input
-                  type="hidden"
-                  name="marketplace_request_id"
-                  value="${marketplaceRequest.request_id}"
-                />
+  return res.redirect(
+    `/admin/qr-setup-choice` +
+    `?space_id=${existingLocationId}` +
+    `&marketplace_request_id=${marketplaceRequest.request_id}`
+  );
+}
 
-                <input
-                  type="hidden"
-                  name="organization_id"
-                  value="${marketplaceRequest.organization_id}"
-                />
-
-                <p>
-                  <strong>Advertising Organization:</strong>
-                  ${escapeHtml(
-                    marketplaceRequest.organization_name || ""
-                  )}
-                </p>
-
-                <label>Name</label>
-
-                <input
-                  name="name"
-                  value="${escapeHtml(
-                    marketplaceRequest.space_name || ""
-                  )}"
-                  required
-                />
-
-                <label>Market</label>
-
-                <input
-                  name="location"
-                  value="${escapeHtml(
-                    marketplaceRequest.market || ""
-                  )}"
-                  placeholder="Naples, FL"
-                />
-
-                <label>Advertising Space Description</label>
-
-                <input
-                  name="description"
-                  value="${escapeHtml(
-                    marketplaceRequest.opportunity_description || ""
-                  )}"
-                />
-<label>Start Date</label>
-
-<input
-  type="date"
-  name="live_date"
-  required
-/>
-                <button class="btn" type="submit">
-                  Save &amp; Continue
-                </button>
-
-              </form>
-            </div>
-          `
-        )
-      );
-    }
 
     /*
     =========================================================
