@@ -43265,14 +43265,34 @@ LEFT JOIN spaces s ON s.id = qr.space_id
 WHERE COALESCE(qr.is_archived,false) = false
 ORDER BY qr.id DESC
         `
-        : `
-          SELECT qr.*, s.name AS location_name, s.location AS location
-          FROM qr_codes qr
-JOIN spaces s ON s.id = qr.space_id
-WHERE s.user_id = $1
-AND COALESCE(qr.is_archived,false) = false
+ : `
+SELECT
+  qr.*,
+  s.name AS location_name,
+  s.location AS location
+
+FROM qr_codes qr
+
+JOIN spaces s
+  ON s.id = qr.space_id
+
+WHERE
+  (
+    s.user_id = $1
+
+    OR EXISTS (
+      SELECT 1
+      FROM organization_advertising_requests ar
+      WHERE ar.created_qr_id = qr.id
+        AND ar.created_vivid_user_id = $1
+        AND LOWER(TRIM(ar.status)) = 'approved'
+    )
+  )
+
+  AND COALESCE(qr.is_archived,false) = false
+
 ORDER BY qr.id DESC
-        `,
+`
       isSuperAdmin ? [] : [currentUser.id]
     );
 const relationships = await q(`
