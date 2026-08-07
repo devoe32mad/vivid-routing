@@ -31319,7 +31319,7 @@ if (!contractId) {
             setup_token_expires_at = $3,
 
             created_vivid_user_id = $4,
-
+created_contract_id = $8,
             created_qr_id = COALESCE(
               created_qr_id,
               $5
@@ -31327,8 +31327,8 @@ if (!contractId) {
 
             updated_at = CURRENT_TIMESTAMP
 
-          WHERE id = $6
-            AND organization_id = $7
+        WHERE id = $6
+  AND organization_id = $7
         `,
         [
           Number.isInteger(
