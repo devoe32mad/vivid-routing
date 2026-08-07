@@ -54192,20 +54192,39 @@ if (scheduleForm) {
 
 
 app.get("/admin/assign", requireLogin, async (req, res) => {
- const qrs = await q(
+const requestedQrId =
+  Number(req.query.qr_id);
+
+const requestedCampaignId =
+  Number(req.query.campaign_id);
+  const qrs = await q(
   req.session.user.role === "super_admin"
     ? `
       SELECT qr.*
       FROM qr_codes qr
       ORDER BY qr.id DESC
     `
-    : `
-      SELECT qr.*
-      FROM qr_codes qr
-      LEFT JOIN spaces s ON s.id = qr.space_id
-      WHERE s.user_id = $1
-      ORDER BY qr.id DESC
-    `,
+   : `
+  SELECT qr.*
+  FROM qr_codes qr
+  LEFT JOIN spaces s
+    ON s.id = qr.space_id
+
+  WHERE
+    (
+      s.user_id = $1
+
+      OR EXISTS (
+        SELECT 1
+        FROM organization_advertising_requests ar
+        WHERE ar.created_qr_id = qr.id
+          AND ar.created_vivid_user_id = $1
+          AND LOWER(TRIM(ar.status)) = 'approved'
+      )
+    )
+
+  ORDER BY qr.id DESC
+` ,
   req.session.user.role === "super_admin" ? [] : [req.session.user.id]
 );
   const campaigns = await q(
@@ -54214,7 +54233,72 @@ app.get("/admin/assign", requireLogin, async (req, res) => {
     : `SELECT * FROM campaigns WHERE user_id = $1 AND COALESCE(is_archived,false) = false ORDER BY id DESC`,
   req.session.user.role === "super_admin" ? [] : [req.session.user.id]
 );
-  res.send(page("Assign Campaign", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Assign Campaign to QR</h1></div><div class="wrap"><form method="POST" action="/admin/assign"><label>QR Code</label><select name="qr_id">${qrs.rows.map(qr => `<option value="${qr.id}">${qr.id} - ${qr.name || "QR"}</option>`).join("")}</select><label>Campaign</label><select name="campaign_id">${campaigns.rows.map(c => `<option value="${c.id}">${c.advertiser || ""} - ${c.name || ""}</option>`).join("")}</select><button class="btn" type="submit">Assign Campaign</button></form></div>`));
+  res.send(
+  page(
+    "Assign Campaign",
+    `
+      <div class="topbar">
+        <div class="brand">Vivid Spots</div>
+        <h1>Assign Campaign to QR</h1>
+      </div>
+
+      <div class="wrap">
+        <form method="POST" action="/admin/assign">
+
+          <label>QR Code</label>
+
+          <select name="qr_id">
+            ${qrs.rows
+              .map(
+                qr => `
+                  <option
+                    value="${qr.id}"
+                    ${
+                      Number(qr.id) === requestedQrId
+                        ? "selected"
+                        : ""
+                    }
+                  >
+                    ${qr.id} - ${qr.name || "QR"}
+                  </option>
+                `
+              )
+              .join("")}
+          </select>
+
+          <label>Campaign</label>
+
+          <select name="campaign_id">
+            ${campaigns.rows
+              .map(
+                c => `
+                  <option
+                    value="${c.id}"
+                    ${
+                      Number(c.id) === requestedCampaignId
+                        ? "selected"
+                        : ""
+                    }
+                  >
+                    ${c.advertiser || ""} - ${c.name || ""}
+                  </option>
+                `
+              )
+              .join("")}
+          </select>
+
+          <button
+            class="btn"
+            type="submit"
+          >
+            Assign Campaign
+          </button>
+
+        </form>
+      </div>
+    `
+  )
+);
 });
 app.post("/admin/assign", requireLogin, async (req, res) => {
   try {
