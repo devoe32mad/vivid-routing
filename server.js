@@ -52469,7 +52469,23 @@ if (
                 method="POST"
                 action="/admin/new-campaign"
               >
+${
+  marketplaceRequest
+    ? `
+        <input
+          type="hidden"
+          name="marketplace_request_id"
+          value="${marketplaceRequest.request_id}"
+        >
 
+        <input
+          type="hidden"
+          name="qr_id"
+          value="${marketplaceRequest.qr_id}"
+        >
+      `
+    : ""
+}
                 <div class="card">
                   <h2 style="margin-top:0;">
                     Campaign Information
@@ -53174,7 +53190,11 @@ app.post("/admin/new-campaign", requireLogin, async (req, res) => {
       req.session.user.role === "super_admin"
         ? Number(req.body.user_id)
         : req.session.user.id;
+const marketplaceRequestId =
+  Number(req.body.marketplace_request_id);
 
+const requestedQrId =
+  Number(req.body.qr_id);
     const name = req.body.name || "";
     const advertiser = req.body.advertiser || "";
     const startDate = req.body.start_date || null;
@@ -53253,7 +53273,27 @@ function normalizeUrl(value) {
 
 const campaignId =
   Number(campaignInsertResult.rows[0].id);
-
+if (
+  Number.isInteger(marketplaceRequestId) &&
+  marketplaceRequestId > 0
+) {
+  await q(
+    `
+      UPDATE organization_advertising_requests
+      SET
+        created_campaign_id = $1,
+        setup_status = 'Campaign Created'
+      WHERE id = $2
+        AND created_vivid_user_id = $3
+        AND status = 'Approved'
+    `,
+    [
+      campaignId,
+      marketplaceRequestId,
+      userId
+    ]
+  );
+}
 /*
   Express may return one destination as a string
   and multiple destinations as an array.
