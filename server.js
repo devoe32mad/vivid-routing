@@ -33187,7 +33187,9 @@ if (
           );
         }
 
-        return res.redirect("/admin/new-location");
+        return res.redirect(
+  `/admin/new-location?marketplace_request_id=${setup.request_id}`
+);
       });
 
     } catch (err) {
