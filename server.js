@@ -32008,10 +32008,12 @@ created_contract_id = $8,
           advertisingRequest.opportunity_qr_id ||
             null,
 
-          requestId,
+       requestId,
 
-          organizationId
-        ]
+organizationId,
+
+contractId
+]
       );
 
       /*
