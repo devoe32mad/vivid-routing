@@ -1673,7 +1673,46 @@ await q(`
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `);
+await q(`
+  CREATE TABLE IF NOT EXISTS contract_activity (
+    id SERIAL PRIMARY KEY,
 
+    contract_id INTEGER NOT NULL
+      REFERENCES contracts(id)
+      ON DELETE CASCADE,
+
+    organization_id INTEGER NOT NULL
+      REFERENCES organizations(id)
+      ON DELETE CASCADE,
+
+    user_id INTEGER
+      REFERENCES users(id)
+      ON DELETE SET NULL,
+
+    activity_type TEXT NOT NULL
+      DEFAULT 'Note',
+
+    comment TEXT NOT NULL,
+
+    created_at TIMESTAMP
+      DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+  await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_contract_activity_contract
+  ON contract_activity (
+    contract_id,
+    created_at DESC
+  )
+`);
+  await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_contract_activity_organization
+  ON contract_activity (
+    organization_id
+  )
+`);
 await q(`
   CREATE INDEX IF NOT EXISTS
     idx_contract_documents_contract_id
