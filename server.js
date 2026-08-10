@@ -16883,7 +16883,10 @@ app.get("/org-contracts", async (req, res) => {
       req.session.orgUser?.organizationId ||
       req.session.user?.organization_id
     );
-
+const statusFilter =
+  String(req.query.status || "")
+    .trim()
+    .toLowerCase();
     if (
       !Number.isInteger(organizationId) ||
       organizationId <= 0
