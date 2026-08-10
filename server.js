@@ -493,6 +493,11 @@ ${navItem(
   "contracts"
 )}
 ${navItem(
+  "Renewals",
+  `/org-renewals?organization_id=${organizationId}`,
+  "renewals"
+)}
+${navItem(
   "Revenue Pipeline",
   `/org-revenue-pipeline?organization_id=${organizationId}`,
   "pipeline"
