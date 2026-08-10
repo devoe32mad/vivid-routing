@@ -16964,6 +16964,7 @@ app.get("/org-contracts", async (req, res) => {
           ON u.id = c.customer_id
 
         WHERE c.organization_id = $1
+  AND c.renewed_from_contract_id IS NULL
 
         ORDER BY
           c.created_at DESC,
