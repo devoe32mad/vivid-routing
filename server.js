@@ -17974,68 +17974,73 @@ const contractActivity =
 <div class="card">
 
   <h2 style="margin-top:0;">
-    Contract Version
+    Contract Status
   </h2>
 
   <div class="formgrid">
 
     <div>
       <div class="label">
-        Current Version
+        Current Contract
       </div>
 
       <strong>
-        Version ${
-          Number(contract.contract_version) || 1
-        }
+        ${escapeHtml(
+          contract.status || "Draft"
+        )}
       </strong>
-    </div>
 
-    <div>
-      <div class="label">
-        Previous Version
+      <div style="
+        color:#65776b;
+        margin-top:6px;
+        font-size:13px;
+      ">
+        ${formatDate(contract.start_date)}
+        →
+        ${formatDate(contract.end_date)}
       </div>
-
-      ${
-        contract.renewed_from_contract_id
-          ? `
-              <a
-                href="/org-contract/${contract.renewed_from_contract_id}?organization_id=${organizationId}"
-              >
-                Open Version ${
-                  Math.max(
-                    1,
-                    (Number(contract.contract_version) || 1) - 1
-                  )
-                }
-              </a>
-            `
-          : `
-              <strong>—</strong>
-            `
-      }
     </div>
 
     <div>
       <div class="label">
-        Next Version
+        Upcoming Renewal
       </div>
 
       ${
         renewedToContract
           ? `
-              <a
-                href="/org-contract/${renewedToContract.id}?organization_id=${organizationId}"
-              >
-                Open Version ${
-                  Number(
-                    renewedToContract.contract_version
-                  ) || ""
-                }
-              </a>
+              <strong>
+                ${escapeHtml(
+                  renewedToContract.status || "Draft"
+                )}
+              </strong>
+
+              <div style="
+                color:#65776b;
+                margin-top:6px;
+                font-size:13px;
+              ">
+                ${formatDate(
+                  renewedToContract.start_date
+                )}
+                →
+                ${formatDate(
+                  renewedToContract.end_date
+                )}
+              </div>
+
+              <div style="
+                margin-top:8px;
+              ">
+                <a
+                  href="/org-contract/${renewedToContract.id}?organization_id=${organizationId}"
+                >
+                  Open Renewal →
+                </a>
+              </div>
             `
           : `
-              <strong>—</strong>
+              <strong>None</strong>
             `
       }
     </div>
@@ -18043,61 +18048,8 @@ const contractActivity =
   </div>
 
 </div>
-              <div class="card">
 
-                <h2 style="margin-top:0;">
-                  Advertising Setup
-                </h2>
 
-                <div class="formgrid">
-
-                  <div>
-                    <div class="label">
-                      Placement
-                    </div>
-                    <strong>
-                      ${escapeHtml(
-                        contract.qr_name || "—"
-                      )}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <div class="label">
-                      Campaign
-                    </div>
-                    <strong>
-                      ${escapeHtml(
-                        contract.campaign_name || "—"
-                      )}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <div class="label">
-                      Market
-                    </div>
-                    <strong>
-                      ${escapeHtml(
-                        contract.market || "—"
-                      )}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <div class="label">
-                      Source
-                    </div>
-                    <strong>
-                      ${escapeHtml(
-                        contract.source_type || "—"
-                      )}
-                    </strong>
-                  </div>
-
-                </div>
-
-              </div>
 
               <div class="card">
 
