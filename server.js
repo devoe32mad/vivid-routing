@@ -18063,6 +18063,419 @@ const contractActivity =
     }
   }
 );
+app.get(
+  "/org-contract/:contractId/renew",
+  async (req, res) => {
+    try {
+      const contractId =
+        Number(req.params.contractId);
+
+      let organizationId = null;
+
+      if (req.session.orgUser?.organization_id) {
+        organizationId =
+          Number(req.session.orgUser.organization_id);
+      }
+
+      if (
+        !organizationId &&
+        req.session.user?.role === "super_admin"
+      ) {
+        organizationId =
+          Number(req.query.organization_id);
+      }
+
+      if (
+        !Number.isInteger(contractId) ||
+        contractId <= 0 ||
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(403)
+          .send("Renewal access denied.");
+      }
+
+      const contractResult = await q(
+        `
+          SELECT
+            c.*,
+
+            s.name AS location_name,
+
+            o.name AS organization_name,
+
+            COALESCE(
+              ar.business_name,
+              u.name,
+              u.email,
+              'Unknown Advertiser'
+            ) AS advertiser_name,
+
+            COALESCE(
+              oo.title,
+              ar.opportunity_name,
+              c.contract_name
+            ) AS opportunity_name
+
+          FROM contracts c
+
+          LEFT JOIN spaces s
+            ON s.id = c.location_id
+
+          LEFT JOIN organizations o
+            ON o.id = c.organization_id
+
+          LEFT JOIN organization_advertising_requests ar
+            ON ar.id = c.advertising_request_id
+           AND ar.organization_id = c.organization_id
+
+          LEFT JOIN organization_opportunities oo
+            ON oo.id = c.opportunity_id
+           AND oo.organization_id = c.organization_id
+
+          LEFT JOIN users u
+            ON u.id = c.customer_id
+
+          WHERE c.id = $1
+            AND c.organization_id = $2
+
+          LIMIT 1
+        `,
+        [
+          contractId,
+          organizationId
+        ]
+      );
+
+      const contract =
+        contractResult.rows[0];
+
+      if (!contract) {
+        return res
+          .status(404)
+          .send("Contract not found.");
+      }
+
+      if (
+        String(contract.status || "")
+          .trim()
+          .toLowerCase() !== "active"
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Only active contracts can be renewed."
+          );
+      }
+
+      const dateInput = value => {
+        if (!value) return "";
+
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+          return "";
+        }
+
+        return date
+          .toISOString()
+          .slice(0, 10);
+      };
+
+      /*
+        Default new term:
+        day after current contract ends
+        through one year minus one day.
+      */
+
+      const currentEnd =
+        new Date(
+          contract.end_date ||
+          contract.expiration_date
+        );
+
+      const newStart =
+        new Date(currentEnd);
+
+      newStart.setUTCDate(
+        newStart.getUTCDate() + 1
+      );
+
+      const newEnd =
+        new Date(newStart);
+
+      newEnd.setUTCFullYear(
+        newEnd.getUTCFullYear() + 1
+      );
+
+      newEnd.setUTCDate(
+        newEnd.getUTCDate() - 1
+      );
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        req.session.user?.name ||
+        req.session.user?.email ||
+        "";
+
+      return res.send(
+        orgPage(
+          `Renew Contract - ${contract.contract_name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(
+                  contract.organization_name
+                ),
+              activePage: "renewals",
+              userName:
+                escapeHtml(userName)
+            })}
+
+            <div class="topbar">
+
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Renew Contract
+              </h1>
+
+              <p class="subtitle">
+                Review the next contract term
+                before creating the renewal.
+              </p>
+
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                margin-bottom:20px;
+              ">
+                <a
+                  href="/org-contract/${contractId}?organization_id=${organizationId}"
+                >
+                  ← Back to Contract
+                </a>
+              </div>
+
+              <div class="card">
+
+                <h2 style="margin-top:0;">
+                  Current Contract
+                </h2>
+
+                <div class="formgrid">
+
+                  <div>
+                    <div class="label">
+                      Advertiser
+                    </div>
+
+                    <strong>
+                      ${escapeHtml(
+                        contract.advertiser_name
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <div class="label">
+                      Location
+                    </div>
+
+                    <strong>
+                      ${escapeHtml(
+                        contract.location_name || "—"
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <div class="label">
+                      Advertising Opportunity
+                    </div>
+
+                    <strong>
+                      ${escapeHtml(
+                        contract.opportunity_name || "—"
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <div class="label">
+                      Current Version
+                    </div>
+
+                    <strong>
+                      Version ${
+                        Number(
+                          contract.contract_version
+                        ) || 1
+                      }
+                    </strong>
+                  </div>
+
+                </div>
+
+              </div>
+
+              <div class="card">
+
+                <h2 style="margin-top:0;">
+                  New Contract Term
+                </h2>
+
+                <form
+                  method="POST"
+                  action="/org-contract/${contractId}/renew"
+                >
+
+                  <input
+                    type="hidden"
+                    name="organization_id"
+                    value="${organizationId}"
+                  >
+
+                  <div class="formgrid">
+
+                    <div>
+                      <label>
+                        Start Date
+                      </label>
+
+                      <input
+                        type="date"
+                        name="start_date"
+                        required
+                        value="${dateInput(newStart)}"
+                      >
+                    </div>
+
+                    <div>
+                      <label>
+                        End Date
+                      </label>
+
+                      <input
+                        type="date"
+                        name="end_date"
+                        required
+                        value="${dateInput(newEnd)}"
+                      >
+                    </div>
+
+                    <div>
+                      <label>
+                        Contract Value
+                      </label>
+
+                      <input
+                        type="number"
+                        name="total_contract_value"
+                        min="0"
+                        step="0.01"
+                        required
+                        value="${
+                          Number(
+                            contract.total_contract_value ||
+                            0
+                          )
+                        }"
+                      >
+                    </div>
+
+                    <div>
+                      <label>
+                        Billing Frequency
+                      </label>
+
+                      <select
+                        name="billing_frequency"
+                        required
+                      >
+                        <option
+                          value="Annual"
+                          ${
+                            contract.billing_frequency ===
+                            "Annual"
+                              ? "selected"
+                              : ""
+                          }
+                        >
+                          Annual
+                        </option>
+
+                        <option
+                          value="Monthly"
+                          ${
+                            contract.billing_frequency ===
+                            "Monthly"
+                              ? "selected"
+                              : ""
+                          }
+                        >
+                          Monthly
+                        </option>
+
+                        <option
+                          value="Quarterly"
+                          ${
+                            contract.billing_frequency ===
+                            "Quarterly"
+                              ? "selected"
+                              : ""
+                          }
+                        >
+                          Quarterly
+                        </option>
+                      </select>
+                    </div>
+
+                  </div>
+
+                  <div style="
+                    margin-top:18px;
+                  ">
+                    <button
+                      class="btn"
+                      type="submit"
+                    >
+                      Create Renewal
+                    </button>
+                  </div>
+
+                </form>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "CONTRACT RENEWAL PAGE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to load Contract Renewal: " +
+          err.message
+        );
+    }
+  }
+);
+
 app.post(
   "/org-contract/:contractId/activity",
   async (req, res) => {
