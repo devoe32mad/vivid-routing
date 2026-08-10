@@ -18086,11 +18086,16 @@ const contractActivity =
               <div style="
                 margin-top:8px;
               ">
-                <a
-                  href="/org-contract/${renewedToContract.id}?organization_id=${organizationId}"
-                >
-                  Open Renewal →
-                </a>
+             <a
+  class="btn"
+  href="/org-contract/${renewedToContract.id}/renewal-review?organization_id=${organizationId}"
+  style="
+    display:inline-block;
+    margin-top:8px;
+  "
+>
+  Review Renewal
+</a>
               </div>
             `
           : `
