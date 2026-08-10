@@ -488,6 +488,11 @@ ${navItem(
   "advertising-requests"
 )}
 ${navItem(
+  "Contracts",
+  `/org-contracts?organization_id=${organizationId}`,
+  "contracts"
+)}
+${navItem(
   "Revenue Pipeline",
   `/org-revenue-pipeline?organization_id=${organizationId}`,
   "pipeline"
