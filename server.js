@@ -17126,7 +17126,7 @@ app.get("/org-contracts", async (req, res) => {
                       ? `
                           <a
                             class="btn"
-                            href="/org-advertising-request/${contract.advertising_request_id}?organization_id=${organizationId}"
+                            href="/org-contract/${contract.id}?organization_id=${organizationId}"
                             style="margin:0;"
                           >
                             Open
