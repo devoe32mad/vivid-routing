@@ -17795,7 +17795,78 @@ const contractActivity =
                 </div>
 
               </div>
+<div class="card">
 
+  <h2 style="margin-top:0;">
+    Contract Version
+  </h2>
+
+  <div class="formgrid">
+
+    <div>
+      <div class="label">
+        Current Version
+      </div>
+
+      <strong>
+        Version ${
+          Number(contract.contract_version) || 1
+        }
+      </strong>
+    </div>
+
+    <div>
+      <div class="label">
+        Previous Version
+      </div>
+
+      ${
+        contract.renewed_from_contract_id
+          ? `
+              <a
+                href="/org-contract/${contract.renewed_from_contract_id}?organization_id=${organizationId}"
+              >
+                Open Version ${
+                  Math.max(
+                    1,
+                    (Number(contract.contract_version) || 1) - 1
+                  )
+                }
+              </a>
+            `
+          : `
+              <strong>—</strong>
+            `
+      }
+    </div>
+
+    <div>
+      <div class="label">
+        Next Version
+      </div>
+
+      ${
+        renewedToContract
+          ? `
+              <a
+                href="/org-contract/${renewedToContract.id}?organization_id=${organizationId}"
+              >
+                Open Version ${
+                  Number(
+                    renewedToContract.contract_version
+                  ) || ""
+                }
+              </a>
+            `
+          : `
+              <strong>—</strong>
+            `
+      }
+    </div>
+
+  </div>
+
+</div>
               <div class="card">
 
                 <h2 style="margin-top:0;">
