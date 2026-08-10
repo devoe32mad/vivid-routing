@@ -18968,9 +18968,7 @@ const contractDocuments =
                         document.file_url
                           ? `
                               <a
-                                href="${escapeHtml(
-                                  document.file_url
-                                )}"
+                             href="/org-contract/${contractId}/document/${document.id}?organization_id=${organizationId}"
                                 target="_blank"
                               >
                                 Open
