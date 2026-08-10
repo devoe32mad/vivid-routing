@@ -17809,6 +17809,40 @@ const contractHistory =
 
 const contractActivity =
   activityResult.rows;
+      const documentsResult = await q(
+  `
+    SELECT
+      cd.id,
+      cd.document_type,
+      cd.file_name,
+      cd.file_url,
+      cd.uploaded_at,
+      cd.version,
+      cd.is_current,
+
+      COALESCE(
+        u.name,
+        u.email,
+        'Unknown User'
+      ) AS uploaded_by
+
+    FROM contract_documents cd
+
+    LEFT JOIN users u
+      ON u.id = cd.uploaded_by_user_id
+
+    WHERE cd.contract_id = $1
+
+    ORDER BY
+      cd.is_current DESC,
+      cd.uploaded_at DESC,
+      cd.id DESC
+  `,
+  [contractId]
+);
+
+const contractDocuments =
+  documentsResult.rows;
       const money = value =>
         "$" +
         Number(value || 0).toLocaleString(
