@@ -18475,7 +18475,228 @@ app.get(
     }
   }
 );
+app.post(
+  "/org-contract/:contractId/renew",
+  async (req, res) => {
+    try {
+      const contractId =
+        Number(req.params.contractId);
 
+      const organizationId =
+        Number(req.body.organization_id);
+
+      const startDate =
+        req.body.start_date || null;
+
+      const endDate =
+        req.body.end_date || null;
+
+      const totalContractValue =
+        Number(
+          req.body.total_contract_value || 0
+        );
+
+      const billingFrequency =
+        String(
+          req.body.billing_frequency || ""
+        ).trim();
+
+      if (
+        !Number.isInteger(contractId) ||
+        contractId <= 0 ||
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !startDate ||
+        !endDate ||
+        !billingFrequency
+      ) {
+        return res
+          .status(400)
+          .send("Valid renewal information is required.");
+      }
+
+      const currentResult = await q(
+        `
+          SELECT *
+          FROM contracts
+          WHERE id = $1
+            AND organization_id = $2
+          LIMIT 1
+        `,
+        [
+          contractId,
+          organizationId
+        ]
+      );
+
+      const currentContract =
+        currentResult.rows[0];
+
+      if (!currentContract) {
+        return res
+          .status(404)
+          .send("Contract not found.");
+      }
+
+      if (
+        String(currentContract.status || "")
+          .trim()
+          .toLowerCase() !== "active"
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Only active contracts can be renewed."
+          );
+      }
+
+      const nextVersion =
+        Number(
+          currentContract.contract_version || 1
+        ) + 1;
+
+      const renewalDate =
+        new Date(startDate);
+
+      renewalDate.setUTCDate(
+        renewalDate.getUTCDate() - 90
+      );
+
+      const newContractResult = await q(
+        `
+          INSERT INTO contracts (
+            customer_id,
+            organization_id,
+            advertiser_id,
+            contract_name,
+            contract_type,
+            start_date,
+            end_date,
+            total_contract_value,
+            billing_frequency,
+            status,
+            notes,
+            location_id,
+            qr_id,
+            opportunity_id,
+            advertising_request_id,
+            expiration_date,
+            renewal_date,
+            owner_user_id,
+            source_type,
+            renewed_from_contract_id,
+            contract_version,
+            created_at,
+            updated_at
+          )
+          VALUES (
+            $1,$2,$3,$4,$5,
+            $6,$7,$8,$9,$10,
+            $11,$12,$13,$14,$15,
+            $16,$17,$18,$19,$20,
+            $21,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+          )
+          RETURNING id
+        `,
+        [
+          currentContract.customer_id,
+          currentContract.organization_id,
+          currentContract.advertiser_id,
+          currentContract.contract_name,
+          currentContract.contract_type,
+          startDate,
+          endDate,
+          totalContractValue,
+          billingFrequency,
+          "Draft",
+          "Renewal created from prior contract.",
+          currentContract.location_id,
+          currentContract.qr_id,
+          currentContract.opportunity_id,
+          currentContract.advertising_request_id,
+          endDate,
+          renewalDate.toISOString().slice(0, 10),
+          currentContract.owner_user_id,
+          currentContract.source_type,
+          contractId,
+          nextVersion
+        ]
+      );
+
+      const newContractId =
+        Number(
+          newContractResult.rows[0].id
+        );
+
+      await q(
+        `
+          UPDATE contracts
+          SET
+            status = 'Renewed',
+            renewed_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+            AND organization_id = $2
+        `,
+        [
+          contractId,
+          organizationId
+        ]
+      );
+
+      const userId =
+        req.session.user?.id ||
+        req.session.orgUser?.id ||
+        null;
+
+      await q(
+        `
+          INSERT INTO contract_activity (
+            contract_id,
+            organization_id,
+            user_id,
+            activity_type,
+            comment,
+            created_at
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            'Renewal',
+            $4,
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          contractId,
+          organizationId,
+          userId,
+          `Renewal created as Contract Version ${nextVersion}.`
+        ]
+      );
+
+      return res.redirect(
+        `/org-contract/${newContractId}?organization_id=${organizationId}`
+      );
+
+    } catch (err) {
+      console.error(
+        "CONTRACT RENEWAL CREATE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to create Contract Renewal: " +
+          err.message
+        );
+    }
+  }
+);
 app.post(
   "/org-contract/:contractId/activity",
   async (req, res) => {
