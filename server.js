@@ -16889,7 +16889,215 @@ const totalIntent =
     }
   }
 );
-      
+      app.get(
+  "/org-contract/:contractId/documents/upload",
+  async (req, res) => {
+    try {
+      const contractId =
+        Number(req.params.contractId);
+
+      const organizationId =
+        Number(
+          req.query.organization_id ||
+          req.session.orgUser?.organizationId ||
+          req.session.user?.organization_id
+        );
+
+      if (
+        !Number.isInteger(contractId) ||
+        contractId <= 0 ||
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send("A valid contract and organization are required.");
+      }
+
+      const contractResult = await q(
+        `
+          SELECT
+            c.id,
+            c.contract_name,
+            c.organization_id,
+            o.name AS organization_name
+
+          FROM contracts c
+
+          JOIN organizations o
+            ON o.id = c.organization_id
+
+          WHERE c.id = $1
+            AND c.organization_id = $2
+
+          LIMIT 1
+        `,
+        [
+          contractId,
+          organizationId
+        ]
+      );
+
+      const contract =
+        contractResult.rows[0] || null;
+
+      if (!contract) {
+        return res
+          .status(404)
+          .send("Contract not found.");
+      }
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        req.session.user?.name ||
+        req.session.user?.email ||
+        "";
+
+      return res.send(
+        orgPage(
+          `Upload Document - ${contract.contract_name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(
+                  contract.organization_name
+                ),
+              activePage: "contracts",
+              userName:
+                escapeHtml(userName)
+            })}
+
+            <div class="topbar">
+
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Upload Document
+              </h1>
+
+              <p class="subtitle">
+                Add a document to this contract relationship.
+              </p>
+
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                margin-bottom:20px;
+              ">
+                <a
+                  href="/org-contract/${contractId}?organization_id=${organizationId}"
+                >
+                  ← Back to Contract
+                </a>
+              </div>
+
+              <div class="card">
+
+                <form
+                  method="POST"
+                  action="/org-contract/${contractId}/documents/upload"
+                  enctype="multipart/form-data"
+                >
+
+                  <input
+                    type="hidden"
+                    name="organization_id"
+                    value="${organizationId}"
+                  >
+
+                  <label>
+                    Document Type
+                  </label>
+
+                  <select
+                    name="document_type"
+                    required
+                  >
+                    <option value="">
+                      Select document type
+                    </option>
+
+                    <option value="Signed Agreement">
+                      Signed Agreement
+                    </option>
+
+                    <option value="Renewal Agreement">
+                      Renewal Agreement
+                    </option>
+
+                    <option value="Amendment">
+                      Amendment
+                    </option>
+
+                    <option value="Insertion Order">
+                      Insertion Order
+                    </option>
+
+                    <option value="Pricing Exhibit">
+                      Pricing Exhibit
+                    </option>
+
+                    <option value="Other">
+                      Other
+                    </option>
+                  </select>
+
+                  <label>
+                    File
+                  </label>
+
+                  <input
+                    type="file"
+                    name="document_file"
+                    required
+                  >
+
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                    margin-top:-6px;
+                    margin-bottom:18px;
+                  ">
+                    Maximum file size: 10 MB.
+                  </div>
+
+                  <button
+                    class="btn"
+                    type="submit"
+                  >
+                    Upload Document
+                  </button>
+
+                </form>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "CONTRACT DOCUMENT UPLOAD PAGE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to load Document Upload: " +
+          err.message
+        );
+    }
+  }
+);
 app.get("/org-contracts", async (req, res) => {
   try {
     const organizationId = Number(
