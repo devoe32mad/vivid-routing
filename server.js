@@ -1678,6 +1678,20 @@ await q(`
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `);
+  await q(`
+  ALTER TABLE contract_documents
+  ADD COLUMN IF NOT EXISTS file_data BYTEA
+`);
+
+await q(`
+  ALTER TABLE contract_documents
+  ADD COLUMN IF NOT EXISTS mime_type TEXT
+`);
+
+await q(`
+  ALTER TABLE contract_documents
+  ADD COLUMN IF NOT EXISTS file_size INTEGER
+`);
 await q(`
   CREATE TABLE IF NOT EXISTS contract_activity (
     id SERIAL PRIMARY KEY,
