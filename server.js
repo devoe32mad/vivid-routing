@@ -17953,6 +17953,102 @@ const contractActivity =
     }
   }
 );
+app.post(
+  "/org-contract/:contractId/activity",
+  async (req, res) => {
+    try {
+      const contractId =
+        Number(req.params.contractId);
+
+      const organizationId =
+        Number(req.body.organization_id);
+
+      const comment =
+        String(req.body.comment || "").trim();
+
+      const userId =
+        req.session.user?.id ||
+        req.session.orgUser?.user_id ||
+        null;
+
+      if (
+        !Number.isInteger(contractId) ||
+        contractId <= 0 ||
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !comment
+      ) {
+        return res
+          .status(400)
+          .send("A valid contract note is required.");
+      }
+
+      const contractCheck = await q(
+        `
+          SELECT id
+          FROM contracts
+          WHERE id = $1
+            AND organization_id = $2
+          LIMIT 1
+        `,
+        [
+          contractId,
+          organizationId
+        ]
+      );
+
+      if (!contractCheck.rows[0]) {
+        return res
+          .status(404)
+          .send("Contract not found.");
+      }
+
+      await q(
+        `
+          INSERT INTO contract_activity (
+            contract_id,
+            organization_id,
+            user_id,
+            activity_type,
+            comment,
+            created_at
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            'Note',
+            $4,
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          contractId,
+          organizationId,
+          userId,
+          comment
+        ]
+      );
+
+      return res.redirect(
+        `/org-contract/${contractId}?organization_id=${organizationId}`
+      );
+
+    } catch (err) {
+      console.error(
+        "CONTRACT ACTIVITY ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to save contract activity: " +
+          err.message
+        );
+    }
+  }
+);
 app.get(
   "/org-locations",
   async (req, res) => {
