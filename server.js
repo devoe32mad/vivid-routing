@@ -17381,7 +17381,460 @@ app.get("/org-contracts", async (req, res) => {
     );
   }
 });
- 
+ app.get(
+  "/org-contract/:contractId",
+  async (req, res) => {
+    try {
+      const contractId =
+        Number(req.params.contractId);
+
+      const organizationId =
+        Number(
+          req.query.organization_id ||
+          req.session.orgUser?.organizationId ||
+          req.session.user?.organization_id
+        );
+
+      if (
+        !Number.isInteger(contractId) ||
+        contractId <= 0 ||
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send("A valid contract and organization are required.");
+      }
+
+      const contractResult = await q(
+        `
+          SELECT
+            c.*,
+
+            o.name AS organization_name,
+
+            s.name AS location_name,
+            s.location AS market,
+
+            qr.name AS qr_name,
+
+            COALESCE(
+              oo.title,
+              ar.opportunity_name,
+              c.contract_name
+            ) AS opportunity_name,
+
+            COALESCE(
+              ar.business_name,
+              u.name,
+              u.email,
+              'Unknown Advertiser'
+            ) AS advertiser_name,
+
+            ar.email AS advertiser_email,
+            ar.phone AS advertiser_phone,
+            ar.website AS advertiser_website,
+
+            ar.campaign_name,
+            ar.destination_url,
+
+            ar.created_campaign_id
+
+          FROM contracts c
+
+          JOIN organizations o
+            ON o.id = c.organization_id
+
+          LEFT JOIN spaces s
+            ON s.id = c.location_id
+
+          LEFT JOIN qr_codes qr
+            ON qr.id = c.qr_id
+
+          LEFT JOIN organization_opportunities oo
+            ON oo.id = c.opportunity_id
+           AND oo.organization_id = c.organization_id
+
+          LEFT JOIN organization_advertising_requests ar
+            ON ar.id = c.advertising_request_id
+           AND ar.organization_id = c.organization_id
+
+          LEFT JOIN users u
+            ON u.id = c.customer_id
+
+          WHERE c.id = $1
+            AND c.organization_id = $2
+
+          LIMIT 1
+        `,
+        [
+          contractId,
+          organizationId
+        ]
+      );
+
+      const contract =
+        contractResult.rows[0] || null;
+
+      if (!contract) {
+        return res
+          .status(404)
+          .send("Contract not found.");
+      }
+
+      const money = value =>
+        "$" +
+        Number(value || 0).toLocaleString(
+          "en-US",
+          {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }
+        );
+
+      const formatDate = value => {
+        if (!value) return "—";
+
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+          return "—";
+        }
+
+        return date.toLocaleDateString(
+          "en-US",
+          {
+            month: "short",
+            day: "numeric",
+            year: "numeric"
+          }
+        );
+      };
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        req.session.user?.name ||
+        req.session.user?.email ||
+        "";
+
+      return res.send(
+        orgPage(
+          `Contract - ${contract.contract_name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(
+                  contract.organization_name
+                ),
+              activePage: "contracts",
+              userName:
+                escapeHtml(userName)
+            })}
+
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                ${escapeHtml(
+                  contract.contract_name ||
+                  "Contract"
+                )}
+              </h1>
+
+              <p class="subtitle">
+                Contract Detail
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                margin-bottom:20px;
+              ">
+                <a
+                  href="/org-contracts?organization_id=${organizationId}"
+                  style="
+                    color:#176b3a;
+                    font-weight:700;
+                    text-decoration:none;
+                  "
+                >
+                  ← Back to Contracts
+                </a>
+              </div>
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(auto-fit,minmax(220px,1fr));
+                gap:16px;
+                margin-bottom:24px;
+              ">
+
+                <div class="card">
+                  <div class="label">
+                    Advertiser
+                  </div>
+                  <div style="font-size:20px;font-weight:bold;">
+                    ${escapeHtml(
+                      contract.advertiser_name || "—"
+                    )}
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Location
+                  </div>
+                  <div style="font-size:20px;font-weight:bold;">
+                    ${escapeHtml(
+                      contract.location_name || "—"
+                    )}
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Advertising Opportunity
+                  </div>
+                  <div style="font-size:20px;font-weight:bold;">
+                    ${escapeHtml(
+                      contract.opportunity_name || "—"
+                    )}
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Status
+                  </div>
+                  <div style="font-size:20px;font-weight:bold;">
+                    ${escapeHtml(
+                      contract.status || "Draft"
+                    )}
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Contract Value
+                  </div>
+                  <div style="font-size:20px;font-weight:bold;">
+                    ${money(
+                      contract.total_contract_value
+                    )}
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Billing
+                  </div>
+                  <div style="font-size:20px;font-weight:bold;">
+                    ${escapeHtml(
+                      contract.billing_frequency || "—"
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="card">
+
+                <h2 style="margin-top:0;">
+                  Contract Terms
+                </h2>
+
+                <div class="formgrid">
+
+                  <div>
+                    <div class="label">
+                      Start Date
+                    </div>
+                    <strong>
+                      ${formatDate(
+                        contract.start_date
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <div class="label">
+                      End Date
+                    </div>
+                    <strong>
+                      ${formatDate(
+                        contract.end_date
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <div class="label">
+                      Renewal Date
+                    </div>
+                    <strong>
+                      ${formatDate(
+                        contract.renewal_date
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <div class="label">
+                      Expiration Date
+                    </div>
+                    <strong>
+                      ${formatDate(
+                        contract.expiration_date
+                      )}
+                    </strong>
+                  </div>
+
+                </div>
+
+              </div>
+
+              <div class="card">
+
+                <h2 style="margin-top:0;">
+                  Advertising Setup
+                </h2>
+
+                <div class="formgrid">
+
+                  <div>
+                    <div class="label">
+                      Placement
+                    </div>
+                    <strong>
+                      ${escapeHtml(
+                        contract.qr_name || "—"
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <div class="label">
+                      Campaign
+                    </div>
+                    <strong>
+                      ${escapeHtml(
+                        contract.campaign_name || "—"
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <div class="label">
+                      Market
+                    </div>
+                    <strong>
+                      ${escapeHtml(
+                        contract.market || "—"
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <div class="label">
+                      Source
+                    </div>
+                    <strong>
+                      ${escapeHtml(
+                        contract.source_type || "—"
+                      )}
+                    </strong>
+                  </div>
+
+                </div>
+
+              </div>
+
+              <div class="card">
+
+                <h2 style="margin-top:0;">
+                  Advertiser Contact
+                </h2>
+
+                <div style="line-height:1.8;">
+
+                  <div>
+                    <strong>Email:</strong>
+                    ${
+                      contract.advertiser_email
+                        ? escapeHtml(
+                            contract.advertiser_email
+                          )
+                        : "—"
+                    }
+                  </div>
+
+                  <div>
+                    <strong>Phone:</strong>
+                    ${
+                      contract.advertiser_phone
+                        ? escapeHtml(
+                            contract.advertiser_phone
+                          )
+                        : "—"
+                    }
+                  </div>
+
+                  <div>
+                    <strong>Website:</strong>
+                    ${
+                      contract.advertiser_website
+                        ? escapeHtml(
+                            contract.advertiser_website
+                          )
+                        : "—"
+                    }
+                  </div>
+
+                </div>
+
+              </div>
+
+              ${
+                contract.advertising_request_id
+                  ? `
+                      <div style="
+                        margin-top:20px;
+                      ">
+                        <a
+                          class="btn secondary"
+                          href="/org-advertising-request/${contract.advertising_request_id}?organization_id=${organizationId}"
+                        >
+                          View Original Advertising Request
+                        </a>
+                      </div>
+                    `
+                  : ""
+              }
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "ORGANIZATION CONTRACT DETAIL ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load Contract Detail: " +
+        err.message
+      );
+    }
+  }
+);
 app.get(
   "/org-locations",
   async (req, res) => {
