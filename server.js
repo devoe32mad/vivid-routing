@@ -18132,6 +18132,373 @@ console.log("ORG USER SESSION:", req.session.orgUser);
   }
 );
 app.get(
+  "/org-renewals",
+  async (req, res) => {
+    try {
+      const organizationId = Number(
+        req.query.organization_id ||
+        req.session.orgUser?.organizationId ||
+        req.session.user?.organization_id
+      );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send("A valid organization is required.");
+      }
+
+      const organizationResult = await q(
+        `
+          SELECT
+            id,
+            name
+          FROM organizations
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [organizationId]
+      );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res
+          .status(404)
+          .send("Organization not found.");
+      }
+
+      const renewalsResult = await q(
+        `
+          SELECT
+            c.id,
+            c.contract_name,
+            c.total_contract_value,
+            c.status,
+            c.start_date,
+            c.end_date,
+            c.expiration_date,
+            c.renewal_date,
+            c.billing_frequency,
+
+            s.name AS location_name,
+
+            COALESCE(
+              ar.business_name,
+              u.name,
+              u.email,
+              'Unknown Advertiser'
+            ) AS advertiser_name,
+
+            COALESCE(
+              oo.title,
+              ar.opportunity_name,
+              c.contract_name
+            ) AS opportunity_name
+
+          FROM contracts c
+
+          LEFT JOIN spaces s
+            ON s.id = c.location_id
+
+          LEFT JOIN organization_advertising_requests ar
+            ON ar.id = c.advertising_request_id
+           AND ar.organization_id = c.organization_id
+
+          LEFT JOIN organization_opportunities oo
+            ON oo.id = c.opportunity_id
+           AND oo.organization_id = c.organization_id
+
+          LEFT JOIN users u
+            ON u.id = c.customer_id
+
+          WHERE c.organization_id = $1
+            AND LOWER(TRIM(c.status)) = 'active'
+
+          ORDER BY
+            COALESCE(
+              c.renewal_date,
+              c.expiration_date,
+              c.end_date
+            ) ASC
+        `,
+        [organizationId]
+      );
+
+      const contracts =
+        renewalsResult.rows;
+
+      const today =
+        new Date();
+
+      const daysFromNow = days =>
+        new Date(
+          today.getTime() +
+          days * 24 * 60 * 60 * 1000
+        );
+
+      const renewalDateFor = contract =>
+        new Date(
+          contract.renewal_date ||
+          contract.expiration_date ||
+          contract.end_date
+        );
+
+      const upcoming90 =
+        contracts.filter(contract => {
+          const date =
+            renewalDateFor(contract);
+
+          return (
+            !Number.isNaN(date.getTime()) &&
+            date >= today &&
+            date <= daysFromNow(90)
+          );
+        });
+
+      const upcoming60 =
+        contracts.filter(contract => {
+          const date =
+            renewalDateFor(contract);
+
+          return (
+            !Number.isNaN(date.getTime()) &&
+            date >= today &&
+            date <= daysFromNow(60)
+          );
+        });
+
+      const upcoming30 =
+        contracts.filter(contract => {
+          const date =
+            renewalDateFor(contract);
+
+          return (
+            !Number.isNaN(date.getTime()) &&
+            date >= today &&
+            date <= daysFromNow(30)
+          );
+        });
+
+      const revenueAtRisk =
+        upcoming90.reduce(
+          (total, contract) =>
+            total +
+            Number(
+              contract.total_contract_value || 0
+            ),
+          0
+        );
+
+      const money = value =>
+        "$" +
+        Number(value || 0).toLocaleString(
+          "en-US",
+          {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }
+        );
+
+      const formatDate = value => {
+        if (!value) return "—";
+
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+          return "—";
+        }
+
+        return date.toLocaleDateString(
+          "en-US",
+          {
+            month: "short",
+            day: "numeric",
+            year: "numeric"
+          }
+        );
+      };
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        req.session.user?.name ||
+        req.session.user?.email ||
+        "";
+
+      const renewalRows =
+        contracts.length
+          ? contracts
+              .map(contract => `
+                <tr>
+                  <td>
+                    ${escapeHtml(
+                      contract.advertiser_name || "—"
+                    )}
+                  </td>
+
+                  <td>
+                    ${escapeHtml(
+                      contract.location_name || "—"
+                    )}
+                  </td>
+
+                  <td>
+                    ${escapeHtml(
+                      contract.opportunity_name || "—"
+                    )}
+                  </td>
+
+                  <td>
+                    ${formatDate(
+                      contract.renewal_date ||
+                      contract.expiration_date ||
+                      contract.end_date
+                    )}
+                  </td>
+
+                  <td>
+                    ${money(
+                      contract.total_contract_value
+                    )}
+                  </td>
+
+                  <td>
+                    <a
+                      class="btn"
+                      href="/org-contract/${contract.id}?organization_id=${organizationId}"
+                    >
+                      Open
+                    </a>
+                  </td>
+                </tr>
+              `)
+              .join("")
+          : `
+              <tr>
+                <td colspan="6">
+                  No active contracts found.
+                </td>
+              </tr>
+            `;
+
+      return res.send(
+        orgPage(
+          `Renewals - ${organization.name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(
+                  organization.name
+                ),
+              activePage: "renewals",
+              userName:
+                escapeHtml(userName)
+            })}
+
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Renewals
+              </h1>
+
+              <p class="subtitle">
+                Track upcoming contract renewals
+                and revenue at risk.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div class="cards">
+
+                <div class="card">
+                  <div class="label">
+                    Renewing in 30 Days
+                  </div>
+                  <div class="num">
+                    ${upcoming30.length}
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Renewing in 60 Days
+                  </div>
+                  <div class="num">
+                    ${upcoming60.length}
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Renewing in 90 Days
+                  </div>
+                  <div class="num">
+                    ${upcoming90.length}
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Revenue at Risk
+                  </div>
+                  <div class="num">
+                    ${money(
+                      revenueAtRisk
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              <h2>
+                Upcoming Renewals
+              </h2>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Advertiser</th>
+                    <th>Location</th>
+                    <th>Opportunity</th>
+                    <th>Renewal Date</th>
+                    <th>Contract Value</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  ${renewalRows}
+                </tbody>
+              </table>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "ORGANIZATION RENEWALS ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "Unable to load Renewals: " +
+        err.message
+      );
+    }
+  }
+);
+app.get(
   "/org-locations",
   async (req, res) => {
     try {
