@@ -18043,22 +18043,7 @@ const contractActivity =
           : ""
       }
 
-      ${
-        contract.advertising_request_id
-          ? `
-              <div style="
-                margin-top:20px;
-              ">
-                <a
-                  class="btn secondary"
-                  href="/org-advertising-request/${contract.advertising_request_id}?organization_id=${organizationId}"
-                >
-                  View Original Advertising Request
-                </a>
-              </div>
-            `
-          : ""
-      }
+    
 
   </div>
       `
