@@ -17721,6 +17721,60 @@ const renewedToResult = await q(
 
 const renewedToContract =
   renewedToResult.rows[0] || null;
+    const contractHistoryResult = await q(
+  `
+    WITH RECURSIVE contract_chain AS (
+
+      SELECT
+        id,
+        renewed_from_contract_id,
+        contract_version,
+        start_date,
+        end_date,
+        total_contract_value,
+        billing_frequency,
+        status
+
+      FROM contracts
+
+      WHERE id = $1
+        AND organization_id = $2
+
+      UNION ALL
+
+      SELECT
+        c.id,
+        c.renewed_from_contract_id,
+        c.contract_version,
+        c.start_date,
+        c.end_date,
+        c.total_contract_value,
+        c.billing_frequency,
+        c.status
+
+      FROM contracts c
+
+      JOIN contract_chain cc
+        ON c.renewed_from_contract_id = cc.id
+
+      WHERE c.organization_id = $2
+    )
+
+    SELECT *
+    FROM contract_chain
+
+    ORDER BY
+      contract_version ASC,
+      id ASC
+  `,
+  [
+    contractId,
+    organizationId
+  ]
+);
+
+const contractHistory =
+  contractHistoryResult.rows;
       const activityResult = await q(
   `
     SELECT
