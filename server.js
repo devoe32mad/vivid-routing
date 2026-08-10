@@ -18477,7 +18477,58 @@ const futureRows =
               <div class="brand">
                 Vivid Organizations
               </div>
+<h1>
+  Renewals
+</h1>
 
+<p class="subtitle">
+  Track upcoming contract renewals
+  and revenue at risk.
+</p>
+
+</div>
+
+<div class="wrap">
+
+  <div class="cards">
+
+    <div class="card">
+      <div class="label">
+        Renewing in 30 Days
+      </div>
+      <div class="num">
+        ${upcoming30.length}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">
+        Renewing in 60 Days
+      </div>
+      <div class="num">
+        ${upcoming60.length}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">
+        Renewing in 90 Days
+      </div>
+      <div class="num">
+        ${upcoming90.length}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">
+        Revenue at Risk
+      </div>
+      <div class="num">
+        ${money(revenueAtRisk)}
+      </div>
+    </div>
+
+  </div>
 <h2>
   Renewals Requiring Attention
 </h2>
