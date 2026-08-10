@@ -18103,7 +18103,112 @@ const contractActivity =
 
 </div>
 
+<div class="card">
 
+  <h2 style="margin-top:0;">
+    Contract History
+  </h2>
+
+  <div style="overflow-x:auto;">
+
+    <table style="
+      width:100%;
+      border-collapse:collapse;
+      margin:0;
+    ">
+
+      <thead>
+        <tr>
+          <th>Term</th>
+          <th>Dates</th>
+          <th>Value</th>
+          <th>Billing</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+
+      <tbody>
+
+        ${
+          contractHistory.length
+            ? contractHistory
+                .map(history => `
+                  <tr>
+
+                    <td>
+                      ${
+                        Number(history.id) ===
+                        Number(contractId)
+                          ? "Current Contract"
+                          : (
+                              String(history.status || "")
+                                .trim()
+                                .toLowerCase() === "draft"
+                                ? "Upcoming Renewal"
+                                : "Prior Contract"
+                            )
+                      }
+                    </td>
+
+                    <td>
+                      ${formatDate(history.start_date)}
+                      →
+                      ${formatDate(history.end_date)}
+                    </td>
+
+                    <td>
+                      ${money(
+                        history.total_contract_value
+                      )}
+                    </td>
+
+                    <td>
+                      ${escapeHtml(
+                        history.billing_frequency || "—"
+                      )}
+                    </td>
+
+                    <td>
+                      ${escapeHtml(
+                        history.status || "—"
+                      )}
+                    </td>
+
+                    <td>
+                      ${
+                        Number(history.id) ===
+                        Number(contractId)
+                          ? "—"
+                          : `
+                              <a
+                                href="/org-contract/${history.id}?organization_id=${organizationId}"
+                              >
+                                Open
+                              </a>
+                            `
+                      }
+                    </td>
+
+                  </tr>
+                `)
+                .join("")
+            : `
+                <tr>
+                  <td colspan="6">
+                    No contract history found.
+                  </td>
+                </tr>
+              `
+        }
+
+      </tbody>
+
+    </table>
+
+  </div>
+
+</div>
 
               <div class="card">
 
