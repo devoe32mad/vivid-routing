@@ -17871,7 +17871,53 @@ const contractActivity =
                 </div>
 
               </div>
+<div class="card">
 
+  <h2 style="margin-top:0;">
+    Contract Activity
+  </h2>
+
+  <form
+    method="POST"
+    action="/org-contract/${contractId}/activity"
+  >
+
+    <input
+      type="hidden"
+      name="organization_id"
+      value="${organizationId}"
+    >
+
+    <label>
+      Add Note
+    </label>
+
+    <textarea
+      name="comment"
+      required
+      placeholder="Add a note about this contract..."
+      style="
+        width:100%;
+        min-height:110px;
+        padding:12px;
+        border:1px solid #cfdacf;
+        border-radius:10px;
+        box-sizing:border-box;
+        font-size:15px;
+      "
+    ></textarea>
+
+    <button
+      class="btn"
+      type="submit"
+      style="margin-top:12px;"
+    >
+      Save Note
+    </button>
+
+  </form>
+
+</div>
               ${
                 contract.advertising_request_id
                   ? `
