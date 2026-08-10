@@ -18329,61 +18329,134 @@ app.get(
         req.session.user?.email ||
         "";
 
-      const renewalRows =
-        contracts.length
-          ? contracts
-              .map(contract => `
-                <tr>
-                  <td>
-                    ${escapeHtml(
-                      contract.advertiser_name || "—"
-                    )}
-                  </td>
+      const attentionContracts =
+  upcoming90;
 
-                  <td>
-                    ${escapeHtml(
-                      contract.location_name || "—"
-                    )}
-                  </td>
+const futureContracts =
+  contracts.filter(contract => {
+    const date =
+      renewalDateFor(contract);
 
-                  <td>
-                    ${escapeHtml(
-                      contract.opportunity_name || "—"
-                    )}
-                  </td>
+    return (
+      !Number.isNaN(date.getTime()) &&
+      date > daysFromNow(90)
+    );
+  });
 
-                  <td>
-                    ${formatDate(
-                      contract.renewal_date ||
-                      contract.expiration_date ||
-                      contract.end_date
-                    )}
-                  </td>
+const attentionRows =
+  attentionContracts.length
+    ? attentionContracts
+        .map(contract => `
+          <tr>
+            <td>
+              ${escapeHtml(
+                contract.advertiser_name || "—"
+              )}
+            </td>
 
-                  <td>
-                    ${money(
-                      contract.total_contract_value
-                    )}
-                  </td>
+            <td>
+              ${escapeHtml(
+                contract.location_name || "—"
+              )}
+            </td>
 
-                  <td>
-                    <a
-                      class="btn"
-                      href="/org-contract/${contract.id}?organization_id=${organizationId}"
-                    >
-                      Open
-                    </a>
-                  </td>
-                </tr>
-              `)
-              .join("")
-          : `
-              <tr>
-                <td colspan="6">
-                  No active contracts found.
-                </td>
-              </tr>
-            `;
+            <td>
+              ${escapeHtml(
+                contract.opportunity_name || "—"
+              )}
+            </td>
+
+            <td>
+              ${formatDate(
+                contract.renewal_date ||
+                contract.expiration_date ||
+                contract.end_date
+              )}
+            </td>
+
+            <td>
+              ${money(
+                contract.total_contract_value
+              )}
+            </td>
+
+            <td>
+              <a
+                class="btn"
+                href="/org-contract/${contract.id}?organization_id=${organizationId}"
+              >
+                Open
+              </a>
+            </td>
+          </tr>
+        `)
+        .join("")
+    : `
+        <tr>
+          <td colspan="6">
+            No renewals require attention
+            within the next 90 days.
+          </td>
+        </tr>
+      `;
+
+const futureRows =
+  futureContracts.length
+    ? futureContracts
+        .map(contract => `
+          <tr>
+            <td>
+              ${escapeHtml(
+                contract.advertiser_name || "—"
+              )}
+            </td>
+
+            <td>
+              ${escapeHtml(
+                contract.location_name || "—"
+              )}
+            </td>
+
+            <td>
+              ${escapeHtml(
+                contract.opportunity_name || "—"
+              )}
+            </td>
+
+            <td>
+              ${formatDate(
+                contract.renewal_date ||
+                contract.expiration_date ||
+                contract.end_date
+              )}
+            </td>
+
+            <td>
+              ${money(
+                contract.total_contract_value
+              )}
+            </td>
+
+            <td>
+              <a
+                class="btn"
+                href="/org-contract/${contract.id}?organization_id=${organizationId}"
+              >
+                Open
+              </a>
+            </td>
+          </tr>
+        `)
+        .join("")
+    : `
+        <tr>
+          <td colspan="6">
+            No future renewals found.
+          </td>
+        </tr>
+      `;
+              
+        
 
       return res.send(
         orgPage(
@@ -18405,80 +18478,66 @@ app.get(
                 Vivid Organizations
               </div>
 
-              <h1>
-                Renewals
-              </h1>
+<h2>
+  Renewals Requiring Attention
+</h2>
 
-              <p class="subtitle">
-                Track upcoming contract renewals
-                and revenue at risk.
-              </p>
-            </div>
+<p style="
+  color:#65776b;
+  margin-top:-8px;
+  margin-bottom:16px;
+">
+  Active contracts with a renewal date
+  within the next 90 days.
+</p>
 
-            <div class="wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Advertiser</th>
+      <th>Location</th>
+      <th>Opportunity</th>
+      <th>Renewal Date</th>
+      <th>Contract Value</th>
+      <th>Action</th>
+    </tr>
+  </thead>
 
-              <div class="cards">
+  <tbody>
+    ${attentionRows}
+  </tbody>
+</table>
 
-                <div class="card">
-                  <div class="label">
-                    Renewing in 30 Days
-                  </div>
-                  <div class="num">
-                    ${upcoming30.length}
-                  </div>
-                </div>
+<h2>
+  Future Renewals
+</h2>
 
-                <div class="card">
-                  <div class="label">
-                    Renewing in 60 Days
-                  </div>
-                  <div class="num">
-                    ${upcoming60.length}
-                  </div>
-                </div>
+<p style="
+  color:#65776b;
+  margin-top:-8px;
+  margin-bottom:16px;
+">
+  Active contracts with renewal dates
+  more than 90 days away.
+</p>
 
-                <div class="card">
-                  <div class="label">
-                    Renewing in 90 Days
-                  </div>
-                  <div class="num">
-                    ${upcoming90.length}
-                  </div>
-                </div>
+<table>
+  <thead>
+    <tr>
+      <th>Advertiser</th>
+      <th>Location</th>
+      <th>Opportunity</th>
+      <th>Renewal Date</th>
+      <th>Contract Value</th>
+      <th>Action</th>
+    </tr>
+  </thead>
 
-                <div class="card">
-                  <div class="label">
-                    Revenue at Risk
-                  </div>
-                  <div class="num">
-                    ${money(
-                      revenueAtRisk
-                    )}
-                  </div>
-                </div>
+  <tbody>
+    ${futureRows}
+  </tbody>
+</table>
 
-              </div>
-
-              <h2>
-                Upcoming Renewals
-              </h2>
-
-              <table>
-                <thead>
-                  <tr>
-                    <th>Advertiser</th>
-                    <th>Location</th>
-                    <th>Opportunity</th>
-                    <th>Renewal Date</th>
-                    <th>Contract Value</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  ${renewalRows}
-                </tbody>
-              </table>
 
             </div>
           `
