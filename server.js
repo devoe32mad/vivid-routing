@@ -17695,11 +17695,21 @@ const renewedToResult = await q(
     SELECT
       id,
       contract_version,
-      status
+      status,
+      start_date,
+      end_date,
+      renewal_date,
+      expiration_date,
+      total_contract_value,
+      billing_frequency
+
     FROM contracts
+
     WHERE renewed_from_contract_id = $1
       AND organization_id = $2
+
     ORDER BY contract_version DESC
+
     LIMIT 1
   `,
   [
@@ -17707,6 +17717,7 @@ const renewedToResult = await q(
     organizationId
   ]
 );
+      
 
 const renewedToContract =
   renewedToResult.rows[0] || null;
