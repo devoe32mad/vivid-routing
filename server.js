@@ -17292,6 +17292,103 @@ app.get(
       const organizationId =
         Number(
           req.query.organization_id ||
+          req.session.orgUser?.organization_id ||
+          req.session.orgUser?.organizationId ||
+          req.session.user?.organization_id
+        );
+
+      if (
+        !Number.isInteger(contractId) ||
+        contractId <= 0 ||
+        !Number.isInteger(documentId) ||
+        documentId <= 0 ||
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send("A valid document is required.");
+      }
+
+      const result = await q(
+        `
+          SELECT
+            cd.file_name,
+            cd.mime_type,
+            cd.file_data
+
+          FROM contract_documents cd
+
+          JOIN contracts c
+            ON c.id = cd.contract_id
+
+          WHERE cd.id = $1
+            AND cd.contract_id = $2
+            AND c.organization_id = $3
+
+          LIMIT 1
+        `,
+        [
+          documentId,
+          contractId,
+          organizationId
+        ]
+      );
+
+      const document =
+        result.rows[0] || null;
+
+      if (!document || !document.file_data) {
+        return res
+          .status(404)
+          .send("Document not found.");
+      }
+
+      res.setHeader(
+        "Content-Type",
+        document.mime_type ||
+          "application/octet-stream"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="${String(
+          document.file_name || "document"
+        ).replace(/"/g, "")}"`
+      );
+
+      return res.send(
+        document.file_data
+      );
+
+    } catch (err) {
+      console.error(
+        "CONTRACT DOCUMENT OPEN ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to open Contract Document: " +
+          err.message
+        );
+    }
+  }
+);
+app.get(
+  "/org-contract/:contractId/document/:documentId",
+  async (req, res) => {
+    try {
+      const contractId =
+        Number(req.params.contractId);
+
+      const documentId =
+        Number(req.params.documentId);
+
+      const organizationId =
+        Number(
+          req.query.organization_id ||
           req.session.orgUser?.organizationId ||
           req.session.user?.organization_id
         );
