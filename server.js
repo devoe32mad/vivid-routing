@@ -18158,20 +18158,20 @@ const contractActivity =
                 .map(history => `
                   <tr>
 
-                    <td style="text-align:center;">
-                      ${
-                        Number(history.id) ===
-                        Number(contractId)
-                          ? "Current Contract"
-                          : (
-                              String(history.status || "")
-                                .trim()
-                                .toLowerCase() === "draft"
-                                ? "Upcoming Renewal"
-                                : "Prior Contract"
-                            )
-                      }
-                    </td>
+                  <td style="text-align:center;">
+  ${
+    Number(history.id) === Number(contractId)
+      ? "Current Contract"
+      : ["draft", "scheduled"].includes(
+          String(history.status || "")
+            .trim()
+            .toLowerCase()
+        )
+        ? "Upcoming Renewal"
+        : "Prior Contract"
+  }
+</td>
+      
 
                     <td style="text-align:center;">
                       ${formatDate(history.start_date)}
