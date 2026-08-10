@@ -19514,6 +19514,209 @@ app.get(
   }
 );
 app.post(
+  "/org-contract/:contractId/renewal-approve",
+  async (req, res) => {
+    try {
+      const contractId =
+        Number(req.params.contractId);
+
+      const organizationId =
+        Number(req.body.organization_id);
+
+      if (
+        !Number.isInteger(contractId) ||
+        contractId <= 0 ||
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "A valid renewal and organization are required."
+          );
+      }
+
+      const renewalResult = await q(
+        `
+          SELECT
+            id,
+            status,
+            renewed_from_contract_id,
+            start_date,
+            end_date,
+            contract_version
+
+          FROM contracts
+
+          WHERE id = $1
+            AND organization_id = $2
+
+          LIMIT 1
+        `,
+        [
+          contractId,
+          organizationId
+        ]
+      );
+
+      const renewal =
+        renewalResult.rows[0] || null;
+
+      if (!renewal) {
+        return res
+          .status(404)
+          .send("Renewal not found.");
+      }
+
+      if (!renewal.renewed_from_contract_id) {
+        return res
+          .status(400)
+          .send(
+            "This contract is not a renewal."
+          );
+      }
+
+      if (
+        String(renewal.status || "")
+          .trim()
+          .toLowerCase() !== "draft"
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Only draft renewals can be approved."
+          );
+      }
+
+      const currentResult = await q(
+        `
+          SELECT
+            id,
+            status,
+            end_date
+
+          FROM contracts
+
+          WHERE id = $1
+            AND organization_id = $2
+
+          LIMIT 1
+        `,
+        [
+          renewal.renewed_from_contract_id,
+          organizationId
+        ]
+      );
+
+      const currentContract =
+        currentResult.rows[0] || null;
+
+      if (!currentContract) {
+        return res
+          .status(400)
+          .send(
+            "Current contract could not be found."
+          );
+      }
+
+      await q(
+        `
+          UPDATE contracts
+
+          SET
+            status = 'Scheduled',
+            updated_at = CURRENT_TIMESTAMP
+
+          WHERE id = $1
+            AND organization_id = $2
+        `,
+        [
+          contractId,
+          organizationId
+        ]
+      );
+
+      const userId =
+        req.session.user?.id ||
+        req.session.orgUser?.id ||
+        null;
+
+      await q(
+        `
+          INSERT INTO contract_activity (
+            contract_id,
+            organization_id,
+            user_id,
+            activity_type,
+            comment,
+            created_at
+          )
+
+          VALUES (
+            $1,
+            $2,
+            $3,
+            'Renewal Approved',
+            $4,
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          renewal.renewed_from_contract_id,
+          organizationId,
+          userId,
+          `Renewal approved and scheduled as the next contract term.`
+        ]
+      );
+
+      await q(
+        `
+          INSERT INTO contract_activity (
+            contract_id,
+            organization_id,
+            user_id,
+            activity_type,
+            comment,
+            created_at
+          )
+
+          VALUES (
+            $1,
+            $2,
+            $3,
+            'Approved',
+            $4,
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          contractId,
+          organizationId,
+          userId,
+          `Renewal approved. Contract scheduled to begin on ${renewal.start_date}.`
+        ]
+      );
+
+      return res.redirect(
+        `/org-contract/${renewal.renewed_from_contract_id}?organization_id=${organizationId}`
+      );
+
+    } catch (err) {
+      console.error(
+        "CONTRACT RENEWAL APPROVAL ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to approve Contract Renewal: " +
+          err.message
+        );
+    }
+  }
+);
+app.post(
   "/org-contract/:contractId/activity",
   async (req, res) => {
     try {
