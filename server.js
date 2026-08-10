@@ -18269,7 +18269,147 @@ const contractDocuments =
 
 </div>
 
+<div class="card">
 
+  <h2 style="margin-top:0;">
+    Documents
+  </h2>
+
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-bottom:16px;
+  ">
+
+    <div style="
+      color:#65776b;
+    ">
+      Store signed agreements, amendments,
+      insertion orders, and related documents.
+    </div>
+
+    <a
+      class="btn"
+      href="/org-contract/${contractId}/documents/upload?organization_id=${organizationId}"
+    >
+      Upload Document
+    </a>
+
+  </div>
+
+  <div style="overflow-x:auto;">
+
+    <table style="
+      width:100%;
+      border-collapse:collapse;
+      margin:0;
+    ">
+
+      <thead>
+        <tr>
+          <th style="text-align:center;">Type</th>
+          <th style="text-align:center;">File</th>
+          <th style="text-align:center;">Uploaded By</th>
+          <th style="text-align:center;">Uploaded</th>
+          <th style="text-align:center;">Version</th>
+          <th style="text-align:center;">Action</th>
+        </tr>
+      </thead>
+
+      <tbody>
+
+        ${
+          contractDocuments.length
+            ? contractDocuments
+                .map(document => `
+                  <tr>
+
+                    <td style="text-align:center;">
+                      ${escapeHtml(
+                        document.document_type || "Document"
+                      )}
+                    </td>
+
+                    <td style="text-align:center;">
+                      ${escapeHtml(
+                        document.file_name || "—"
+                      )}
+                    </td>
+
+                    <td style="text-align:center;">
+                      ${escapeHtml(
+                        document.uploaded_by || "Unknown User"
+                      )}
+                    </td>
+
+                    <td style="text-align:center;">
+                      ${
+                        document.uploaded_at
+                          ? new Date(
+                              document.uploaded_at
+                            ).toLocaleString(
+                              "en-US",
+                              {
+                                timeZone:
+                                  "America/New_York"
+                              }
+                            )
+                          : "—"
+                      }
+                    </td>
+
+                    <td style="text-align:center;">
+                      ${
+                        Number(document.version) || 1
+                      }
+                    </td>
+
+                    <td style="text-align:center;">
+                      ${
+                        document.file_url
+                          ? `
+                              <a
+                                href="${escapeHtml(
+                                  document.file_url
+                                )}"
+                                target="_blank"
+                              >
+                                Open
+                              </a>
+                            `
+                          : "—"
+                      }
+                    </td>
+
+                  </tr>
+                `)
+                .join("")
+            : `
+                <tr>
+                  <td
+                    colspan="6"
+                    style="
+                      text-align:center;
+                      color:#65776b;
+                      padding:20px;
+                    "
+                  >
+                    No documents uploaded yet.
+                  </td>
+                </tr>
+              `
+        }
+
+      </tbody>
+
+    </table>
+
+  </div>
+
+</div>
 
               <div class="card">
 
