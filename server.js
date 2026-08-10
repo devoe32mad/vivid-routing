@@ -16978,6 +16978,32 @@ const statusFilter =
 
     const contracts =
       contractsResult.rows;
+
+    const totalContracts =
+      contracts.length;
+
+    const draftContracts =
+      contracts.filter(
+        contract =>
+          String(contract.status || "")
+            .trim()
+            .toLowerCase() === "draft"
+      ).length;
+
+    const activeContracts =
+      contracts.filter(
+        contract =>
+          String(contract.status || "")
+            .trim()
+            .toLowerCase() === "active"
+      ).length;
+
+    const today = new Date();
+    const thirtyDaysFromNow =
+      new Date(
+        today.getTime() +
+        30 * 24 * 60 * 60 * 1000
+      );
 const filteredContracts =
   contracts.filter(contract => {
     const status =
@@ -17017,32 +17043,6 @@ const filteredContracts =
 
     return true;
   });
-    const totalContracts =
-      contracts.length;
-
-    const draftContracts =
-      contracts.filter(
-        contract =>
-          String(contract.status || "")
-            .trim()
-            .toLowerCase() === "draft"
-      ).length;
-
-    const activeContracts =
-      contracts.filter(
-        contract =>
-          String(contract.status || "")
-            .trim()
-            .toLowerCase() === "active"
-      ).length;
-
-    const today = new Date();
-    const thirtyDaysFromNow =
-      new Date(
-        today.getTime() +
-        30 * 24 * 60 * 60 * 1000
-      );
-
     const expiringSoon =
       contracts.filter(contract => {
         if (
