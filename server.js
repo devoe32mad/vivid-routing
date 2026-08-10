@@ -54527,7 +54527,45 @@ if (overlap.rows.length > 0) {
       req.body.end_time || "23:59",
       Number(req.body.priority || 50)
     ]);
+if (
+  Number.isInteger(marketplaceRequestId) &&
+  marketplaceRequestId > 0
+) {
+  await q(
+    `
+      UPDATE contracts
+      SET
+        qr_id = $1,
+        status = 'Active',
+        activated_at = COALESCE(
+          activated_at,
+          CURRENT_TIMESTAMP
+        ),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE advertising_request_id = $2
+    `,
+    [
+      Number(req.body.qr_id),
+      marketplaceRequestId
+    ]
+  );
 
+  await q(
+    `
+      UPDATE organization_advertising_requests
+      SET
+        setup_status = 'Complete',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+        AND created_vivid_user_id = $2
+        AND status = 'Approved'
+    `,
+    [
+      marketplaceRequestId,
+      req.session.user.id
+    ]
+  );
+}
    res.send(successPage(
   "Campaign Scheduled Successfully",
   "Your campaign schedule has been saved.",
