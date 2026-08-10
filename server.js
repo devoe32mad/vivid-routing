@@ -54230,6 +54230,8 @@ const requestedQrId =
 
 const requestedCampaignId =
   Number(req.query.campaign_id);
+  const marketplaceRequestId =
+  Number(req.query.marketplace_request_id);
   const qrs = await q(
   req.session.user.role === "super_admin"
     ? `
@@ -54277,7 +54279,18 @@ const requestedCampaignId =
 
       <div class="wrap">
         <form method="POST" action="/admin/assign">
-
+${
+  Number.isInteger(marketplaceRequestId) &&
+  marketplaceRequestId > 0
+    ? `
+        <input
+          type="hidden"
+          name="marketplace_request_id"
+          value="${marketplaceRequestId}"
+        >
+      `
+    : ""
+}
           <label>QR Code</label>
 
           <select name="qr_id">
@@ -54398,10 +54411,12 @@ res.send(successPage(
     {
       label: "Manage Schedule",
       href:
-        "/admin/schedule?qr_id=" +
-        Number(req.body.qr_id) +
-        "&campaign_id=" +
-        Number(req.body.campaign_id)
+    "/admin/schedule?qr_id=" +
+Number(req.body.qr_id) +
+"&campaign_id=" +
+Number(req.body.campaign_id) +
+"&marketplace_request_id=" +
+Number(req.body.marketplace_request_id)
     },
     { label: "Back to My Setup", href: "/my-setup" },
     { label: "Dashboard", href: "/dashboard" }
