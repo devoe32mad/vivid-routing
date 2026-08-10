@@ -18722,21 +18722,8 @@ app.post(
           newContractResult.rows[0].id
         );
 
-      await q(
-        `
-          UPDATE contracts
-          SET
-            status = 'Renewed',
-            renewed_at = CURRENT_TIMESTAMP,
-            updated_at = CURRENT_TIMESTAMP
-          WHERE id = $1
-            AND organization_id = $2
-        `,
-        [
-          contractId,
-          organizationId
-        ]
-      );
+    
+
 
       const userId =
         req.session.user?.id ||
