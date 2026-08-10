@@ -17098,6 +17098,187 @@ const totalIntent =
     }
   }
 );
+app.post(
+  "/org-contract/:contractId/documents/upload",
+  importUpload.single("document_file"),
+  async (req, res) => {
+    try {
+      const contractId =
+        Number(req.params.contractId);
+
+      const organizationId =
+        Number(req.body.organization_id);
+
+      const documentType =
+        String(
+          req.body.document_type || ""
+        ).trim();
+
+      if (
+        !Number.isInteger(contractId) ||
+        contractId <= 0 ||
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !documentType
+      ) {
+        return res
+          .status(400)
+          .send(
+            "A valid contract, organization, and document type are required."
+          );
+      }
+
+      if (!req.file) {
+        return res
+          .status(400)
+          .send(
+            "Please select a document to upload."
+          );
+      }
+
+      const contractResult = await q(
+        `
+          SELECT id
+          FROM contracts
+          WHERE id = $1
+            AND organization_id = $2
+          LIMIT 1
+        `,
+        [
+          contractId,
+          organizationId
+        ]
+      );
+
+      if (!contractResult.rows[0]) {
+        return res
+          .status(404)
+          .send("Contract not found.");
+      }
+
+      const userId =
+        req.session.user?.id ||
+        req.session.orgUser?.id ||
+        null;
+
+      const documentResult = await q(
+        `
+          INSERT INTO contract_documents (
+            contract_id,
+            document_type,
+            file_name,
+            file_url,
+            file_data,
+            mime_type,
+            file_size,
+            uploaded_by_user_id,
+            uploaded_at,
+            version,
+            is_current,
+            created_at,
+            updated_at
+          )
+
+          VALUES (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6,
+            $7,
+            $8,
+            CURRENT_TIMESTAMP,
+            1,
+            true,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+          )
+
+          RETURNING id
+        `,
+        [
+          contractId,
+          documentType,
+          req.file.originalname,
+          "",
+          req.file.buffer,
+          req.file.mimetype,
+          req.file.size,
+          userId
+        ]
+      );
+
+      const documentId =
+        Number(
+          documentResult.rows[0].id
+        );
+
+      await q(
+        `
+          UPDATE contract_documents
+
+          SET
+            file_url = $1,
+            updated_at = CURRENT_TIMESTAMP
+
+          WHERE id = $2
+            AND contract_id = $3
+        `,
+        [
+          `/org-contract/${contractId}/document/${documentId}`,
+          documentId,
+          contractId
+        ]
+      );
+
+      await q(
+        `
+          INSERT INTO contract_activity (
+            contract_id,
+            organization_id,
+            user_id,
+            activity_type,
+            comment,
+            created_at
+          )
+
+          VALUES (
+            $1,
+            $2,
+            $3,
+            'Document Uploaded',
+            $4,
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          contractId,
+          organizationId,
+          userId,
+          `${documentType} uploaded: ${req.file.originalname}`
+        ]
+      );
+
+      return res.redirect(
+        `/org-contract/${contractId}?organization_id=${organizationId}`
+      );
+
+    } catch (err) {
+      console.error(
+        "CONTRACT DOCUMENT UPLOAD ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to upload Contract Document: " +
+          err.message
+        );
+    }
+  }
+);
 app.get("/org-contracts", async (req, res) => {
   try {
     const organizationId = Number(
