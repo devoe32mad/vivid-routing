@@ -18043,10 +18043,10 @@ app.post(
       const comment =
         String(req.body.comment || "").trim();
 console.log("ORG USER SESSION:", req.session.orgUser);
-      const userId =
-        req.session.user?.id ||
-        req.session.orgUser?.user_id ||
-        null;
+  const userId =
+  req.session.user?.id ||
+  req.session.orgUser?.id ||
+  null;
 
       if (
         !Number.isInteger(contractId) ||
