@@ -54023,6 +54023,8 @@ const isSuperAdmin = currentUser.role === "super_admin";
 
 const requestedCampaignId =
   Number(req.query.campaign_id);
+  const marketplaceRequestId =
+  Number(req.query.marketplace_request_id);
   const qrs = await q(
   isSuperAdmin
     ? `SELECT * FROM qr_codes ORDER BY id`
