@@ -17525,7 +17525,27 @@ app.get("/org-contracts", async (req, res) => {
           .status(404)
           .send("Contract not found.");
       }
-const activityResult = await q(
+const renewedToResult = await q(
+  `
+    SELECT
+      id,
+      contract_version,
+      status
+    FROM contracts
+    WHERE renewed_from_contract_id = $1
+      AND organization_id = $2
+    ORDER BY contract_version DESC
+    LIMIT 1
+  `,
+  [
+    contractId,
+    organizationId
+  ]
+);
+
+const renewedToContract =
+  renewedToResult.rows[0] || null;
+      const activityResult = await q(
   `
     SELECT
       ca.id,
