@@ -16978,7 +16978,45 @@ const statusFilter =
 
     const contracts =
       contractsResult.rows;
+const filteredContracts =
+  contracts.filter(contract => {
+    const status =
+      String(contract.status || "")
+        .trim()
+        .toLowerCase();
 
+    if (!statusFilter) {
+      return true;
+    }
+
+    if (statusFilter === "draft") {
+      return status === "draft";
+    }
+
+    if (statusFilter === "active") {
+      return status === "active";
+    }
+
+    if (statusFilter === "expiring") {
+      if (status !== "active") {
+        return false;
+      }
+
+      const endDate =
+        new Date(
+          contract.end_date ||
+          contract.expiration_date
+        );
+
+      return (
+        !Number.isNaN(endDate.getTime()) &&
+        endDate >= today &&
+        endDate <= thirtyDaysFromNow
+      );
+    }
+
+    return true;
+  });
     const totalContracts =
       contracts.length;
 
@@ -17077,9 +17115,9 @@ const statusFilter =
       );
     };
 
-    const contractRows =
-      contracts.length
-        ? contracts
+   const contractRows =
+  filteredContracts.length
+    ? filteredContracts
             .map(contract => `
               <tr>
                 <td style="
@@ -17244,92 +17282,215 @@ const statusFilter =
               margin-bottom:24px;
             ">
 
-              <div class="card" style="margin:0;">
-                <div style="
-                  color:#65776b;
-                  font-size:13px;
-                ">
-                  Total Contracts
-                </div>
+              <a
+  href="/org-contracts?organization_id=${organizationId}"
+  class="card"
+  style="
+    margin:0;
+    text-decoration:none;
+    color:inherit;
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+    ${
+      !statusFilter
+        ? "outline:2px solid #176b3a;"
+        : ""
+    }
+  "
+  onmouseover="this.style.transform='translateY(-2px)'"
+  onmouseout="this.style.transform='translateY(0)'"
+>
+  <div style="
+    color:#65776b;
+    font-size:13px;
+  ">
+    Total Contracts
+  </div>
 
-                <div style="
-                  font-size:28px;
-                  font-weight:bold;
-                  margin-top:6px;
-                ">
-                  ${totalContracts}
-                </div>
-              </div>
+  <div style="
+    font-size:28px;
+    font-weight:bold;
+    margin-top:6px;
+  ">
+    ${totalContracts}
+  </div>
 
-              <div class="card" style="margin:0;">
-                <div style="
-                  color:#65776b;
-                  font-size:13px;
-                ">
-                  Draft
-                </div>
+  <div style="
+    margin-top:8px;
+    font-size:13px;
+    color:#176b3a;
+    font-weight:700;
+  ">
+    View all contracts →
+  </div>
+</a>
 
-                <div style="
-                  font-size:28px;
-                  font-weight:bold;
-                  margin-top:6px;
-                ">
-                  ${draftContracts}
-                </div>
-              </div>
+<a
+  href="/org-contracts?organization_id=${organizationId}&status=draft"
+  class="card"
+  style="
+    margin:0;
+    text-decoration:none;
+    color:inherit;
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+    ${
+      statusFilter === "draft"
+        ? "outline:2px solid #176b3a;"
+        : ""
+    }
+  "
+  onmouseover="this.style.transform='translateY(-2px)'"
+  onmouseout="this.style.transform='translateY(0)'"
+>
+  <div style="
+    color:#65776b;
+    font-size:13px;
+  ">
+    Draft
+  </div>
 
-              <div class="card" style="margin:0;">
-                <div style="
-                  color:#65776b;
-                  font-size:13px;
-                ">
-                  Active
-                </div>
+  <div style="
+    font-size:28px;
+    font-weight:bold;
+    margin-top:6px;
+  ">
+    ${draftContracts}
+  </div>
 
-                <div style="
-                  font-size:28px;
-                  font-weight:bold;
-                  margin-top:6px;
-                ">
-                  ${activeContracts}
-                </div>
-              </div>
+  <div style="
+    margin-top:8px;
+    font-size:13px;
+    color:#176b3a;
+    font-weight:700;
+  ">
+    View contracts →
+  </div>
+</a>
 
-              <div class="card" style="margin:0;">
-                <div style="
-                  color:#65776b;
-                  font-size:13px;
-                ">
-                  Expiring Soon
-                </div>
+<a
+  href="/org-contracts?organization_id=${organizationId}&status=active"
+  class="card"
+  style="
+    margin:0;
+    text-decoration:none;
+    color:inherit;
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+    ${
+      statusFilter === "active"
+        ? "outline:2px solid #176b3a;"
+        : ""
+    }
+  "
+  onmouseover="this.style.transform='translateY(-2px)'"
+  onmouseout="this.style.transform='translateY(0)'"
+>
+  <div style="
+    color:#65776b;
+    font-size:13px;
+  ">
+    Active
+  </div>
 
-                <div style="
-                  font-size:28px;
-                  font-weight:bold;
-                  margin-top:6px;
-                ">
-                  ${expiringSoon}
-                </div>
-              </div>
+  <div style="
+    font-size:28px;
+    font-weight:bold;
+    margin-top:6px;
+  ">
+    ${activeContracts}
+  </div>
 
-              <div class="card" style="margin:0;">
-                <div style="
-                  color:#65776b;
-                  font-size:13px;
-                ">
-                  Active Contract Value
-                </div>
+  <div style="
+    margin-top:8px;
+    font-size:13px;
+    color:#176b3a;
+    font-weight:700;
+  ">
+    View contracts →
+  </div>
+</a>
 
-                <div style="
-                  font-size:28px;
-                  font-weight:bold;
-                  margin-top:6px;
-                ">
-                  ${money(
-                    activeContractValue
-                  )}
-                </div>
-              </div>
+<a
+  href="/org-contracts?organization_id=${organizationId}&status=expiring"
+  class="card"
+  style="
+    margin:0;
+    text-decoration:none;
+    color:inherit;
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+    ${
+      statusFilter === "expiring"
+        ? "outline:2px solid #176b3a;"
+        : ""
+    }
+  "
+  onmouseover="this.style.transform='translateY(-2px)'"
+  onmouseout="this.style.transform='translateY(0)'"
+>
+  <div style="
+    color:#65776b;
+    font-size:13px;
+  ">
+    Expiring Soon
+  </div>
+
+  <div style="
+    font-size:28px;
+    font-weight:bold;
+    margin-top:6px;
+  ">
+    ${expiringSoon}
+  </div>
+
+  <div style="
+    margin-top:8px;
+    font-size:13px;
+    color:#176b3a;
+    font-weight:700;
+  ">
+    View contracts →
+  </div>
+</a>
+
+<a
+  href="/org-contracts?organization_id=${organizationId}&status=active"
+  class="card"
+  style="
+    margin:0;
+    text-decoration:none;
+    color:inherit;
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+  "
+  onmouseover="this.style.transform='translateY(-2px)'"
+  onmouseout="this.style.transform='translateY(0)'"
+>
+  <div style="
+    color:#65776b;
+    font-size:13px;
+  ">
+    Active Contract Value
+  </div>
+
+  <div style="
+    font-size:28px;
+    font-weight:bold;
+    margin-top:6px;
+  ">
+    ${money(activeContractValue)}
+  </div>
+
+  <div style="
+    margin-top:8px;
+    font-size:13px;
+    color:#176b3a;
+    font-weight:700;
+  ">
+    View active contracts →
+  </div>
+</a>
 
             </div>
 
