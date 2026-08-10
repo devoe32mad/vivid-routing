@@ -17520,7 +17520,40 @@ app.get("/org-contracts", async (req, res) => {
           .status(404)
           .send("Contract not found.");
       }
+const activityResult = await q(
+  `
+    SELECT
+      ca.id,
+      ca.activity_type,
+      ca.comment,
+      ca.created_at,
 
+      COALESCE(
+        u.name,
+        u.email,
+        'Unknown User'
+      ) AS user_name
+
+    FROM contract_activity ca
+
+    LEFT JOIN users u
+      ON u.id = ca.user_id
+
+    WHERE ca.contract_id = $1
+      AND ca.organization_id = $2
+
+    ORDER BY
+      ca.created_at DESC,
+      ca.id DESC
+  `,
+  [
+    contractId,
+    organizationId
+  ]
+);
+
+const contractActivity =
+  activityResult.rows;
       const money = value =>
         "$" +
         Number(value || 0).toLocaleString(
