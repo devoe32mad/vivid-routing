@@ -54430,7 +54430,9 @@ Number(req.body.marketplace_request_id)
 });
 app.post("/admin/schedule", requireLogin, async (req, res) => {
   try {
-const selectedDays = Array.isArray(req.body.days_of_week_check)
+const marketplaceRequestId =
+  Number(req.body.marketplace_request_id);
+    const selectedDays = Array.isArray(req.body.days_of_week_check)
   ? req.body.days_of_week_check.join(",")
   : (req.body.days_of_week_check || req.body.days_of_week || "");
     const overlap = await q(
