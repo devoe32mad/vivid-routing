@@ -18060,13 +18060,10 @@ const contractActivity =
           : ""
       }
 
-    </div>
-  `
-
-            
-          `
-        )
-      );
+  </div>
+      `
+    )
+  );
 
     } catch (err) {
       console.error(
