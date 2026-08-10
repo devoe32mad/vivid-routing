@@ -18206,7 +18206,7 @@ const contractActivity =
                               <a
                                 href="/org-contract/${history.id}?organization_id=${organizationId}"
                               >
-                                Open
+                                Review
                               </a>
                             `
                       }
