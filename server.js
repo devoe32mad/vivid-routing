@@ -17153,11 +17153,25 @@ app.get("/org-contracts", async (req, res) => {
             </tr>
           `;
 
-    return res.send(
-      orgPage(
-        `Contracts - ${organization.name}`,
-        `
-          <div class="topbar">
+   return res.send(
+  orgPage(
+    `Contracts - ${organization.name}`,
+    `
+      ${organizationNav({
+        organizationId,
+        organizationName: escapeHtml(
+          organization.name
+        ),
+        activePage: "contracts",
+        userName:
+          req.session.orgUser?.name ||
+          req.session.orgUser?.email ||
+          req.session.user?.name ||
+          req.session.user?.email ||
+          ""
+      })}
+
+      <div class="topbar">
             <div class="brand">
               Vivid Organizations
             </div>
