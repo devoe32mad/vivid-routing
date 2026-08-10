@@ -18119,12 +18119,29 @@ const contractActivity =
 
       <thead>
         <tr>
-          <th>Term</th>
-          <th>Dates</th>
-          <th>Value</th>
-          <th>Billing</th>
-          <th>Status</th>
-          <th>Action</th>
+          <th style="text-align:center;">
+            Term
+          </th>
+
+          <th style="text-align:center;">
+            Dates
+          </th>
+
+          <th style="text-align:center;">
+            Value
+          </th>
+
+          <th style="text-align:center;">
+            Billing
+          </th>
+
+          <th style="text-align:center;">
+            Status
+          </th>
+
+          <th style="text-align:center;">
+            Action
+          </th>
         </tr>
       </thead>
 
@@ -18136,7 +18153,7 @@ const contractActivity =
                 .map(history => `
                   <tr>
 
-                    <td>
+                    <td style="text-align:center;">
                       ${
                         Number(history.id) ===
                         Number(contractId)
@@ -18151,31 +18168,31 @@ const contractActivity =
                       }
                     </td>
 
-                    <td>
+                    <td style="text-align:center;">
                       ${formatDate(history.start_date)}
                       →
                       ${formatDate(history.end_date)}
                     </td>
 
-                    <td>
+                    <td style="text-align:center;">
                       ${money(
                         history.total_contract_value
                       )}
                     </td>
 
-                    <td>
+                    <td style="text-align:center;">
                       ${escapeHtml(
                         history.billing_frequency || "—"
                       )}
                     </td>
 
-                    <td>
+                    <td style="text-align:center;">
                       ${escapeHtml(
                         history.status || "—"
                       )}
                     </td>
 
-                    <td>
+                    <td style="text-align:center;">
                       ${
                         Number(history.id) ===
                         Number(contractId)
@@ -18195,7 +18212,10 @@ const contractActivity =
                 .join("")
             : `
                 <tr>
-                  <td colspan="6">
+                  <td
+                    colspan="6"
+                    style="text-align:center;"
+                  >
                     No contract history found.
                   </td>
                 </tr>
@@ -18209,6 +18229,8 @@ const contractActivity =
   </div>
 
 </div>
+
+
 
               <div class="card">
 
