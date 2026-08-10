@@ -17916,7 +17916,84 @@ const contractActivity =
     </button>
 
   </form>
+<div style="
+  margin-top:24px;
+">
 
+  <h3 style="
+    margin:0 0 14px;
+  ">
+    Activity History
+  </h3>
+
+  ${
+    contractActivity.length
+      ? contractActivity
+          .map(activity => `
+            <div style="
+              padding:14px 0;
+              border-top:1px solid #e7eee7;
+            ">
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                gap:16px;
+                flex-wrap:wrap;
+                margin-bottom:6px;
+              ">
+
+                <strong>
+                  ${escapeHtml(
+                    activity.activity_type || "Note"
+                  )}
+                </strong>
+
+                <span style="
+                  color:#65776b;
+                  font-size:13px;
+                ">
+                  ${new Date(
+                    activity.created_at
+                  ).toLocaleString("en-US", {
+                    timeZone: "America/New_York"
+                  })}
+                </span>
+
+              </div>
+
+              <div style="
+                margin-bottom:6px;
+                color:#315b4c;
+                font-size:13px;
+              ">
+                ${escapeHtml(
+                  activity.user_name || "Unknown User"
+                )}
+              </div>
+
+              <div style="
+                line-height:1.5;
+              ">
+                ${escapeHtml(
+                  activity.comment || ""
+                )}
+              </div>
+
+            </div>
+          `)
+          .join("")
+      : `
+          <div style="
+            color:#65776b;
+            padding:12px 0;
+          ">
+            No contract activity yet.
+          </div>
+        `
+  }
+
+</div>
 </div>
               ${
                 contract.advertising_request_id
