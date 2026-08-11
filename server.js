@@ -22429,8 +22429,11 @@ const revenueAtRisk90 =
               </div>
 
               <h1>
-                Renewals
-              </h1>
+  ${escapeHtml(organization.name)}
+  Renewals — ${escapeHtml(renewalScopeLabel)}
+</h1>
+                
+              
 
               <p class="subtitle">
                 Track upcoming renewals,
