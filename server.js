@@ -36294,25 +36294,8 @@ ${
                         flex-wrap:wrap;
                         margin-top:18px;
                       ">
-                        <form
-                          method="POST"
-                          action="/org-advertising-request/${request.request_id}/approve"
-                          style="margin:0;"
-                        >
-                          <input
-                            type="hidden"
-                            name="organization_id"
-                            value="${organizationId}"
-                          >
-
-                          <button
-                            type="submit"
-                            class="marketplace-btn"
-                            onclick="return confirm('Approve this advertising request and create the advertiser Vivid account?')"
-                          >
-                            Approve Request
-                          </button>
-                        </form>
+                        
+                       
 <form
   method="POST"
   action="/org-advertising-request/${request.request_id}/approve"
