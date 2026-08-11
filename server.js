@@ -18939,7 +18939,7 @@ const contractDocuments =
                 ">
 
                   <strong>
-                    Executed agreement required to activate
+                    Signed agreement required to activate
                   </strong>
 
                   <div style="
@@ -18947,7 +18947,7 @@ const contractDocuments =
                     color:#65776b;
                     font-size:13px;
                   ">
-                    Upload the executed agreement before
+                    Upload Signed Agreement before
                     activating this contract. Electronic
                     signatures, scanned handwritten signatures,
                     and other accepted signed formats may be used.
@@ -18962,7 +18962,7 @@ const contractDocuments =
                       class="btn"
                       href="/org-contract/${contractId}/documents/upload?organization_id=${organizationId}"
                     >
-                      Upload Executed Agreement
+                      Upload Signed Agreement
                     </a>
                   </div>
 
