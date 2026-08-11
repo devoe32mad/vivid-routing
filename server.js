@@ -18664,6 +18664,7 @@ const contractDocuments =
   <div class="formgrid">
 
     <div>
+
       <div class="label">
         Current Contract
       </div>
@@ -18679,13 +18680,19 @@ const contractDocuments =
         margin-top:6px;
         font-size:13px;
       ">
-        ${formatDate(contract.start_date)}
+        ${formatDate(
+          contract.start_date
+        )}
         →
-        ${formatDate(contract.end_date)}
+        ${formatDate(
+          contract.end_date
+        )}
       </div>
+
     </div>
 
     <div>
+
       <div class="label">
         Upcoming Renewal
       </div>
@@ -18714,29 +18721,54 @@ const contractDocuments =
               </div>
 
               <div style="
-                margin-top:8px;
+                margin-top:12px;
               ">
-             <a
-  class="btn"
-  href="/org-contract/${renewedToContract.id}/renewal-review?organization_id=${organizationId}"
-  style="
-    display:inline-block;
-    margin-top:8px;
-  "
->
-  Review Renewal
-</a>
+
+                <a
+                  class="btn"
+                  href="/org-contract/${renewedToContract.id}/renewal-review?organization_id=${organizationId}"
+                >
+                  ${
+                    String(
+                      renewedToContract.status || ""
+                    )
+                      .trim()
+                      .toLowerCase() === "draft"
+                      ? "Review Renewal"
+                      : "View Scheduled Renewal"
+                  }
+                </a>
+
               </div>
             `
           : `
-              <strong>None</strong>
+              <strong>
+                None
+              </strong>
+
+              <div style="
+                margin-top:12px;
+              ">
+
+                <a
+                  class="btn"
+                  href="/org-contract/${contractId}/renew?organization_id=${organizationId}"
+                >
+                  Begin Renewal
+                </a>
+
+              </div>
             `
       }
+
     </div>
 
   </div>
 
 </div>
+
+
+
 
 <div class="card">
 
