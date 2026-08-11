@@ -20625,62 +20625,93 @@ app.get(
           .send("Organization not found.");
       }
 
-      const renewalsResult = await q(
-        `
-          SELECT
-            c.id,
-            c.contract_name,
-            c.total_contract_value,
-            c.status,
-            c.start_date,
-            c.end_date,
-            c.expiration_date,
-            c.renewal_date,
-            c.billing_frequency,
+  
+const renewalsResult = await q(
+  `
+    SELECT
+      c.id,
+      c.contract_name,
+      c.total_contract_value,
+      c.status,
+      c.start_date,
+      c.end_date,
+      c.expiration_date,
+      c.renewal_date,
+      c.billing_frequency,
 
-            s.name AS location_name,
+      s.name AS location_name,
 
-            COALESCE(
-              ar.business_name,
-              u.name,
-              u.email,
-              'Unknown Advertiser'
-            ) AS advertiser_name,
+      COALESCE(
+        ar.business_name,
+        u.name,
+        u.email,
+        'Unknown Advertiser'
+      ) AS advertiser_name,
 
-            COALESCE(
-              oo.title,
-              ar.opportunity_name,
-              c.contract_name
-            ) AS opportunity_name
+      COALESCE(
+        oo.title,
+        ar.opportunity_name,
+        c.contract_name
+      ) AS opportunity_name,
 
-          FROM contracts c
+      renewal.id AS renewal_contract_id,
+      renewal.status AS renewal_status,
+      renewal.start_date AS renewal_start_date,
+      renewal.end_date AS renewal_end_date,
+      renewal.total_contract_value
+        AS renewal_contract_value
 
-          LEFT JOIN spaces s
-            ON s.id = c.location_id
+    FROM contracts c
 
-          LEFT JOIN organization_advertising_requests ar
-            ON ar.id = c.advertising_request_id
-           AND ar.organization_id = c.organization_id
+    LEFT JOIN spaces s
+      ON s.id = c.location_id
 
-          LEFT JOIN organization_opportunities oo
-            ON oo.id = c.opportunity_id
-           AND oo.organization_id = c.organization_id
+    LEFT JOIN organization_advertising_requests ar
+      ON ar.id = c.advertising_request_id
+     AND ar.organization_id = c.organization_id
 
-          LEFT JOIN users u
-            ON u.id = c.customer_id
+    LEFT JOIN organization_opportunities oo
+      ON oo.id = c.opportunity_id
+     AND oo.organization_id = c.organization_id
 
-          WHERE c.organization_id = $1
-            AND LOWER(TRIM(c.status)) = 'active'
+    LEFT JOIN users u
+      ON u.id = c.customer_id
 
-          ORDER BY
-            COALESCE(
-              c.renewal_date,
-              c.expiration_date,
-              c.end_date
-            ) ASC
-        `,
-        [organizationId]
-      );
+    LEFT JOIN LATERAL (
+      SELECT
+        r.id,
+        r.status,
+        r.start_date,
+        r.end_date,
+        r.total_contract_value
+
+      FROM contracts r
+
+      WHERE r.renewed_from_contract_id = c.id
+        AND r.organization_id = c.organization_id
+
+      ORDER BY
+        r.contract_version DESC,
+        r.id DESC
+
+      LIMIT 1
+    ) renewal
+      ON true
+
+    WHERE c.organization_id = $1
+      AND LOWER(TRIM(c.status)) = 'active'
+
+    ORDER BY
+      COALESCE(
+        c.renewal_date,
+        c.expiration_date,
+        c.end_date
+      ) ASC
+  `,
+  [organizationId]
+);
+
+      
 
       const contracts =
         renewalsResult.rows;
