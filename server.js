@@ -22087,7 +22087,7 @@ const scheduledContracts =
       .trim()
       .toLowerCase() === "scheduled"
   );
-     const selectedContracts =
+const selectedContracts =
   selectedWindow === "30"
     ? upcoming30
     : selectedWindow === "60"
@@ -22096,7 +22096,9 @@ const scheduledContracts =
         ? upcoming90
         : selectedWindow === "scheduled"
           ? scheduledContracts
-          : attentionContracts;
+          : selectedWindow === "risk"
+            ? attentionContracts
+            : [];
       const scheduledRevenue =
   scheduledContracts.reduce(
     (total, contract) =>
