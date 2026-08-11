@@ -21638,7 +21638,37 @@ app.post(
             "Only draft contracts can be activated."
           );
       }
+  const executedAgreementResult = await q(
+    `
+      SELECT id
 
+      FROM contract_documents
+
+      WHERE contract_id = $1
+        AND is_current = true
+        AND LOWER(
+          TRIM(
+            COALESCE(
+              document_type,
+              ''
+            )
+          )
+        ) = 'executed agreement'
+
+      LIMIT 1
+    `,
+    [
+      contractId
+    ]
+  );
+
+  if (!executedAgreementResult.rows[0]) {
+    return res
+      .status(400)
+      .send(
+        "An Executed Agreement must be uploaded before this contract can be activated."
+      );
+  }
       await q(
         `
           UPDATE contracts
