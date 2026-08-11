@@ -21653,7 +21653,7 @@ app.post(
               ''
             )
           )
-        ) = 'executed agreement'
+        ) = 'signed agreement'
 
       LIMIT 1
     `,
