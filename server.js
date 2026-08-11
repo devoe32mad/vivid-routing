@@ -22580,7 +22580,7 @@ const revenueAtRisk90 =
   </div>
 </a>
            <a
-  href="/org-renewals?organization_id=${organizationId}&window=all"
+  href="/org-renewals?organization_id=${organizationId}&window=risk"
   class="card"
   style="
     display:block;
@@ -22674,15 +22674,17 @@ const revenueAtRisk90 =
 </div>
             <h2>
   ${
-    selectedWindow === "30"
-      ? "Renewals Due in 0–30 Days"
-      : selectedWindow === "60"
-        ? "Renewals Due in 31–60 Days"
-        : selectedWindow === "90"
-          ? "Renewals Due in 61–90 Days"
-          : selectedWindow === "scheduled"
-            ? "Scheduled Renewals"
-            : "Renewals Requiring Attention"
+   selectedWindow === "30"
+  ? "Renewals Due in 0–30 Days"
+  : selectedWindow === "60"
+    ? "Renewals Due in 31–60 Days"
+    : selectedWindow === "90"
+      ? "Renewals Due in 61–90 Days"
+      : selectedWindow === "scheduled"
+        ? "Scheduled Renewals"
+        : selectedWindow === "risk"
+          ? "Revenue at Risk"
+          : "Renewals Requiring Attention"
   }
 </h2>
 
@@ -22692,15 +22694,17 @@ const revenueAtRisk90 =
   margin-bottom:16px;
 ">
   ${
-    selectedWindow === "30"
-      ? "Active contracts requiring renewal action within the next 30 days."
-      : selectedWindow === "60"
-        ? "Active contracts requiring renewal action in 31–60 days."
-        : selectedWindow === "90"
-          ? "Active contracts requiring renewal action in 61–90 days."
-          : selectedWindow === "scheduled"
-            ? "Renewals already approved and scheduled for their next contract term."
-            : "Active contracts requiring renewal action within the next 90 days."
+   selectedWindow === "30"
+  ? "Active contracts requiring renewal action within the next 30 days."
+  : selectedWindow === "60"
+    ? "Active contracts requiring renewal action in 31–60 days."
+    : selectedWindow === "90"
+      ? "Active contracts requiring renewal action in 61–90 days."
+      : selectedWindow === "scheduled"
+        ? "Renewals already approved and scheduled for their next contract term."
+        : selectedWindow === "risk"
+          ? "Active contracts requiring renewal action within the next 90 days."
+          : "Select a renewal category to review upcoming renewals."
   }
 </p>  
 
