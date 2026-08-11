@@ -21790,6 +21790,56 @@ const selectedWindow =
   allowedWindows.includes(requestedWindow)
     ? requestedWindow
     : "all";
+  const requestedLocationId =
+  Number(
+    req.query.location_id
+  );
+
+const selectedLocationId =
+  Number.isInteger(requestedLocationId) &&
+  requestedLocationId > 0
+    ? requestedLocationId
+    : null; 
+const locationsResult = await q(
+  `
+    SELECT
+      id,
+      name
+
+    FROM spaces
+
+    WHERE organization_id = $1
+      AND COALESCE(is_archived, false) = false
+
+    ORDER BY name
+  `,
+  [
+    organizationId
+  ]
+);
+
+const renewalLocations =
+  locationsResult.rows;
+      const renewalLocationOptions = [
+  `
+    <option value="">
+      All Locations
+    </option>
+  `,
+  ...renewalLocations.map(location => `
+    <option
+      value="${location.id}"
+      ${
+        Number(selectedLocationId) ===
+        Number(location.id)
+          ? "selected"
+          : ""
+      }
+    >
+      ${escapeHtml(location.name)}
+    </option>
+  `)
+].join("");
       /*
         Load CURRENT active contracts only.
 
@@ -21801,7 +21851,24 @@ const selectedWindow =
         - Draft
         - Scheduled
       */
+const renewalQueryValues = [
+  organizationId
+];
 
+const renewalWhereParts = [
+  "c.organization_id = $1",
+  "LOWER(TRIM(c.status)) = 'active'"
+];
+
+if (selectedLocationId) {
+  renewalQueryValues.push(
+    selectedLocationId
+  );
+
+  renewalWhereParts.push(
+    `c.location_id = $${renewalQueryValues.length}`
+  );
+}
       const renewalsResult = await q(
         `
           SELECT
@@ -21886,8 +21953,8 @@ const selectedWindow =
           ) renewal
             ON true
 
-          WHERE c.organization_id = $1
-            AND LOWER(TRIM(c.status)) = 'active'
+         WHERE
+  ${renewalWhereParts.join("\nAND ")}
 
           ORDER BY
             COALESCE(
@@ -21896,7 +21963,7 @@ const selectedWindow =
               c.end_date
             ) ASC
         `,
-        [organizationId]
+        renewalQueryValues
       );
 
       const contracts =
@@ -22525,7 +22592,66 @@ const revenueAtRisk90 =
     contracts within 90 days
   </div>
 </a>     
+<div class="card" style="margin-bottom:24px;">
+  <form
+    method="GET"
+    action="/org-renewals"
+    style="
+      display:flex;
+      align-items:end;
+      gap:12px;
+      flex-wrap:wrap;
+    "
+  >
+    <input
+      type="hidden"
+      name="organization_id"
+      value="${organizationId}"
+    >
 
+    <input
+      type="hidden"
+      name="window"
+      value="${selectedWindow}"
+    >
+
+    <div style="
+      min-width:260px;
+      flex:1;
+    ">
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        color:#65776b;
+        margin-bottom:7px;
+      ">
+        Location
+      </label>
+
+      <select
+        name="location_id"
+        style="
+          width:100%;
+          padding:12px 14px;
+          border:1px solid #d7dfd8;
+          border-radius:10px;
+          background:white;
+          box-sizing:border-box;
+        "
+      >
+        ${renewalLocationOptions}
+      </select>
+    </div>
+
+    <button
+      type="submit"
+      class="btn"
+    >
+      Apply
+    </button>
+  </form>
+</div>
             <h2>
   ${
     selectedWindow === "30"
