@@ -18889,31 +18889,89 @@ const contractDocuments =
   </div>
 
   ${
-    String(contract.status || "")
-      .trim()
-      .toLowerCase() === "draft"
-      ? `
-          <form
-            method="POST"
-            action="/org-contract/${contractId}/activate"
-            style="margin-top:12px;"
-          >
-            <input
-              type="hidden"
-              name="organization_id"
-              value="${organizationId}"
-            >
+  String(contract.status || "")
+    .trim()
+    .toLowerCase() === "draft"
+    ? `
+        ${
+          hasExecutedAgreement
+            ? `
+                <div style="
+                  margin-top:12px;
+                ">
+                  <div style="
+                    color:#315b4c;
+                    font-size:13px;
+                    margin-bottom:10px;
+                  ">
+                    Executed agreement uploaded.
+                    This contract is ready to activate.
+                  </div>
 
-            <button
-              class="btn"
-              type="submit"
-            >
-              Activate Contract
-            </button>
-          </form>
-        `
-      : ""
-  }
+                  <form
+                    method="POST"
+                    action="/org-contract/${contractId}/activate"
+                    style="margin:0;"
+                  >
+                    <input
+                      type="hidden"
+                      name="organization_id"
+                      value="${organizationId}"
+                    >
+
+                    <button
+                      class="btn"
+                      type="submit"
+                    >
+                      Activate Contract
+                    </button>
+                  </form>
+                </div>
+              `
+            : `
+                <div style="
+                  margin-top:12px;
+                  padding:14px 16px;
+                  border:1px solid #d7dfd8;
+                  border-radius:10px;
+                  background:#f7faf8;
+                  line-height:1.5;
+                ">
+
+                  <strong>
+                    Executed agreement required to activate
+                  </strong>
+
+                  <div style="
+                    margin-top:6px;
+                    color:#65776b;
+                    font-size:13px;
+                  ">
+                    Upload the executed agreement before
+                    activating this contract. Electronic
+                    signatures, scanned handwritten signatures,
+                    and other accepted signed formats may be used.
+                    Other supporting documents can be uploaded
+                    at any time.
+                  </div>
+
+                  <div style="
+                    margin-top:12px;
+                  ">
+                    <a
+                      class="btn"
+                      href="/org-contract/${contractId}/documents/upload?organization_id=${organizationId}"
+                    >
+                      Upload Executed Agreement
+                    </a>
+                  </div>
+
+                </div>
+              `
+        }
+      `
+    : ""
+}
 
 </div>
 
