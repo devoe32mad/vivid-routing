@@ -22449,7 +22449,16 @@ const revenueAtRisk90 =
 
             <div class="wrap">
 
-              <div class="cards">
+              <div
+  class="cards"
+  style="
+    display:grid;
+    grid-template-columns:repeat(5, minmax(0, 1fr));
+    gap:14px;
+    align-items:stretch;
+    margin-bottom:24px;
+  "
+>
 <a
   href="/org-renewals?organization_id=${organizationId}&window=30"
   class="card"
@@ -22588,7 +22597,7 @@ const revenueAtRisk90 =
     color:inherit;
     cursor:pointer;
     ${
-      selectedWindow === "all"
+      selectedWindow === "risk"
         ? "box-shadow:0 0 0 2px #1f6f43;"
         : ""
     }
