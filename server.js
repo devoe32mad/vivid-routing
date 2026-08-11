@@ -1042,6 +1042,222 @@ function orgDateFilterForm({
     </form>
   `;
 }
+async function processScheduledContractRenewals() {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    /*
+      Find scheduled renewals whose
+      start date has arrived.
+
+      Lock them so the same renewal
+      cannot be processed twice.
+    */
+
+    const scheduledResult =
+      await client.query(`
+        SELECT
+          renewal.id,
+          renewal.organization_id,
+          renewal.renewed_from_contract_id,
+          renewal.start_date,
+          renewal.end_date,
+          renewal.contract_name
+
+        FROM contracts renewal
+
+        WHERE LOWER(
+          TRIM(
+            COALESCE(
+              renewal.status,
+              ''
+            )
+          )
+        ) = 'scheduled'
+
+          AND renewal.start_date IS NOT NULL
+
+          AND renewal.start_date <= CURRENT_DATE
+
+          AND renewal.renewed_from_contract_id
+              IS NOT NULL
+
+        ORDER BY
+          renewal.start_date,
+          renewal.id
+
+        FOR UPDATE SKIP LOCKED
+      `);
+
+    for (
+      const renewal of
+      scheduledResult.rows
+    ) {
+      /*
+        Activate the new contract.
+      */
+
+      await client.query(
+        `
+          UPDATE contracts
+
+          SET
+            status = 'Active',
+            activated_at =
+              COALESCE(
+                activated_at,
+                CURRENT_TIMESTAMP
+              ),
+            updated_at =
+              CURRENT_TIMESTAMP
+
+          WHERE id = $1
+            AND organization_id = $2
+            AND LOWER(
+              TRIM(
+                COALESCE(
+                  status,
+                  ''
+                )
+              )
+            ) = 'scheduled'
+        `,
+        [
+          renewal.id,
+          renewal.organization_id
+        ]
+      );
+
+      /*
+        Retire the prior/current term.
+      */
+
+      await client.query(
+        `
+          UPDATE contracts
+
+          SET
+            status = 'Renewed',
+            renewed_at =
+              COALESCE(
+                renewed_at,
+                CURRENT_TIMESTAMP
+              ),
+            updated_at =
+              CURRENT_TIMESTAMP
+
+          WHERE id = $1
+            AND organization_id = $2
+            AND LOWER(
+              TRIM(
+                COALESCE(
+                  status,
+                  ''
+                )
+              )
+            ) = 'active'
+        `,
+        [
+          renewal.renewed_from_contract_id,
+          renewal.organization_id
+        ]
+      );
+
+      /*
+        Log transition on prior contract.
+      */
+
+      await client.query(
+        `
+          INSERT INTO contract_activity (
+            contract_id,
+            organization_id,
+            user_id,
+            activity_type,
+            comment,
+            created_at
+          )
+
+          VALUES (
+            $1,
+            $2,
+            NULL,
+            'Contract Renewed',
+            'Contract term completed and scheduled renewal became active.',
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          renewal.renewed_from_contract_id,
+          renewal.organization_id
+        ]
+      );
+
+      /*
+        Log transition on new contract.
+      */
+
+      await client.query(
+        `
+          INSERT INTO contract_activity (
+            contract_id,
+            organization_id,
+            user_id,
+            activity_type,
+            comment,
+            created_at
+          )
+
+          VALUES (
+            $1,
+            $2,
+            NULL,
+            'Contract Activated',
+            'Scheduled renewal automatically became active on its start date.',
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          renewal.id,
+          renewal.organization_id
+        ]
+      );
+
+      console.log(
+        "SCHEDULED CONTRACT RENEWAL ACTIVATED:",
+        {
+          new_contract_id:
+            renewal.id,
+
+          prior_contract_id:
+            renewal.renewed_from_contract_id,
+
+          organization_id:
+            renewal.organization_id
+        }
+      );
+    }
+
+    await client.query("COMMIT");
+
+    return scheduledResult.rows.length;
+
+  } catch (err) {
+    await client.query("ROLLBACK");
+
+    console.error(
+      "SCHEDULED CONTRACT RENEWAL ERROR:",
+      err
+    );
+
+    throw err;
+
+  } finally {
+    client.release();
+  }
+}
 app.get("/seed-admin", async (req, res) => {
   try {
     await q(`
@@ -65187,5 +65403,53 @@ app.get("/test-email", async (req, res) => {
 
 });
 app.listen(port, () => {
-  console.log("Server running on port " + port);
+  console.log(
+    "Server running on port " + port
+  );
+
+  /*
+    Process any renewal whose start
+    date has already arrived.
+  */
+
+  processScheduledContractRenewals()
+    .then(count => {
+      console.log(
+        "Scheduled renewal startup check complete:",
+        count
+      );
+    })
+    .catch(err => {
+      console.error(
+        "Scheduled renewal startup check failed:",
+        err
+      );
+    });
+
+  /*
+    Check once per hour.
+
+    This keeps scheduled renewals
+    moving automatically without
+    requiring an organization user
+    to log in or click anything.
+  */
+
+  setInterval(() => {
+    processScheduledContractRenewals()
+      .then(count => {
+        if (count > 0) {
+          console.log(
+            "Scheduled renewals activated:",
+            count
+          );
+        }
+      })
+      .catch(err => {
+        console.error(
+          "Scheduled renewal hourly check failed:",
+          err
+        );
+      });
+  }, 60 * 60 * 1000);
 });
