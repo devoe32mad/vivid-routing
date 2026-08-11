@@ -36283,9 +36283,9 @@ ${
                         color:#52645a;
                         line-height:1.6;
                       ">
-                        Approving this request will create or connect
-                        the advertiser's Vivid Core account and generate
-                        a secure setup link.
+                       Review the contract terms below. Approving this request will create or connect
+the advertiser's Vivid account, create the contract, and continue directly to
+Contract Detail.
                       </p>
 
                       <div style="
