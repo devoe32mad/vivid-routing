@@ -19515,30 +19515,6 @@ This contract is ready to activate.
 
       </div>
 
-      ${
-        String(contract.status || "")
-          .trim()
-          .toLowerCase() === "active"
-          ? `
-              <div style="
-                margin-top:20px;
-                display:flex;
-                gap:12px;
-                flex-wrap:wrap;
-              ">
-                <a
-                  class="btn"
-                  href="/org-contract/${contractId}/renew?organization_id=${organizationId}"
-                >
-                  Begin Renewal
-                </a>
-              </div>
-            `
-          : ""
-      }
-
-    
-
   </div>
       `
     )
