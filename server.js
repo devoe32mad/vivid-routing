@@ -21850,7 +21850,20 @@ const renewalLocations =
         - Not Started
         - Draft
         - Scheduled
-      */
+ */
+  const selectedLocation =
+  selectedLocationId
+    ? renewalLocations.find(
+        location =>
+          Number(location.id) ===
+          Number(selectedLocationId)
+      )
+    : null;
+
+const renewalScopeLabel =
+  selectedLocation
+    ? selectedLocation.name
+    : "All Locations";    
 const renewalQueryValues = [
   organizationId
 ];
