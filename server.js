@@ -21974,9 +21974,30 @@ const upcoming90 =
 
         
 
-      const attentionContracts =
-        upcoming90;
-
+    const attentionContracts = [
+  ...upcoming30,
+  ...upcoming60,
+  ...upcoming90
+];
+const scheduledContracts =
+  contracts.filter(contract =>
+    String(
+      contract.renewal_status || ""
+    )
+      .trim()
+      .toLowerCase() === "scheduled"
+  );
+      const scheduledRevenue =
+  scheduledContracts.reduce(
+    (total, contract) =>
+      total +
+      Number(
+        contract.renewal_contract_value ||
+        contract.total_contract_value ||
+        0
+      ),
+    0
+  );
       const futureContracts =
         contracts.filter(contract => {
           const date =
