@@ -21773,23 +21773,25 @@ app.get(
       }
 const requestedWindow =
   String(
-    req.query.window || "all"
+    req.query.window || "dashboard"
   )
     .trim()
     .toLowerCase();
 
 const allowedWindows = [
-  "all",
+  "dashboard",
   "30",
   "60",
   "90",
-  "scheduled"
+  "scheduled",
+  "risk"
 ];
 
 const selectedWindow =
   allowedWindows.includes(requestedWindow)
     ? requestedWindow
-    : "all";
+    : "dashboard";
+
   const requestedLocationId =
   Number(
     req.query.location_id
