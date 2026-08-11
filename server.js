@@ -20865,20 +20865,52 @@ const attentionRows =
               )}
             </td>
 
-            <td>
-              <a
-                class="btn"
-                href="/org-contract/${contract.id}?organization_id=${organizationId}"
-              >
-                Open
-              </a>
-            </td>
+<td>
+  ${
+    contract.renewal_status
+      ? escapeHtml(contract.renewal_status)
+      : "Not Started"
+  }
+</td>
+
+<td>
+  ${
+    !contract.renewal_contract_id
+      ? `
+          <a
+            class="btn"
+            href="/org-contract/${contract.id}/renew?organization_id=${organizationId}"
+          >
+            Begin Renewal
+          </a>
+        `
+      : String(contract.renewal_status || "")
+          .trim()
+          .toLowerCase() === "draft"
+        ? `
+            <a
+              class="btn"
+              href="/org-contract/${contract.renewal_contract_id}/renewal-review?organization_id=${organizationId}"
+            >
+              Review & Approve
+            </a>
+          `
+        : `
+            <a
+              class="btn"
+              href="/org-contract/${contract.renewal_contract_id}/renewal-review?organization_id=${organizationId}"
+            >
+              View Scheduled Renewal
+            </a>
+          `
+  }
+</td>
           </tr>
         `)
         .join("")
     : `
         <tr>
-          <td colspan="6">
+          <td colspan="7">
             No renewals require attention
             within the next 90 days.
           </td>
@@ -21035,6 +21067,7 @@ const futureRows =
       <th>Opportunity</th>
       <th>Renewal Date</th>
       <th>Contract Value</th>
+      <th>Renewal Status</th>
       <th>Action</th>
     </tr>
   </thead>
