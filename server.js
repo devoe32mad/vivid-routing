@@ -18914,69 +18914,74 @@ const contractDocuments =
         Upcoming Renewal
       </div>
 
-      ${
-        renewedToContract
-          ? `
-              <strong>
-                ${escapeHtml(
-                  renewedToContract.status || "Draft"
-                )}
-              </strong>
+    ${
+  renewedToContract
+    ? `
+        <strong>
+          ${escapeHtml(
+            renewedToContract.status || "Draft"
+          )}
+        </strong>
 
-              <div style="
-                color:#65776b;
-                margin-top:6px;
-                font-size:13px;
-              ">
-                ${formatDate(
-                  renewedToContract.start_date
-                )}
-                →
-                ${formatDate(
-                  renewedToContract.end_date
-                )}
-              </div>
+        <div style="
+          color:#65776b;
+          margin-top:6px;
+          font-size:13px;
+        ">
+          ${formatDate(
+            renewedToContract.start_date
+          )}
+          →
+          ${formatDate(
+            renewedToContract.end_date
+          )}
+        </div>
 
-              <div style="
-                margin-top:12px;
-              ">
+        <div style="
+          margin-top:12px;
+        ">
+          <a
+            class="btn"
+            href="/org-contract/${renewedToContract.id}/renewal-review?organization_id=${organizationId}"
+          >
+            ${
+              String(
+                renewedToContract.status || ""
+              )
+                .trim()
+                .toLowerCase() === "draft"
+                ? "Review Renewal"
+                : "View Scheduled Renewal"
+            }
+          </a>
+        </div>
+      `
+    : `
+        <strong>
+          None
+        </strong>
 
-                <a
-                  class="btn"
-                  href="/org-contract/${renewedToContract.id}/renewal-review?organization_id=${organizationId}"
-                >
-                  ${
-                    String(
-                      renewedToContract.status || ""
-                    )
-                      .trim()
-                      .toLowerCase() === "draft"
-                      ? "Review Renewal"
-                      : "View Scheduled Renewal"
-                  }
-                </a>
-
-              </div>
-            `
-          : `
-              <strong>
-                None
-              </strong>
-
-              <div style="
-                margin-top:12px;
-              ">
-
-                <a
-                  class="btn"
-                  href="/org-contract/${contractId}/renew?organization_id=${organizationId}"
-                >
-                  Begin Renewal
-                </a>
-
-              </div>
-            `
-      }
+        ${
+          String(contract.status || "")
+            .trim()
+            .toLowerCase() === "active"
+            ? `
+                <div style="
+                  margin-top:12px;
+                ">
+                  <a
+                    class="btn"
+                    href="/org-contract/${contractId}/renew?organization_id=${organizationId}"
+                  >
+                    Begin Renewal
+                  </a>
+                </div>
+              `
+            : ""
+        }
+      `
+}
+    
 
     </div>
 
