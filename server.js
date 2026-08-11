@@ -22008,7 +22008,24 @@ const scheduledContracts =
             date > daysFromNow(90)
           );
         });
+const revenueAtRiskFor = contracts =>
+  contracts.reduce(
+    (total, contract) =>
+      total +
+      Number(
+        contract.total_contract_value || 0
+      ),
+    0
+  );
 
+const revenueAtRisk30 =
+  revenueAtRiskFor(upcoming30);
+
+const revenueAtRisk60 =
+  revenueAtRiskFor(upcoming60);
+
+const revenueAtRisk90 =
+  revenueAtRiskFor(upcoming90);
       const revenueAtRisk =
         attentionContracts.reduce(
           (total, contract) =>
