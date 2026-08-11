@@ -18633,6 +18633,15 @@ const contractActivity =
 
 const contractDocuments =
   documentsResult.rows;
+      const hasExecutedAgreement =
+  contractDocuments.some(document =>
+    String(
+      document.document_type || ""
+    )
+      .trim()
+      .toLowerCase() ===
+      "executed agreement"
+  );
       const money = value =>
         "$" +
         Number(value || 0).toLocaleString(
