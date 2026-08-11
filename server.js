@@ -21900,41 +21900,79 @@ app.get(
           contract.end_date
         );
 
-      const upcoming30 =
-        contracts.filter(contract => {
-          const date =
-            renewalDateFor(contract);
+     const daysUntilRenewal = contract => {
+  const date =
+    renewalDateFor(contract);
 
-          return (
-            !Number.isNaN(date.getTime()) &&
-            date >= today &&
-            date <= daysFromNow(30)
-          );
-        });
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
 
-      const upcoming60 =
-        contracts.filter(contract => {
-          const date =
-            renewalDateFor(contract);
+  return Math.ceil(
+    (
+      date.getTime() -
+      today.getTime()
+    ) /
+    (
+      24 *
+      60 *
+      60 *
+      1000
+    )
+  );
+};
 
-          return (
-            !Number.isNaN(date.getTime()) &&
-            date >= today &&
-            date <= daysFromNow(60)
-          );
-        });
+const needsRenewalAction = contract => {
+  const status =
+    String(
+      contract.renewal_status || ""
+    )
+      .trim()
+      .toLowerCase();
 
-      const upcoming90 =
-        contracts.filter(contract => {
-          const date =
-            renewalDateFor(contract);
+  return status !== "scheduled";
+};
 
-          return (
-            !Number.isNaN(date.getTime()) &&
-            date >= today &&
-            date <= daysFromNow(90)
-          );
-        });
+const upcoming30 =
+  contracts.filter(contract => {
+    const days =
+      daysUntilRenewal(contract);
+
+    return (
+      days !== null &&
+      days >= 0 &&
+      days <= 30 &&
+      needsRenewalAction(contract)
+    );
+  });
+
+const upcoming60 =
+  contracts.filter(contract => {
+    const days =
+      daysUntilRenewal(contract);
+
+    return (
+      days !== null &&
+      days >= 31 &&
+      days <= 60 &&
+      needsRenewalAction(contract)
+    );
+  });
+
+const upcoming90 =
+  contracts.filter(contract => {
+    const days =
+      daysUntilRenewal(contract);
+
+    return (
+      days !== null &&
+      days >= 61 &&
+      days <= 90 &&
+      needsRenewalAction(contract)
+    );
+  });
+
+        
 
       const attentionContracts =
         upcoming90;
