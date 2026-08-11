@@ -36470,7 +36470,7 @@ ${
       )
     "
   >
-    Approve Request
+    Approve Request & Continue to Contract
   </button>
 </form>
                       </div>
