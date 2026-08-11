@@ -20591,6 +20591,7 @@ app.get(
     try {
       const organizationId = Number(
         req.query.organization_id ||
+        req.session.orgUser?.organization_id ||
         req.session.orgUser?.organizationId ||
         req.session.user?.organization_id
       );
@@ -20609,8 +20610,11 @@ app.get(
           SELECT
             id,
             name
+
           FROM organizations
+
           WHERE id = $1
+
           LIMIT 1
         `,
         [organizationId]
@@ -20625,93 +20629,114 @@ app.get(
           .send("Organization not found.");
       }
 
-  
-const renewalsResult = await q(
-  `
-    SELECT
-      c.id,
-      c.contract_name,
-      c.total_contract_value,
-      c.status,
-      c.start_date,
-      c.end_date,
-      c.expiration_date,
-      c.renewal_date,
-      c.billing_frequency,
+      /*
+        Load CURRENT active contracts only.
 
-      s.name AS location_name,
+        If an active contract already has a renewal,
+        attach the latest renewal record so the
+        Renewals dashboard knows whether it is:
 
-      COALESCE(
-        ar.business_name,
-        u.name,
-        u.email,
-        'Unknown Advertiser'
-      ) AS advertiser_name,
+        - Not Started
+        - Draft
+        - Scheduled
+      */
 
-      COALESCE(
-        oo.title,
-        ar.opportunity_name,
-        c.contract_name
-      ) AS opportunity_name,
+      const renewalsResult = await q(
+        `
+          SELECT
+            c.id,
+            c.contract_name,
+            c.total_contract_value,
+            c.status,
+            c.start_date,
+            c.end_date,
+            c.expiration_date,
+            c.renewal_date,
+            c.billing_frequency,
 
-      renewal.id AS renewal_contract_id,
-      renewal.status AS renewal_status,
-      renewal.start_date AS renewal_start_date,
-      renewal.end_date AS renewal_end_date,
-      renewal.total_contract_value
-        AS renewal_contract_value
+            s.name AS location_name,
 
-    FROM contracts c
+            COALESCE(
+              ar.business_name,
+              u.name,
+              u.email,
+              'Unknown Advertiser'
+            ) AS advertiser_name,
 
-    LEFT JOIN spaces s
-      ON s.id = c.location_id
+            COALESCE(
+              oo.title,
+              ar.opportunity_name,
+              c.contract_name
+            ) AS opportunity_name,
 
-    LEFT JOIN organization_advertising_requests ar
-      ON ar.id = c.advertising_request_id
-     AND ar.organization_id = c.organization_id
+            renewal.id
+              AS renewal_contract_id,
 
-    LEFT JOIN organization_opportunities oo
-      ON oo.id = c.opportunity_id
-     AND oo.organization_id = c.organization_id
+            renewal.status
+              AS renewal_status,
 
-    LEFT JOIN users u
-      ON u.id = c.customer_id
+            renewal.start_date
+              AS renewal_start_date,
 
-    LEFT JOIN LATERAL (
-      SELECT
-        r.id,
-        r.status,
-        r.start_date,
-        r.end_date,
-        r.total_contract_value
+            renewal.end_date
+              AS renewal_end_date,
 
-      FROM contracts r
+            renewal.total_contract_value
+              AS renewal_contract_value
 
-      WHERE r.renewed_from_contract_id = c.id
-        AND r.organization_id = c.organization_id
+          FROM contracts c
 
-      ORDER BY
-        r.contract_version DESC,
-        r.id DESC
+          LEFT JOIN spaces s
+            ON s.id = c.location_id
 
-      LIMIT 1
-    ) renewal
-      ON true
+          LEFT JOIN organization_advertising_requests ar
+            ON ar.id = c.advertising_request_id
+           AND ar.organization_id =
+               c.organization_id
 
-    WHERE c.organization_id = $1
-      AND LOWER(TRIM(c.status)) = 'active'
+          LEFT JOIN organization_opportunities oo
+            ON oo.id = c.opportunity_id
+           AND oo.organization_id =
+               c.organization_id
 
-    ORDER BY
-      COALESCE(
-        c.renewal_date,
-        c.expiration_date,
-        c.end_date
-      ) ASC
-  `,
-  [organizationId]
-);
+          LEFT JOIN users u
+            ON u.id = c.customer_id
 
-      
+          LEFT JOIN LATERAL (
+            SELECT
+              r.id,
+              r.status,
+              r.start_date,
+              r.end_date,
+              r.total_contract_value
+
+            FROM contracts r
+
+            WHERE
+              r.renewed_from_contract_id = c.id
+              AND r.organization_id =
+                  c.organization_id
+
+            ORDER BY
+              r.contract_version DESC,
+              r.id DESC
+
+            LIMIT 1
+          ) renewal
+            ON true
+
+          WHERE c.organization_id = $1
+            AND LOWER(TRIM(c.status)) = 'active'
+
+          ORDER BY
+            COALESCE(
+              c.renewal_date,
+              c.expiration_date,
+              c.end_date
+            ) ASC
+        `,
+        [organizationId]
+      );
 
       const contracts =
         renewalsResult.rows;
@@ -20732,7 +20757,7 @@ const renewalsResult = await q(
           contract.end_date
         );
 
-      const upcoming90 =
+      const upcoming30 =
         contracts.filter(contract => {
           const date =
             renewalDateFor(contract);
@@ -20740,7 +20765,7 @@ const renewalsResult = await q(
           return (
             !Number.isNaN(date.getTime()) &&
             date >= today &&
-            date <= daysFromNow(90)
+            date <= daysFromNow(30)
           );
         });
 
@@ -20756,7 +20781,7 @@ const renewalsResult = await q(
           );
         });
 
-      const upcoming30 =
+      const upcoming90 =
         contracts.filter(contract => {
           const date =
             renewalDateFor(contract);
@@ -20764,12 +20789,26 @@ const renewalsResult = await q(
           return (
             !Number.isNaN(date.getTime()) &&
             date >= today &&
-            date <= daysFromNow(30)
+            date <= daysFromNow(90)
+          );
+        });
+
+      const attentionContracts =
+        upcoming90;
+
+      const futureContracts =
+        contracts.filter(contract => {
+          const date =
+            renewalDateFor(contract);
+
+          return (
+            !Number.isNaN(date.getTime()) &&
+            date > daysFromNow(90)
           );
         });
 
       const revenueAtRisk =
-        upcoming90.reduce(
+        attentionContracts.reduce(
           (total, contract) =>
             total +
             Number(
@@ -20791,7 +20830,8 @@ const renewalsResult = await q(
       const formatDate = value => {
         if (!value) return "—";
 
-        const date = new Date(value);
+        const date =
+          new Date(value);
 
         if (Number.isNaN(date.getTime())) {
           return "—";
@@ -20807,173 +20847,239 @@ const renewalsResult = await q(
         );
       };
 
+      const renewalStatusText =
+        contract => {
+          if (!contract.renewal_contract_id) {
+            return "Not Started";
+          }
+
+          const status =
+            String(
+              contract.renewal_status || ""
+            )
+              .trim()
+              .toLowerCase();
+
+          if (status === "draft") {
+            return "Draft";
+          }
+
+          if (status === "scheduled") {
+            return "Scheduled";
+          }
+
+          return (
+            contract.renewal_status ||
+            "In Progress"
+          );
+        };
+
+      const renewalAction =
+        contract => {
+          if (!contract.renewal_contract_id) {
+            return `
+              <a
+                class="btn"
+                href="/org-contract/${contract.id}/renew?organization_id=${organizationId}"
+                style="margin:0;"
+              >
+                Begin Renewal
+              </a>
+            `;
+          }
+
+          const status =
+            String(
+              contract.renewal_status || ""
+            )
+              .trim()
+              .toLowerCase();
+
+          if (status === "draft") {
+            return `
+              <a
+                class="btn"
+                href="/org-contract/${contract.renewal_contract_id}/renewal-review?organization_id=${organizationId}"
+                style="margin:0;"
+              >
+                Review & Approve
+              </a>
+            `;
+          }
+
+          if (status === "scheduled") {
+            return `
+              <a
+                class="btn"
+                href="/org-contract/${contract.renewal_contract_id}/renewal-review?organization_id=${organizationId}"
+                style="margin:0;"
+              >
+                View Scheduled Renewal
+              </a>
+            `;
+          }
+
+          return `
+            <a
+              class="btn"
+              href="/org-contract/${contract.renewal_contract_id}/renewal-review?organization_id=${organizationId}"
+              style="margin:0;"
+            >
+              Review Renewal
+            </a>
+          `;
+        };
+
+      const buildRenewalRows =
+        rows => {
+          if (!rows.length) {
+            return `
+              <tr>
+                <td
+                  colspan="7"
+                  style="
+                    text-align:center;
+                    padding:24px 14px;
+                    color:#65776b;
+                  "
+                >
+                  No contracts found in this renewal window.
+                </td>
+              </tr>
+            `;
+          }
+
+          return rows
+            .map(contract => `
+              <tr style="text-align:center;">
+
+                <td style="
+                  text-align:center;
+                  padding:14px 12px;
+                ">
+                  <strong>
+                    ${escapeHtml(
+                      contract.advertiser_name ||
+                      "—"
+                    )}
+                  </strong>
+                </td>
+
+                <td style="
+                  text-align:center;
+                  padding:14px 12px;
+                ">
+                  ${escapeHtml(
+                    contract.location_name ||
+                    "—"
+                  )}
+                </td>
+
+                <td style="
+                  text-align:center;
+                  padding:14px 12px;
+                ">
+                  ${escapeHtml(
+                    contract.opportunity_name ||
+                    "—"
+                  )}
+                </td>
+
+                <td style="
+                  text-align:center;
+                  padding:14px 12px;
+                  white-space:nowrap;
+                ">
+                  ${formatDate(
+                    contract.renewal_date ||
+                    contract.expiration_date ||
+                    contract.end_date
+                  )}
+                </td>
+
+                <td style="
+                  text-align:center;
+                  padding:14px 12px;
+                  white-space:nowrap;
+                ">
+                  ${money(
+                    contract.total_contract_value
+                  )}
+                </td>
+
+                <td style="
+                  text-align:center;
+                  padding:14px 12px;
+                ">
+                  <strong>
+                    ${escapeHtml(
+                      renewalStatusText(
+                        contract
+                      )
+                    )}
+                  </strong>
+                </td>
+
+                <td style="
+                  text-align:center;
+                  padding:14px 12px;
+                  white-space:nowrap;
+                ">
+                  ${renewalAction(contract)}
+                </td>
+
+              </tr>
+            `)
+            .join("");
+        };
+
+      const attentionRows =
+        attentionContracts.length
+          ? buildRenewalRows(
+              attentionContracts
+            )
+          : `
+              <tr>
+                <td
+                  colspan="7"
+                  style="
+                    text-align:center;
+                    padding:24px 14px;
+                    color:#65776b;
+                  "
+                >
+                  No renewals require attention
+                  within the next 90 days.
+                </td>
+              </tr>
+            `;
+
+      const futureRows =
+        futureContracts.length
+          ? buildRenewalRows(
+              futureContracts
+            )
+          : `
+              <tr>
+                <td
+                  colspan="7"
+                  style="
+                    text-align:center;
+                    padding:24px 14px;
+                    color:#65776b;
+                  "
+                >
+                  No future renewals found.
+                </td>
+              </tr>
+            `;
+
       const userName =
         req.session.orgUser?.name ||
         req.session.orgUser?.email ||
         req.session.user?.name ||
         req.session.user?.email ||
         "";
-
-      const attentionContracts =
-  upcoming90;
-
-const futureContracts =
-  contracts.filter(contract => {
-    const date =
-      renewalDateFor(contract);
-
-    return (
-      !Number.isNaN(date.getTime()) &&
-      date > daysFromNow(90)
-    );
-  });
-
-const attentionRows =
-  attentionContracts.length
-    ? attentionContracts
-        .map(contract => `
-          <tr>
-            <td>
-              ${escapeHtml(
-                contract.advertiser_name || "—"
-              )}
-            </td>
-
-            <td>
-              ${escapeHtml(
-                contract.location_name || "—"
-              )}
-            </td>
-
-            <td>
-              ${escapeHtml(
-                contract.opportunity_name || "—"
-              )}
-            </td>
-
-            <td>
-              ${formatDate(
-                contract.renewal_date ||
-                contract.expiration_date ||
-                contract.end_date
-              )}
-            </td>
-
-            <td>
-              ${money(
-                contract.total_contract_value
-              )}
-            </td>
-
-<td>
-  ${
-    contract.renewal_status
-      ? escapeHtml(contract.renewal_status)
-      : "Not Started"
-  }
-</td>
-
-<td>
-  ${
-    !contract.renewal_contract_id
-      ? `
-          <a
-            class="btn"
-            href="/org-contract/${contract.id}/renew?organization_id=${organizationId}"
-          >
-            Begin Renewal
-          </a>
-        `
-      : String(contract.renewal_status || "")
-          .trim()
-          .toLowerCase() === "draft"
-        ? `
-            <a
-              class="btn"
-              href="/org-contract/${contract.renewal_contract_id}/renewal-review?organization_id=${organizationId}"
-            >
-              Review & Approve
-            </a>
-          `
-        : `
-            <a
-              class="btn"
-              href="/org-contract/${contract.renewal_contract_id}/renewal-review?organization_id=${organizationId}"
-            >
-              View Scheduled Renewal
-            </a>
-          `
-  }
-</td>
-          </tr>
-        `)
-        .join("")
-    : `
-        <tr>
-          <td colspan="7">
-            No renewals require attention
-            within the next 90 days.
-          </td>
-        </tr>
-      `;
-
-const futureRows =
-  futureContracts.length
-    ? futureContracts
-        .map(contract => `
-          <tr>
-            <td>
-              ${escapeHtml(
-                contract.advertiser_name || "—"
-              )}
-            </td>
-
-            <td>
-              ${escapeHtml(
-                contract.location_name || "—"
-              )}
-            </td>
-
-            <td>
-              ${escapeHtml(
-                contract.opportunity_name || "—"
-              )}
-            </td>
-
-            <td>
-              ${formatDate(
-                contract.renewal_date ||
-                contract.expiration_date ||
-                contract.end_date
-              )}
-            </td>
-
-            <td>
-              ${money(
-                contract.total_contract_value
-              )}
-            </td>
-
-            <td>
-              <a
-                class="btn"
-                href="/org-contract/${contract.id}?organization_id=${organizationId}"
-              >
-                Open
-              </a>
-            </td>
-          </tr>
-        `)
-        .join("")
-    : `
-        <tr>
-          <td colspan="6">
-            No future renewals found.
-          </td>
-        </tr>
-      `;
-              
-        
 
       return res.send(
         orgPage(
@@ -20991,122 +21097,206 @@ const futureRows =
             })}
 
             <div class="topbar">
+
               <div class="brand">
                 Vivid Organizations
               </div>
-<h1>
-  Renewals
-</h1>
 
-<p class="subtitle">
-  Track upcoming contract renewals
-  and revenue at risk.
-</p>
+              <h1>
+                Renewals
+              </h1>
 
-</div>
+              <p class="subtitle">
+                Track upcoming renewals,
+                approvals, scheduled terms,
+                and revenue at risk.
+              </p>
 
-<div class="wrap">
+            </div>
 
-  <div class="cards">
+            <div class="wrap">
 
-    <div class="card">
-      <div class="label">
-        Renewing in 30 Days
-      </div>
-      <div class="num">
-        ${upcoming30.length}
-      </div>
-    </div>
+              <div class="cards">
 
-    <div class="card">
-      <div class="label">
-        Renewing in 60 Days
-      </div>
-      <div class="num">
-        ${upcoming60.length}
-      </div>
-    </div>
+                <div class="card">
+                  <div class="label">
+                    Renewing in 30 Days
+                  </div>
 
-    <div class="card">
-      <div class="label">
-        Renewing in 90 Days
-      </div>
-      <div class="num">
-        ${upcoming90.length}
-      </div>
-    </div>
+                  <div class="num">
+                    ${upcoming30.length}
+                  </div>
+                </div>
 
-    <div class="card">
-      <div class="label">
-        Revenue at Risk
-      </div>
-      <div class="num">
-        ${money(revenueAtRisk)}
-      </div>
-    </div>
+                <div class="card">
+                  <div class="label">
+                    Renewing in 60 Days
+                  </div>
 
-  </div>
-<h2>
-  Renewals Requiring Attention
-</h2>
+                  <div class="num">
+                    ${upcoming60.length}
+                  </div>
+                </div>
 
-<p style="
-  color:#65776b;
-  margin-top:-8px;
-  margin-bottom:16px;
-">
-  Active contracts with a renewal date
-  within the next 90 days.
-</p>
+                <div class="card">
+                  <div class="label">
+                    Renewing in 90 Days
+                  </div>
 
-<table>
-  <thead>
-    <tr>
-      <th>Advertiser</th>
-      <th>Location</th>
-      <th>Opportunity</th>
-      <th>Renewal Date</th>
-      <th>Contract Value</th>
-      <th>Renewal Status</th>
-      <th>Action</th>
-    </tr>
-  </thead>
+                  <div class="num">
+                    ${upcoming90.length}
+                  </div>
+                </div>
 
-  <tbody>
-    ${attentionRows}
-  </tbody>
-</table>
+                <div class="card">
+                  <div class="label">
+                    Revenue at Risk
+                  </div>
 
-<h2>
-  Future Renewals
-</h2>
+                  <div class="num">
+                    ${money(
+                      revenueAtRisk
+                    )}
+                  </div>
+                </div>
 
-<p style="
-  color:#65776b;
-  margin-top:-8px;
-  margin-bottom:16px;
-">
-  Active contracts with renewal dates
-  more than 90 days away.
-</p>
+              </div>
 
-<table>
-  <thead>
-    <tr>
-      <th>Advertiser</th>
-      <th>Location</th>
-      <th>Opportunity</th>
-      <th>Renewal Date</th>
-      <th>Contract Value</th>
-      <th>Action</th>
-    </tr>
-  </thead>
+              <h2>
+                Renewals Requiring Attention
+              </h2>
 
-  <tbody>
-    ${futureRows}
-  </tbody>
-</table>
+              <p style="
+                color:#65776b;
+                margin-top:-8px;
+                margin-bottom:16px;
+              ">
+                Active contracts with a
+                renewal date within the
+                next 90 days.
+              </p>
 
+              <div style="
+                overflow-x:auto;
+              ">
+
+                <table style="
+                  width:100%;
+                  table-layout:fixed;
+                  text-align:center;
+                  border-collapse:collapse;
+                ">
+
+                  <thead>
+                    <tr style="
+                      text-align:center;
+                    ">
+                      <th style="text-align:center;">
+                        Advertiser
+                      </th>
+
+                      <th style="text-align:center;">
+                        Location
+                      </th>
+
+                      <th style="text-align:center;">
+                        Opportunity
+                      </th>
+
+                      <th style="text-align:center;">
+                        Renewal Date
+                      </th>
+
+                      <th style="text-align:center;">
+                        Contract Value
+                      </th>
+
+                      <th style="text-align:center;">
+                        Renewal Status
+                      </th>
+
+                      <th style="text-align:center;">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    ${attentionRows}
+                  </tbody>
+
+                </table>
+
+              </div>
+
+              <h2 style="
+                margin-top:34px;
+              ">
+                Future Renewals
+              </h2>
+
+              <p style="
+                color:#65776b;
+                margin-top:-8px;
+                margin-bottom:16px;
+              ">
+                Active contracts with
+                renewal dates more than
+                90 days away.
+              </p>
+
+              <div style="
+                overflow-x:auto;
+              ">
+
+                <table style="
+                  width:100%;
+                  table-layout:fixed;
+                  text-align:center;
+                  border-collapse:collapse;
+                ">
+
+                  <thead>
+                    <tr style="
+                      text-align:center;
+                    ">
+                      <th style="text-align:center;">
+                        Advertiser
+                      </th>
+
+                      <th style="text-align:center;">
+                        Location
+                      </th>
+
+                      <th style="text-align:center;">
+                        Opportunity
+                      </th>
+
+                      <th style="text-align:center;">
+                        Renewal Date
+                      </th>
+
+                      <th style="text-align:center;">
+                        Contract Value
+                      </th>
+
+                      <th style="text-align:center;">
+                        Renewal Status
+                      </th>
+
+                      <th style="text-align:center;">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    ${futureRows}
+                  </tbody>
+
+                </table>
+
+              </div>
 
             </div>
           `
@@ -21119,13 +21309,17 @@ const futureRows =
         err
       );
 
-      return res.status(500).send(
-        "Unable to load Renewals: " +
-        err.message
-      );
+      return res
+        .status(500)
+        .send(
+          "Unable to load Renewals: " +
+          err.message
+        );
     }
   }
 );
+       
+
 app.get(
   "/org-locations",
   async (req, res) => {
