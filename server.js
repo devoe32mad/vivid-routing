@@ -21620,7 +21620,14 @@ app.post(
 
       const contract =
         contractResult.rows[0] || null;
-
+console.log(
+  "ACTIVATE CONTRACT DEBUG:",
+  {
+    contractId,
+    organizationId,
+    contract
+  }
+);
       if (!contract) {
         return res
           .status(404)
