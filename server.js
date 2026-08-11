@@ -18663,33 +18663,56 @@ const contractDocuments =
 
   <div class="formgrid">
 
-    <div>
+   <div>
 
-      <div class="label">
-        Current Contract
-      </div>
+  <div class="label">
+    Current Contract
+  </div>
 
-      <strong>
-        ${escapeHtml(
-          contract.status || "Draft"
-        )}
-      </strong>
+  <strong>
+    ${escapeHtml(
+      contract.status || "Draft"
+    )}
+  </strong>
 
-      <div style="
-        color:#65776b;
-        margin-top:6px;
-        font-size:13px;
-      ">
-        ${formatDate(
-          contract.start_date
-        )}
-        →
-        ${formatDate(
-          contract.end_date
-        )}
-      </div>
+  <div style="
+    color:#65776b;
+    margin-top:6px;
+    font-size:13px;
+  ">
+    ${formatDate(contract.start_date)}
+    →
+    ${formatDate(contract.end_date)}
+  </div>
 
-    </div>
+  ${
+    String(contract.status || "")
+      .trim()
+      .toLowerCase() === "draft"
+      ? `
+          <form
+            method="POST"
+            action="/org-contract/${contractId}/activate"
+            style="margin-top:12px;"
+          >
+            <input
+              type="hidden"
+              name="organization_id"
+              value="${organizationId}"
+            >
+
+            <button
+              class="btn"
+              type="submit"
+            >
+              Activate Contract
+            </button>
+          </form>
+        `
+      : ""
+  }
+
+</div>
 
     <div>
 
