@@ -21281,6 +21281,144 @@ console.log("ORG USER SESSION:", req.session.orgUser);
     }
   }
 );
+app.post(
+  "/org-contract/:contractId/activate",
+  async (req, res) => {
+    try {
+      const contractId =
+        Number(req.params.contractId);
+
+      const organizationId =
+        Number(
+          req.body.organization_id ||
+          req.query.organization_id ||
+          req.session.orgUser?.organization_id ||
+          req.session.orgUser?.organizationId ||
+          req.session.user?.organization_id
+        );
+
+      if (
+        !Number.isInteger(contractId) ||
+        contractId <= 0 ||
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "A valid contract and organization are required."
+          );
+      }
+
+      const contractResult = await q(
+        `
+          SELECT
+            id,
+            status
+
+          FROM contracts
+
+          WHERE id = $1
+            AND organization_id = $2
+
+          LIMIT 1
+        `,
+        [
+          contractId,
+          organizationId
+        ]
+      );
+
+      const contract =
+        contractResult.rows[0] || null;
+
+      if (!contract) {
+        return res
+          .status(404)
+          .send("Contract not found.");
+      }
+
+      if (
+        String(contract.status || "")
+          .trim()
+          .toLowerCase() !== "draft"
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Only draft contracts can be activated."
+          );
+      }
+
+      await q(
+        `
+          UPDATE contracts
+
+          SET
+            status = 'Active',
+            activated_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+
+          WHERE id = $1
+            AND organization_id = $2
+        `,
+        [
+          contractId,
+          organizationId
+        ]
+      );
+
+      const userId =
+        req.session.user?.id ||
+        req.session.orgUser?.id ||
+        null;
+
+      await q(
+        `
+          INSERT INTO contract_activity (
+            contract_id,
+            organization_id,
+            user_id,
+            activity_type,
+            comment,
+            created_at
+          )
+
+          VALUES (
+            $1,
+            $2,
+            $3,
+            'Contract Activated',
+            'Contract activated.',
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          contractId,
+          organizationId,
+          userId
+        ]
+      );
+
+      return res.redirect(
+        `/org-contract/${contractId}?organization_id=${organizationId}`
+      );
+
+    } catch (err) {
+      console.error(
+        "CONTRACT ACTIVATE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to activate Contract: " +
+          err.message
+        );
+    }
+  }
+);
 app.get(
   "/org-renewals",
   async (req, res) => {
