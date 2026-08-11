@@ -21771,7 +21771,25 @@ app.get(
           .status(404)
           .send("Organization not found.");
       }
+const requestedWindow =
+  String(
+    req.query.window || "all"
+  )
+    .trim()
+    .toLowerCase();
 
+const allowedWindows = [
+  "all",
+  "30",
+  "60",
+  "90",
+  "scheduled"
+];
+
+const selectedWindow =
+  allowedWindows.includes(requestedWindow)
+    ? requestedWindow
+    : "all";
       /*
         Load CURRENT active contracts only.
 
@@ -21987,6 +22005,16 @@ const scheduledContracts =
       .trim()
       .toLowerCase() === "scheduled"
   );
+     const selectedContracts =
+  selectedWindow === "30"
+    ? upcoming30
+    : selectedWindow === "60"
+      ? upcoming60
+      : selectedWindow === "90"
+        ? upcoming90
+        : selectedWindow === "scheduled"
+          ? scheduledContracts
+          : attentionContracts;
       const scheduledRevenue =
   scheduledContracts.reduce(
     (total, contract) =>
@@ -22252,27 +22280,26 @@ const revenueAtRisk90 =
             .join("");
         };
 
-      const attentionRows =
-        attentionContracts.length
-          ? buildRenewalRows(
-              attentionContracts
-            )
-          : `
-              <tr>
-                <td
-                  colspan="7"
-                  style="
-                    text-align:center;
-                    padding:24px 14px;
-                    color:#65776b;
-                  "
-                >
-                  No renewals require attention
-                  within the next 90 days.
-                </td>
-              </tr>
-            `;
-
+     const attentionRows =
+  selectedContracts.length
+    ? buildRenewalRows(
+        selectedContracts
+      )
+    : `
+        <tr>
+          <td
+            colspan="7"
+            style="
+              text-align:center;
+              padding:24px 14px;
+              color:#65776b;
+            "
+          >
+            No renewals found for the selected view.
+          </td>
+        </tr>
+      `;
+          
       const futureRows =
         futureContracts.length
           ? buildRenewalRows(
@@ -22336,64 +22363,200 @@ const revenueAtRisk90 =
             <div class="wrap">
 
               <div class="cards">
+<a
+  href="/org-renewals?organization_id=${organizationId}&window=30"
+  class="card"
+  style="
+    display:block;
+    text-decoration:none;
+    color:inherit;
+    cursor:pointer;
+    ${
+      selectedWindow === "30"
+        ? "box-shadow:0 0 0 2px #1f6f43;"
+        : ""
+    }
+  "
+>
+  <div class="label">
+    Due in 0–30 Days
+  </div>
 
-                <div class="card">
-                  <div class="label">
-                    Renewing in 30 Days
-                  </div>
+  <div class="num">
+    ${upcoming30.length}
+  </div>
 
-                  <div class="num">
-                    ${upcoming30.length}
-                  </div>
-                </div>
+  <div style="
+    margin-top:8px;
+    color:#65776b;
+    font-size:13px;
+    font-weight:700;
+  ">
+    ${money(revenueAtRisk30)} at risk
+  </div>
+</a>
+                <a
+  href="/org-renewals?organization_id=${organizationId}&window=60"
+  class="card"
+  style="
+    display:block;
+    text-decoration:none;
+    color:inherit;
+    cursor:pointer;
+    ${
+      selectedWindow === "60"
+        ? "box-shadow:0 0 0 2px #1f6f43;"
+        : ""
+    }
+  "
+>
+  <div class="label">
+    Due in 31–60 Days
+  </div>
 
-                <div class="card">
-                  <div class="label">
-                    Renewing in 60 Days
-                  </div>
+  <div class="num">
+    ${upcoming60.length}
+  </div>
 
-                  <div class="num">
-                    ${upcoming60.length}
-                  </div>
-                </div>
+  <div style="
+    margin-top:8px;
+    color:#65776b;
+    font-size:13px;
+    font-weight:700;
+  ">
+    ${money(revenueAtRisk60)} at risk
+  </div>
+</a>
 
-                <div class="card">
-                  <div class="label">
-                    Renewing in 90 Days
-                  </div>
+             <a
+  href="/org-renewals?organization_id=${organizationId}&window=90"
+  class="card"
+  style="
+    display:block;
+    text-decoration:none;
+    color:inherit;
+    cursor:pointer;
+    ${
+      selectedWindow === "90"
+        ? "box-shadow:0 0 0 2px #1f6f43;"
+        : ""
+    }
+  "
+>
+  <div class="label">
+    Due in 61–90 Days
+  </div>
 
-                  <div class="num">
-                    ${upcoming90.length}
-                  </div>
-                </div>
+  <div class="num">
+    ${upcoming90.length}
+  </div>
 
-                <div class="card">
-                  <div class="label">
-                    Revenue at Risk
-                  </div>
+  <div style="
+    margin-top:8px;
+    color:#65776b;
+    font-size:13px;
+    font-weight:700;
+  ">
+    ${money(revenueAtRisk90)} at risk
+  </div>
+</a>
+<a
+  href="/org-renewals?organization_id=${organizationId}&window=scheduled"
+  class="card"
+  style="
+    display:block;
+    text-decoration:none;
+    color:inherit;
+    cursor:pointer;
+    ${
+      selectedWindow === "scheduled"
+        ? "box-shadow:0 0 0 2px #1f6f43;"
+        : ""
+    }
+  "
+>
+  <div class="label">
+    Scheduled
+  </div>
 
-                  <div class="num">
-                    ${money(
-                      revenueAtRisk
-                    )}
-                  </div>
-                </div>
+  <div class="num">
+    ${scheduledContracts.length}
+  </div>
 
-              </div>
+  <div style="
+    margin-top:8px;
+    color:#65776b;
+    font-size:13px;
+    font-weight:700;
+  ">
+    ${money(scheduledRevenue)} secured
+  </div>
+</a>
+           <a
+  href="/org-renewals?organization_id=${organizationId}&window=all"
+  class="card"
+  style="
+    display:block;
+    text-decoration:none;
+    color:inherit;
+    cursor:pointer;
+    ${
+      selectedWindow === "all"
+        ? "box-shadow:0 0 0 2px #1f6f43;"
+        : ""
+    }
+  "
+>
+  <div class="label">
+    Revenue at Risk
+  </div>
 
-              <h2>
-                Renewals Requiring Attention
-              </h2>
+  <div class="num">
+    ${money(revenueAtRisk)}
+  </div>
 
-              <p style="
-                color:#65776b;
-                margin-top:-8px;
-                margin-bottom:16px;
-              ">
-                Active contracts with a
-                renewal date within the
-                next 90 days.
-              </p>
+  <div style="
+    margin-top:8px;
+    color:#65776b;
+    font-size:13px;
+    font-weight:700;
+  ">
+    ${attentionContracts.length}
+    contracts within 90 days
+  </div>
+</a>     
+
+            <h2>
+  ${
+    selectedWindow === "30"
+      ? "Renewals Due in 0–30 Days"
+      : selectedWindow === "60"
+        ? "Renewals Due in 31–60 Days"
+        : selectedWindow === "90"
+          ? "Renewals Due in 61–90 Days"
+          : selectedWindow === "scheduled"
+            ? "Scheduled Renewals"
+            : "Renewals Requiring Attention"
+  }
+</h2>
+
+<p style="
+  color:#65776b;
+  margin-top:-8px;
+  margin-bottom:16px;
+">
+  ${
+    selectedWindow === "30"
+      ? "Active contracts requiring renewal action within the next 30 days."
+      : selectedWindow === "60"
+        ? "Active contracts requiring renewal action in 31–60 days."
+        : selectedWindow === "90"
+          ? "Active contracts requiring renewal action in 61–90 days."
+          : selectedWindow === "scheduled"
+            ? "Renewals already approved and scheduled for their next contract term."
+            : "Active contracts requiring renewal action within the next 90 days."
+  }
+</p>  
 
               <div style="
                 overflow-x:auto;
@@ -22447,7 +22610,9 @@ const revenueAtRisk90 =
                 </table>
 
               </div>
-
+${
+  selectedWindow === "all"
+    ? `
               <h2 style="
                 margin-top:34px;
               ">
@@ -22516,7 +22681,9 @@ const revenueAtRisk90 =
                 </table>
 
               </div>
-
+      `
+    : ""
+}
             </div>
           `
         )
