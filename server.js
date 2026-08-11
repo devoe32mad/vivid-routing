@@ -19243,20 +19243,13 @@ app.get(
       const contractId =
         Number(req.params.contractId);
 
-      let organizationId = null;
-
-      if (req.session.orgUser?.organization_id) {
-        organizationId =
-          Number(req.session.orgUser.organization_id);
-      }
-
-      if (
-        !organizationId &&
-        req.session.user?.role === "super_admin"
-      ) {
-        organizationId =
-          Number(req.query.organization_id);
-      }
+      const organizationId =
+        Number(
+          req.query.organization_id ||
+          req.session.orgUser?.organization_id ||
+          req.session.orgUser?.organizationId ||
+          req.session.user?.organization_id
+        );
 
       if (
         !Number.isInteger(contractId) ||
@@ -19265,64 +19258,112 @@ app.get(
         organizationId <= 0
       ) {
         return res
-          .status(403)
-          .send("Renewal access denied.");
+          .status(400)
+          .send(
+            "A valid contract and organization are required."
+          );
       }
 
-      const contractResult = await q(
-        `
-          SELECT
-            c.*,
+      /*
+        If a renewal already exists,
+        do NOT create another one.
 
-            s.name AS location_name,
+        Send the user directly to the
+        existing renewal review page.
+      */
 
-            o.name AS organization_name,
+      const existingRenewalResult =
+        await q(
+          `
+            SELECT
+              id,
+              status
 
-            COALESCE(
-              ar.business_name,
-              u.name,
-              u.email,
-              'Unknown Advertiser'
-            ) AS advertiser_name,
+            FROM contracts
 
-            COALESCE(
-              oo.title,
-              ar.opportunity_name,
-              c.contract_name
-            ) AS opportunity_name
+            WHERE renewed_from_contract_id = $1
+              AND organization_id = $2
 
-          FROM contracts c
+            ORDER BY
+              contract_version DESC,
+              id DESC
 
-          LEFT JOIN spaces s
-            ON s.id = c.location_id
+            LIMIT 1
+          `,
+          [
+            contractId,
+            organizationId
+          ]
+        );
 
-          LEFT JOIN organizations o
-            ON o.id = c.organization_id
+      const existingRenewal =
+        existingRenewalResult.rows[0] ||
+        null;
 
-          LEFT JOIN organization_advertising_requests ar
-            ON ar.id = c.advertising_request_id
-           AND ar.organization_id = c.organization_id
+      if (existingRenewal) {
+        return res.redirect(
+          `/org-contract/${existingRenewal.id}/renewal-review?organization_id=${organizationId}`
+        );
+      }
 
-          LEFT JOIN organization_opportunities oo
-            ON oo.id = c.opportunity_id
-           AND oo.organization_id = c.organization_id
+      const contractResult =
+        await q(
+          `
+            SELECT
+              c.*,
 
-          LEFT JOIN users u
-            ON u.id = c.customer_id
+              o.name AS organization_name,
 
-          WHERE c.id = $1
-            AND c.organization_id = $2
+              s.name AS location_name,
 
-          LIMIT 1
-        `,
-        [
-          contractId,
-          organizationId
-        ]
-      );
+              COALESCE(
+                ar.business_name,
+                u.name,
+                u.email,
+                'Unknown Advertiser'
+              ) AS advertiser_name,
+
+              COALESCE(
+                oo.title,
+                ar.opportunity_name,
+                c.contract_name
+              ) AS opportunity_name
+
+            FROM contracts c
+
+            JOIN organizations o
+              ON o.id = c.organization_id
+
+            LEFT JOIN spaces s
+              ON s.id = c.location_id
+
+            LEFT JOIN organization_advertising_requests ar
+              ON ar.id = c.advertising_request_id
+             AND ar.organization_id =
+                 c.organization_id
+
+            LEFT JOIN organization_opportunities oo
+              ON oo.id = c.opportunity_id
+             AND oo.organization_id =
+                 c.organization_id
+
+            LEFT JOIN users u
+              ON u.id = c.customer_id
+
+            WHERE c.id = $1
+              AND c.organization_id = $2
+
+            LIMIT 1
+          `,
+          [
+            contractId,
+            organizationId
+          ]
+        );
 
       const contract =
-        contractResult.rows[0];
+        contractResult.rows[0] ||
+        null;
 
       if (!contract) {
         return res
@@ -19330,24 +19371,46 @@ app.get(
           .send("Contract not found.");
       }
 
-      if (
-        String(contract.status || "")
+      /*
+        Do not renew contracts that have
+        already reached a terminal state.
+
+        Draft is allowed here so your current
+        test contract can use the workflow.
+      */
+
+      const currentStatus =
+        String(
+          contract.status || ""
+        )
           .trim()
-          .toLowerCase() !== "active"
+          .toLowerCase();
+
+      if (
+        [
+          "renewed",
+          "cancelled",
+          "terminated"
+        ].includes(currentStatus)
       ) {
         return res
           .status(400)
           .send(
-            "Only active contracts can be renewed."
+            "This contract cannot be renewed."
           );
       }
 
       const dateInput = value => {
         if (!value) return "";
 
-        const date = new Date(value);
+        const date =
+          new Date(value);
 
-        if (Number.isNaN(date.getTime())) {
+        if (
+          Number.isNaN(
+            date.getTime()
+          )
+        ) {
           return "";
         }
 
@@ -19357,9 +19420,10 @@ app.get(
       };
 
       /*
-        Default new term:
-        day after current contract ends
-        through one year minus one day.
+        Default renewal term:
+
+        Start = day after current end date
+        End   = one year minus one day
       */
 
       const currentEnd =
@@ -19395,7 +19459,7 @@ app.get(
 
       return res.send(
         orgPage(
-          `Renew Contract - ${contract.contract_name}`,
+          `Begin Renewal - ${contract.contract_name}`,
           `
             ${organizationNav({
               organizationId,
@@ -19415,12 +19479,13 @@ app.get(
               </div>
 
               <h1>
-                Renew Contract
+                Begin Renewal
               </h1>
 
               <p class="subtitle">
-                Review the next contract term
-                before creating the renewal.
+                Review and update the next
+                contract term before creating
+                the renewal draft.
               </p>
 
             </div>
@@ -19440,7 +19505,7 @@ app.get(
               <div class="card">
 
                 <h2 style="margin-top:0;">
-                  Current Contract
+                  Current Relationship
                 </h2>
 
                 <div class="formgrid">
@@ -19452,7 +19517,8 @@ app.get(
 
                     <strong>
                       ${escapeHtml(
-                        contract.advertiser_name
+                        contract.advertiser_name ||
+                        "—"
                       )}
                     </strong>
                   </div>
@@ -19464,7 +19530,8 @@ app.get(
 
                     <strong>
                       ${escapeHtml(
-                        contract.location_name || "—"
+                        contract.location_name ||
+                        "—"
                       )}
                     </strong>
                   </div>
@@ -19476,22 +19543,22 @@ app.get(
 
                     <strong>
                       ${escapeHtml(
-                        contract.opportunity_name || "—"
+                        contract.opportunity_name ||
+                        "—"
                       )}
                     </strong>
                   </div>
 
                   <div>
                     <div class="label">
-                      Current Version
+                      Current Status
                     </div>
 
                     <strong>
-                      Version ${
-                        Number(
-                          contract.contract_version
-                        ) || 1
-                      }
+                      ${escapeHtml(
+                        contract.status ||
+                        "Draft"
+                      )}
                     </strong>
                   </div>
 
@@ -19502,8 +19569,19 @@ app.get(
               <div class="card">
 
                 <h2 style="margin-top:0;">
-                  New Contract Term
+                  Renewal Terms
                 </h2>
+
+                <p style="
+                  color:#65776b;
+                  line-height:1.5;
+                  margin-top:-4px;
+                ">
+                  Vivid has carried forward
+                  the current contract terms.
+                  Make any necessary changes
+                  before creating the renewal.
+                </p>
 
                 <form
                   method="POST"
@@ -19527,7 +19605,9 @@ app.get(
                         type="date"
                         name="start_date"
                         required
-                        value="${dateInput(newStart)}"
+                        value="${dateInput(
+                          newStart
+                        )}"
                       >
                     </div>
 
@@ -19540,7 +19620,9 @@ app.get(
                         type="date"
                         name="end_date"
                         required
-                        value="${dateInput(newEnd)}"
+                        value="${dateInput(
+                          newEnd
+                        )}"
                       >
                     </div>
 
@@ -19573,6 +19655,7 @@ app.get(
                         name="billing_frequency"
                         required
                       >
+
                         <option
                           value="Annual"
                           ${
@@ -19608,19 +19691,20 @@ app.get(
                         >
                           Quarterly
                         </option>
+
                       </select>
                     </div>
 
                   </div>
 
                   <div style="
-                    margin-top:18px;
+                    margin-top:20px;
                   ">
                     <button
                       class="btn"
                       type="submit"
                     >
-                      Create Renewal
+                      Create Renewal Draft
                     </button>
                   </div>
 
@@ -19648,6 +19732,7 @@ app.get(
     }
   }
 );
+
 app.post(
   "/org-contract/:contractId/renew",
   async (req, res) => {
@@ -19656,22 +19741,28 @@ app.post(
         Number(req.params.contractId);
 
       const organizationId =
-        Number(req.body.organization_id);
+        Number(
+          req.body.organization_id
+        );
 
       const startDate =
-        req.body.start_date || null;
+        req.body.start_date ||
+        null;
 
       const endDate =
-        req.body.end_date || null;
+        req.body.end_date ||
+        null;
 
       const totalContractValue =
         Number(
-          req.body.total_contract_value || 0
+          req.body.total_contract_value ||
+          0
         );
 
       const billingFrequency =
         String(
-          req.body.billing_frequency || ""
+          req.body.billing_frequency ||
+          ""
         ).trim();
 
       if (
@@ -19685,48 +19776,110 @@ app.post(
       ) {
         return res
           .status(400)
-          .send("Valid renewal information is required.");
+          .send(
+            "Valid renewal information is required."
+          );
       }
 
-      const currentResult = await q(
-        `
-          SELECT *
-          FROM contracts
-          WHERE id = $1
-            AND organization_id = $2
-          LIMIT 1
-        `,
-        [
-          contractId,
-          organizationId
-        ]
-      );
+      /*
+        Duplicate protection.
+      */
+
+      const existingRenewalResult =
+        await q(
+          `
+            SELECT
+              id,
+              status
+
+            FROM contracts
+
+            WHERE renewed_from_contract_id = $1
+              AND organization_id = $2
+
+            ORDER BY
+              contract_version DESC,
+              id DESC
+
+            LIMIT 1
+          `,
+          [
+            contractId,
+            organizationId
+          ]
+        );
+
+      const existingRenewal =
+        existingRenewalResult.rows[0] ||
+        null;
+
+      if (existingRenewal) {
+        return res.redirect(
+          `/org-contract/${existingRenewal.id}/renewal-review?organization_id=${organizationId}`
+        );
+      }
+
+      const currentResult =
+        await q(
+          `
+            SELECT *
+            FROM contracts
+
+            WHERE id = $1
+              AND organization_id = $2
+
+            LIMIT 1
+          `,
+          [
+            contractId,
+            organizationId
+          ]
+        );
 
       const currentContract =
-        currentResult.rows[0];
+        currentResult.rows[0] ||
+        null;
 
       if (!currentContract) {
         return res
           .status(404)
-          .send("Contract not found.");
+          .send(
+            "Contract not found."
+          );
       }
 
-      if (
-        String(currentContract.status || "")
+      const currentStatus =
+        String(
+          currentContract.status ||
+          ""
+        )
           .trim()
-          .toLowerCase() !== "active"
+          .toLowerCase();
+
+      if (
+        [
+          "renewed",
+          "cancelled",
+          "terminated"
+        ].includes(currentStatus)
       ) {
         return res
           .status(400)
           .send(
-            "Only active contracts can be renewed."
+            "This contract cannot be renewed."
           );
       }
 
       const nextVersion =
         Number(
-          currentContract.contract_version || 1
+          currentContract.contract_version ||
+          1
         ) + 1;
+
+      /*
+        Renewal reminder date:
+        90 days before new term begins.
+      */
 
       const renewalDate =
         new Date(startDate);
@@ -19735,81 +19888,95 @@ app.post(
         renewalDate.getUTCDate() - 90
       );
 
-      const newContractResult = await q(
-        `
-          INSERT INTO contracts (
-            customer_id,
-            organization_id,
-            advertiser_id,
-            contract_name,
-            contract_type,
-            start_date,
-            end_date,
-            total_contract_value,
-            billing_frequency,
-            status,
-            notes,
-            location_id,
-            qr_id,
-            opportunity_id,
-            advertising_request_id,
-            expiration_date,
-            renewal_date,
-            owner_user_id,
-            source_type,
-            renewed_from_contract_id,
-            contract_version,
-            created_at,
-            updated_at
-          )
-          VALUES (
-            $1,$2,$3,$4,$5,
-            $6,$7,$8,$9,$10,
-            $11,$12,$13,$14,$15,
-            $16,$17,$18,$19,$20,
-            $21,
-            CURRENT_TIMESTAMP,
-            CURRENT_TIMESTAMP
-          )
-          RETURNING id
-        `,
-        [
-          currentContract.customer_id,
-          currentContract.organization_id,
-          currentContract.advertiser_id,
-          currentContract.contract_name,
-          currentContract.contract_type,
-          startDate,
-          endDate,
-          totalContractValue,
-          billingFrequency,
-          "Draft",
-          "Renewal created from prior contract.",
-          currentContract.location_id,
-          currentContract.qr_id,
-          currentContract.opportunity_id,
-          currentContract.advertising_request_id,
-          endDate,
-          renewalDate.toISOString().slice(0, 10),
-          currentContract.owner_user_id,
-          currentContract.source_type,
-          contractId,
-          nextVersion
-        ]
-      );
+      const newContractResult =
+        await q(
+          `
+            INSERT INTO contracts (
+              customer_id,
+              organization_id,
+              advertiser_id,
+              contract_name,
+              contract_type,
+              start_date,
+              end_date,
+              total_contract_value,
+              billing_frequency,
+              status,
+              notes,
+              location_id,
+              qr_id,
+              opportunity_id,
+              advertising_request_id,
+              expiration_date,
+              renewal_date,
+              owner_user_id,
+              source_type,
+              renewed_from_contract_id,
+              contract_version,
+              created_at,
+              updated_at
+            )
+
+            VALUES (
+              $1,$2,$3,$4,$5,
+              $6,$7,$8,$9,$10,
+              $11,$12,$13,$14,$15,
+              $16,$17,$18,$19,$20,
+              $21,
+              CURRENT_TIMESTAMP,
+              CURRENT_TIMESTAMP
+            )
+
+            RETURNING id
+          `,
+          [
+            currentContract.customer_id,
+            currentContract.organization_id,
+            currentContract.advertiser_id,
+            currentContract.contract_name,
+            currentContract.contract_type,
+
+            startDate,
+            endDate,
+            totalContractValue,
+            billingFrequency,
+
+            "Draft",
+
+            "Renewal draft created from current contract.",
+
+            currentContract.location_id,
+            currentContract.qr_id,
+            currentContract.opportunity_id,
+            currentContract.advertising_request_id,
+
+            endDate,
+
+            renewalDate
+              .toISOString()
+              .slice(0, 10),
+
+            currentContract.owner_user_id,
+            currentContract.source_type,
+
+            contractId,
+            nextVersion
+          ]
+        );
 
       const newContractId =
         Number(
           newContractResult.rows[0].id
         );
 
-    
-
-
       const userId =
         req.session.user?.id ||
         req.session.orgUser?.id ||
         null;
+
+      /*
+        Log creation on current relationship.
+      */
 
       await q(
         `
@@ -19821,11 +19988,12 @@ app.post(
             comment,
             created_at
           )
+
           VALUES (
             $1,
             $2,
             $3,
-            'Renewal',
+            'Renewal Draft Created',
             $4,
             CURRENT_TIMESTAMP
           )
@@ -19834,12 +20002,53 @@ app.post(
           contractId,
           organizationId,
           userId,
-          `Renewal created as Contract Version ${nextVersion}.`
+          "A renewal draft was created for the next contract term."
         ]
       );
 
+      /*
+        Log creation on renewal itself.
+      */
+
+      await q(
+        `
+          INSERT INTO contract_activity (
+            contract_id,
+            organization_id,
+            user_id,
+            activity_type,
+            comment,
+            created_at
+          )
+
+          VALUES (
+            $1,
+            $2,
+            $3,
+            'Draft Created',
+            $4,
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          newContractId,
+          organizationId,
+          userId,
+          "Renewal draft created and ready for review."
+        ]
+      );
+
+      /*
+        IMPORTANT:
+
+        Go directly to Review Renewal.
+
+        Do NOT send user to another
+        generic Contract Detail page.
+      */
+
       return res.redirect(
-        `/org-contract/${newContractId}?organization_id=${organizationId}`
+        `/org-contract/${newContractId}/renewal-review?organization_id=${organizationId}`
       );
 
     } catch (err) {
@@ -19857,7 +20066,8 @@ app.post(
     }
   }
 );
-app.get(
+
+  app.get(
   "/org-contract/:contractId/renewal-review",
   async (req, res) => {
     try {
@@ -19867,6 +20077,7 @@ app.get(
       const organizationId =
         Number(
           req.query.organization_id ||
+          req.session.orgUser?.organization_id ||
           req.session.orgUser?.organizationId ||
           req.session.user?.organization_id
         );
@@ -19884,92 +20095,105 @@ app.get(
           );
       }
 
-      const renewalResult = await q(
-        `
-          SELECT
-            renewal.*,
+      const renewalResult =
+        await q(
+          `
+            SELECT
+              renewal.*,
 
-            o.name AS organization_name,
+              o.name
+                AS organization_name,
 
-            s.name AS location_name,
+              s.name
+                AS location_name,
 
-            COALESCE(
-              ar.business_name,
-              u.name,
-              u.email,
-              'Unknown Advertiser'
-            ) AS advertiser_name,
+              COALESCE(
+                ar.business_name,
+                u.name,
+                u.email,
+                'Unknown Advertiser'
+              ) AS advertiser_name,
 
-            COALESCE(
-              oo.title,
-              ar.opportunity_name,
-              renewal.contract_name
-            ) AS opportunity_name,
+              COALESCE(
+                oo.title,
+                ar.opportunity_name,
+                renewal.contract_name
+              ) AS opportunity_name,
 
-            current_contract.id
-              AS current_contract_id,
+              current_contract.id
+                AS current_contract_id,
 
-            current_contract.start_date
-              AS current_start_date,
+              current_contract.start_date
+                AS current_start_date,
 
-            current_contract.end_date
-              AS current_end_date,
+              current_contract.end_date
+                AS current_end_date,
 
-            current_contract.total_contract_value
-              AS current_contract_value,
+              current_contract.total_contract_value
+                AS current_contract_value,
 
-            current_contract.billing_frequency
-              AS current_billing_frequency,
+              current_contract.billing_frequency
+                AS current_billing_frequency,
 
-            current_contract.status
-              AS current_status
+              current_contract.status
+                AS current_status
 
-          FROM contracts renewal
+            FROM contracts renewal
 
-          JOIN organizations o
-            ON o.id = renewal.organization_id
+            JOIN organizations o
+              ON o.id =
+                 renewal.organization_id
 
-          LEFT JOIN spaces s
-            ON s.id = renewal.location_id
+            LEFT JOIN spaces s
+              ON s.id =
+                 renewal.location_id
 
-          LEFT JOIN organization_advertising_requests ar
-            ON ar.id = renewal.advertising_request_id
-           AND ar.organization_id =
-               renewal.organization_id
+            LEFT JOIN organization_advertising_requests ar
+              ON ar.id =
+                 renewal.advertising_request_id
+             AND ar.organization_id =
+                 renewal.organization_id
 
-          LEFT JOIN organization_opportunities oo
-            ON oo.id = renewal.opportunity_id
-           AND oo.organization_id =
-               renewal.organization_id
+            LEFT JOIN organization_opportunities oo
+              ON oo.id =
+                 renewal.opportunity_id
+             AND oo.organization_id =
+                 renewal.organization_id
 
-          LEFT JOIN users u
-            ON u.id = renewal.customer_id
+            LEFT JOIN users u
+              ON u.id =
+                 renewal.customer_id
 
-          LEFT JOIN contracts current_contract
-            ON current_contract.id =
-               renewal.renewed_from_contract_id
+            LEFT JOIN contracts current_contract
+              ON current_contract.id =
+                 renewal.renewed_from_contract_id
 
-          WHERE renewal.id = $1
-            AND renewal.organization_id = $2
+            WHERE renewal.id = $1
+              AND renewal.organization_id = $2
 
-          LIMIT 1
-        `,
-        [
-          contractId,
-          organizationId
-        ]
-      );
+            LIMIT 1
+          `,
+          [
+            contractId,
+            organizationId
+          ]
+        );
 
       const renewal =
-        renewalResult.rows[0] || null;
+        renewalResult.rows[0] ||
+        null;
 
       if (!renewal) {
         return res
           .status(404)
-          .send("Renewal not found.");
+          .send(
+            "Renewal not found."
+          );
       }
 
-      if (!renewal.renewed_from_contract_id) {
+      if (
+        !renewal.renewed_from_contract_id
+      ) {
         return res
           .status(400)
           .send(
@@ -19979,13 +20203,14 @@ app.get(
 
       const money = value =>
         "$" +
-        Number(value || 0).toLocaleString(
-          "en-US",
-          {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-          }
-        );
+        Number(value || 0)
+          .toLocaleString(
+            "en-US",
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }
+          );
 
       const formatDate = value => {
         if (!value) return "—";
@@ -19993,19 +20218,31 @@ app.get(
         const date =
           new Date(value);
 
-        if (Number.isNaN(date.getTime())) {
+        if (
+          Number.isNaN(
+            date.getTime()
+          )
+        ) {
           return "—";
         }
 
-        return date.toLocaleDateString(
-          "en-US",
-          {
-            month: "short",
-            day: "numeric",
-            year: "numeric"
-          }
-        );
+        return date
+          .toLocaleDateString(
+            "en-US",
+            {
+              month: "short",
+              day: "numeric",
+              year: "numeric"
+            }
+          );
       };
+
+      const renewalStatus =
+        String(
+          renewal.status || ""
+        )
+          .trim()
+          .toLowerCase();
 
       const userName =
         req.session.orgUser?.name ||
@@ -20014,9 +20251,21 @@ app.get(
         req.session.user?.email ||
         "";
 
+      const approvalSuccess =
+        String(
+          req.query.approved ||
+          ""
+        ) === "1";
+
+      const notificationSuccess =
+        String(
+          req.query.notified ||
+          ""
+        ) === "1";
+
       return res.send(
         orgPage(
-          `Review Renewal - ${renewal.contract_name}`,
+          `Renewal - ${renewal.contract_name}`,
           `
             ${organizationNav({
               organizationId,
@@ -20036,17 +20285,60 @@ app.get(
               </div>
 
               <h1>
-                Review Renewal
+                ${
+                  renewalStatus ===
+                  "scheduled"
+                    ? "Scheduled Renewal"
+                    : "Review Renewal"
+                }
               </h1>
 
               <p class="subtitle">
-                Review the current agreement
-                and proposed renewal before approval.
+                ${
+                  renewalStatus ===
+                  "scheduled"
+                    ? "Review the approved next contract term."
+                    : "Review the proposed renewal before approval."
+                }
               </p>
 
             </div>
 
             <div class="wrap">
+
+              ${
+                approvalSuccess
+                  ? `
+                      <div class="note">
+
+                        <strong>
+                          Renewal Approved
+                        </strong>
+
+                        <div style="
+                          margin-top:6px;
+                        ">
+                          The renewal has been
+                          scheduled for
+                          ${formatDate(
+                            renewal.start_date
+                          )}.
+                        </div>
+
+                        <div style="
+                          margin-top:6px;
+                        ">
+                          ${
+                            notificationSuccess
+                              ? "The advertiser was notified successfully."
+                              : "The renewal was approved, but the advertiser notification could not be confirmed."
+                          }
+                        </div>
+
+                      </div>
+                    `
+                  : ""
+              }
 
               <div style="
                 margin-bottom:20px;
@@ -20073,7 +20365,8 @@ app.get(
 
                     <strong>
                       ${escapeHtml(
-                        renewal.advertiser_name || "—"
+                        renewal.advertiser_name ||
+                        "—"
                       )}
                     </strong>
                   </div>
@@ -20085,7 +20378,8 @@ app.get(
 
                     <strong>
                       ${escapeHtml(
-                        renewal.location_name || "—"
+                        renewal.location_name ||
+                        "—"
                       )}
                     </strong>
                   </div>
@@ -20097,7 +20391,8 @@ app.get(
 
                     <strong>
                       ${escapeHtml(
-                        renewal.opportunity_name || "—"
+                        renewal.opportunity_name ||
+                        "—"
                       )}
                     </strong>
                   </div>
@@ -20109,7 +20404,8 @@ app.get(
 
                     <strong>
                       ${escapeHtml(
-                        renewal.status || "Draft"
+                        renewal.status ||
+                        "Draft"
                       )}
                     </strong>
                   </div>
@@ -20121,7 +20417,10 @@ app.get(
               <div style="
                 display:grid;
                 grid-template-columns:
-                  repeat(auto-fit,minmax(300px,1fr));
+                  repeat(
+                    auto-fit,
+                    minmax(300px,1fr)
+                  );
                 gap:18px;
               ">
 
@@ -20131,10 +20430,15 @@ app.get(
                     Current Contract
                   </h2>
 
-                  <div style="line-height:2;">
+                  <div style="
+                    line-height:2;
+                  ">
 
                     <div>
-                      <strong>Dates:</strong>
+                      <strong>
+                        Dates:
+                      </strong>
+
                       ${formatDate(
                         renewal.current_start_date
                       )}
@@ -20145,14 +20449,20 @@ app.get(
                     </div>
 
                     <div>
-                      <strong>Value:</strong>
+                      <strong>
+                        Value:
+                      </strong>
+
                       ${money(
                         renewal.current_contract_value
                       )}
                     </div>
 
                     <div>
-                      <strong>Billing:</strong>
+                      <strong>
+                        Billing:
+                      </strong>
+
                       ${escapeHtml(
                         renewal.current_billing_frequency ||
                         "—"
@@ -20160,7 +20470,10 @@ app.get(
                     </div>
 
                     <div>
-                      <strong>Status:</strong>
+                      <strong>
+                        Status:
+                      </strong>
+
                       ${escapeHtml(
                         renewal.current_status ||
                         "—"
@@ -20174,13 +20487,23 @@ app.get(
                 <div class="card">
 
                   <h2 style="margin-top:0;">
-                    Proposed Renewal
+                    ${
+                      renewalStatus ===
+                      "scheduled"
+                        ? "Scheduled Renewal"
+                        : "Proposed Renewal"
+                    }
                   </h2>
 
-                  <div style="line-height:2;">
+                  <div style="
+                    line-height:2;
+                  ">
 
                     <div>
-                      <strong>Dates:</strong>
+                      <strong>
+                        Dates:
+                      </strong>
+
                       ${formatDate(
                         renewal.start_date
                       )}
@@ -20191,14 +20514,20 @@ app.get(
                     </div>
 
                     <div>
-                      <strong>Value:</strong>
+                      <strong>
+                        Value:
+                      </strong>
+
                       ${money(
                         renewal.total_contract_value
                       )}
                     </div>
 
                     <div>
-                      <strong>Billing:</strong>
+                      <strong>
+                        Billing:
+                      </strong>
+
                       ${escapeHtml(
                         renewal.billing_frequency ||
                         "—"
@@ -20206,7 +20535,10 @@ app.get(
                     </div>
 
                     <div>
-                      <strong>Status:</strong>
+                      <strong>
+                        Status:
+                      </strong>
+
                       ${escapeHtml(
                         renewal.status ||
                         "Draft"
@@ -20220,9 +20552,7 @@ app.get(
               </div>
 
               ${
-                String(renewal.status || "")
-                  .trim()
-                  .toLowerCase() === "draft"
+                renewalStatus === "draft"
                   ? `
                       <div class="card">
 
@@ -20235,10 +20565,10 @@ app.get(
                           line-height:1.5;
                         ">
                           Approving this renewal
-                          preserves the current contract
-                          through its existing end date.
-                          The renewal will become the
-                          next scheduled contract term.
+                          keeps the current contract
+                          in effect through its existing
+                          end date and schedules the
+                          renewal as the next term.
                         </p>
 
                         <form
@@ -20256,14 +20586,40 @@ app.get(
                             class="btn"
                             type="submit"
                           >
-                            Approve Renewal
+                            Approve Renewal & Notify Advertiser
                           </button>
 
                         </form>
 
                       </div>
                     `
-                  : ""
+                  : `
+                      <div class="card">
+
+                        <h2 style="margin-top:0;">
+                          Renewal Approved
+                        </h2>
+
+                        <p style="
+                          color:#65776b;
+                          line-height:1.6;
+                          margin-bottom:0;
+                        ">
+                          This renewal is scheduled
+                          to begin on
+                          <strong>
+                            ${formatDate(
+                              renewal.start_date
+                            )}
+                          </strong>.
+
+                          The current contract remains
+                          in effect through its existing
+                          end date.
+                        </p>
+
+                      </div>
+                    `
               }
 
             </div>
@@ -20286,6 +20642,7 @@ app.get(
     }
   }
 );
+
 app.post(
   "/org-contract/:contractId/renewal-approve",
   async (req, res) => {
@@ -20294,7 +20651,9 @@ app.post(
         Number(req.params.contractId);
 
       const organizationId =
-        Number(req.body.organization_id);
+        Number(
+          req.body.organization_id
+        );
 
       if (
         !Number.isInteger(contractId) ||
@@ -20309,39 +20668,105 @@ app.post(
           );
       }
 
-      const renewalResult = await q(
-        `
-          SELECT
-            id,
-            status,
-            renewed_from_contract_id,
-            start_date,
-            end_date,
-            contract_version
+      const renewalResult =
+        await q(
+          `
+            SELECT
+              renewal.id,
+              renewal.status,
+              renewal.start_date,
+              renewal.end_date,
+              renewal.total_contract_value,
+              renewal.billing_frequency,
+              renewal.renewed_from_contract_id,
 
-          FROM contracts
+              current_contract.id
+                AS current_contract_id,
 
-          WHERE id = $1
-            AND organization_id = $2
+              o.name
+                AS organization_name,
 
-          LIMIT 1
-        `,
-        [
-          contractId,
-          organizationId
-        ]
-      );
+              s.name
+                AS location_name,
+
+              COALESCE(
+                ar.business_name,
+                u.name,
+                u.email,
+                'Advertiser'
+              ) AS advertiser_name,
+
+              COALESCE(
+                ar.contact_name,
+                ar.business_name,
+                'there'
+              ) AS advertiser_contact_name,
+
+              ar.email
+                AS advertiser_email,
+
+              COALESCE(
+                oo.title,
+                ar.opportunity_name,
+                renewal.contract_name
+              ) AS opportunity_name
+
+            FROM contracts renewal
+
+            JOIN contracts current_contract
+              ON current_contract.id =
+                 renewal.renewed_from_contract_id
+
+            JOIN organizations o
+              ON o.id =
+                 renewal.organization_id
+
+            LEFT JOIN spaces s
+              ON s.id =
+                 renewal.location_id
+
+            LEFT JOIN organization_advertising_requests ar
+              ON ar.id =
+                 renewal.advertising_request_id
+             AND ar.organization_id =
+                 renewal.organization_id
+
+            LEFT JOIN organization_opportunities oo
+              ON oo.id =
+                 renewal.opportunity_id
+             AND oo.organization_id =
+                 renewal.organization_id
+
+            LEFT JOIN users u
+              ON u.id =
+                 renewal.customer_id
+
+            WHERE renewal.id = $1
+              AND renewal.organization_id = $2
+
+            LIMIT 1
+          `,
+          [
+            contractId,
+            organizationId
+          ]
+        );
 
       const renewal =
-        renewalResult.rows[0] || null;
+        renewalResult.rows[0] ||
+        null;
 
       if (!renewal) {
         return res
           .status(404)
-          .send("Renewal not found.");
+          .send(
+            "Renewal not found."
+          );
       }
 
-      if (!renewal.renewed_from_contract_id) {
+      if (
+        !renewal.renewed_from_contract_id
+      ) {
         return res
           .status(400)
           .send(
@@ -20350,7 +20775,9 @@ app.post(
       }
 
       if (
-        String(renewal.status || "")
+        String(
+          renewal.status || ""
+        )
           .trim()
           .toLowerCase() !== "draft"
       ) {
@@ -20361,36 +20788,13 @@ app.post(
           );
       }
 
-      const currentResult = await q(
-        `
-          SELECT
-            id,
-            status,
-            end_date
+      /*
+        Approve renewal.
 
-          FROM contracts
+        Current contract remains unchanged.
 
-          WHERE id = $1
-            AND organization_id = $2
-
-          LIMIT 1
-        `,
-        [
-          renewal.renewed_from_contract_id,
-          organizationId
-        ]
-      );
-
-      const currentContract =
-        currentResult.rows[0] || null;
-
-      if (!currentContract) {
-        return res
-          .status(400)
-          .send(
-            "Current contract could not be found."
-          );
-      }
+        Renewal becomes Scheduled.
+      */
 
       await q(
         `
@@ -20398,7 +20802,8 @@ app.post(
 
           SET
             status = 'Scheduled',
-            updated_at = CURRENT_TIMESTAMP
+            updated_at =
+              CURRENT_TIMESTAMP
 
           WHERE id = $1
             AND organization_id = $2
@@ -20413,6 +20818,10 @@ app.post(
         req.session.user?.id ||
         req.session.orgUser?.id ||
         null;
+
+      /*
+        Log on current relationship.
+      */
 
       await q(
         `
@@ -20435,12 +20844,16 @@ app.post(
           )
         `,
         [
-          renewal.renewed_from_contract_id,
+          renewal.current_contract_id,
           organizationId,
           userId,
-          `Renewal approved and scheduled as the next contract term.`
+          "Renewal approved and scheduled as the next contract term."
         ]
       );
+
+      /*
+        Log on renewal record.
+      */
 
       await q(
         `
@@ -20466,12 +20879,261 @@ app.post(
           contractId,
           organizationId,
           userId,
-          `Renewal approved. Contract scheduled to begin on ${renewal.start_date}.`
+          "Renewal approved and scheduled."
         ]
       );
 
+      const formatEmailDate =
+        value => {
+          if (!value) {
+            return "Not set";
+          }
+
+          const date =
+            new Date(value);
+
+          if (
+            Number.isNaN(
+              date.getTime()
+            )
+          ) {
+            return "Not set";
+          }
+
+          return date
+            .toLocaleDateString(
+              "en-US",
+              {
+                month: "long",
+                day: "numeric",
+                year: "numeric"
+              }
+            );
+        };
+
+      const emailMoney =
+        value =>
+          "$" +
+          Number(value || 0)
+            .toLocaleString(
+              "en-US",
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }
+            );
+
+      let notificationSent =
+        false;
+
+      /*
+        Notify advertiser.
+      */
+
+      if (
+        renewal.advertiser_email
+      ) {
+        notificationSent =
+          await sendOrganizationNotification({
+            to:
+              renewal.advertiser_email,
+
+            senderName:
+              renewal.organization_name,
+
+            replyTo:
+              req.session.orgUser?.email ||
+              req.session.user?.email ||
+              "mike@vividspots.com",
+
+            subject:
+              `Your advertising renewal with ${renewal.organization_name} has been approved`,
+
+            html: `
+              <div style="
+                max-width:640px;
+                margin:0 auto;
+                padding:32px;
+                font-family:Arial,sans-serif;
+                color:#173f2a;
+                line-height:1.6;
+              ">
+
+                <h1 style="
+                  margin:0 0 18px;
+                  color:#173f2a;
+                  font-size:28px;
+                ">
+                  Your Advertising Renewal
+                  Has Been Approved
+                </h1>
+
+                <p>
+                  Hello
+                  ${escapeHtml(
+                    renewal.advertiser_contact_name ||
+                    renewal.advertiser_name ||
+                    "there"
+                  )},
+                </p>
+
+                <p>
+                  Your advertising renewal with
+                  <strong>
+                    ${escapeHtml(
+                      renewal.organization_name
+                    )}
+                  </strong>
+                  has been approved.
+                </p>
+
+                <div style="
+                  background:#f7faf8;
+                  border-radius:12px;
+                  padding:20px;
+                  margin:24px 0;
+                ">
+
+                  <p style="margin:0 0 8px;">
+                    <strong>
+                      Location:
+                    </strong>
+
+                    ${escapeHtml(
+                      renewal.location_name ||
+                      "—"
+                    )}
+                  </p>
+
+                  <p style="margin:0 0 8px;">
+                    <strong>
+                      Advertising Opportunity:
+                    </strong>
+
+                    ${escapeHtml(
+                      renewal.opportunity_name ||
+                      "—"
+                    )}
+                  </p>
+
+                  <p style="margin:0 0 8px;">
+                    <strong>
+                      New Term:
+                    </strong>
+
+                    ${formatEmailDate(
+                      renewal.start_date
+                    )}
+                    →
+                    ${formatEmailDate(
+                      renewal.end_date
+                    )}
+                  </p>
+
+                  <p style="margin:0 0 8px;">
+                    <strong>
+                      Contract Value:
+                    </strong>
+
+                    ${emailMoney(
+                      renewal.total_contract_value
+                    )}
+                  </p>
+
+                  <p style="margin:0;">
+                    <strong>
+                      Billing:
+                    </strong>
+
+                    ${escapeHtml(
+                      renewal.billing_frequency ||
+                      "—"
+                    )}
+                  </p>
+
+                </div>
+
+                <p>
+                  Your current agreement remains
+                  in effect through its existing
+                  end date. The renewed term will
+                  begin automatically on the new
+                  start date shown above.
+                </p>
+
+                <p>
+                  Questions? Reply directly to
+                  this email to contact
+                  ${escapeHtml(
+                    renewal.organization_name
+                  )}.
+                </p>
+
+                <p style="
+                  margin-top:32px;
+                  color:#65776b;
+                  font-size:12px;
+                ">
+                  Powered by Vivid
+                </p>
+
+              </div>
+            `
+          });
+      }
+
+      /*
+        Log email result.
+      */
+
+      await q(
+        `
+          INSERT INTO contract_activity (
+            contract_id,
+            organization_id,
+            user_id,
+            activity_type,
+            comment,
+            created_at
+          )
+
+          VALUES (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          renewal.current_contract_id,
+          organizationId,
+          userId,
+
+          notificationSent
+            ? "Renewal Confirmation Sent"
+            : "Renewal Notification",
+
+          notificationSent
+            ? `Renewal approval confirmation sent to ${renewal.advertiser_email}.`
+            : renewal.advertiser_email
+              ? `Renewal approved, but confirmation email to ${renewal.advertiser_email} could not be confirmed.`
+              : "Renewal approved. No advertiser email address was available."
+        ]
+      );
+
+      /*
+        Return to the renewal screen so
+        the organization immediately sees:
+
+        Scheduled
+        Renewal Approved
+        Advertiser notified
+      */
+
       return res.redirect(
-        `/org-contract/${renewal.renewed_from_contract_id}?organization_id=${organizationId}`
+        `/org-contract/${contractId}/renewal-review?organization_id=${organizationId}&approved=1&notified=${notificationSent ? "1" : "0"}`
       );
 
     } catch (err) {
@@ -20489,6 +21151,8 @@ app.post(
     }
   }
 );
+       
+ 
 app.post(
   "/org-contract/:contractId/activity",
   async (req, res) => {
