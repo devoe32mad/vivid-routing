@@ -18904,8 +18904,8 @@ const contractDocuments =
                     font-size:13px;
                     margin-bottom:10px;
                   ">
-                    Executed agreement uploaded.
-                    This contract is ready to activate.
+                    Signed agreement uploaded.
+This contract is ready to activate.
                   </div>
 
                   <form
