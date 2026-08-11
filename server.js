@@ -21634,17 +21634,24 @@ console.log(
           .send("Contract not found.");
       }
 
-      if (
-        String(contract.status || "")
-          .trim()
-          .toLowerCase() !== "draft"
-      ) {
-        return res
-          .status(400)
-          .send(
-            "Only draft contracts can be activated."
-          );
-      }
+     const normalizedStatus =
+  String(contract.status || "")
+    .trim()
+    .toLowerCase();
+
+if (normalizedStatus === "active") {
+  return res.redirect(
+    `/org-contract/${contractId}?organization_id=${organizationId}`
+  );
+}
+
+if (normalizedStatus !== "draft") {
+  return res
+    .status(400)
+    .send(
+      `This contract cannot be activated from status: ${contract.status}`
+    );
+}
   const executedAgreementResult = await q(
     `
       SELECT id
