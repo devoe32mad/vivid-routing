@@ -36476,29 +36476,49 @@ ${
                       </div>
                     </section>
                   `
-                  : `
-                    <section
-                      class="marketplace-card"
-                      style="
-                        margin-top:22px;
-                        border-left:6px solid #2f7d46;
-                      "
-                    >
-                      <h2 style="margin-top:0;">
-                        Request Decision
-                      </h2>
+               : `
+    <section
+      class="marketplace-card"
+      style="
+        margin-top:22px;
+        border-left:6px solid #2f7d46;
+      "
+    >
+      <h2 style="margin-top:0;">
+        Request Decision
+      </h2>
 
-                      <p style="
-                        margin-bottom:0;
-                        color:#52645a;
-                      ">
-                        This request is currently
-                        <strong>
-                          ${escapeHtml(request.request_status)}
-                        </strong>.
-                      </p>
-                    </section>
-                  `
+      <p style="
+        color:#52645a;
+        line-height:1.6;
+        margin-bottom:18px;
+      ">
+        This request is currently
+        <strong>
+          ${escapeHtml(request.request_status)}
+        </strong>.
+      </p>
+
+      ${
+        request.request_status === "Approved" &&
+        request.contract_id
+          ? `
+              <div style="
+                margin-top:18px;
+              ">
+                <a
+                  class="marketplace-btn"
+                  href="/org-contract/${request.contract_id}?organization_id=${organizationId}"
+                >
+                  Open Contract
+                </a>
+              </div>
+            `
+          : ""
+      }
+
+    </section>
+  `
               }
 
             </main>
