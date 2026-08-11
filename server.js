@@ -33147,11 +33147,28 @@ const locationsResult = await q(
         locationsResult.rows;
       const requestLocationSummaryResult = await q(
   `
-    SELECT
-      s.id AS location_id,
-      s.name AS location_name,
+    
+     SELECT
+  s.id AS location_id,
+  s.name AS location_name,
 
-      COUNT(r.id)::integer AS total_requests,
+  (
+    SELECT COUNT(*)::integer
+    FROM organization_opportunities oo
+    WHERE oo.organization_id = s.organization_id
+      AND oo.space_id = s.id
+      AND COALESCE(oo.is_active, true) = true
+      AND LOWER(
+        TRIM(
+          COALESCE(oo.status, 'available')
+        )
+      ) = 'available'
+  ) AS available_opportunities,
+
+  COUNT(r.id)::integer AS total_requests, 
+      
+
+      
 
    COUNT(r.id) FILTER (
   WHERE LOWER(
@@ -33785,6 +33802,15 @@ const statusStyle = status => {
                 gap:14px 20px;
                 align-items:center;
               ">
+              <div style="color:#52645a;">
+  Available Opportunities
+</div>
+
+<strong>
+  ${Number(
+    location.available_opportunities || 0
+  )}
+</strong>
                 <div style="color:#52645a;">
                   Pending
                 </div>
