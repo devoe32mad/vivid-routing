@@ -22750,132 +22750,17 @@ const revenueAtRisk90 =
   }
 </p>  
 
-              <div style="
-                overflow-x:auto;
-              ">
+   <div style="
+  display:grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(320px, 1fr));
+  gap:18px;
+  align-items:stretch;
+">
+  ${attentionRows}
+</div>         
 
-                <table style="
-                  width:100%;
-                  table-layout:fixed;
-                  text-align:center;
-                  border-collapse:collapse;
-                ">
-
-                  <thead>
-                    <tr style="
-                      text-align:center;
-                    ">
-                      <th style="text-align:center;">
-                        Advertiser
-                      </th>
-
-                      <th style="text-align:center;">
-                        Location
-                      </th>
-
-                      <th style="text-align:center;">
-                        Opportunity
-                      </th>
-
-                      <th style="text-align:center;">
-                        Renewal Date
-                      </th>
-
-                      <th style="text-align:center;">
-                        Contract Value
-                      </th>
-
-                      <th style="text-align:center;">
-                        Renewal Status
-                      </th>
-
-                      <th style="text-align:center;">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    ${attentionRows}
-                  </tbody>
-
-                </table>
-
-              </div>
-${
-  selectedWindow === "all"
-    ? `
-              <h2 style="
-                margin-top:34px;
-              ">
-                Future Renewals
-              </h2>
-
-              <p style="
-                color:#65776b;
-                margin-top:-8px;
-                margin-bottom:16px;
-              ">
-                Active contracts with
-                renewal dates more than
-                90 days away.
-              </p>
-
-              <div style="
-                overflow-x:auto;
-              ">
-
-                <table style="
-                  width:100%;
-                  table-layout:fixed;
-                  text-align:center;
-                  border-collapse:collapse;
-                ">
-
-                  <thead>
-                    <tr style="
-                      text-align:center;
-                    ">
-                      <th style="text-align:center;">
-                        Advertiser
-                      </th>
-
-                      <th style="text-align:center;">
-                        Location
-                      </th>
-
-                      <th style="text-align:center;">
-                        Opportunity
-                      </th>
-
-                      <th style="text-align:center;">
-                        Renewal Date
-                      </th>
-
-                      <th style="text-align:center;">
-                        Contract Value
-                      </th>
-
-                      <th style="text-align:center;">
-                        Renewal Status
-                      </th>
-
-                      <th style="text-align:center;">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    ${futureRows}
-                  </tbody>
-
-                </table>
-
-              </div>
-      `
-    : ""
-}
+      
             </div>
           `
         )
