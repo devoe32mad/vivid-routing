@@ -22364,7 +22364,7 @@ const revenueAtRisk90 =
 
      const attentionRows =
   selectedContracts.length
-    ? buildRenewalRows(
+    ? buildRenewalCards(
         selectedContracts
       )
     : `
@@ -22384,7 +22384,7 @@ const revenueAtRisk90 =
           
       const futureRows =
         futureContracts.length
-          ? buildRenewalRows(
+          ? buildRenewalCards(
               futureContracts
             )
           : `
