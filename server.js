@@ -22278,88 +22278,123 @@ const revenueAtRisk90 =
 `;
           }
 
-          return rows
-            .map(contract => `
-              <tr style="text-align:center;">
+          
+        return rows
+  .map(contract => `
+    <div
+      class="card"
+      style="
+        display:flex;
+        flex-direction:column;
+        min-height:320px;
+        padding:22px;
+        box-sizing:border-box;
+      "
+    >
 
-                <td style="
-                  text-align:center;
-                  padding:14px 12px;
-                ">
-                  <strong>
-                    ${escapeHtml(
-                      contract.advertiser_name ||
-                      "—"
-                    )}
-                  </strong>
-                </td>
+      <div style="
+        padding-bottom:16px;
+        margin-bottom:18px;
+        border-bottom:1px solid #e7eee7;
+      ">
+        <div class="label">
+          Advertiser
+        </div>
 
-                <td style="
-                  text-align:center;
-                  padding:14px 12px;
-                ">
-                  ${escapeHtml(
-                    contract.location_name ||
-                    "—"
-                  )}
-                </td>
+        <div style="
+          font-size:20px;
+          font-weight:800;
+          color:#173f2a;
+          margin-top:5px;
+        ">
+          ${escapeHtml(
+            contract.advertiser_name || "—"
+          )}
+        </div>
+      </div>
 
-                <td style="
-                  text-align:center;
-                  padding:14px 12px;
-                ">
-                  ${escapeHtml(
-                    contract.opportunity_name ||
-                    "—"
-                  )}
-                </td>
+      <div style="
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:18px 22px;
+      ">
 
-                <td style="
-                  text-align:center;
-                  padding:14px 12px;
-                  white-space:nowrap;
-                ">
-                  ${formatDate(
-                    contract.renewal_date ||
-                    contract.expiration_date ||
-                    contract.end_date
-                  )}
-                </td>
+        <div>
+          <div class="label">
+            Location
+          </div>
 
-                <td style="
-                  text-align:center;
-                  padding:14px 12px;
-                  white-space:nowrap;
-                ">
-                  ${money(
-                    contract.total_contract_value
-                  )}
-                </td>
+          <strong>
+            ${escapeHtml(
+              contract.location_name || "—"
+            )}
+          </strong>
+        </div>
 
-                <td style="
-                  text-align:center;
-                  padding:14px 12px;
-                ">
-                  <strong>
-                    ${escapeHtml(
-                      renewalStatusText(
-                        contract
-                      )
-                    )}
-                  </strong>
-                </td>
+        <div>
+          <div class="label">
+            Advertising Opportunity
+          </div>
 
-                <td style="
-                  text-align:center;
-                  padding:14px 12px;
-                  white-space:nowrap;
-                ">
-                  ${renewalAction(contract)}
-                </td>
+          <strong>
+            ${escapeHtml(
+              contract.opportunity_name || "—"
+            )}
+          </strong>
+        </div>
 
-              </tr>
-            `)
-            .join("");
+        <div>
+          <div class="label">
+            Renewal Date
+          </div>
+
+          <strong>
+            ${formatDate(
+              contract.renewal_date ||
+              contract.expiration_date ||
+              contract.end_date
+            )}
+          </strong>
+        </div>
+
+        <div>
+          <div class="label">
+            Current Contract Value
+          </div>
+
+          <strong>
+            ${money(
+              contract.total_contract_value
+            )}
+          </strong>
+        </div>
+
+        <div>
+          <div class="label">
+            Renewal Status
+          </div>
+
+          <strong>
+            ${escapeHtml(
+              renewalStatusText(contract)
+            )}
+          </strong>
+        </div>
+
+      </div>
+
+      <div style="
+        margin-top:auto;
+        padding-top:22px;
+      ">
+        ${renewalAction(contract)}
+      </div>
+
+    </div>
+  `)
+  .join("");   
+
+        
         };
 
      const attentionRows =
