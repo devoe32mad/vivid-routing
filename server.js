@@ -22261,23 +22261,21 @@ const revenueAtRisk90 =
           `;
         };
 
-      const buildRenewalRows =
-        rows => {
+     const buildRenewalCards =
+  rows => {
           if (!rows.length) {
-            return `
-              <tr>
-                <td
-                  colspan="7"
-                  style="
-                    text-align:center;
-                    padding:24px 14px;
-                    color:#65776b;
-                  "
-                >
-                  No contracts found in this renewal window.
-                </td>
-              </tr>
-            `;
+       return `
+  <div
+    class="card"
+    style="
+      text-align:center;
+      padding:28px;
+      color:#65776b;
+    "
+  >
+    No renewals found for the selected view.
+  </div>
+`;
           }
 
           return rows
