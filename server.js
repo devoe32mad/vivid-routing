@@ -28066,7 +28066,7 @@ if (
               margin:0;
             "
           >
-            Remove
+            Deactivate
           </button>
         </form>
       `
