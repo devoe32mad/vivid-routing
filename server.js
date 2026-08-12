@@ -21888,6 +21888,10 @@ if (selectedLocationId) {
         `
           SELECT
             c.id,
+            c.location_id,
+c.customer_id,
+c.opportunity_id,
+c.advertising_request_id,
             c.contract_name,
             c.total_contract_value,
             c.status,
