@@ -7030,6 +7030,139 @@ app.get("/admin/conversion-tracking", requireLogin, async (req, res) => {
     </div>
   `));
 });
+app.get(
+  "/reset-password/:token",
+  async (req, res) => {
+    try {
+      const rawToken = String(
+        req.params.token || ""
+      ).trim();
+
+      if (!rawToken) {
+        return res
+          .status(400)
+          .send("Invalid reset link.");
+      }
+
+      const tokenHash =
+        crypto
+          .createHash("sha256")
+          .update(rawToken)
+          .digest("hex");
+
+      const resetResult = await q(
+        `
+          SELECT
+            prt.id,
+            prt.user_id,
+            prt.expires_at,
+            u.name,
+            u.email
+          FROM password_reset_tokens prt
+          INNER JOIN users u
+            ON u.id = prt.user_id
+          WHERE prt.token_hash = $1
+            AND prt.used_at IS NULL
+            AND prt.expires_at > CURRENT_TIMESTAMP
+          LIMIT 1
+        `,
+        [tokenHash]
+      );
+
+      const reset =
+        resetResult.rows[0];
+
+      if (!reset) {
+        return res
+          .status(404)
+          .send(`
+            <h2>Reset Link Expired</h2>
+            <p>
+              This password reset link is invalid,
+              expired, or has already been used.
+            </p>
+            <a href="/login">
+              Return to Login
+            </a>
+          `);
+      }
+
+      return res.send(
+        page(
+          "Reset Password",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid
+              </div>
+
+              <h1>Reset Password</h1>
+
+              <p class="subtitle">
+                Create a new password for
+                ${escapeHtml(
+                  reset.email
+                )}.
+              </p>
+            </div>
+
+            <div class="wrap">
+              <form
+                method="POST"
+                action="/reset-password/${encodeURIComponent(rawToken)}"
+                style="
+                  max-width:520px;
+                  margin:30px auto;
+                "
+              >
+                <label>
+                  New Password
+                </label>
+
+                <input
+                  type="password"
+                  name="password"
+                  minlength="8"
+                  required
+                />
+
+                <label>
+                  Confirm Password
+                </label>
+
+                <input
+                  type="password"
+                  name="confirm_password"
+                  minlength="8"
+                  required
+                />
+
+                <button
+                  class="btn"
+                  type="submit"
+                >
+                  Save New Password
+                </button>
+              </form>
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "RESET PASSWORD FORM ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to load password reset: " +
+          err.message
+        );
+    }
+  }
+);
 app.get("/login", (req, res) => {
 
   res.send(page("Login", `
