@@ -24350,7 +24350,20 @@ min-height:220px;
         req.session.user?.role === "super_admin"
           ? `/org-organization/${organization.id}`
           : `/org-organization/${organization.id}`;
+const organizationRole =
+  String(
+    req.session.orgUser?.organization_role || ""
+  )
+    .trim()
+    .toLowerCase();
 
+const showOrganizationBackButton =
+  req.session.user?.role === "super_admin" ||
+  [
+    "owner",
+    "organization_admin",
+    "district_admin"
+  ].includes(organizationRole);
       res.send(orgPage(
         "Organization Location",
         `
@@ -24387,12 +24400,18 @@ min-height:220px;
                 </div>
               </div>
 
-              <a
-                class="btn secondary"
-                href="${backHref}"
-              >
-                Back to ${organization.name}
-              </a>
+             ${
+  showOrganizationBackButton
+    ? `
+      <a
+        class="btn secondary"
+        href="${backHref}"
+      >
+        Back to ${escapeHtml(organization.name)}
+      </a>
+    `
+    : ""
+}
 
             </div>
 ${orgDateFilterForm({
