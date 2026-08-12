@@ -21994,24 +21994,7 @@ LEFT JOIN LATERAL (
       OR e.created_at::date <= c.end_date
     )
 
-    AND LOWER(
-      TRIM(
-        COALESCE(
-          camp.advertiser,
-          ''
-        )
-      )
-    ) =
-    LOWER(
-      TRIM(
-        COALESCE(
-          ar.business_name,
-          u.name,
-          u.email,
-          ''
-        )
-      )
-    )
+    
 ) performance
   ON true
           LEFT JOIN LATERAL (
