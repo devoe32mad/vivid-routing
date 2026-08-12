@@ -28047,7 +28047,7 @@ if (
       : `
         <form
           method="POST"
-          action="/org-user/${user.organization_user_id}/remove"
+          action="/org-user/${user.organization_user_id}/remove?organization_id=${organizationId}"
           style="
             display:inline;
             margin:0;
