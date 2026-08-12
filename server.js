@@ -9280,7 +9280,8 @@ app.get(
       }
 
 const dateFilter = getOrgDateFilter(req);
-
+const selectedLocationId =
+  req.query.location_id || "";
 if (dateFilter.error) {
   return res
     .status(400)
@@ -9292,7 +9293,8 @@ const data =
     req,
     organizationId,
     dateFilter.fromDate,
-    dateFilter.toDate
+    dateFilter.toDate,
+    selectedLocationId
   );
 
 const workbook =
