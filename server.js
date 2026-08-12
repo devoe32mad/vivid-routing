@@ -15649,7 +15649,7 @@ AND (
   $3::int IS NULL
   OR oo.space_id = $3
 )
-  )
+  
   
 `, [
   orgId,
