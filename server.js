@@ -1177,6 +1177,186 @@ function orgDateFilterForm({
     </form>
   `;
 }
+async function getOrganizationScope(req) {
+  let organizationId = null;
+
+  const isSuperAdmin =
+    req.session.user?.role === "super_admin";
+
+  if (isSuperAdmin) {
+    organizationId = Number(
+      req.query.organization_id
+    );
+  }
+
+  if (
+    !organizationId &&
+    req.session.orgUser?.organization_id
+  ) {
+    organizationId = Number(
+      req.session.orgUser.organization_id
+    );
+  }
+
+  if (
+    !Number.isInteger(organizationId) ||
+    organizationId <= 0
+  ) {
+    throw new Error(
+      "Valid organization is required."
+    );
+  }
+
+  const organizationRole =
+    isSuperAdmin
+      ? "super_admin"
+      : String(
+          req.session.orgUser?.organization_role ||
+          ""
+        )
+          .trim()
+          .toLowerCase();
+
+  const hasOrganizationWideAccess =
+    isSuperAdmin ||
+    [
+      "owner",
+      "organization_admin",
+      "district_admin"
+    ].includes(organizationRole);
+
+  let allowedLocationIds = [];
+
+  if (hasOrganizationWideAccess) {
+    const locationsResult = await q(
+      `
+        SELECT id
+        FROM spaces
+        WHERE organization_id = $1
+          AND COALESCE(is_archived, false) = false
+        ORDER BY name
+      `,
+      [organizationId]
+    );
+
+    allowedLocationIds =
+      locationsResult.rows.map(
+        row => Number(row.id)
+      );
+  } else {
+    const userId = Number(
+      req.session.orgUser?.id
+    );
+
+    const locationsResult = await q(
+      `
+        SELECT DISTINCT
+          lu.space_id AS id
+        FROM location_users lu
+        INNER JOIN spaces s
+          ON s.id = lu.space_id
+         AND s.organization_id =
+             lu.organization_id
+        WHERE lu.organization_id = $1
+          AND lu.user_id = $2
+          AND COALESCE(lu.is_active, true) = true
+          AND COALESCE(s.is_archived, false) = false
+        ORDER BY lu.space_id
+      `,
+      [
+        organizationId,
+        userId
+      ]
+    );
+
+    allowedLocationIds =
+      locationsResult.rows.map(
+        row => Number(row.id)
+      );
+  }
+
+  const requestedLocationId =
+    req.query.location_id
+      ? Number(req.query.location_id)
+      : null;
+
+  let selectedLocationId = null;
+
+  if (
+    requestedLocationId &&
+    allowedLocationIds.includes(
+      requestedLocationId
+    )
+  ) {
+    selectedLocationId =
+      requestedLocationId;
+  }
+
+  const dateFilter =
+    getOrgDateFilter(req);
+
+  if (dateFilter.error) {
+    throw new Error(
+      dateFilter.error
+    );
+  }
+
+  const canEdit =
+    isSuperAdmin ||
+    [
+      "owner",
+      "organization_admin",
+      "district_admin",
+      "location_manager"
+    ].includes(organizationRole);
+
+  const queryString =
+    new URLSearchParams();
+
+  if (selectedLocationId) {
+    queryString.set(
+      "location_id",
+      String(selectedLocationId)
+    );
+  }
+
+  if (dateFilter.fromDate) {
+    queryString.set(
+      "from",
+      dateFilter.fromDate
+    );
+  }
+
+  if (dateFilter.toDate) {
+    queryString.set(
+      "to",
+      dateFilter.toDate
+    );
+  }
+
+  if (isSuperAdmin) {
+    queryString.set(
+      "organization_id",
+      String(organizationId)
+    );
+  }
+
+  return {
+    organizationId,
+    organizationRole,
+    isSuperAdmin,
+    hasOrganizationWideAccess,
+    allowedLocationIds,
+    selectedLocationId,
+    fromDate:
+      dateFilter.fromDate,
+    toDate:
+      dateFilter.toDate,
+    canEdit,
+    queryString:
+      queryString.toString()
+  };
+}
 async function processScheduledContractRenewals() {
   try {
     const scheduledResult = await q(`
