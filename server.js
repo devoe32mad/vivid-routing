@@ -7673,10 +7673,14 @@ async function buildOrganizationExportData(
   req,
   organizationId,
   fromDate = "",
-  toDate = ""
+  toDate = "",
+  locationId = ""
 ) {
   const orgId = Number(organizationId);
-
+const selectedLocationId =
+  locationId && Number.isInteger(Number(locationId))
+    ? Number(locationId)
+    : null;
   if (!Number.isInteger(orgId) || orgId <= 0) {
     throw new Error("Valid organization is required.");
   }
@@ -8054,6 +8058,11 @@ LEFT JOIN events e
 WHERE s.organization_id = $1
   AND COALESCE(s.is_archived, false) = false
 
+  AND (
+    $4::int IS NULL
+    OR s.id = $4::int
+  )
+
 GROUP BY
     s.id,
     s.name,
@@ -8065,7 +8074,8 @@ ORDER BY
 [
   orgId,
   fromDate || "",
-  toDate || ""
+  toDate || "",
+  selectedLocationId
 ]
 );
   const internalRevenueByLocation =
@@ -8213,6 +8223,10 @@ FROM qr_codes qr
 JOIN spaces s
     ON s.id=qr.space_id
    AND s.organization_id=$1
+   AND (
+       $4::int IS NULL
+       OR s.id=$4::int
+   )
 
 LEFT JOIN qr_campaigns qc
     ON qc.qr_id=qr.id
@@ -8260,7 +8274,8 @@ ORDER BY
 [
     orgId,
     fromDate || "",
-    toDate || ""
+    toDate || "",
+    selectedLocationId
 ]
 );
   const internalRevenueByQr =
@@ -8452,13 +8467,17 @@ const campaignsResult = await q(
            false
          ) = false
 
-    JOIN spaces s
-      ON s.id = qr.space_id
-     AND s.organization_id = $1
-     AND COALESCE(
-           s.is_archived,
-           false
-         ) = false
+  JOIN spaces s
+  ON s.id = qr.space_id
+ AND s.organization_id = $1
+ AND COALESCE(
+       s.is_archived,
+       false
+     ) = false
+ AND (
+   $4::int IS NULL
+   OR s.id = $4::int
+ )
 
     LEFT JOIN events e
       ON e.campaign_id = c.id
@@ -8486,11 +8505,12 @@ const campaignsResult = await q(
       c.advertiser,
       c.name
   `,
-  [
-    orgId,
-    fromDate || "",
-    toDate || ""
-  ]
+[
+  orgId,
+  fromDate || "",
+  toDate || "",
+  selectedLocationId
+]
 );
 
 const campaigns =
@@ -8865,13 +8885,16 @@ const customerActionsResult = await q(
          ) = false
 
     JOIN spaces s
-      ON s.id = qr.space_id
-     AND s.organization_id = $1
-     AND COALESCE(
-           s.is_archived,
-           false
-         ) = false
-
+  ON s.id = qr.space_id
+ AND s.organization_id = $1
+ AND COALESCE(
+       s.is_archived,
+       false
+     ) = false
+ AND (
+   $4::int IS NULL
+   OR s.id = $4::int
+ )
     LEFT JOIN events e
       ON e.campaign_destination_id = cd.id
      AND e.campaign_id = c.id
@@ -8908,11 +8931,12 @@ const customerActionsResult = await q(
       cd.display_order,
       cd.id
   `,
-  [
-    orgId,
-    fromDate || "",
-    toDate || ""
-  ]
+[
+  orgId,
+  fromDate || "",
+  toDate || "",
+  selectedLocationId
+]
 );
 
 const customerActions =
