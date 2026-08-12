@@ -29161,7 +29161,9 @@ if (
 
       await client.query("COMMIT");
 
-      return res.redirect("/org-users");
+      return res.redirect(
+  `/org-users?organization_id=${organizationId}`
+);
     } catch (err) {
       try {
         await client.query("ROLLBACK");
