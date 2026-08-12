@@ -27359,17 +27359,50 @@ app.get(
               </td>
 
               <td style="white-space:nowrap;">
-                <a
-                  class="btn secondary"
-                  href="/org-user/${user.organization_user_id}/edit"
-                  style="
-                    padding:8px 12px;
-                    margin:0;
-                  "
-                >
-                  Edit
-                </a>
-              </td>
+<td style="white-space:nowrap;">
+  <a
+    class="btn secondary"
+    href="/org-user/${user.organization_user_id}/edit"
+    style="
+      padding:8px 12px;
+      margin:0 6px 0 0;
+    "
+  >
+    Edit
+  </a>
+
+  ${
+    normalizedRole === "owner"
+      ? ""
+      : `
+        <form
+          method="POST"
+          action="/org-user/${user.organization_user_id}/remove"
+          style="
+            display:inline;
+            margin:0;
+          "
+          onsubmit="
+            return confirm(
+              'Remove this user from the organization? Their underlying Vivid account will not be deleted.'
+            );
+          "
+        >
+          <button
+            type="submit"
+            class="btn secondary"
+            style="
+              padding:8px 12px;
+              margin:0;
+            "
+          >
+            Remove
+          </button>
+        </form>
+      `
+  }
+</td>
+              
             </tr>
           `;
         })
