@@ -35151,7 +35151,6 @@ Do not display individual advertising opportunities here.
 */
 app.get(
   "/org-reports",
-  requireOrgUser,
   async (req, res) => {
     try {
       const organizationId =
