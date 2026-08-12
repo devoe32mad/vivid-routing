@@ -21889,6 +21889,7 @@ if (selectedLocationId) {
           SELECT
             c.id,
             c.location_id,
+            c.qr_id,
 c.customer_id,
 c.opportunity_id,
 c.advertising_request_id,
@@ -21930,7 +21931,14 @@ c.advertising_request_id,
 
             renewal.total_contract_value
               AS renewal_contract_value
+performance.clicks
+  AS performance_clicks,
 
+performance.conversions
+  AS performance_conversions,
+
+performance.tracked_revenue
+  AS performance_tracked_revenue
           FROM contracts c
 
           LEFT JOIN spaces s
@@ -21948,7 +21956,64 @@ c.advertising_request_id,
 
           LEFT JOIN users u
             ON u.id = c.customer_id
+LEFT JOIN LATERAL (
+  SELECT
+    COUNT(DISTINCT e.id) FILTER (
+      WHERE e.type IN (
+        'offer',
+        'maps',
+        'waze'
+      )
+    )::int AS clicks,
 
+    COUNT(DISTINCT e.id) FILTER (
+      WHERE e.type = 'conversion'
+    )::int AS conversions,
+
+    COALESCE(
+      SUM(e.value) FILTER (
+        WHERE e.type = 'conversion'
+      ),
+      0
+    )::numeric AS tracked_revenue
+
+  FROM events e
+
+  JOIN campaigns camp
+    ON camp.id = e.campaign_id
+
+  WHERE e.qr_id = c.qr_id
+
+    AND (
+      c.start_date IS NULL
+      OR e.created_at::date >= c.start_date
+    )
+
+    AND (
+      c.end_date IS NULL
+      OR e.created_at::date <= c.end_date
+    )
+
+    AND LOWER(
+      TRIM(
+        COALESCE(
+          camp.advertiser,
+          ''
+        )
+      )
+    ) =
+    LOWER(
+      TRIM(
+        COALESCE(
+          ar.business_name,
+          u.name,
+          u.email,
+          ''
+        )
+      )
+    )
+) performance
+  ON true
           LEFT JOIN LATERAL (
             SELECT
               r.id,
