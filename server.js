@@ -505,7 +505,7 @@ ${navItem(
 
 ${navItem(
   "Reports",
-  `/org-reports?organization_id=${organizationId}`,
+  `/org-export?organization_id=${organizationId}`,
   "reports"
 )}
 
