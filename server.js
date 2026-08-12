@@ -22427,7 +22427,7 @@ const revenueAtRisk90 =
   border-top:1px solid #e7eee7;
 ">
   <div class="label">
-    Performance This Contract Term
+    Spot Performance This Contract Term
   </div>
 
   <div style="
