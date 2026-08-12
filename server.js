@@ -7163,6 +7163,185 @@ app.get(
     }
   }
 );
+app.post(
+  "/reset-password/:token",
+  async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+      const rawToken = String(
+        req.params.token || ""
+      ).trim();
+
+      const password = String(
+        req.body.password || ""
+      );
+
+      const confirmPassword = String(
+        req.body.confirm_password || ""
+      );
+
+      if (!rawToken) {
+        return res
+          .status(400)
+          .send("Invalid reset link.");
+      }
+
+      if (password.length < 8) {
+        return res
+          .status(400)
+          .send(`
+            Password must contain at least 8 characters.
+            <br><br>
+            <a href="/reset-password/${encodeURIComponent(rawToken)}">
+              Back to Reset Password
+            </a>
+          `);
+      }
+
+      if (password !== confirmPassword) {
+        return res
+          .status(400)
+          .send(`
+            Passwords do not match.
+            <br><br>
+            <a href="/reset-password/${encodeURIComponent(rawToken)}">
+              Back to Reset Password
+            </a>
+          `);
+      }
+
+      const tokenHash =
+        crypto
+          .createHash("sha256")
+          .update(rawToken)
+          .digest("hex");
+
+      await client.query("BEGIN");
+
+      const resetResult =
+        await client.query(
+          `
+            SELECT
+              prt.id,
+              prt.user_id
+            FROM password_reset_tokens prt
+            WHERE prt.token_hash = $1
+              AND prt.used_at IS NULL
+              AND prt.expires_at > CURRENT_TIMESTAMP
+            LIMIT 1
+            FOR UPDATE
+          `,
+          [tokenHash]
+        );
+
+      const reset =
+        resetResult.rows[0];
+
+      if (!reset) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(404)
+          .send(`
+            <h2>Reset Link Expired</h2>
+            <p>
+              This password reset link is invalid,
+              expired, or has already been used.
+            </p>
+            <a href="/login">
+              Return to Login
+            </a>
+          `);
+      }
+
+      await client.query(
+        `
+          UPDATE users
+          SET
+            password = $1,
+            account_status = 'active',
+            password_created_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+        `,
+        [
+          password,
+          reset.user_id
+        ]
+      );
+
+      await client.query(
+        `
+          UPDATE password_reset_tokens
+          SET used_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+        `,
+        [reset.id]
+      );
+
+      await client.query("COMMIT");
+
+      return res.send(
+        page(
+          "Password Updated",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid
+              </div>
+
+              <h1>Password Updated</h1>
+
+              <p class="subtitle">
+                Your new password has been saved.
+              </p>
+            </div>
+
+            <div class="wrap">
+              <div
+                class="card"
+                style="
+                  max-width:520px;
+                  margin:30px auto;
+                "
+              >
+                <p>
+                  You can now sign in using your
+                  new password.
+                </p>
+
+                <a
+                  class="btn"
+                  href="/login"
+                >
+                  Go to Login
+                </a>
+              </div>
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (_) {}
+
+      console.error(
+        "RESET PASSWORD SAVE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to reset password: " +
+          err.message
+        );
+    } finally {
+      client.release();
+    }
+  }
+);
 app.get("/login", (req, res) => {
 
   res.send(page("Login", `
