@@ -27984,7 +27984,7 @@ app.get(
                 </span>
               </td>
 
-              <td style="white-space:nowrap;">
+              
 <td style="white-space:nowrap;">
   <a
     class="btn secondary"
@@ -27996,7 +27996,30 @@ app.get(
   >
     Edit
   </a>
-
+<form
+  method="POST"
+  action="/org-user/${user.organization_user_id}/send-password-reset"
+  style="
+    display:inline;
+    margin:0 6px 0 0;
+  "
+  onsubmit="
+    return confirm(
+      'Send a password reset link to this user?'
+    );
+  "
+>
+  <button
+    type="submit"
+    class="btn secondary"
+    style="
+      padding:8px 12px;
+      margin:0;
+    "
+  >
+    Reset Password
+  </button>
+</form>
   ${
     normalizedRole === "owner"
       ? ""
@@ -29285,6 +29308,109 @@ app.post(
         );
     } finally {
       client.release();
+    }
+  }
+);
+/*
+=========================================================
+SEND ORGANIZATION USER PASSWORD RESET
+=========================================================
+*/
+
+app.post(
+  "/org-user/:organizationUserId/send-password-reset",
+  requireOrganizationPermission("manage_users"),
+  async (req, res) => {
+    try {
+      const organizationId = Number(
+        req.session.orgUser.organization_id
+      );
+
+      const organizationUserId = Number(
+        req.params.organizationUserId
+      );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !Number.isInteger(organizationUserId) ||
+        organizationUserId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Valid organization and user are required."
+          );
+      }
+
+      const userResult = await q(
+        `
+          SELECT
+            ou.id AS organization_user_id,
+            ou.user_id,
+            u.name,
+            u.email
+          FROM organization_users ou
+          INNER JOIN users u
+            ON u.id = ou.user_id
+          WHERE ou.id = $1
+            AND ou.organization_id = $2
+          LIMIT 1
+        `,
+        [
+          organizationUserId,
+          organizationId
+        ]
+      );
+
+      const user =
+        userResult.rows[0];
+
+      if (!user) {
+        return res
+          .status(404)
+          .send(
+            "Organization user not found."
+          );
+      }
+
+      const requestedByUserId =
+        Number(
+          req.session.user?.id ||
+          req.session.orgUser?.user_id ||
+          0
+        ) || null;
+
+      const result =
+        await createAndSendPasswordReset({
+          userId: Number(user.user_id),
+          email: user.email,
+          name: user.name || "",
+          requestedByUserId,
+          organizationId
+        });
+
+      if (!result.sent) {
+        return res
+          .status(500)
+          .send(
+            "Unable to send password reset email."
+          );
+      }
+
+      return res.redirect("/org-users");
+    } catch (err) {
+      console.error(
+        "ORGANIZATION PASSWORD RESET ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "ORGANIZATION PASSWORD RESET ERROR: " +
+          err.message
+        );
     }
   }
 );
