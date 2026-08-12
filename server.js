@@ -28574,7 +28574,7 @@ if (
 
               <form
                 method="POST"
-                action="/org-user/${organizationUserId}/edit"
+                action="/org-user/${organizationUserId}/edit?organization_id=${organizationId}"
               >
 
                 <div class="card">
