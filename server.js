@@ -54659,7 +54659,17 @@ app.get("/admin/organizations", requireLogin, async (req, res) => {
           <td>${org.location_count || 0}</td>
           <td>${org.is_active ? "Active" : "Archived"}</td>
           <td>
-            <a href="/admin/edit-organization/${org.id}">Edit</a>
+            <td>
+  <a href="/admin/edit-organization/${org.id}">
+    Edit
+  </a>
+
+  &nbsp;|&nbsp;
+
+  <a href="/org-users?organization_id=${org.id}">
+    Manage Users
+  </a>
+</td>
           </td>
         </tr>
       `;
