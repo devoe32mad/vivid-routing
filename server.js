@@ -7374,13 +7374,196 @@ app.get("/login", (req, res) => {
         <button class="btn" type="submit">
           Login
         </button>
-
+<div style="
+  margin-top:14px;
+">
+  <a
+    href="/forgot-password"
+    style="
+      text-decoration:none;
+      font-weight:700;
+    "
+  >
+    Forgot Password?
+  </a>
+</div>
       </form>
 
     </div>
   `));
 
 });
+app.get(
+  "/forgot-password",
+  async (req, res) => {
+    try {
+      return res.send(
+        page(
+          "Forgot Password",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid
+              </div>
+
+              <h1>Forgot Password</h1>
+
+              <p class="subtitle">
+                Enter your email address and we'll send
+                you a secure password reset link.
+              </p>
+            </div>
+
+            <div class="wrap">
+              <form
+                method="POST"
+                action="/forgot-password"
+                style="
+                  max-width:520px;
+                  margin:30px auto;
+                "
+              >
+                <label>
+                  Email Address
+                </label>
+
+                <input
+                  type="email"
+                  name="email"
+                  required
+                />
+
+                <button
+                  class="btn"
+                  type="submit"
+                >
+                  Send Reset Link
+                </button>
+              </form>
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "FORGOT PASSWORD FORM ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to load password reset form: " +
+          err.message
+        );
+    }
+  }
+);
+app.post(
+  "/forgot-password",
+  async (req, res) => {
+    try {
+      const email = String(
+        req.body.email || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (
+        !email ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+      ) {
+        return res
+          .status(400)
+          .send(
+            "A valid email address is required."
+          );
+      }
+
+      const userResult = await q(
+        `
+          SELECT
+            id,
+            name,
+            email
+          FROM users
+          WHERE LOWER(TRIM(email)) =
+                LOWER(TRIM($1))
+          LIMIT 1
+        `,
+        [email]
+      );
+
+      const user =
+        userResult.rows[0];
+
+      /*
+        Always show the same response whether or not
+        the email exists. This prevents account discovery.
+      */
+      if (user) {
+        await createAndSendPasswordReset({
+          userId: Number(user.id),
+          email: user.email,
+          name: user.name || ""
+        });
+      }
+
+      return res.send(
+        page(
+          "Password Reset Requested",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid
+              </div>
+
+              <h1>Check Your Email</h1>
+
+              <p class="subtitle">
+                If an account exists for that email address,
+                a password reset link has been sent.
+              </p>
+            </div>
+
+            <div class="wrap">
+              <div
+                class="card"
+                style="
+                  max-width:520px;
+                  margin:30px auto;
+                "
+              >
+                <p>
+                  The reset link expires in 60 minutes.
+                </p>
+
+                <a
+                  class="btn"
+                  href="/login"
+                >
+                  Return to Login
+                </a>
+              </div>
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "FORGOT PASSWORD REQUEST ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to process password reset: " +
+          err.message
+        );
+    }
+  }
+);
 app.post("/login", async (req, res) => {
 
   try {
