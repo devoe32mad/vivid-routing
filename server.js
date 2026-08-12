@@ -8156,7 +8156,7 @@ if (
     ]
   );
 
-  const assignedLocation =
+  
     const assignedLocations =
   locationResult.rows;
 
