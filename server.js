@@ -7843,6 +7843,11 @@ const pendingResult = await q(
 
       WHERE r.organization_id = $1
 
+  AND (
+    $2::int IS NULL
+    OR r.location_id = $2::int
+  )
+
       ORDER BY
         r.opportunity_id,
         r.created_at DESC,
@@ -7862,7 +7867,10 @@ const pendingResult = await q(
       submitted_at DESC NULLS LAST,
       request_id DESC
   `,
-  [orgId]
+  [
+  orgId,
+  selectedLocationId
+]
 );
 
 const pendingOpportunities =
@@ -7942,6 +7950,11 @@ JOIN spaces s
 
 WHERE oo.organization_id = $1
 
+  AND (
+    $2::int IS NULL
+    OR oo.space_id = $2::int
+  )
+
   AND LOWER(
         TRIM(
           COALESCE(oo.status,'')
@@ -7952,7 +7965,10 @@ ORDER BY
     s.name,
     oo.title
 `,
-[orgId]
+[
+  orgId,
+  selectedLocationId
+]
 );
 
 const availableOpportunities =
