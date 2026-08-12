@@ -27822,9 +27822,24 @@ app.get(
   requireOrganizationPermission("manage_users"),
   async (req, res) => {
     try {
-      const organizationId = Number(
-        req.session.orgUser.organization_id
-      );
+     let organizationId = null;
+
+if (
+  req.session.user?.role === "super_admin"
+) {
+  organizationId = Number(
+    req.query.organization_id
+  );
+}
+
+if (
+  !organizationId &&
+  req.session.orgUser?.organization_id
+) {
+  organizationId = Number(
+    req.session.orgUser.organization_id
+  );
+}
 
       if (
         !Number.isInteger(organizationId) ||
