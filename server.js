@@ -28009,7 +28009,7 @@ if (
 <td style="white-space:nowrap;">
   <a
     class="btn secondary"
-    href="/org-user/${user.organization_user_id}/edit"
+    href="/org-user/${user.organization_user_id}/edit?organization_id=${organizationId}"
     style="
       padding:8px 12px;
       margin:0 6px 0 0;
