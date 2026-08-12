@@ -7736,7 +7736,10 @@ const approvedResult = await q(
 
     WHERE r.organization_id = $1
       AND LOWER(TRIM(COALESCE(r.status, ''))) = 'approved'
-
+AND (
+  $4::int IS NULL
+  OR r.location_id = $4::int
+)
       AND (
         NULLIF($2, '') IS NULL
         OR r.approved_at::date >= NULLIF($2, '')::date
@@ -7751,11 +7754,12 @@ const approvedResult = await q(
       r.approved_at DESC NULLS LAST,
       r.id DESC
   `,
-  [
-    orgId,
-    fromDate || "",
-    toDate || ""
-  ]
+[
+  orgId,
+  fromDate || "",
+  toDate || "",
+  selectedLocationId
+]
 );
 
 const approvedOpportunities =
