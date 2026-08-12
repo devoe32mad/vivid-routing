@@ -15644,10 +15644,11 @@ const businessMetricsResult = await q(`
 
   FROM organization_opportunities oo
 WHERE oo.organization_id = $1
-  AND oo.location_id = ANY($2::int[])
-  AND (
-    $3::int IS NULL
-    OR oo.location_id = $3
+AND oo.space_id = ANY($2::int[])
+AND (
+  $3::int IS NULL
+  OR oo.space_id = $3
+)
   )
   
 `, [
