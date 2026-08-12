@@ -54180,6 +54180,10 @@ app.get("/reports-location", requireLogin, async (req, res) => {
         </div>
       </div>
     `));
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
 
   } catch (err) {
     console.error("LOCATION REPORT ERROR:", err);
