@@ -8148,7 +8148,7 @@ if (
         AND COALESCE(lu.is_active, true) = true
         AND COALESCE(s.is_archived, false) = false
       ORDER BY s.name ASC
-      LIMIT 1
+      
     `,
     [
       user.organization_id,
@@ -8157,7 +8157,30 @@ if (
   );
 
   const assignedLocation =
-    locationResult.rows[0];
+    const assignedLocations =
+  locationResult.rows;
+
+if (assignedLocations.length === 0) {
+  return res.status(403).send(`
+    This user does not have an active location assignment.
+    <br><br>
+    Please contact your Organization Administrator.
+    <br><br>
+    <a href="/org-login">
+      Back to Organization Login
+    </a>
+  `);
+}
+
+if (assignedLocations.length === 1) {
+  return res.redirect(
+    `/org-location/${assignedLocations[0].space_id}`
+  );
+}
+
+return res.redirect(
+  `/org-locations`
+);
 
   if (!assignedLocation) {
     return res.status(403).send(`
