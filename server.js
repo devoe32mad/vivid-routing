@@ -503,7 +503,11 @@ ${navItem(
   "pipeline"
 )}
 
-
+${navItem(
+  "Reports",
+  `/org-reports?organization_id=${organizationId}`,
+  "reports"
+)}
 
 ${navItem(
   "Administration",
