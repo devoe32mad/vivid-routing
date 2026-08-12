@@ -13856,16 +13856,14 @@ app.get(
                   Export Executive Excel
                 </a>
 
-                <span
-                  class="btn secondary"
-                  style="
-                    opacity:.55;
-                    cursor:not-allowed;
-                  "
-                  title="Organization PDF is the next build step."
-                >
-                  Export Executive PDF
-                </span>
+              <a
+  class="btn secondary"
+  href="/org-export/report.pdf?${escapeHtml(
+    exportQuery.toString()
+  )}"
+>
+  Export Executive PDF
+</a>
               </div>
 
               <div class="card">
