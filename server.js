@@ -22655,6 +22655,9 @@ const revenueAtRisk90 =
   </div>
 </a>     
 </div>
+${
+  selectedWindow !== "dashboard"
+    ? `
 <div class="card" style="margin-bottom:24px;">
   <form
     method="GET"
@@ -22760,7 +22763,9 @@ const revenueAtRisk90 =
 ">
   ${attentionRows}
 </div>         
-
+      `
+    : ""
+}
       
             </div>
           `
