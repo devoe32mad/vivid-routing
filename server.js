@@ -8352,14 +8352,8 @@ if (assignedLocations.length === 0) {
   `);
 }
 
-if (assignedLocations.length === 1) {
-  return res.redirect(
-    `/org-location/${assignedLocations[0].space_id}`
-  );
-}
-
 return res.redirect(
-  `/org-locations`
+  `/org-organization/${user.organization_id}`
 );
 
   if (!assignedLocation) {
