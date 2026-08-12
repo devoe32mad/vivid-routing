@@ -35149,7 +35149,110 @@ Location cards will drill into location-level detail.
 Do not display individual advertising opportunities here.
 =========================================================
 */
+app.get(
+  "/org-reports",
+  requireOrgUser,
+  async (req, res) => {
+    try {
+      const organizationId =
+        Number(req.query.organization_id) ||
+        Number(req.session.orgUser?.organizationId);
 
+      if (!organizationId) {
+        return res
+          .status(400)
+          .send("Organization required.");
+      }
+
+      const organizationResult = await q(
+        `
+          SELECT id, name
+          FROM organizations
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [organizationId]
+      );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res
+          .status(404)
+          .send("Organization not found.");
+      }
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        req.session.user?.name ||
+        req.session.user?.email ||
+        "";
+
+      return res.send(
+        orgPage(
+          `Reports - ${organization.name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(organization.name),
+              activePage: "reports",
+              userName:
+                escapeHtml(userName)
+            })}
+
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                ${escapeHtml(organization.name)} Reports
+              </h1>
+
+              <p class="subtitle">
+                Build, review and export organization
+                performance and operational reports.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div class="card">
+                <h2 style="margin-top:0;">
+                  Report Builder
+                </h2>
+
+                <p style="
+                  color:#65776b;
+                  margin-bottom:0;
+                ">
+                  Select report criteria to analyze
+                  organization data and performance.
+                </p>
+              </div>
+
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "ORGANIZATION REPORTS ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to load Reports: " +
+          err.message
+        );
+    }
+  }
+);
 app.get(
   "/org-revenue-pipeline",
   async (req, res) => {
