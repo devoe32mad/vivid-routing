@@ -28478,7 +28478,157 @@ ORGANIZATION OPERATIONS
 ORGANIZATION BULK IMPORT
 =========================================================
 */
+/*
+=========================================================
+REMOVE ORGANIZATION USER
+=========================================================
+*/
 
+app.post(
+  "/org-user/:organizationUserId/remove",
+  requireOrganizationPermission("manage_users"),
+  async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+      const organizationId = Number(
+        req.session.orgUser.organization_id
+      );
+
+      const organizationUserId = Number(
+        req.params.organizationUserId
+      );
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0 ||
+        !Number.isInteger(organizationUserId) ||
+        organizationUserId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Valid organization and user are required."
+          );
+      }
+
+      await client.query("BEGIN");
+
+      const membershipResult =
+        await client.query(
+          `
+            SELECT
+              id,
+              user_id,
+              role,
+              is_active
+            FROM organization_users
+            WHERE id = $1
+              AND organization_id = $2
+            LIMIT 1
+            FOR UPDATE
+          `,
+          [
+            organizationUserId,
+            organizationId
+          ]
+        );
+
+      const membership =
+        membershipResult.rows[0];
+
+      if (!membership) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(404)
+          .send("Organization user not found.");
+      }
+
+      const userId =
+        Number(membership.user_id);
+
+      const role =
+        String(membership.role || "")
+          .trim()
+          .toLowerCase();
+
+      /*
+        Never allow the organization owner
+        to be removed.
+      */
+      if (role === "owner") {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(400)
+          .send(
+            "The organization owner cannot be removed."
+          );
+      }
+
+      /*
+        Remove location access.
+      */
+      await client.query(
+        `
+          DELETE FROM location_users
+          WHERE organization_id = $1
+            AND user_id = $2
+        `,
+        [
+          organizationId,
+          userId
+        ]
+      );
+
+      /*
+        Deactivate organization membership.
+
+        Do NOT delete the global Vivid user.
+      */
+      await client.query(
+        `
+          UPDATE organization_users
+          SET is_active = false
+          WHERE id = $1
+            AND organization_id = $2
+        `,
+        [
+          organizationUserId,
+          organizationId
+        ]
+      );
+
+      await client.query("COMMIT");
+
+      return res.redirect("/org-users");
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackErr) {
+        console.error(
+          "REMOVE ORGANIZATION USER ROLLBACK ERROR:",
+          rollbackErr
+        );
+      }
+
+      console.error(
+        "REMOVE ORGANIZATION USER ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "REMOVE ORGANIZATION USER ERROR: " +
+            err.message
+        );
+    } finally {
+      client.release();
+    }
+  }
+);
 app.get(
   "/org-bulk-import",
   async (req, res) => {
