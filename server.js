@@ -21930,7 +21930,7 @@ c.advertising_request_id,
               AS renewal_end_date,
 
             renewal.total_contract_value
-              AS renewal_contract_value
+              AS renewal_contract_value,
 performance.clicks
   AS performance_clicks,
 
