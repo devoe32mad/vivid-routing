@@ -13681,7 +13681,12 @@ const data =
           toDate
         );
       }
-
+if (selectedLocationId) {
+  exportQuery.set(
+    "location_id",
+    String(selectedLocationId)
+  );
+}
       const generatedBy =
         req.session.user?.name ||
         req.session.user?.email ||
