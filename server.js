@@ -85,7 +85,138 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
+async function createAndSendPasswordReset({
+  userId,
+  email,
+  name = "",
+  requestedByUserId = null,
+  organizationId = null
+}) {
+  const rawToken =
+    crypto.randomBytes(32).toString("hex");
 
+  const tokenHash =
+    crypto
+      .createHash("sha256")
+      .update(rawToken)
+      .digest("hex");
+
+  const expiresAt =
+    new Date(
+      Date.now() +
+      60 * 60 * 1000
+    );
+
+  await q(
+    `
+      UPDATE password_reset_tokens
+      SET used_at = CURRENT_TIMESTAMP
+      WHERE user_id = $1
+        AND used_at IS NULL
+    `,
+    [userId]
+  );
+
+  await q(
+    `
+      INSERT INTO password_reset_tokens (
+        user_id,
+        token_hash,
+        expires_at,
+        requested_by_user_id,
+        organization_id
+      )
+      VALUES (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5
+      )
+    `,
+    [
+      userId,
+      tokenHash,
+      expiresAt,
+      requestedByUserId,
+      organizationId
+    ]
+  );
+
+  const resetUrl =
+    `${BASE_URL}/reset-password/${rawToken}`;
+
+  const sent =
+    await sendOrganizationNotification({
+      to: email,
+
+      subject:
+        "Reset your Vivid password",
+
+      html: `
+        <div style="
+          font-family:Arial,sans-serif;
+          max-width:640px;
+          margin:0 auto;
+          line-height:1.6;
+        ">
+          <h2>
+            Reset your Vivid password
+          </h2>
+
+          <p>
+            ${
+              name
+                ? `Hi ${escapeHtml(name)},`
+                : "Hello,"
+            }
+          </p>
+
+          <p>
+            A password reset was requested
+            for your Vivid account.
+          </p>
+
+          <p>
+            <a
+              href="${resetUrl}"
+              style="
+                display:inline-block;
+                padding:12px 18px;
+                background:#123d25;
+                color:white;
+                text-decoration:none;
+                border-radius:8px;
+                font-weight:bold;
+              "
+            >
+              Reset Password
+            </a>
+          </p>
+
+          <p style="
+            color:#64748b;
+            font-size:13px;
+          ">
+            This link expires in 60 minutes.
+          </p>
+
+          <p style="
+            color:#64748b;
+            font-size:13px;
+          ">
+            If you did not request this change,
+            you can ignore this email.
+          </p>
+        </div>
+      `
+    });
+
+  return {
+    sent,
+    resetUrl
+  };
+}
 async function q(sql, params = []) {
   return pool.query(sql, params);
 }
