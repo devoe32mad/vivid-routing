@@ -1586,6 +1586,12 @@ function organizationRoleHasPermission(role, permissionKey) {
 function requireOrganizationPermission(permissionKey) {
   return (req, res, next) => {
 
+    if (
+      req.session.user?.role === "super_admin"
+    ) {
+      return next();
+    }
+
     if (!req.session.orgUser) {
       return res.redirect("/org-login");
     }
