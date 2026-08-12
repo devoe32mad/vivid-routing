@@ -13591,13 +13591,49 @@ app.get(
         toDate
       } = dateFilter;
 
-      const data =
-        await buildOrganizationExportData(
-          req,
-          organizationId,
-          fromDate,
-          toDate
-        );
+  const selectedLocationId =
+  req.query.location_id || "";
+const reportLocationsResult = await q(
+  `
+    SELECT
+      id,
+      name
+    FROM spaces
+    WHERE organization_id = $1
+      AND COALESCE(is_archived, false) = false
+    ORDER BY name
+  `,
+  [organizationId]
+);
+
+const reportLocationOptions = [
+  `
+    <option value="">
+      All Locations
+    </option>
+  `,
+  ...reportLocationsResult.rows.map(location => `
+    <option
+      value="${location.id}"
+      ${
+        String(selectedLocationId) ===
+        String(location.id)
+          ? "selected"
+          : ""
+      }
+    >
+      ${escapeHtml(location.name)}
+    </option>
+  `)
+].join("");
+const data =
+  await buildOrganizationExportData(
+    req,
+    organizationId,
+    fromDate,
+    toDate,
+    selectedLocationId
+  );
 
       const escapeHtml = value =>
         String(value ?? "")
@@ -13855,8 +13891,35 @@ app.get(
                           toDate
                         )}"
                       />
-                    </div>
-                  </div>
+                                 </div>
+
+                <div>
+                  <label
+                    for="location_id"
+                    style="
+                      display:block;
+                      font-weight:700;
+                    "
+                  >
+                    Location
+                  </label>
+
+                  <select
+                    id="location_id"
+                    name="location_id"
+                    style="
+                      width:100%;
+                      padding:10px 12px;
+                      border:1px solid #d7dfd8;
+                      border-radius:8px;
+                      background:white;
+                    "
+                  >
+                    ${reportLocationOptions}
+                  </select>
+                </div>
+
+              </div>
 
                   <div
                     style="
