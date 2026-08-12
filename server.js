@@ -13597,6 +13597,23 @@ app.get(
 
   const selectedLocationId =
   req.query.location_id || "";
+
+const data =
+  await buildOrganizationExportData(
+    req,
+    organizationId,
+    fromDate,
+    toDate,
+    selectedLocationId
+  );
+
+      const escapeHtml = value =>
+        String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
 const reportLocationsResult = await q(
   `
     SELECT
@@ -13630,23 +13647,6 @@ const reportLocationOptions = [
     </option>
   `)
 ].join("");
-const data =
-  await buildOrganizationExportData(
-    req,
-    organizationId,
-    fromDate,
-    toDate,
-    selectedLocationId
-  );
-
-      const escapeHtml = value =>
-        String(value ?? "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#039;");
-
       const formatMoney = value =>
         Number(value || 0)
           .toLocaleString(
