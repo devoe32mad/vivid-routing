@@ -22437,7 +22437,61 @@ const revenueAtRisk90 =
             )}
           </strong>
         </div>
+<div style="
+  grid-column:1 / -1;
+  margin-top:4px;
+  padding-top:16px;
+  border-top:1px solid #e7eee7;
+">
+  <div class="label">
+    Performance This Contract Term
+  </div>
 
+  <div style="
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:14px;
+    margin-top:10px;
+  ">
+
+    <div>
+      <div class="label">
+        Clicks
+      </div>
+
+      <strong>
+        ${Number(
+          contract.performance_clicks || 0
+        ).toLocaleString("en-US")}
+      </strong>
+    </div>
+
+    <div>
+      <div class="label">
+        Conversions
+      </div>
+
+      <strong>
+        ${Number(
+          contract.performance_conversions || 0
+        ).toLocaleString("en-US")}
+      </strong>
+    </div>
+
+    <div>
+      <div class="label">
+        Tracked Revenue
+      </div>
+
+      <strong>
+        ${money(
+          contract.performance_tracked_revenue || 0
+        )}
+      </strong>
+    </div>
+
+  </div>
+</div>
         <div>
           <div class="label">
             Renewal Status
