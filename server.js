@@ -11726,14 +11726,16 @@ app.get(
         fromDate,
         toDate
       } = dateFilter;
-
+const selectedLocationId =
+  req.query.location_id || "";
       const data =
-        await buildOrganizationExportData(
-          req,
-          organizationId,
-          fromDate,
-          toDate
-        );
+  await buildOrganizationExportData(
+    req,
+    organizationId,
+    fromDate,
+    toDate,
+    selectedLocationId
+  );
 
       const generatedAt =
         new Date();
