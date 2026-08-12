@@ -28019,7 +28019,7 @@ if (
   </a>
 <form
   method="POST"
-  action="/org-user/${user.organization_user_id}/send-password-reset"
+  action="/org-user/${user.organization_user_id}/send-password-reset?organization_id=${organizationId}"
   style="
     display:inline;
     margin:0 6px 0 0;
