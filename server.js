@@ -15059,37 +15059,51 @@ app.get(
   async (req, res) => {
     try {
       const orgId = Number(req.params.id);
-const dateFilter = getOrgDateFilter(req);
 
-if (dateFilter.error) {
-  return res.status(400).send(
-    dateFilter.error
-  );
+if (!Number.isInteger(orgId) || orgId <= 0) {
+  return res
+    .status(400)
+    .send("Valid organization is required.");
+}
+
+/*
+  Never allow an Organization Portal user
+  to open another organization by changing
+  the URL.
+*/
+if (
+  req.session.user?.role !== "super_admin" &&
+  Number(
+    req.session.orgUser?.organization_id
+  ) !== orgId
+) {
+  return res
+    .status(403)
+    .send("Access denied");
+}
+
+const scope =
+  await getOrganizationScope(req);
+
+/*
+  The route organization must always match
+  the organization resolved by the shared
+  Enterprise scope.
+*/
+if (scope.organizationId !== orgId) {
+  return res
+    .status(403)
+    .send("Access denied");
 }
 
 const {
   fromDate,
   toDate,
-  queryString: dateQueryString
-} = dateFilter;
-      const isSuperAdmin =
-  req.session.user?.role === "super_admin";
-
-const isOrganizationAdmin =
-  req.session.orgUser &&
-  Number(req.session.orgUser.organization_id) === orgId &&
-  ["owner", "organization_admin", "district_admin"].includes(
-    String(
-      req.session.orgUser.organization_role || ""
-    ).toLowerCase()
-  );
-
-if (!isSuperAdmin && !isOrganizationAdmin) {
-  return res.status(403).send("Access denied");
-}
-      if (!Number.isInteger(orgId) || orgId <= 0) {
-        return res.status(400).send("Valid organization is required.");
-      }
+  queryString: dateQueryString,
+  allowedLocationIds,
+  selectedLocationId,
+  canEdit
+} = scope;
 
       const orgResult = await q(`
         SELECT
@@ -15123,9 +15137,13 @@ if (!isSuperAdmin && !isOrganizationAdmin) {
       s.name,
       s.location
     FROM spaces s
-    WHERE s.organization_id = $1
+WHERE s.organization_id = $1
   AND COALESCE(s.is_archived, false) = false
-
+  AND s.id = ANY($4::int[])
+  AND (
+    $5::int IS NULL
+    OR s.id = $5
+  )
   AND (
         /*
           With no selected dates, show currently active locations.
@@ -15442,11 +15460,17 @@ if (!isSuperAdmin && !isOrganizationAdmin) {
     fl.location
 
   ORDER BY fl.name
-`, [
+`, 
+  [
   orgId,
   fromDate,
-  toDate
-]);
+  toDate,
+  allowedLocationIds,
+  selectedLocationId
+]
+
+  
+);
       /*
         Count advertisers once across the entire organization.
         Advertisers are derived from Vivid Campaign records.
@@ -15469,9 +15493,14 @@ const advertiserResult = await q(`
   JOIN campaigns c
     ON c.id = qc.campaign_id
 
-  WHERE s.organization_id = $1
-    AND COALESCE(s.is_archived, false) = false
-    AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL
+ WHERE s.organization_id = $1
+  AND COALESCE(s.is_archived, false) = false
+  AND s.id = ANY($4::int[])
+  AND (
+    $5::int IS NULL
+    OR s.id = $5
+  )
+  AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL
 
     /*
       Location overlaps the selected range.
@@ -15549,11 +15578,18 @@ const advertiserResult = await q(`
         OR NULLIF($3, '') IS NOT NULL
       )
     )
-`, [
+`, 
+  [
   orgId,
   fromDate,
-  toDate
-]);
+  toDate,
+  allowedLocationIds,
+  selectedLocationId
+]
+  
+  
+
+                                );
 
       /*
         Contracts belong to the Organization management layer.
@@ -15567,8 +15603,18 @@ const advertiserResult = await q(`
           COUNT(*)::int AS total_contracts
 
         FROM contracts
-        WHERE organization_id = $1
-      `, [orgId]);
+WHERE organization_id = $1
+  AND location_id = ANY($2::int[])
+  AND (
+    $3::int IS NULL
+    OR location_id = $3
+  )
+        
+      `, [
+  orgId,
+  allowedLocationIds,
+  selectedLocationId
+]);
 const businessMetricsResult = await q(`
   SELECT
     COUNT(*) FILTER (
@@ -15603,8 +15649,18 @@ const businessMetricsResult = await q(`
     )::numeric AS available_revenue
 
   FROM organization_opportunities oo
-  WHERE oo.organization_id = $1
-`, [orgId]);
+WHERE oo.organization_id = $1
+  AND oo.location_id = ANY($2::int[])
+  AND (
+    $3::int IS NULL
+    OR oo.location_id = $3
+  )
+  
+`, [
+  orgId,
+  allowedLocationIds,
+  selectedLocationId
+]);
 
 const pendingMetricsResult = await q(`
   SELECT
@@ -15629,10 +15685,18 @@ const pendingMetricsResult = await q(`
     ON oo.id = r.opportunity_id
    AND oo.organization_id = r.organization_id
 
-  WHERE r.organization_id = $1
-    AND LOWER(TRIM(COALESCE(r.status, ''))) =
-        'pending'
-`, [orgId]);
+WHERE r.organization_id = $1
+  AND r.location_id = ANY($2::int[])
+  AND (
+    $3::int IS NULL
+    OR r.location_id = $3
+  )
+  AND LOWER(TRIM(COALESCE(r.status, ''))) = 'pending'
+`, [
+  orgId,
+  allowedLocationIds,
+  selectedLocationId
+]);
 
       const locations = locationResult.rows;
 
