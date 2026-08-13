@@ -27043,7 +27043,7 @@ summary.conversions += Number(
 
               <a
                 class="btn secondary"
-                href="/org-organization/${organization.id}${dateQueryString ? `?${dateQueryString}` : ""}"
+              href="/org-organization/${organization.id}${advertiserQueryString ? `?${advertiserQueryString}` : ""}"
               >
                 Back to ${organization.name}
               </a>
