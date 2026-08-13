@@ -44130,7 +44130,26 @@ app.post(
           "Invalid QR placement."
         );
       }
+const scope =
+  await getOrganizationScope(req);
 
+if (
+  scope.organizationId !== organizationId
+) {
+  return res
+    .status(403)
+    .send("Access denied.");
+}
+
+if (
+  !scope.allowedLocationIds.includes(spaceId)
+) {
+  return res
+    .status(403)
+    .send(
+      "You do not have access to this location."
+    );
+}
       /*
         Confirm that the active Vivid location belongs
         to the selected organization.
