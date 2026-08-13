@@ -30134,33 +30134,20 @@ app.get(
   "/org-operations",
   async (req, res) => {
     try {
-      let organizationId = null;
+  const scope =
+  await getOrganizationScope(req);
 
-      // Super Admin uses the selected organization.
-      if (req.session.user?.role === "super_admin") {
-        organizationId = Number(
-          req.query.organization_id
-        );
-      }
+const {
+  organizationId,
+  hasOrganizationWideAccess
+} = scope;
 
-      // Organization users use their authenticated organization.
-      if (
-        !organizationId &&
-        req.session.orgUser?.organization_id
-      ) {
-        organizationId = Number(
-          req.session.orgUser.organization_id
-        );
-      }
+if (!hasOrganizationWideAccess) {
+  return res
+    .status(403)
+    .send("Administration access denied.");
+}
 
-      if (
-        !Number.isInteger(organizationId) ||
-        organizationId <= 0
-      ) {
-        return res
-          .status(403)
-          .send("Operations access denied.");
-      }
 
       const organizationResult = await q(
         `
