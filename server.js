@@ -15837,18 +15837,34 @@ min-height:220px;
               </div>
             </div>
 
-           ${
-  req.session.user?.role === "super_admin"
-    ? `
-      <a
-        class="btn secondary"
-        href="/org-organizations"
-      >
-        Back to Organizations
-      </a>
-    `
-    : ""
-}
+           
+<div style="
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+">
+
+  <a
+    class="btn"
+    href="/org-marketplace?organization_id=${org.id}"
+  >
+    + Add Sponsorship
+  </a>
+
+  ${
+    req.session.user?.role === "super_admin"
+      ? `
+        <a
+          class="btn secondary"
+          href="/org-organizations"
+        >
+          Back to Organizations
+        </a>
+      `
+      : ""
+  }
+
+</div>
           </div>
 ${orgDateFilterForm({
   action: `/org-organization/${org.id}`,
