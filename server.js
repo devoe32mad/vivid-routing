@@ -22044,14 +22044,15 @@ app.post(
       const renewalResult =
         await q(
           `
-            SELECT
-              renewal.id,
-              renewal.status,
-              renewal.start_date,
-              renewal.end_date,
-              renewal.total_contract_value,
-              renewal.billing_frequency,
-              renewal.renewed_from_contract_id,
+        SELECT
+  renewal.id,
+  renewal.status,
+  renewal.start_date,
+  renewal.end_date,
+  renewal.total_contract_value,
+  renewal.billing_frequency,
+  renewal.renewed_from_contract_id,
+  renewal.location_id,
 
               current_contract.id
                 AS current_contract_id,
@@ -22136,7 +22137,21 @@ app.post(
             "Renewal not found."
           );
       }
+const scope =
+  await getOrganizationScope(req);
 
+if (
+  scope.organizationId !== organizationId ||
+  !scope.allowedLocationIds.includes(
+    Number(renewal.location_id)
+  )
+) {
+  return res
+    .status(403)
+    .send(
+      "You do not have access to approve renewals for this location."
+    );
+}
       if (
         !renewal.renewed_from_contract_id
       ) {
