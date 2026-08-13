@@ -18699,7 +18699,48 @@ const statusFilter =
         .status(404)
         .send("Organization not found.");
     }
+const contractLocationsResult = await q(
+  `
+    SELECT
+      id,
+      name
+    FROM spaces
+    WHERE organization_id = $1
+      AND COALESCE(is_archived, false) = false
+      AND id = ANY($2::int[])
+    ORDER BY name
+  `,
+  [
+    organizationId,
+    allowedLocationIds
+  ]
+);
 
+const contractLocationOptions = [
+  `
+    <option value="">
+      All Locations
+    </option>
+  `,
+  ...contractLocationsResult.rows.map(location => `
+    <option
+      value="${location.id}"
+      ${
+        String(selectedLocationId || "") ===
+        String(location.id)
+          ? "selected"
+          : ""
+      }
+    >
+      ${escapeHtml(location.name)}
+    </option>
+  `)
+].join("");
+
+const locationQuerySuffix =
+  selectedLocationId
+    ? `&location_id=${selectedLocationId}`
+    : "";
     const contractsResult = await q(
       `
         SELECT
@@ -19061,7 +19102,58 @@ const filteredContracts =
           </div>
 
           <div class="wrap">
+<form
+  method="GET"
+  action="/org-contracts"
+  style="
+    display:flex;
+    gap:12px;
+    align-items:end;
+    flex-wrap:wrap;
+    margin-bottom:22px;
+  "
+>
+  <input
+    type="hidden"
+    name="organization_id"
+    value="${organizationId}"
+  >
 
+  <div style="min-width:280px;">
+    <label
+      for="location_id"
+      style="
+        display:block;
+        font-weight:700;
+        margin-bottom:6px;
+      "
+    >
+      Location
+    </label>
+
+    <select
+      id="location_id"
+      name="location_id"
+      style="
+        width:100%;
+        padding:10px 12px;
+        border:1px solid #d7dfd8;
+        border-radius:8px;
+        background:white;
+      "
+    >
+      ${contractLocationOptions}
+    </select>
+  </div>
+
+  <button
+    class="btn"
+    type="submit"
+    style="margin:0;"
+  >
+    Apply
+  </button>
+</form>
             <div style="
               display:grid;
               grid-template-columns:
@@ -19071,7 +19163,7 @@ const filteredContracts =
             ">
 
               <a
-  href="/org-contracts?organization_id=${organizationId}"
+  href="/org-contracts?organization_id=${organizationId}${locationQuerySuffix}"
   class="card"
   style="
     margin:0;
@@ -19114,7 +19206,7 @@ const filteredContracts =
 </a>
 
 <a
-  href="/org-contracts?organization_id=${organizationId}&status=draft"
+  href="/org-contracts?organization_id=${organizationId}&status=draft${locationQuerySuffix}"
   class="card"
   style="
     margin:0;
@@ -19157,7 +19249,7 @@ const filteredContracts =
 </a>
 
 <a
-  href="/org-contracts?organization_id=${organizationId}&status=active"
+  href="/org-contracts?organization_id=${organizationId}&status=active${locationQuerySuffix}"
   class="card"
   style="
     margin:0;
@@ -19200,7 +19292,7 @@ const filteredContracts =
 </a>
 
 <a
-  href="/org-contracts?organization_id=${organizationId}&status=expiring"
+  href="/org-contracts?organization_id=${organizationId}&status=expiring${locationQuerySuffix}"
   class="card"
   style="
     margin:0;
@@ -19243,7 +19335,7 @@ const filteredContracts =
 </a>
 
 <a
-  href="/org-contracts?organization_id=${organizationId}&status=active"
+  href="/org-contracts?organization_id=${organizationId}&status=active${locationQuerySuffix}"
   class="card"
   style="
     margin:0;
