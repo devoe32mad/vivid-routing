@@ -8606,10 +8606,8 @@ const approvedResult = await q(
 
     WHERE r.organization_id = $1
       AND LOWER(TRIM(COALESCE(r.status, ''))) = 'approved'
-AND (
-  $4::int IS NULL
-  OR r.location_id = $4::int
-)
+AND r.location_id = ANY($4::int[])
+
       AND (
         NULLIF($2, '') IS NULL
         OR r.approved_at::date >= NULLIF($2, '')::date
@@ -8628,7 +8626,7 @@ AND (
   orgId,
   fromDate || "",
   toDate || "",
-  selectedLocationId
+  allowedLocationIds
 ]
 );
 
@@ -8713,10 +8711,7 @@ const pendingResult = await q(
 
       WHERE r.organization_id = $1
 
-  AND (
-    $2::int IS NULL
-    OR r.location_id = $2::int
-  )
+ AND r.location_id = ANY($2::int[])
 
       ORDER BY
         r.opportunity_id,
@@ -8737,9 +8732,9 @@ const pendingResult = await q(
       submitted_at DESC NULLS LAST,
       request_id DESC
   `,
-  [
+ [
   orgId,
-  selectedLocationId
+  allowedLocationIds
 ]
 );
 
@@ -8820,10 +8815,7 @@ JOIN spaces s
 
 WHERE oo.organization_id = $1
 
-  AND (
-    $2::int IS NULL
-    OR oo.space_id = $2::int
-  )
+AND oo.space_id = ANY($2::int[])
 
   AND LOWER(
         TRIM(
@@ -8837,7 +8829,7 @@ ORDER BY
 `,
 [
   orgId,
-  selectedLocationId
+  allowedLocationIds
 ]
 );
 
