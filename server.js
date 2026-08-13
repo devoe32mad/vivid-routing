@@ -499,15 +499,43 @@ function organizationNav({
   organizationId,
   organizationName,
   activePage = "",
-  userName = ""
+  userName = "",
+  locationId = null,
+  queryString = ""
 }) {
+const scopedHref = href => {
+  const params =
+    new URLSearchParams(
+      queryString || ""
+    );
+
+  if (locationId) {
+    params.set(
+      "location_id",
+      String(locationId)
+    );
+  }
+
+  const extraQuery =
+    params.toString();
+
+  if (!extraQuery) {
+    return href;
+  }
+
+  return `${href}${
+    href.includes("?")
+      ? "&"
+      : "?"
+  }${extraQuery}`;
+};
   const navItem = (
     label,
     href,
     key
   ) => `
     <a
-      href="${href}"
+      href="${scopedHref(href)}"
       style="
         display:inline-block;
         padding:11px 15px;
