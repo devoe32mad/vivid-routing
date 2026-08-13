@@ -21206,7 +21206,21 @@ app.post(
             "Contract not found."
           );
       }
+const scope =
+  await getOrganizationScope(req);
 
+if (
+  scope.organizationId !== organizationId ||
+  !scope.allowedLocationIds.includes(
+    Number(currentContract.location_id)
+  )
+) {
+  return res
+    .status(403)
+    .send(
+      "You do not have access to renew contracts for this location."
+    );
+}
       const currentStatus =
         String(
           currentContract.status ||
