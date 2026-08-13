@@ -678,11 +678,25 @@ ${
       )
     : ""
 }
-${navItem(
-  "Help",
-  `/org-help?organization_id=${organizationId}`,
-  "help"
-)}
+<a
+  href="${scopedHref(
+    `/org-help?organization_id=${organizationId}`
+  )}"
+  target="_blank"
+  rel="noopener noreferrer"
+  style="
+    display:inline-block;
+    padding:11px 15px;
+    border-radius:10px;
+    text-decoration:none;
+    font-weight:bold;
+    color:white;
+    background:#2f7d46;
+    white-space:nowrap;
+  "
+>
+  Help
+</a>
         </div>
 
       </div>
