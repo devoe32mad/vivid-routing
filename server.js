@@ -18662,23 +18662,19 @@ app.get(
 );
 app.get("/org-contracts", async (req, res) => {
   try {
-    const organizationId = Number(
-      req.query.organization_id ||
-      req.session.orgUser?.organizationId ||
-      req.session.user?.organization_id
-    );
+ const scope =
+  await getOrganizationScope(req);
+
+const {
+  organizationId,
+  allowedLocationIds,
+  selectedLocationId
+} = scope;
+
 const statusFilter =
   String(req.query.status || "")
     .trim()
     .toLowerCase();
-    if (
-      !Number.isInteger(organizationId) ||
-      organizationId <= 0
-    ) {
-      return res
-        .status(400)
-        .send("A valid organization is required.");
-    }
 
     const organizationResult = await q(
       `
@@ -18750,16 +18746,24 @@ const statusFilter =
         LEFT JOIN users u
           ON u.id = c.customer_id
 
-        WHERE c.organization_id = $1
+  WHERE c.organization_id = $1
   AND c.renewed_from_contract_id IS NULL
+  AND c.location_id = ANY($2::int[])
+  AND (
+    $3::int IS NULL
+    OR c.location_id = $3::int
+  )
 
-        ORDER BY
-          c.created_at DESC,
-          c.id DESC
-      `,
-      [organizationId]
-    );
-
+ORDER BY
+  c.created_at DESC,
+  c.id DESC
+`,
+[
+  organizationId,
+  allowedLocationIds,
+  selectedLocationId
+]
+);
     const contracts =
       contractsResult.rows;
 
