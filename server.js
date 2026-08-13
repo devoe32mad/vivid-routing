@@ -39848,7 +39848,12 @@ const opportunityResult = await q(`
   flex-wrap:wrap;
 ">
 
-  
+  <a
+  class="marketplace-btn"
+  href="/org-opportunity/new?organization_id=${organization.id}"
+>
+  + Add Sponsorship
+</a>
 
   <a
     class="marketplace-btn secondary"
