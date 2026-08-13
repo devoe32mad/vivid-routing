@@ -30332,27 +30332,43 @@ app.get(
 );
 
 /* =========================================================
-   ORGANIZATION HELP
+   VIVID ORGANIZATIONS HELP CENTER
 ========================================================= */
 
 app.get(
   "/org-help",
   async (req, res) => {
     try {
+
+      /*
+        Use the same Organization scope architecture
+        as the rest of Vivid Organizations.
+      */
+
       const scope =
         await getOrganizationScope(req);
 
-      const organizationId =
-        Number(scope.organizationId);
+      const {
+        organizationId,
+        hasOrganizationWideAccess
+      } = scope;
 
       if (
-        !Number.isInteger(organizationId) ||
-        organizationId <= 0
+        !Number.isInteger(
+          Number(organizationId)
+        ) ||
+        Number(organizationId) <= 0
       ) {
         return res
           .status(403)
-          .send("Help access denied.");
+          .send(
+            "Help access denied."
+          );
       }
+
+      /*
+        Load Organization.
+      */
 
       const organizationResult =
         await q(
@@ -30364,11 +30380,16 @@ app.get(
             FROM organizations
 
             WHERE id = $1
-              AND COALESCE(is_active, true) = true
+              AND COALESCE(
+                is_active,
+                true
+              ) = true
 
             LIMIT 1
           `,
-          [organizationId]
+          [
+            organizationId
+          ]
         );
 
       const organization =
@@ -30377,28 +30398,321 @@ app.get(
       if (!organization) {
         return res
           .status(404)
-          .send("Organization not found.");
+          .send(
+            "Organization not found."
+          );
       }
 
       const userName =
         req.session.orgUser?.name ||
         req.session.orgUser?.email ||
         req.session.user?.name ||
+        req.session.user?.email ||
         "";
+
+      /*
+        Reusable Help section link.
+      */
+
+      const openPageLink = (
+        label,
+        href
+      ) => `
+        <div style="
+          margin-top:20px;
+        ">
+          <a
+            class="btn"
+            href="${href}"
+            target="_blank"
+            rel="noopener noreferrer"
+            style="margin:0;"
+          >
+            ${escapeHtml(label)} →
+          </a>
+        </div>
+      `;
+
+      /*
+        Reusable Back to Help Menu link.
+      */
+
+      const backToMenu = `
+        <div style="
+          margin-top:24px;
+          padding-top:16px;
+          border-top:1px solid #e1e9e2;
+        ">
+          <a
+            href="#help-menu"
+            style="
+              text-decoration:none;
+              font-weight:bold;
+            "
+          >
+            ↑ Back to Help Menu
+          </a>
+        </div>
+      `;
+
+      /*
+        Reusable detailed Help section.
+      */
+
+      const helpSection = ({
+        id,
+        title,
+        intro,
+        body,
+        pageLabel = "",
+        pageHref = ""
+      }) => `
+        <section
+          id="${id}"
+          class="card"
+          style="
+            max-width:1000px;
+            margin:0 auto 24px;
+            padding:30px;
+            box-sizing:border-box;
+            scroll-margin-top:120px;
+          "
+        >
+
+          <h2 style="
+            margin:0 0 8px;
+            color:#073b22;
+            font-size:26px;
+          ">
+            ${title}
+          </h2>
+
+          ${
+            intro
+              ? `
+                  <p style="
+                    color:#65776b;
+                    line-height:1.65;
+                    margin:0 0 22px;
+                    font-size:15px;
+                  ">
+                    ${intro}
+                  </p>
+                `
+              : ""
+          }
+
+          <div style="
+            color:#315b4c;
+            line-height:1.7;
+            font-size:15px;
+          ">
+            ${body}
+          </div>
+
+          ${
+            pageHref
+              ? openPageLink(
+                  pageLabel,
+                  pageHref
+                )
+              : ""
+          }
+
+          ${backToMenu}
+
+        </section>
+      `;
+
+      /*
+        Help menu cards.
+
+        Administration is shown only to users
+        with Organization-wide administrative
+        access.
+      */
+
+      const helpItems = [
+        {
+          title:
+            "Getting Started",
+          description:
+            "Understand the complete Vivid advertising workflow.",
+          anchor:
+            "getting-started"
+        },
+        {
+          title:
+            "Overview",
+          description:
+            "Understand organization-wide advertising performance.",
+          anchor:
+            "overview"
+        },
+        {
+          title:
+            "Locations",
+          description:
+            "Review advertising activity and performance by location.",
+          anchor:
+            "locations"
+        },
+        {
+          title:
+            "Advertisers",
+          description:
+            "Understand advertiser relationships, activity, and results.",
+          anchor:
+            "advertisers"
+        },
+        {
+          title:
+            "Advertising Inventory",
+          description:
+            "Create and manage sponsorship and advertising opportunities.",
+          anchor:
+            "advertising-inventory"
+        },
+        {
+          title:
+            "Advertising Requests",
+          description:
+            "Review and manage incoming advertiser requests.",
+          anchor:
+            "advertising-requests"
+        },
+        {
+          title:
+            "Contracts",
+          description:
+            "Manage advertising agreements, dates, values, and activation.",
+          anchor:
+            "contracts"
+        },
+        {
+          title:
+            "Renewals",
+          description:
+            "Manage upcoming renewals and future contract terms.",
+          anchor:
+            "renewals"
+        },
+        {
+          title:
+            "Revenue Pipeline",
+          description:
+            "Understand available, pending, and approved advertising revenue.",
+          anchor:
+            "revenue-pipeline"
+        },
+        {
+          title:
+            "Reports",
+          description:
+            "Filter, analyze, and export advertising performance.",
+          anchor:
+            "reports"
+        },
+
+        ...(hasOrganizationWideAccess
+          ? [
+              {
+                title:
+                  "Administration",
+                description:
+                  "Manage users, permissions, imports, and organization data.",
+                anchor:
+                  "administration"
+              }
+            ]
+          : []),
+
+        {
+          title:
+            "Vivid Glossary",
+          description:
+            "Understand important Vivid metrics and terminology.",
+          anchor:
+            "vivid-glossary"
+        }
+      ];
+
+      const helpMenuCards =
+        helpItems
+          .map(
+            item => `
+              <a
+                href="#${item.anchor}"
+                class="card"
+                style="
+                  display:block;
+                  margin:0;
+                  text-decoration:none;
+                  color:inherit;
+                  cursor:pointer;
+                  min-height:155px;
+                  box-sizing:border-box;
+                "
+              >
+
+                <div style="
+                  font-size:18px;
+                  font-weight:bold;
+                  color:#073b22;
+                  margin-bottom:8px;
+                ">
+                  ${escapeHtml(
+                    item.title
+                  )}
+                </div>
+
+                <div style="
+                  color:#65776b;
+                  line-height:1.5;
+                  font-size:14px;
+                ">
+                  ${escapeHtml(
+                    item.description
+                  )}
+                </div>
+
+                <div style="
+                  margin-top:14px;
+                  color:#176b3a;
+                  font-size:13px;
+                  font-weight:bold;
+                ">
+                  View Instructions →
+                </div>
+
+              </a>
+            `
+          )
+          .join("");
+
+      /*
+        Render Help Center.
+      */
 
       return res.send(
         orgPage(
           `Help - ${organization.name}`,
           `
+
             ${organizationNav({
               organizationId,
               organizationName:
-                escapeHtml(organization.name),
-              activePage: "help",
+                escapeHtml(
+                  organization.name
+                ),
+              activePage:
+                "help",
               userName:
-                escapeHtml(userName),
+                escapeHtml(
+                  userName
+                ),
               showAdministration:
-                scope.hasOrganizationWideAccess
+                hasOrganizationWideAccess
             })}
 
             <div class="topbar">
@@ -30407,7 +30721,9 @@ app.get(
                 Vivid Organizations
               </div>
 
-              <h1>Help</h1>
+              <h1>
+                Help
+              </h1>
 
               <p class="subtitle">
                 Learn how to use Vivid to sell,
@@ -30417,24 +30733,40 @@ app.get(
 
             </div>
 
-            <div class="wrap">
+
+            <main
+              id="help-menu"
+              class="wrap"
+              style="
+                scroll-margin-top:120px;
+              "
+            >
+
+              <!-- =========================================
+                   HELP INTRODUCTION
+              ========================================== -->
 
               <div
                 class="card"
                 style="
-                  max-width:900px;
-                  margin:0 auto 20px;
+                  max-width:1000px;
+                  margin:0 auto 24px;
+                  padding:28px;
+                  box-sizing:border-box;
                 "
               >
 
-                <h2 style="margin-top:0;">
+                <h2 style="
+                  margin:0 0 8px;
+                  color:#073b22;
+                ">
                   Vivid Organizations Help Center
                 </h2>
 
                 <p style="
                   color:#65776b;
-                  line-height:1.6;
-                  margin-bottom:0;
+                  line-height:1.65;
+                  margin:0;
                 ">
                   This guide explains the major
                   features, workflows, and performance
@@ -30442,261 +30774,1128 @@ app.get(
                   Organizations.
                 </p>
 
+                <div style="
+                  margin-top:18px;
+                  padding:16px 18px;
+                  background:#f3f7f3;
+                  border-radius:12px;
+                  color:#315b4c;
+                  line-height:1.6;
+                ">
+
+                  <strong style="
+                    color:#073b22;
+                  ">
+                    Tip
+                  </strong>
+
+                  <div style="
+                    margin-top:5px;
+                  ">
+                    Keep this Help Center open in one
+                    browser tab while using Vivid in
+                    another. Select any topic below to
+                    jump directly to its instructions.
+                  </div>
+
+                </div>
+
               </div>
 
-              <div style="
-                display:grid;
-                grid-template-columns:
-                  repeat(auto-fit,minmax(240px,1fr));
-                gap:16px;
-                max-width:900px;
-                margin:0 auto;
-              ">
 
-       <div style="
-  display:grid;
-  grid-template-columns:
-    repeat(auto-fit,minmax(240px,1fr));
-  gap:16px;
-  max-width:900px;
-  margin:0 auto;
-">
+              <!-- =========================================
+                   HELP MENU
+              ========================================== -->
 
-  ${[
-    [
-      "Getting Started",
-      "Understand the Vivid advertising workflow.",
-      "getting-started"
-    ],
+              <div
+                style="
+                  display:grid;
+                  grid-template-columns:
+                    repeat(
+                      auto-fit,
+                      minmax(240px,1fr)
+                    );
+                  gap:16px;
+                  max-width:1000px;
+                  margin:0 auto 42px;
+                "
+              >
+                ${helpMenuCards}
+              </div>
 
-    [
-      "Overview",
-      "Understand your organization-wide advertising performance.",
-      "overview"
-    ],
 
-    [
-      "Locations",
-      "Review advertising activity and performance by location.",
-      "locations"
-    ],
+              <!-- =========================================
+                   DETAILED HELP CONTENT
+              ========================================== -->
 
-    [
-      "Advertisers",
-      "Understand advertiser activity, performance, and results.",
-      "advertisers"
-    ],
+              <div
+                style="
+                  display:block;
+                  width:100%;
+                  clear:both;
+                  max-width:1000px;
+                  margin:0 auto;
+                "
+              >
 
-    [
-      "Advertising Inventory",
-      "Create and manage sponsorship and advertising opportunities.",
-      "advertising-inventory"
-    ],
 
-    [
-      "Advertising Requests",
-      "Review and manage incoming advertiser requests.",
-      "advertising-requests"
-    ],
+                ${helpSection({
+                  id:
+                    "getting-started",
 
-    [
-      "Contracts",
-      "Manage advertising agreements, dates, values, and activation.",
-      "contracts"
-    ],
+                  title:
+                    "Getting Started",
 
-    [
-      "Renewals",
-      "Manage upcoming contract renewals and next terms.",
-      "renewals"
-    ],
+                  intro:
+                    `Vivid helps your organization manage the complete advertising lifecycle from available inventory through advertiser performance and renewal.`,
 
-    [
-      "Revenue Pipeline",
-      "Understand available, pending, and approved advertising revenue.",
-      "revenue-pipeline"
-    ],
+                  body:
+                    `
 
-    [
-      "Reports",
-      "Filter, analyze, and export organization performance.",
-      "reports"
-    ],
+                      <h3>
+                        How Vivid Works
+                      </h3>
 
-    [
-      "Administration",
-      "Manage users, permissions, and organization data.",
-      "administration"
-    ],
+                      <p>
+                        <strong>
+                          1. Create Advertising Inventory
+                        </strong>
+                        <br>
+                        Identify the advertising and
+                        sponsorship opportunities available
+                        throughout your organization and
+                        locations.
+                      </p>
 
-    [
-      "Vivid Glossary",
-      "Understand Vivid metrics and terminology.",
-      "vivid-glossary"
-    ]
-  ]
-    .map(
-      ([title, description, anchor]) => `
-        <a
-          href="#${anchor}"
-          class="card"
-          style="
-            display:block;
-            text-decoration:none;
-            color:inherit;
-            cursor:pointer;
-            margin:0;
-          "
-        >
+                      <p>
+                        <strong>
+                          2. Connect Advertisers
+                        </strong>
+                        <br>
+                        Advertisers may request available
+                        opportunities while your organization
+                        manages existing advertiser
+                        relationships inside Vivid.
+                      </p>
 
-          <div style="
-            font-size:18px;
-            font-weight:bold;
-            color:#073b22;
-            margin-bottom:8px;
-          ">
-            ${title}
-          </div>
+                      <p>
+                        <strong>
+                          3. Manage Advertising Agreements
+                        </strong>
+                        <br>
+                        Advertising requests progress into
+                        contracts, active advertising, and
+                        future renewals.
+                      </p>
 
-          <div style="
-            color:#65776b;
-            line-height:1.5;
-            font-size:14px;
-          ">
-            ${description}
-          </div>
+                      <p>
+                        <strong>
+                          4. Measure Performance
+                        </strong>
+                        <br>
+                        Vivid measures advertising activity,
+                        advertiser engagement, conversions,
+                        and attributable advertiser revenue.
+                      </p>
 
-          <div style="
-            margin-top:12px;
-            color:#176b3a;
-            font-size:13px;
-            font-weight:bold;
-          ">
-            View Instructions →
-          </div>
+                      <p>
+                        <strong>
+                          5. Grow Advertising Revenue
+                        </strong>
+                        <br>
+                        Use inventory, pipeline, advertiser
+                        performance, contract, and renewal
+                        information to identify opportunities
+                        to increase advertising revenue.
+                      </p>
 
-        </a>
-      `
-    )
-    .join("")}
+                      <div style="
+                        margin-top:22px;
+                        padding:18px;
+                        background:#f3f7f3;
+                        border-radius:12px;
+                      ">
 
-</div>        
-            
-<div style="
-  display:block;
-  width:100%;
-  clear:both;
-  margin-top:30px;
-">
+                        <strong style="
+                          color:#073b22;
+                        ">
+                          The Vivid Workflow
+                        </strong>
 
-  <div
-    id="getting-started"
-    class="card"
-    style="
-      max-width:900px;
-      margin:0 auto 20px;
-      padding:28px;
-      box-sizing:border-box;
-    "
-  >
+                        <div style="
+                          margin-top:8px;
+                        ">
+                          Advertising Inventory →
+                          Advertising Request →
+                          Contract →
+                          Active Advertising →
+                          Performance Measurement →
+                          Renewal
+                        </div>
 
-  <h2 style="
-    margin:0 0 8px;
-    color:#073b22;
-  ">
-    Getting Started
-  </h2>
+                      </div>
 
-  <p style="
-    color:#65776b;
-    line-height:1.6;
-    margin-top:0;
-  ">
-    Vivid helps your organization sell,
-    manage, measure, and grow its
-    advertising and sponsorship business.
-  </p>
+                      <h3 style="
+                        margin-top:26px;
+                      ">
+                        Roles and Location Access
+                      </h3>
 
-  <h3>
-    How Vivid Works
-  </h3>
+                      <p>
+                        Your Vivid role determines what
+                        actions you may perform. Your
+                        location assignments determine
+                        which locations and related data
+                        you may access.
+                      </p>
 
-  <div style="
-    line-height:1.7;
-    color:#315b4c;
-  ">
+                      <p>
+                        Organization-wide administrators
+                        may work across all authorized
+                        organization locations. Location
+                        Managers work only with the
+                        locations assigned to them.
+                      </p>
+                    `
+                })}
 
-    <p>
-      <strong>1. Create Advertising Inventory</strong><br>
-      Identify the advertising and sponsorship
-      opportunities available throughout your
-      organization and locations.
-    </p>
 
-    <p>
-      <strong>2. Connect Advertisers</strong><br>
-      Advertisers can request available
-      opportunities while your organization
-      manages existing advertiser relationships.
-    </p>
+                ${helpSection({
+                  id:
+                    "overview",
 
-    <p>
-      <strong>3. Manage Agreements</strong><br>
-      Advertising requests can progress into
-      contracts, active advertising, and
-      future renewals.
-    </p>
+                  title:
+                    "Overview",
 
-    <p>
-      <strong>4. Measure Performance</strong><br>
-      Vivid tracks advertising activity and
-      advertiser performance so your organization
-      can understand the value being created.
-    </p>
+                  intro:
+                    `The Overview gives leadership a consolidated view of the organization's advertising business and advertiser performance.`,
 
-    <p>
-      <strong>5. Grow Advertising Revenue</strong><br>
-      Use inventory, pipeline, advertiser
-      performance, and renewal information to
-      identify opportunities to increase
-      advertising revenue.
-    </p>
+                  pageLabel:
+                    "Open Overview",
 
-  </div>
+                  pageHref:
+                    `/org-organization/${organizationId}`,
 
-  <div style="
-    margin-top:22px;
-    padding:18px;
-    background:#f3f7f3;
-    border-radius:12px;
-  ">
+                  body:
+                    `
 
-    <strong style="color:#073b22;">
-      The Vivid Workflow
-    </strong>
+                      <h3>
+                        What the Overview Shows
+                      </h3>
 
-    <div style="
-      margin-top:8px;
-      color:#315b4c;
-      line-height:1.6;
-    ">
-      Advertising Inventory →
-      Advertising Request →
-      Contract →
-      Active Advertising →
-      Performance Measurement →
-      Renewal
-    </div>
+                      <p>
+                        The Overview combines information
+                        from advertising inventory,
+                        advertiser relationships, contracts,
+                        activity, and performance data.
+                      </p>
 
-  </div>
+                      <h3>
+                        Advertising Business
+                      </h3>
 
-</div>
-            </div>
+                      <p>
+                        Use the Advertising Business cards
+                        to understand available advertising
+                        opportunities, pending advertising,
+                        active advertising, and advertiser
+                        revenue generated through Vivid.
+                      </p>
+
+                      <h3>
+                        Date Filters
+                      </h3>
+
+                      <p>
+                        Use the From and To date fields when
+                        you want to review performance for a
+                        specific reporting period.
+                      </p>
+
+                      <h3>
+                        Location Scope
+                      </h3>
+
+                      <p>
+                        Organization administrators may see
+                        organization-wide totals. Location
+                        Managers see totals aggregated only
+                        from their assigned locations.
+                      </p>
+
+                      <h3>
+                        Drill Down
+                      </h3>
+
+                      <p>
+                        Use the cards and location links to
+                        move from the executive view into
+                        individual locations, advertisers,
+                        inventory, contracts, pipeline,
+                        renewals, and reports.
+                      </p>
+                    `
+                })}
+
+
+                ${helpSection({
+                  id:
+                    "locations",
+
+                  title:
+                    "Locations",
+
+                  intro:
+                    `Locations organize advertising activity by the physical locations or operating units within your organization.`,
+
+                  pageLabel:
+                    "Open Locations",
+
+                  pageHref:
+                    `/org-locations?organization_id=${organizationId}`,
+
+                  body:
+                    `
+
+                      <h3>
+                        Location Overview
+                      </h3>
+
+                      <p>
+                        The Locations page shows the
+                        locations you are authorized to
+                        access along with their advertising
+                        activity and performance.
+                      </p>
+
+                      <p>
+                        Select a location to open its
+                        detailed dashboard.
+                      </p>
+
+                      <h3>
+                        Location Dashboards
+                      </h3>
+
+                      <p>
+                        A location dashboard provides a
+                        location-specific view of
+                        placements, campaigns, advertising
+                        activity, advertisers, and revenue.
+                      </p>
+
+                      <h3>
+                        Multiple Location Managers
+                      </h3>
+
+                      <p>
+                        A Location Manager may be assigned
+                        to one location or multiple
+                        locations. Vivid aggregates only
+                        the locations assigned to that
+                        user.
+                      </p>
+                    `
+                })}
+
+
+                ${helpSection({
+                  id:
+                    "advertisers",
+
+                  title:
+                    "Advertisers",
+
+                  intro:
+                    `The Advertisers area shows the advertiser relationships connected to your organization's advertising activity and their measurable performance.`,
+
+                  pageLabel:
+                    "Open Advertisers",
+
+                  pageHref:
+                    `/org-advertisers?organization_id=${organizationId}`,
+
+                  body:
+                    `
+
+                      <h3>
+                        Advertiser Overview
+                      </h3>
+
+                      <p>
+                        Review advertiser relationships,
+                        active campaigns, placements,
+                        scans, conversions, and revenue
+                        generated.
+                      </p>
+
+                      <h3>
+                        Location Filter
+                      </h3>
+
+                      <p>
+                        Select All Locations to view
+                        advertiser activity across all
+                        locations available to you, or
+                        choose a specific location to
+                        narrow the results.
+                      </p>
+
+                      <h3>
+                        Date Filters
+                      </h3>
+
+                      <p>
+                        Use date filters to evaluate
+                        advertiser activity during a
+                        particular reporting period.
+                      </p>
+
+                      <h3>
+                        Advertiser Detail
+                      </h3>
+
+                      <p>
+                        Open an advertiser to review the
+                        campaigns and performance
+                        associated with that advertising
+                        relationship.
+                      </p>
+
+                      <p>
+                        Advertiser performance data helps
+                        your organization demonstrate
+                        advertising value, improve
+                        renewals, and identify strong
+                        advertising opportunities.
+                      </p>
+                    `
+                })}
+
+
+                ${helpSection({
+                  id:
+                    "advertising-inventory",
+
+                  title:
+                    "Advertising Inventory",
+
+                  intro:
+                    `Advertising Inventory is where your organization creates, prices, and manages the advertising and sponsorship opportunities it has available to sell.`,
+
+                  pageLabel:
+                    "Open Advertising Inventory",
+
+                  pageHref:
+                    `/org-marketplace?organization_id=${organizationId}`,
+
+                  body:
+                    `
+
+                      <h3>
+                        All Locations
+                      </h3>
+
+                      <p>
+                        Select All Locations to review the
+                        advertising inventory available
+                        across every location you are
+                        authorized to manage.
+                      </p>
+
+                      <p>
+                        Select a specific location when you
+                        want to focus on that location's
+                        inventory.
+                      </p>
+
+                      <h3>
+                        Add Sponsorship
+                      </h3>
+
+                      <p>
+                        Use Add Sponsorship to create a new
+                        advertising opportunity. Enter the
+                        opportunity name, category,
+                        description, investment, pricing
+                        unit, suggested term, availability,
+                        and other applicable information.
+                      </p>
+
+                      <p>
+                        If you begin from All Locations,
+                        Vivid will ask you to select an
+                        authorized location before creating
+                        the opportunity.
+                      </p>
+
+                      <h3>
+                        Opportunity Status
+                      </h3>
+
+                      <p>
+                        Advertising opportunities may be
+                        marked Available, Reserved, or
+                        Unavailable depending on their
+                        current sales status.
+                      </p>
+
+                      <h3>
+                        Bulk Tools
+                      </h3>
+
+                      <p>
+                        Where available, bulk tools may be
+                        used to create or import multiple
+                        advertising opportunities more
+                        efficiently.
+                      </p>
+                    `
+                })}
+
+
+                ${helpSection({
+                  id:
+                    "advertising-requests",
+
+                  title:
+                    "Advertising Requests",
+
+                  intro:
+                    `Advertising Requests manages incoming requests from businesses interested in your organization's advertising opportunities.`,
+
+                  pageLabel:
+                    "Open Advertising Requests",
+
+                  pageHref:
+                    `/org-advertising-requests?organization_id=${organizationId}`,
+
+                  body:
+                    `
+
+                      <h3>
+                        Requests by Location
+                      </h3>
+
+                      <p>
+                        Review request activity by location,
+                        including pending, approved,
+                        rejected, and closed requests.
+                      </p>
+
+                      <h3>
+                        Review a Request
+                      </h3>
+
+                      <p>
+                        Open a request to review the
+                        advertiser, selected opportunity,
+                        contact information, campaign
+                        information, and related details.
+                      </p>
+
+                      <h3>
+                        Approving a Request
+                      </h3>
+
+                      <p>
+                        When an eligible request is
+                        approved, Vivid preserves the
+                        advertiser, organization,
+                        location, and advertising
+                        opportunity relationship.
+                      </p>
+
+                      <p>
+                        The approval workflow may create
+                        or connect the advertiser's Vivid
+                        account, create the related
+                        contract, reserve the advertising
+                        opportunity, and begin advertiser
+                        setup.
+                      </p>
+
+                      <h3>
+                        Location Permissions
+                      </h3>
+
+                      <p>
+                        Location Managers may approve
+                        requests only for locations they
+                        are authorized to manage.
+                      </p>
+                    `
+                })}
+
+
+                ${helpSection({
+                  id:
+                    "contracts",
+
+                  title:
+                    "Contracts",
+
+                  intro:
+                    `Contracts manages the business agreement associated with an advertising relationship.`,
+
+                  pageLabel:
+                    "Open Contracts",
+
+                  pageHref:
+                    `/org-contracts?organization_id=${organizationId}`,
+
+                  body:
+                    `
+
+                      <h3>
+                        Contract Information
+                      </h3>
+
+                      <p>
+                        Contracts may include the
+                        advertiser, location, advertising
+                        opportunity, start date, end date,
+                        contract value, billing frequency,
+                        status, and related documents.
+                      </p>
+
+                      <h3>
+                        Contract Status
+                      </h3>
+
+                      <p>
+                        Use contract status to understand
+                        where the advertising agreement is
+                        in its lifecycle.
+                      </p>
+
+                      <h3>
+                        Executed Agreement
+                      </h3>
+
+                      <p>
+                        When required by the workflow, an
+                        executed agreement must be attached
+                        before a draft contract can be
+                        activated.
+                      </p>
+
+                      <h3>
+                        Location Filter
+                      </h3>
+
+                      <p>
+                        Select All Locations to see
+                        contracts across all locations you
+                        are authorized to access, or
+                        select a specific location.
+                      </p>
+
+                      <h3>
+                        Contract Activity
+                      </h3>
+
+                      <p>
+                        Contract activity records important
+                        actions associated with the
+                        advertising relationship.
+                      </p>
+                    `
+                })}
+
+
+                ${helpSection({
+                  id:
+                    "renewals",
+
+                  title:
+                    "Renewals",
+
+                  intro:
+                    `Renewals helps your organization protect recurring advertising revenue by identifying upcoming contract expirations and managing the next contract term.`,
+
+                  pageLabel:
+                    "Open Renewals",
+
+                  pageHref:
+                    `/org-renewals?organization_id=${organizationId}`,
+
+                  body:
+                    `
+
+                      <h3>
+                        Renewal Windows
+                      </h3>
+
+                      <p>
+                        Renewal cards help identify
+                        contracts approaching expiration,
+                        including upcoming renewal windows
+                        and revenue at risk.
+                      </p>
+
+                      <h3>
+                        Create Renewal
+                      </h3>
+
+                      <p>
+                        A renewal creates a proposed next
+                        contract term while preserving the
+                        existing current contract.
+                      </p>
+
+                      <h3>
+                        Review and Approve
+                      </h3>
+
+                      <p>
+                        Review the proposed dates, value,
+                        billing frequency, and relationship
+                        information before approval.
+                      </p>
+
+                      <p>
+                        Once approved, the renewal becomes
+                        Scheduled and is prepared to begin
+                        after the current contract term.
+                      </p>
+
+                      <h3>
+                        Advertiser Notification
+                      </h3>
+
+                      <p>
+                        Vivid may notify the advertiser
+                        when a renewal has been approved.
+                      </p>
+
+                      <h3>
+                        Location Filter
+                      </h3>
+
+                      <p>
+                        Select All Locations or narrow the
+                        renewal dashboard to a specific
+                        authorized location.
+                      </p>
+                    `
+                })}
+
+
+                ${helpSection({
+                  id:
+                    "revenue-pipeline",
+
+                  title:
+                    "Revenue Pipeline",
+
+                  intro:
+                    `Revenue Pipeline helps your organization understand the value of its advertising inventory and the revenue progressing through the advertising lifecycle.`,
+
+                  pageLabel:
+                    "Open Revenue Pipeline",
+
+                  pageHref:
+                    `/org-revenue-pipeline?organization_id=${organizationId}`,
+
+                  body:
+                    `
+
+                      <h3>
+                        Available Revenue
+                      </h3>
+
+                      <p>
+                        Represents the potential value of
+                        advertising opportunities that are
+                        currently available.
+                      </p>
+
+                      <h3>
+                        Pending Revenue
+                      </h3>
+
+                      <p>
+                        Represents advertising value
+                        associated with opportunities or
+                        relationships that have not yet
+                        reached approved active revenue.
+                      </p>
+
+                      <h3>
+                        Approved / Active Revenue
+                      </h3>
+
+                      <p>
+                        Represents advertising revenue that
+                        has progressed into an approved or
+                        active relationship.
+                      </p>
+
+                      <h3>
+                        Revenue by Location
+                      </h3>
+
+                      <p>
+                        Location cards allow you to compare
+                        advertising revenue opportunities
+                        and relationships across the
+                        locations available to you.
+                      </p>
+
+                      <p>
+                        Open a location to review its
+                        complete advertising revenue
+                        pipeline.
+                      </p>
+                    `
+                })}
+
+
+                ${helpSection({
+                  id:
+                    "reports",
+
+                  title:
+                    "Reports",
+
+                  intro:
+                    `Reports provides executive-level analysis of advertising revenue, inventory, advertiser performance, and overall program activity.`,
+
+                  pageLabel:
+                    "Open Reports",
+
+                  pageHref:
+                    `/org-export?organization_id=${organizationId}`,
+
+                  body:
+                    `
+
+                      <h3>
+                        Reporting Filters
+                      </h3>
+
+                      <p>
+                        Use Start Date and End Date to
+                        define a reporting period.
+                      </p>
+
+                      <p>
+                        Use the Location filter to report
+                        across All Locations available to
+                        you or one specific location.
+                      </p>
+
+                      <h3>
+                        Executive Snapshot
+                      </h3>
+
+                      <p>
+                        The Executive Snapshot combines
+                        organization advertising revenue,
+                        advertiser performance, inventory,
+                        and program activity into one
+                        management view.
+                      </p>
+
+                      <h3>
+                        PDF Export
+                      </h3>
+
+                      <p>
+                        Export Executive PDF creates a
+                        presentation-ready report using
+                        the same reporting scope selected
+                        on screen.
+                      </p>
+
+                      <h3>
+                        Excel Export
+                      </h3>
+
+                      <p>
+                        Export Executive Excel provides
+                        detailed worksheets containing the
+                        underlying organization reporting
+                        information.
+                      </p>
+
+                      <p>
+                        Exports respect the same
+                        organization and location access
+                        assigned to the logged-in user.
+                      </p>
+                    `
+                })}
+
+
+                ${
+                  hasOrganizationWideAccess
+                    ? helpSection({
+                        id:
+                          "administration",
+
+                        title:
+                          "Administration",
+
+                        intro:
+                          `Administration provides organization-wide management tools for authorized administrators.`,
+
+                        pageLabel:
+                          "Open Administration",
+
+                        pageHref:
+                          `/org-operations?organization_id=${organizationId}`,
+
+                        body:
+                          `
+
+                            <h3>
+                              Users
+                            </h3>
+
+                            <p>
+                              Manage organization users,
+                              roles, permissions, and
+                              location assignments.
+                            </p>
+
+                            <h3>
+                              Roles and Permissions
+                            </h3>
+
+                            <p>
+                              A user's role determines
+                              what actions the user may
+                              perform. Location
+                              assignments determine where
+                              those actions may be
+                              performed.
+                            </p>
+
+                            <h3>
+                              Bulk Import
+                            </h3>
+
+                            <p>
+                              Authorized administrators
+                              may use bulk-import tools to
+                              efficiently load supported
+                              organization records.
+                            </p>
+
+                            <h3>
+                              Access
+                            </h3>
+
+                            <p>
+                              Administration is available
+                              only to authorized
+                              organization-wide
+                              administrators and Super
+                              Admins.
+                            </p>
+                          `
+                      })
+                    : ""
+                }
+
+
+                ${helpSection({
+                  id:
+                    "vivid-glossary",
+
+                  title:
+                    "Vivid Glossary",
+
+                  intro:
+                    `Use this glossary to understand important Vivid advertising, revenue, and performance terms.`,
+
+                  body:
+                    `
+
+                      <h3>
+                        Advertising Inventory
+                      </h3>
+
+                      <p>
+                        The advertising and sponsorship
+                        opportunities your organization
+                        has available to sell.
+                      </p>
+
+                      <h3>
+                        Advertising Opportunity
+                      </h3>
+
+                      <p>
+                        A specific sponsorship or
+                        advertising opportunity associated
+                        with an organization location.
+                      </p>
+
+                      <h3>
+                        Advertiser
+                      </h3>
+
+                      <p>
+                        A business or organization
+                        participating in an advertising
+                        relationship.
+                      </p>
+
+                      <h3>
+                        Scan
+                      </h3>
+
+                      <p>
+                        A recorded Vivid engagement that
+                        begins from a Vivid-enabled
+                        physical advertising placement.
+                      </p>
+
+                      <h3>
+                        Intent
+                      </h3>
+
+                      <p>
+                        Customer activity indicating
+                        increased interest after initial
+                        engagement. In Vivid, Intent
+                        includes tracked Offer, Map, and
+                        Waze actions.
+                      </p>
+
+                      <h3>
+                        Conversion
+                      </h3>
+
+                      <p>
+                        A tracked customer action that
+                        represents the advertiser's
+                        desired business outcome.
+                      </p>
+
+                      <h3>
+                        Revenue Generated
+                      </h3>
+
+                      <p>
+                        Advertiser revenue attributed
+                        through Vivid conversion
+                        tracking.
+                      </p>
+
+                      <h3>
+                        Placement Value
+                      </h3>
+
+                      <p>
+                        The value assigned to advertising
+                        placements included in the
+                        reporting scope.
+                      </p>
+
+                      <h3>
+                        Available Revenue
+                      </h3>
+
+                      <p>
+                        Potential revenue associated with
+                        advertising opportunities that
+                        remain available.
+                      </p>
+
+                      <h3>
+                        Pending Revenue
+                      </h3>
+
+                      <p>
+                        Revenue associated with
+                        advertising opportunities or
+                        relationships still progressing
+                        through the sales or approval
+                        process.
+                      </p>
+
+                      <h3>
+                        Approved Revenue
+                      </h3>
+
+                      <p>
+                        Organization advertising revenue
+                        associated with approved
+                        advertising relationships.
+                      </p>
+
+                      <h3>
+                        Inventory Utilization
+                      </h3>
+
+                      <p>
+                        The percentage of relevant
+                        advertising inventory currently
+                        committed or generating
+                        advertising revenue.
+                      </p>
+
+                      <h3>
+                        Economic Impact
+                      </h3>
+
+                      <p>
+                        A combined view of value created
+                        through the organization's
+                        advertising program, including
+                        organization advertising revenue
+                        and tracked advertiser revenue.
+                      </p>
+
+                      <h3>
+                        Revenue at Risk
+                      </h3>
+
+                      <p>
+                        Contract revenue approaching
+                        expiration that may require
+                        renewal action.
+                      </p>
+
+                      <h3>
+                        Location Manager
+                      </h3>
+
+                      <p>
+                        A user who may manage one or more
+                        assigned locations. Location
+                        Managers do not automatically
+                        receive access to every location
+                        in the organization.
+                      </p>
+
+                      <h3>
+                        Organization Administrator
+                      </h3>
+
+                      <p>
+                        An authorized organization-wide
+                        user with broader visibility and
+                        administrative capabilities.
+                      </p>
+
+                    `
+                })}
+
+
+              </div>
+
+            </main>
           `
         )
       );
 
     } catch (err) {
+
       console.error(
         "ORGANIZATION HELP ERROR:",
         err
@@ -30711,6 +31910,7 @@ app.get(
     }
   }
 );
+  
 app.get(
   "/org-operations",
   async (req, res) => {
