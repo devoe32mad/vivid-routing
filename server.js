@@ -9101,10 +9101,7 @@ FROM qr_codes qr
 JOIN spaces s
     ON s.id=qr.space_id
    AND s.organization_id=$1
-   AND (
-       $4::int IS NULL
-       OR s.id=$4::int
-   )
+  AND s.id = ANY($4::int[])
 
 LEFT JOIN qr_campaigns qc
     ON qc.qr_id=qr.id
@@ -9150,11 +9147,12 @@ ORDER BY
     qr.name
 `,
 [
-    orgId,
-    fromDate || "",
-    toDate || "",
-    selectedLocationId
+  orgId,
+  fromDate || "",
+  toDate || "",
+  allowedLocationIds
 ]
+
 );
   const internalRevenueByQr =
     new Map();
