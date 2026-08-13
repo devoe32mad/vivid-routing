@@ -26482,74 +26482,112 @@ app.get(
   "/org-advertisers",
   async (req, res) => {
     try {
-      let organizationId = null;
+  const scope =
+  await getOrganizationScope(req);
+
+const {
+  organizationId,
+  allowedLocationIds,
+  selectedLocationId,
+  fromDate,
+  toDate
+} = scope;
+
+const organizationResult = await q(
+  `
+    SELECT
+      id,
+      name
+    FROM organizations
+    WHERE id = $1
+      AND COALESCE(is_active, true) = true
+    LIMIT 1
+  `,
+  [organizationId]
+);
+
+const organization =
+  organizationResult.rows[0];
+
+if (!organization) {
+  return res
+    .status(404)
+    .send("Organization not found.");
+}
+
+const effectiveLocationIds =
+  selectedLocationId
+    ? [selectedLocationId]
+    : allowedLocationIds;
+
+const advertiserQueryParams =
+  new URLSearchParams();
+
+if (fromDate) {
+  advertiserQueryParams.set("from", fromDate);
+}
+
+if (toDate) {
+  advertiserQueryParams.set("to", toDate);
+}
+
+if (selectedLocationId) {
+  advertiserQueryParams.set(
+    "location_id",
+    String(selectedLocationId)
+  );
+}
+
+const advertiserQueryString =
+  advertiserQueryParams.toString();    
 
       /*
         Organization Portal users use the organization
         stored in their login session.
-      */
-      if (req.session.orgUser?.organization_id) {
-        organizationId = Number(
-          req.session.orgUser.organization_id
-        );
-      }
 
-      /*
-        Super Admin may select an organization through
-        the organization_id query parameter.
-      */
-      if (
-        !organizationId &&
-        req.session.user?.role === "super_admin"
-      ) {
-        organizationId = Number(
-          req.query.organization_id
-        );
-      }
-
-      if (
-        !Number.isInteger(organizationId) ||
-        organizationId <= 0
-      ) {
-        return res.status(403).send("Access denied");
-      }
-
-      const organizationResult = await q(`
-        SELECT
-          id,
-          name
-        FROM organizations
-        WHERE id = $1
-          AND COALESCE(is_active, true) = true
-        LIMIT 1
-      `, [organizationId]);
-
-      const organization = organizationResult.rows[0];
-
-      if (!organization) {
-        return res.status(404).send(
-          "Organization not found."
-        );
-      }
-const dateFilter = getOrgDateFilter(req);
-
-if (dateFilter.error) {
-  return res.status(400).send(
-    dateFilter.error
-  );
-}
-
-const {
-  fromDate,
-  toDate,
-  queryString: dateQueryString
-} = dateFilter;
       /*
         Advertisers are derived directly from Vivid campaigns.
 
         Event metrics are aggregated separately so QR/campaign
         joins do not duplicate scan or revenue totals.
       */
+      const advertiserLocationsResult = await q(
+  `
+    SELECT
+      id,
+      name
+    FROM spaces
+    WHERE organization_id = $1
+      AND COALESCE(is_archived, false) = false
+      AND id = ANY($2::int[])
+    ORDER BY name
+  `,
+  [
+    organizationId,
+    allowedLocationIds
+  ]
+);
+
+const advertiserLocationOptions = [
+  `
+    <option value="">
+      All Locations
+    </option>
+  `,
+  ...advertiserLocationsResult.rows.map(location => `
+    <option
+      value="${location.id}"
+      ${
+        Number(selectedLocationId) ===
+        Number(location.id)
+          ? "selected"
+          : ""
+      }
+    >
+      ${escapeHtml(location.name)}
+    </option>
+  `)
+].join("");
    const advertiserResult = await q(`
   WITH filtered_relationships AS (
     SELECT DISTINCT
@@ -26573,8 +26611,9 @@ const {
       ON s.id = qr.space_id
      AND COALESCE(s.is_archived, false) = false
 
-    WHERE s.organization_id = $1
-      AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL
+   WHERE s.organization_id = $1
+  AND s.id = ANY($4::int[])
+  AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL
       AND COALESCE(c.is_archived, false) = false
 
       /*
@@ -26746,8 +26785,10 @@ const {
 `, [
   organizationId,
   fromDate,
-  toDate
-]);
+  toDate,
+  effectiveLocationIds
+]
+);
 
 
       const advertisers = advertiserResult.rows;
@@ -26909,11 +26950,87 @@ summary.conversions += Number(
               flex-wrap:wrap;
               margin-bottom:20px;
             ">
-${orgDateFilterForm({
-  action: `/org-advertisers?organization_id=${organization.id}`,
-  fromDate,
-  toDate
-})}
+<form
+  method="GET"
+  action="/org-advertisers"
+  style="
+    display:flex;
+    gap:12px;
+    align-items:end;
+    flex-wrap:wrap;
+  "
+>
+  <input
+    type="hidden"
+    name="organization_id"
+    value="${organizationId}"
+  >
+
+  <div>
+    <label style="
+      display:block;
+      font-size:12px;
+      font-weight:bold;
+      color:#65776b;
+      margin-bottom:6px;
+    ">
+      From
+    </label>
+
+    <input
+      type="date"
+      name="from"
+      value="${fromDate}"
+      style="margin:0;"
+    >
+  </div>
+
+  <div>
+    <label style="
+      display:block;
+      font-size:12px;
+      font-weight:bold;
+      color:#65776b;
+      margin-bottom:6px;
+    ">
+      To
+    </label>
+
+    <input
+      type="date"
+      name="to"
+      value="${toDate}"
+      style="margin:0;"
+    >
+  </div>
+
+  <div style="min-width:240px;">
+    <label style="
+      display:block;
+      font-size:12px;
+      font-weight:bold;
+      color:#65776b;
+      margin-bottom:6px;
+    ">
+      Location
+    </label>
+
+    <select
+      name="location_id"
+      style="margin:0;"
+    >
+      ${advertiserLocationOptions}
+    </select>
+  </div>
+
+  <button
+    class="btn"
+    type="submit"
+    style="margin:0;"
+  >
+    Apply
+  </button>
+</form>
               <div>
                 <h2 style="margin:0 0 5px;">
                   Advertiser Overview
