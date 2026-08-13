@@ -9350,10 +9350,7 @@ const campaignsResult = await q(
        s.is_archived,
        false
      ) = false
- AND (
-   $4::int IS NULL
-   OR s.id = $4::int
- )
+AND s.id = ANY($4::int[])
 
     LEFT JOIN events e
       ON e.campaign_id = c.id
@@ -9385,7 +9382,7 @@ const campaignsResult = await q(
   orgId,
   fromDate || "",
   toDate || "",
-  selectedLocationId
+  allowedLocationIds
 ]
 );
 
