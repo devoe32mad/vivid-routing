@@ -9764,10 +9764,7 @@ const customerActionsResult = await q(
        s.is_archived,
        false
      ) = false
- AND (
-   $4::int IS NULL
-   OR s.id = $4::int
- )
+AND s.id = ANY($4::int[])
     LEFT JOIN events e
       ON e.campaign_destination_id = cd.id
      AND e.campaign_id = c.id
