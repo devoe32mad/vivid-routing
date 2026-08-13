@@ -23683,7 +23683,7 @@ const revenueAtRisk90 =
   "
 >
 <a
-  href="/org-renewals?organization_id=${organizationId}&window=30"
+  href="/org-renewals?organization_id=${organizationId}&window=30${renewalLocationSuffix}"
   class="card"
   style="
     display:block;
@@ -23715,7 +23715,7 @@ const revenueAtRisk90 =
   </div>
 </a>
                 <a
-  href="/org-renewals?organization_id=${organizationId}&window=60"
+  href="/org-renewals?organization_id=${organizationId}&window=60${renewalLocationSuffix}"
   class="card"
   style="
     display:block;
@@ -23748,7 +23748,7 @@ const revenueAtRisk90 =
 </a>
 
              <a
-  href="/org-renewals?organization_id=${organizationId}&window=90"
+  href="/org-renewals?organization_id=${organizationId}&window=90${renewalLocationSuffix}"
   class="card"
   style="
     display:block;
@@ -23780,7 +23780,7 @@ const revenueAtRisk90 =
   </div>
 </a>
 <a
-  href="/org-renewals?organization_id=${organizationId}&window=scheduled"
+  href="/org-renewals?organization_id=${organizationId}&window=scheduled${renewalLocationSuffix}"
   class="card"
   style="
     display:block;
@@ -23812,7 +23812,7 @@ const revenueAtRisk90 =
   </div>
 </a>
            <a
-  href="/org-renewals?organization_id=${organizationId}&window=risk"
+  href="/org-renewals?organization_id=${organizationId}&window=risk${renewalLocationSuffix}"
   class="card"
   style="
     display:block;
