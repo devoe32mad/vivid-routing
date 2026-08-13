@@ -22822,21 +22822,14 @@ app.get(
   "/org-renewals",
   async (req, res) => {
     try {
-      const organizationId = Number(
-        req.query.organization_id ||
-        req.session.orgUser?.organization_id ||
-        req.session.orgUser?.organizationId ||
-        req.session.user?.organization_id
-      );
+  const scope =
+  await getOrganizationScope(req);
 
-      if (
-        !Number.isInteger(organizationId) ||
-        organizationId <= 0
-      ) {
-        return res
-          .status(400)
-          .send("A valid organization is required.");
-      }
+const {
+  organizationId,
+  allowedLocationIds,
+  selectedLocationId
+} = scope;
 
       const organizationResult = await q(
         `
@@ -22882,16 +22875,7 @@ const selectedWindow =
     ? requestedWindow
     : "dashboard";
 
-  const requestedLocationId =
-  Number(
-    req.query.location_id
-  );
-
-const selectedLocationId =
-  Number.isInteger(requestedLocationId) &&
-  requestedLocationId > 0
-    ? requestedLocationId
-    : null; 
+ 
 const locationsResult = await q(
   `
     SELECT
@@ -22902,11 +22886,13 @@ const locationsResult = await q(
 
     WHERE organization_id = $1
       AND COALESCE(is_archived, false) = false
+      AND id = ANY($2::int[])
 
     ORDER BY name
   `,
   [
-    organizationId
+    organizationId,
+    allowedLocationIds
   ]
 );
 
@@ -22957,11 +22943,13 @@ const renewalScopeLabel =
     ? selectedLocation.name
     : "All Locations";    
 const renewalQueryValues = [
-  organizationId
+  organizationId,
+  allowedLocationIds
 ];
 
 const renewalWhereParts = [
   "c.organization_id = $1",
+  "c.location_id = ANY($2::int[])",
   "LOWER(TRIM(c.status)) = 'active'"
 ];
 
@@ -22974,6 +22962,8 @@ if (selectedLocationId) {
     `c.location_id = $${renewalQueryValues.length}`
   );
 }
+
+
       const renewalsResult = await q(
         `
           SELECT
