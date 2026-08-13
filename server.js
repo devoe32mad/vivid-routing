@@ -14409,8 +14409,7 @@ const {
 
       
 
-  const selectedLocationId =
-  req.query.location_id || "";
+  
 
 const data =
   await buildOrganizationExportData(
