@@ -23911,33 +23911,19 @@ app.get(
   "/org-locations",
   async (req, res) => {
     try {
-      let orgId = null;
+const scope =
+  await getOrganizationScope(req);
 
-      /*
-        Organization users always use the organization stored
-        in their Organization Portal session.
-      */
-      if (req.session.orgUser?.organization_id) {
-        orgId = Number(
-          req.session.orgUser.organization_id
-        );
-      }
+const orgId =
+  scope.organizationId;
 
-      /*
-        Super Admin may select an organization through the URL.
-      */
-      if (
-        !orgId &&
-        req.session.user?.role === "super_admin"
-      ) {
-        orgId = Number(
-          req.query.organization_id
-        );
-      }
-
-      if (!Number.isInteger(orgId) || orgId <= 0) {
-        return res.redirect("/org-login");
-      }
+const {
+  allowedLocationIds,
+  selectedLocationId,
+  fromDate,
+  toDate,
+  queryString
+} = scope;
 
       const orgResult = await q(`
         SELECT
@@ -23989,7 +23975,12 @@ app.get(
           ON qc.qr_id = qr.id
 
         WHERE s.organization_id = $1
-          AND COALESCE(s.is_archived, false) = false
+  AND COALESCE(s.is_archived, false) = false
+  AND s.id = ANY($2::int[])
+  AND (
+    $3::int IS NULL
+    OR s.id = $3
+  )
 
         GROUP BY
           s.id,
@@ -24000,7 +23991,11 @@ app.get(
 
         ORDER BY
           s.name
-      `, [orgId]);
+     `, [
+  orgId,
+  allowedLocationIds,
+  selectedLocationId
+]);
 
       const locationRows = locationsResult.rows.map(location => `
         <tr>
@@ -24030,7 +24025,11 @@ app.get(
      <td style="padding:14px;border-bottom:1px solid #e7eee7;text-align:center;">
   <a
     class="btn"
-    href="/org-location/${location.id}?organization_id=${org.id}"
+    href="/org-location/${location.id}${
+  queryString
+    ? `?${queryString}`
+    : ""
+}"
   >
     Open
   </a>
@@ -24091,7 +24090,11 @@ app.get(
 
           <a
             class="btn secondary"
-            href="/org-organization/${org.id}"
+            href="/org-organization/${org.id}${
+  queryString
+    ? `?${queryString}`
+    : ""
+}"
           >
             Back to ${org.name} Dashboard
           </a>
