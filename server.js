@@ -30582,15 +30582,23 @@ app.get(
 
 </div>        
             
-<div
-  id="getting-started"
-  class="card"
-  style="
-    max-width:900px;
-    margin:30px auto 20px;
-    padding:28px;
-  "
->
+<div style="
+  display:block;
+  width:100%;
+  clear:both;
+  margin-top:30px;
+">
+
+  <div
+    id="getting-started"
+    class="card"
+    style="
+      max-width:900px;
+      margin:0 auto 20px;
+      padding:28px;
+      box-sizing:border-box;
+    "
+  >
 
   <h2 style="
     margin:0 0 8px;
