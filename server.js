@@ -36673,39 +36673,14 @@ app.get(
   "/org-revenue-pipeline",
   async (req, res) => {
     try {
-      let organizationId = null;
+    const scope =
+  await getOrganizationScope(req);
 
-      /*
-        Organization Portal access.
-      */
-      if (
-        req.session.orgUser?.organization_id
-      ) {
-        organizationId = Number(
-          req.session.orgUser.organization_id
-        );
-      }
-
-      /*
-        Super Admin access.
-      */
-      if (
-        !organizationId &&
-        req.session.user?.role === "super_admin"
-      ) {
-        organizationId = Number(
-          req.query.organization_id
-        );
-      }
-
-      if (
-        !Number.isInteger(organizationId) ||
-        organizationId <= 0
-      ) {
-        return res
-          .status(403)
-          .send("Revenue Pipeline access denied.");
-      }
+const {
+  organizationId,
+  allowedLocationIds,
+  selectedLocationId
+} = scope;
 
       const organizationResult = await q(
         `
@@ -36821,11 +36796,20 @@ const locationPipelineResult = await q(
 
 WHERE s.organization_id = $1
   AND COALESCE(s.is_archived, false) = false
+  AND s.id = ANY($2::int[])
+  AND (
+    $3::int IS NULL
+    OR s.id = $3::int
+  )
 
 ORDER BY
   s.name
-  `,
-  [organizationId]
+`,
+[
+  organizationId,
+  allowedLocationIds,
+  selectedLocationId
+]
 );
 
 const locationPipelineRows =
