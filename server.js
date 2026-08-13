@@ -14389,7 +14389,8 @@ app.get(
 
       const scope =
   await getOrganizationScope(req);
-
+const organizationUser =
+  req.session.orgUser;
 if (
   scope.organizationId !==
   organizationId
