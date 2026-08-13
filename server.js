@@ -685,7 +685,11 @@ ${
     </div>
   `;
 }
-
+${navItem(
+  "Help",
+  `/org-help?organization_id=${organizationId}`,
+  "help"
+)}
 function statusBadge(status) {
   const s = String(status || "").toLowerCase();
 
