@@ -24657,10 +24657,26 @@ const showOrganizationBackButton =
     "organization_admin",
     "district_admin"
   ].includes(organizationRole);
-      res.send(orgPage(
-        "Organization Location",
-        `
-          <div class="topbar">
+    res.send(orgPage(
+  "Organization Location",
+  `
+    ${organizationNav({
+      organizationId,
+      organizationName:
+        organization.name,
+      activePage: "dashboard",
+      userName:
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        req.session.user?.name ||
+        req.session.user?.email ||
+        "",
+      locationId: location.id,
+      queryString:
+        dateQueryString || ""
+    })}
+
+    <div class="topbar">
             <div class="brand">
               Vivid Organizations
             </div>
