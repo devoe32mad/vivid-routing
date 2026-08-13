@@ -9805,7 +9805,7 @@ AND s.id = ANY($4::int[])
   orgId,
   fromDate || "",
   toDate || "",
-  selectedLocationId
+  allowedLocationIds
 ]
 );
 
