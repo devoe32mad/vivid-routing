@@ -38943,7 +38943,31 @@ oo.qr_id AS opportunity_qr_id
           .status(404)
           .send("Advertising request not found.");
       }
+/*
+  Enforce location-level access.
 
+  Organization-wide users and Super Admins
+  retain access to all authorized locations.
+  Location Managers may approve requests only
+  for locations assigned to them.
+*/
+const scope =
+  await getOrganizationScope(req);
+
+if (
+  scope.organizationId !== organizationId ||
+  !scope.allowedLocationIds.includes(
+    Number(advertisingRequest.location_id)
+  )
+) {
+  await client.query("ROLLBACK");
+
+  return res
+    .status(403)
+    .send(
+      "You do not have access to approve requests for this location."
+    );
+}
       if (
         String(advertisingRequest.status)
           .toLowerCase() === "approved"
