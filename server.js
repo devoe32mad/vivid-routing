@@ -8948,11 +8948,7 @@ LEFT JOIN events e
 WHERE s.organization_id = $1
   AND COALESCE(s.is_archived, false) = false
 
-  AND (
-    $4::int IS NULL
-    OR s.id = $4::int
-  )
-
+  AND s.id = ANY($4::int[])
 GROUP BY
     s.id,
     s.name,
@@ -8965,7 +8961,7 @@ ORDER BY
   orgId,
   fromDate || "",
   toDate || "",
-  selectedLocationId
+  allowedLocationIds
 ]
 );
   const internalRevenueByLocation =
