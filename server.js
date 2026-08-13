@@ -30317,7 +30317,213 @@ app.get(
   }
 );
 
+/* =========================================================
+   ORGANIZATION HELP
+========================================================= */
 
+app.get(
+  "/org-help",
+  async (req, res) => {
+    try {
+      const scope =
+        await getOrganizationScope(req);
+
+      const organizationId =
+        Number(scope.organizationId);
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(403)
+          .send("Help access denied.");
+      }
+
+      const organizationResult =
+        await q(
+          `
+            SELECT
+              id,
+              name
+
+            FROM organizations
+
+            WHERE id = $1
+              AND COALESCE(is_active, true) = true
+
+            LIMIT 1
+          `,
+          [organizationId]
+        );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res
+          .status(404)
+          .send("Organization not found.");
+      }
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        req.session.user?.name ||
+        "";
+
+      return res.send(
+        orgPage(
+          `Help - ${organization.name}`,
+          `
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(organization.name),
+              activePage: "help",
+              userName:
+                escapeHtml(userName),
+              showAdministration:
+                scope.hasOrganizationWideAccess
+            })}
+
+            <div class="topbar">
+
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Help</h1>
+
+              <p class="subtitle">
+                Learn how to use Vivid to sell,
+                manage, measure, and grow your
+                advertising business.
+              </p>
+
+            </div>
+
+            <div class="wrap">
+
+              <div
+                class="card"
+                style="
+                  max-width:900px;
+                  margin:0 auto 20px;
+                "
+              >
+
+                <h2 style="margin-top:0;">
+                  Vivid Organizations Help Center
+                </h2>
+
+                <p style="
+                  color:#65776b;
+                  line-height:1.6;
+                  margin-bottom:0;
+                ">
+                  This guide explains the major
+                  features, workflows, and performance
+                  metrics available throughout Vivid
+                  Organizations.
+                </p>
+
+              </div>
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(auto-fit,minmax(240px,1fr));
+                gap:16px;
+                max-width:900px;
+                margin:0 auto;
+              ">
+
+                ${[
+                  ["Getting Started",
+                   "Understand the Vivid advertising workflow."],
+
+                  ["Overview",
+                   "Understand your organization-wide advertising performance."],
+
+                  ["Locations",
+                   "Review advertising activity and performance by location."],
+
+                  ["Advertisers",
+                   "Understand advertiser activity, performance, and results."],
+
+                  ["Advertising Inventory",
+                   "Create and manage sponsorship and advertising opportunities."],
+
+                  ["Advertising Requests",
+                   "Review and manage incoming advertiser requests."],
+
+                  ["Contracts",
+                   "Manage advertising agreements, dates, values, and activation."],
+
+                  ["Renewals",
+                   "Manage upcoming contract renewals and next terms."],
+
+                  ["Revenue Pipeline",
+                   "Understand available, pending, and approved advertising revenue."],
+
+                  ["Reports",
+                   "Filter, analyze, and export organization performance."],
+
+                  ["Administration",
+                   "Manage users, permissions, and organization data."],
+
+                  ["Vivid Glossary",
+                   "Understand Vivid metrics and terminology."]
+                ]
+                  .map(
+                    ([title, description]) => `
+                      <div class="card">
+
+                        <div style="
+                          font-size:18px;
+                          font-weight:bold;
+                          color:#073b22;
+                          margin-bottom:8px;
+                        ">
+                          ${title}
+                        </div>
+
+                        <div style="
+                          color:#65776b;
+                          line-height:1.5;
+                          font-size:14px;
+                        ">
+                          ${description}
+                        </div>
+
+                      </div>
+                    `
+                  )
+                  .join("")}
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "ORGANIZATION HELP ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to load Help: " +
+          err.message
+        );
+    }
+  }
+);
 app.get(
   "/org-operations",
   async (req, res) => {
