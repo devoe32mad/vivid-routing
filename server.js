@@ -30517,7 +30517,107 @@ app.get(
                   .join("")}
 
               </div>
+<div
+  id="getting-started"
+  class="card"
+  style="
+    max-width:900px;
+    margin:30px auto 20px;
+    padding:28px;
+  "
+>
 
+  <h2 style="
+    margin:0 0 8px;
+    color:#073b22;
+  ">
+    Getting Started
+  </h2>
+
+  <p style="
+    color:#65776b;
+    line-height:1.6;
+    margin-top:0;
+  ">
+    Vivid helps your organization sell,
+    manage, measure, and grow its
+    advertising and sponsorship business.
+  </p>
+
+  <h3>
+    How Vivid Works
+  </h3>
+
+  <div style="
+    line-height:1.7;
+    color:#315b4c;
+  ">
+
+    <p>
+      <strong>1. Create Advertising Inventory</strong><br>
+      Identify the advertising and sponsorship
+      opportunities available throughout your
+      organization and locations.
+    </p>
+
+    <p>
+      <strong>2. Connect Advertisers</strong><br>
+      Advertisers can request available
+      opportunities while your organization
+      manages existing advertiser relationships.
+    </p>
+
+    <p>
+      <strong>3. Manage Agreements</strong><br>
+      Advertising requests can progress into
+      contracts, active advertising, and
+      future renewals.
+    </p>
+
+    <p>
+      <strong>4. Measure Performance</strong><br>
+      Vivid tracks advertising activity and
+      advertiser performance so your organization
+      can understand the value being created.
+    </p>
+
+    <p>
+      <strong>5. Grow Advertising Revenue</strong><br>
+      Use inventory, pipeline, advertiser
+      performance, and renewal information to
+      identify opportunities to increase
+      advertising revenue.
+    </p>
+
+  </div>
+
+  <div style="
+    margin-top:22px;
+    padding:18px;
+    background:#f3f7f3;
+    border-radius:12px;
+  ">
+
+    <strong style="color:#073b22;">
+      The Vivid Workflow
+    </strong>
+
+    <div style="
+      margin-top:8px;
+      color:#315b4c;
+      line-height:1.6;
+    ">
+      Advertising Inventory →
+      Advertising Request →
+      Contract →
+      Active Advertising →
+      Performance Measurement →
+      Renewal
+    </div>
+
+  </div>
+
+</div>
             </div>
           `
         )
