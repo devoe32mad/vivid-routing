@@ -501,7 +501,8 @@ function organizationNav({
   activePage = "",
   userName = "",
   locationId = null,
-  queryString = ""
+  queryString = "",
+  showAdministration = true
 }) {
 const scopedHref = href => {
   const params =
