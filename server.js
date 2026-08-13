@@ -15795,15 +15795,17 @@ min-height:220px;
   </a>
 `).join("");
       res.send(orgPage("Organization Overview", `
-  ${organizationNav({
-    organizationId: org.id,
-    organizationName: org.name,
-    activePage: "dashboard",
-    userName:
-      req.session.orgUser?.name ||
-      req.session.user?.name ||
-      ""
-  })}
+ ${organizationNav({
+  organizationId: org.id,
+  organizationName: org.name,
+  activePage: "dashboard",
+  userName:
+    req.session.orgUser?.name ||
+    req.session.user?.name ||
+    "",
+  showAdministration:
+    scope.hasOrganizationWideAccess
+})}
 
   <div class="topbar">
     <div class="brand">Vivid Organizations</div>
