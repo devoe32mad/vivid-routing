@@ -22639,9 +22639,10 @@ app.post(
 
       const contractResult = await q(
         `
-          SELECT
-            id,
-            status
+SELECT
+  id,
+  status,
+  location_id
 
           FROM contracts
 
@@ -22671,7 +22672,21 @@ console.log(
           .status(404)
           .send("Contract not found.");
       }
+const scope =
+  await getOrganizationScope(req);
 
+if (
+  scope.organizationId !== organizationId ||
+  !scope.allowedLocationIds.includes(
+    Number(contract.location_id)
+  )
+) {
+  return res
+    .status(403)
+    .send(
+      "You do not have access to activate contracts for this location."
+    );
+}
      const normalizedStatus =
   String(contract.status || "")
     .trim()
