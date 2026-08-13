@@ -8534,10 +8534,23 @@ async function buildOrganizationExportData(
   locationId = ""
 ) {
   const orgId = Number(organizationId);
-const selectedLocationId =
-  locationId && Number.isInteger(Number(locationId))
-    ? Number(locationId)
-    : null;
+
+  const scope =
+    await getOrganizationScope(req);
+
+  if (scope.organizationId !== orgId) {
+    throw new Error("Access denied");
+  }
+
+  const selectedLocationId =
+    locationId && Number.isInteger(Number(locationId))
+      ? Number(locationId)
+      : null;
+
+  const allowedLocationIds =
+    selectedLocationId
+      ? [selectedLocationId]
+      : scope.allowedLocationIds;
   if (!Number.isInteger(orgId) || orgId <= 0) {
     throw new Error("Valid organization is required.");
   }
