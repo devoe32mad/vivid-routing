@@ -30453,70 +30453,135 @@ app.get(
                 margin:0 auto;
               ">
 
-                ${[
-                  ["Getting Started",
-                   "Understand the Vivid advertising workflow."],
+       <div style="
+  display:grid;
+  grid-template-columns:
+    repeat(auto-fit,minmax(240px,1fr));
+  gap:16px;
+  max-width:900px;
+  margin:0 auto;
+">
 
-                  ["Overview",
-                   "Understand your organization-wide advertising performance."],
+  ${[
+    [
+      "Getting Started",
+      "Understand the Vivid advertising workflow.",
+      "getting-started"
+    ],
 
-                  ["Locations",
-                   "Review advertising activity and performance by location."],
+    [
+      "Overview",
+      "Understand your organization-wide advertising performance.",
+      "overview"
+    ],
 
-                  ["Advertisers",
-                   "Understand advertiser activity, performance, and results."],
+    [
+      "Locations",
+      "Review advertising activity and performance by location.",
+      "locations"
+    ],
 
-                  ["Advertising Inventory",
-                   "Create and manage sponsorship and advertising opportunities."],
+    [
+      "Advertisers",
+      "Understand advertiser activity, performance, and results.",
+      "advertisers"
+    ],
 
-                  ["Advertising Requests",
-                   "Review and manage incoming advertiser requests."],
+    [
+      "Advertising Inventory",
+      "Create and manage sponsorship and advertising opportunities.",
+      "advertising-inventory"
+    ],
 
-                  ["Contracts",
-                   "Manage advertising agreements, dates, values, and activation."],
+    [
+      "Advertising Requests",
+      "Review and manage incoming advertiser requests.",
+      "advertising-requests"
+    ],
 
-                  ["Renewals",
-                   "Manage upcoming contract renewals and next terms."],
+    [
+      "Contracts",
+      "Manage advertising agreements, dates, values, and activation.",
+      "contracts"
+    ],
 
-                  ["Revenue Pipeline",
-                   "Understand available, pending, and approved advertising revenue."],
+    [
+      "Renewals",
+      "Manage upcoming contract renewals and next terms.",
+      "renewals"
+    ],
 
-                  ["Reports",
-                   "Filter, analyze, and export organization performance."],
+    [
+      "Revenue Pipeline",
+      "Understand available, pending, and approved advertising revenue.",
+      "revenue-pipeline"
+    ],
 
-                  ["Administration",
-                   "Manage users, permissions, and organization data."],
+    [
+      "Reports",
+      "Filter, analyze, and export organization performance.",
+      "reports"
+    ],
 
-                  ["Vivid Glossary",
-                   "Understand Vivid metrics and terminology."]
-                ]
-                  .map(
-                    ([title, description]) => `
-                      <div class="card">
+    [
+      "Administration",
+      "Manage users, permissions, and organization data.",
+      "administration"
+    ],
 
-                        <div style="
-                          font-size:18px;
-                          font-weight:bold;
-                          color:#073b22;
-                          margin-bottom:8px;
-                        ">
-                          ${title}
-                        </div>
+    [
+      "Vivid Glossary",
+      "Understand Vivid metrics and terminology.",
+      "vivid-glossary"
+    ]
+  ]
+    .map(
+      ([title, description, anchor]) => `
+        <a
+          href="#${anchor}"
+          class="card"
+          style="
+            display:block;
+            text-decoration:none;
+            color:inherit;
+            cursor:pointer;
+            margin:0;
+          "
+        >
 
-                        <div style="
-                          color:#65776b;
-                          line-height:1.5;
-                          font-size:14px;
-                        ">
-                          ${description}
-                        </div>
+          <div style="
+            font-size:18px;
+            font-weight:bold;
+            color:#073b22;
+            margin-bottom:8px;
+          ">
+            ${title}
+          </div>
 
-                      </div>
-                    `
-                  )
-                  .join("")}
+          <div style="
+            color:#65776b;
+            line-height:1.5;
+            font-size:14px;
+          ">
+            ${description}
+          </div>
 
-              </div>
+          <div style="
+            margin-top:12px;
+            color:#176b3a;
+            font-size:13px;
+            font-weight:bold;
+          ">
+            View Instructions →
+          </div>
+
+        </a>
+      `
+    )
+    .join("")}
+
+</div>        
+            
 <div
   id="getting-started"
   class="card"
