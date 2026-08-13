@@ -14445,9 +14445,13 @@ const reportLocationsResult = await q(
     FROM spaces
     WHERE organization_id = $1
       AND COALESCE(is_archived, false) = false
+      AND id = ANY($2::int[])
     ORDER BY name
   `,
-  [organizationId]
+  [
+    organizationId,
+    scope.allowedLocationIds
+  ]
 );
 
 const reportLocationOptions = [
