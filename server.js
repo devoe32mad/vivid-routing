@@ -26826,7 +26826,7 @@ summary.conversions += Number(
 
       const advertiserCards = advertisers.map(advertiser => `
   <a
-    href="/org-advertiser/${encodeURIComponent(advertiser.advertiser_key)}?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}"
+    href="/org-advertiser/${encodeURIComponent(advertiser.advertiser_key)}?organization_id=${organizationId}${advertiserQueryString ? `&${advertiserQueryString}` : ""}"
     style="
       text-decoration:none;
       color:inherit;
