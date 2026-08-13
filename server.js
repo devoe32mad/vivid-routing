@@ -10094,58 +10094,48 @@ app.get(
   "/org-export/report.xlsx",
   async (req, res) => {
     try {
-      const organizationId = Number(
-        req.query.organization_id
-      );
+  const organizationId = Number(
+  req.query.organization_id
+);
 
-      if (
-        !Number.isInteger(organizationId) ||
-        organizationId <= 0
-      ) {
-        return res
-          .status(400)
-          .send(
-            "Valid organization is required."
-          );
-      }
-
-      const isSuperAdmin =
-        req.session.user?.role ===
-        "super_admin";
-
-      const isOrganizationUser =
-        req.session.orgUser &&
-        Number(
-          req.session.orgUser
-            .organization_id
-        ) === organizationId;
-
-      if (
-        !isSuperAdmin &&
-        !isOrganizationUser
-      ) {
-        return res
-          .status(403)
-          .send("Access denied");
-      }
-
-const dateFilter = getOrgDateFilter(req);
-const selectedLocationId =
-  req.query.location_id || "";
-if (dateFilter.error) {
+if (
+  !Number.isInteger(organizationId) ||
+  organizationId <= 0
+) {
   return res
     .status(400)
-    .send(dateFilter.error);
+    .send(
+      "Valid organization is required."
+    );
 }
+
+const scope =
+  await getOrganizationScope(req);
+
+if (
+  scope.organizationId !==
+  organizationId
+) {
+  return res
+    .status(403)
+    .send("Access denied");
+}
+
+const {
+  selectedLocationId,
+  fromDate,
+  toDate
+} = scope;
 
 const data =
   await buildOrganizationExportData(
     req,
     organizationId,
-    dateFilter.fromDate,
-    dateFilter.toDate,
-    selectedLocationId
+    fromDate,
+    toDate,
+    selectedLocationId || ""
   );
+
 
 const workbook =
     new ExcelJS.Workbook();
