@@ -23671,7 +23671,66 @@ const revenueAtRisk90 =
             </div>
 
             <div class="wrap">
+<div class="card" style="margin-bottom:24px;">
+  <form
+    method="GET"
+    action="/org-renewals"
+    style="
+      display:flex;
+      align-items:end;
+      gap:12px;
+      flex-wrap:wrap;
+    "
+  >
+    <input
+      type="hidden"
+      name="organization_id"
+      value="${organizationId}"
+    >
 
+    <input
+      type="hidden"
+      name="window"
+      value="${selectedWindow}"
+    >
+
+    <div style="
+      min-width:260px;
+      flex:1;
+    ">
+      <label style="
+        display:block;
+        font-size:12px;
+        font-weight:bold;
+        color:#65776b;
+        margin-bottom:7px;
+      ">
+        Location
+      </label>
+
+      <select
+        name="location_id"
+        style="
+          width:100%;
+          padding:12px 14px;
+          border:1px solid #d7dfd8;
+          border-radius:10px;
+          background:white;
+          box-sizing:border-box;
+        "
+      >
+        ${renewalLocationOptions}
+      </select>
+    </div>
+
+    <button
+      type="submit"
+      class="btn"
+    >
+      Apply
+    </button>
+  </form>
+</div>
               <div
   class="cards"
   style="
@@ -23848,66 +23907,8 @@ const revenueAtRisk90 =
 ${
   selectedWindow !== "dashboard"
     ? `
-<div class="card" style="margin-bottom:24px;">
-  <form
-    method="GET"
-    action="/org-renewals"
-    style="
-      display:flex;
-      align-items:end;
-      gap:12px;
-      flex-wrap:wrap;
-    "
-  >
-    <input
-      type="hidden"
-      name="organization_id"
-      value="${organizationId}"
-    >
 
-    <input
-      type="hidden"
-      name="window"
-      value="${selectedWindow}"
-    >
-
-    <div style="
-      min-width:260px;
-      flex:1;
-    ">
-      <label style="
-        display:block;
-        font-size:12px;
-        font-weight:bold;
-        color:#65776b;
-        margin-bottom:7px;
-      ">
-        Location
-      </label>
-
-      <select
-        name="location_id"
-        style="
-          width:100%;
-          padding:12px 14px;
-          border:1px solid #d7dfd8;
-          border-radius:10px;
-          background:white;
-          box-sizing:border-box;
-        "
-      >
-        ${renewalLocationOptions}
-      </select>
-    </div>
-
-    <button
-      type="submit"
-      class="btn"
-    >
-      Apply
-    </button>
-  </form>
-</div>
+  
             <h2>
   ${
    selectedWindow === "30"
