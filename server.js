@@ -12503,81 +12503,40 @@ app.get(
   async (req, res) => {
     try {
       const organizationId = Number(
-        req.query.organization_id
-      );
+  req.query.organization_id
+);
 
-      if (
-        !Number.isInteger(organizationId) ||
-        organizationId <= 0
-      ) {
-        return res
-          .status(400)
-          .send(
-            "Valid organization is required."
-          );
-      }
+if (
+  !Number.isInteger(organizationId) ||
+  organizationId <= 0
+) {
+  return res
+    .status(400)
+    .send(
+      "Valid organization is required."
+    );
+}
 
-      const isSuperAdmin =
-        req.session.user?.role ===
-        "super_admin";
+const scope =
+  await getOrganizationScope(req);
 
-      const organizationUser =
-        req.session.orgUser;
+if (
+  scope.organizationId !==
+  organizationId
+) {
+  return res
+    .status(403)
+    .send("Access denied");
+}
 
-      const isOrganizationUser =
-        organizationUser &&
-        Number(
-          organizationUser.organization_id
-        ) === organizationId;
+const {
+  selectedLocationId,
+  fromDate,
+  toDate
+} = scope;
 
-      if (
-        !isSuperAdmin &&
-        !isOrganizationUser
-      ) {
-        return res
-          .status(403)
-          .send("Access denied");
-      }
-
-      const organizationRole =
-        String(
-          organizationUser
-            ?.organization_role || ""
-        )
-          .trim()
-          .toLowerCase();
-
-      const hasOrganizationWideAccess =
-        isSuperAdmin ||
-        [
-          "owner",
-          "organization_admin",
-          "district_admin"
-        ].includes(organizationRole);
-
-      if (!hasOrganizationWideAccess) {
-        return res
-          .status(403)
-          .send(
-            "Location-scoped reporting is being configured for this account."
-          );
-      }
-
-      const dateFilter =
-        getOrgDateFilter(req);
-
-      if (dateFilter.error) {
-        return res
-          .status(400)
-          .send(dateFilter.error);
-      }
-
-      const {
-        fromDate,
-        toDate
-      } = dateFilter;
-const selectedLocationId =
-  req.query.location_id || "";
+const organizationUser =
+  req.session.orgUser;
       const data =
   await buildOrganizationExportData(
     req,
