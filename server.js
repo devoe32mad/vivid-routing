@@ -43459,43 +43459,151 @@ app.get(
   "/org-opportunity/new",
   async (req, res) => {
     try {
-      let organizationId = null;
+    const scope =
+  await getOrganizationScope(req);
 
-      /*
-        Organization Portal user access.
-      */
-      if (req.session.orgUser?.organization_id) {
-        organizationId = Number(
-          req.session.orgUser.organization_id
-        );
-      }
+const {
+  organizationId,
+  allowedLocationIds
+} = scope;
 
-      /*
-        Super Admin access.
-      */
-      if (
-        !organizationId &&
-        req.session.user?.role === "super_admin"
-      ) {
-        organizationId = Number(
-          req.query.organization_id
-        );
-      }
+const requestedSpaceId =
+  req.query.space_id
+    ? Number(req.query.space_id)
+    : null;
 
-      const spaceId = Number(
-        req.query.space_id
-      );
+const spaceId =
+  requestedSpaceId &&
+  allowedLocationIds.includes(requestedSpaceId)
+    ? requestedSpaceId
+    : null;
 
-      if (
-        !Number.isInteger(organizationId) ||
-        organizationId <= 0 ||
-        !Number.isInteger(spaceId) ||
-        spaceId <= 0
-      ) {
-        return res.status(400).send(
-          "Valid organization and location are required."
-        );
-      }
+  if (!spaceId) {
+  const locationsResult = await q(
+    `
+      SELECT
+        id,
+        name
+      FROM spaces
+      WHERE organization_id = $1
+        AND COALESCE(is_archived, false) = false
+        AND id = ANY($2::int[])
+      ORDER BY name
+    `,
+    [
+      organizationId,
+      allowedLocationIds
+    ]
+  );
+
+  const locationOptions =
+    locationsResult.rows
+      .map(location => `
+        <option value="${location.id}">
+          ${escapeHtml(location.name)}
+        </option>
+      `)
+      .join("");
+
+  return res.send(
+    marketplacePage(
+      "Add Sponsorship",
+      `
+        <div class="marketplace-topbar">
+
+          <div class="marketplace-brand">
+            Vivid Organizations
+          </div>
+
+          <h1>
+            Add Sponsorship
+          </h1>
+
+          <p class="marketplace-subtitle">
+            Select the location where this sponsorship
+            opportunity will be available.
+          </p>
+
+        </div>
+
+        <div class="marketplace-wrap">
+
+          <div
+            class="marketplace-card"
+            style="
+              max-width:620px;
+              margin:0 auto;
+            "
+          >
+
+            <h2 style="margin-top:0;">
+              Select Location
+            </h2>
+
+            <form
+              method="GET"
+              action="/org-opportunity/new"
+            >
+
+              <input
+                type="hidden"
+                name="organization_id"
+                value="${organizationId}"
+              >
+
+              <label style="
+                display:block;
+                font-weight:bold;
+                margin-bottom:7px;
+              ">
+                Location
+              </label>
+
+              <select
+                name="space_id"
+                required
+              >
+                <option value="">
+                  Select Location
+                </option>
+
+                ${locationOptions}
+              </select>
+
+              <div style="
+                display:flex;
+                gap:12px;
+                flex-wrap:wrap;
+                margin-top:20px;
+              ">
+
+                <button
+                  class="marketplace-btn"
+                  type="submit"
+                >
+                  Continue
+                </button>
+
+                <a
+                  class="marketplace-btn secondary"
+                  href="/org-marketplace?organization_id=${organizationId}"
+                >
+                  Cancel
+                </a>
+
+              </div>
+
+            </form>
+
+          </div>
+
+        </div>
+      `
+    )
+  );
+}
+
+      
 
       /*
         Confirm that the selected location belongs
