@@ -39490,37 +39490,13 @@ app.get(
   "/org-marketplace",
   async (req, res) => {
     try {
-      let organizationId = null;
+      const scope =
+  await getOrganizationScope(req);
 
-      /*
-        Organization Portal user access.
-      */
-      if (req.session.orgUser?.organization_id) {
-        organizationId = Number(
-          req.session.orgUser.organization_id
-        );
-      }
-
-      /*
-        Super Admin access.
-      */
-      if (
-        !organizationId &&
-        req.session.user?.role === "super_admin"
-      ) {
-        organizationId = Number(
-          req.query.organization_id
-        );
-      }
-
-      if (
-        !Number.isInteger(organizationId) ||
-        organizationId <= 0
-      ) {
-        return res.status(403).send(
-          "Marketplace access denied."
-        );
-      }
+const {
+  organizationId,
+  allowedLocationIds
+} = scope;
 
       /*
         Marketplace only reads the existing organization.
@@ -39549,16 +39525,23 @@ app.get(
         Marketplace reads existing location names only.
         No Marketplace data is written in this preview.
       */
-      const locationsResult = await q(`
-        SELECT
-          id,
-          name,
-          location
-        FROM spaces
-        WHERE organization_id = $1
-          AND COALESCE(is_archived, false) = false
-        ORDER BY name
-      `, [organizationId]);
+    const locationsResult = await q(
+  `
+    SELECT
+      id,
+      name,
+      location
+    FROM spaces
+    WHERE organization_id = $1
+      AND COALESCE(is_archived, false) = false
+      AND id = ANY($2::int[])
+    ORDER BY name
+  `,
+  [
+    organizationId,
+    allowedLocationIds
+  ]
+);
 
 const locations = locationsResult.rows;
 
