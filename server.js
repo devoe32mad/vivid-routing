@@ -14387,56 +14387,25 @@ app.get(
           );
       }
 
-      const isSuperAdmin =
-        req.session.user?.role ===
-        "super_admin";
+      const scope =
+  await getOrganizationScope(req);
 
-      const organizationUser =
-        req.session.orgUser;
+if (
+  scope.organizationId !==
+  organizationId
+) {
+  return res
+    .status(403)
+    .send("Access denied");
+}
 
-      const isOrganizationUser =
-        organizationUser &&
-        Number(
-          organizationUser.organization_id
-        ) === organizationId;
-
-      if (
-        !isSuperAdmin &&
-        !isOrganizationUser
-      ) {
-        return res
-          .status(403)
-          .send("Access denied");
-      }
-
-      /*
-      Local-manager data scoping will be added before
-      exposing unrestricted organization-wide exports.
-      */
-
-      const organizationRole =
-        String(
-          organizationUser
-            ?.organization_role || ""
-        )
-          .trim()
-          .toLowerCase();
-
-      const hasOrganizationWideAccess =
-        isSuperAdmin ||
-        [
-          "owner",
-          "organization_admin",
-          "district_admin"
-        ].includes(organizationRole);
-
-      if (!hasOrganizationWideAccess) {
-        return res
-          .status(403)
-          .send(
-            "Location-scoped reporting is being configured for this account."
-          );
-      }
+const {
+  selectedLocationId,
+  fromDate,
+  toDate,
+  queryString
+} = scope;
+       
 
       const dateFilter =
         getOrgDateFilter(req);
@@ -14461,7 +14430,7 @@ const data =
     organizationId,
     fromDate,
     toDate,
-    selectedLocationId
+    selectedLocationId || ""
   );
 
       const escapeHtml = value =>
