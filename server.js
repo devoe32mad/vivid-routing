@@ -14407,19 +14407,7 @@ const {
 } = scope;
        
 
-      const dateFilter =
-        getOrgDateFilter(req);
-
-      if (dateFilter.error) {
-        return res
-          .status(400)
-          .send(dateFilter.error);
-      }
-
-      const {
-        fromDate,
-        toDate
-      } = dateFilter;
+      
 
   const selectedLocationId =
   req.query.location_id || "";
