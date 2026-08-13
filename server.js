@@ -669,11 +669,15 @@ ${navItem(
   "reports"
 )}
 
-${navItem(
-  "Administration",
-  `/org-operations?organization_id=${organizationId}`,
-  "operations"
-)}
+${
+  showAdministration
+    ? navItem(
+        "Administration",
+        `/org-operations?organization_id=${organizationId}`,
+        "operations"
+      )
+    : ""
+}
 
         </div>
 
