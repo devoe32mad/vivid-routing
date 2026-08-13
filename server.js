@@ -22942,6 +22942,10 @@ const renewalScopeLabel =
   selectedLocation
     ? selectedLocation.name
     : "All Locations";    
+      const renewalLocationSuffix =
+  selectedLocationId
+    ? `&location_id=${selectedLocationId}`
+    : "";
 const renewalQueryValues = [
   organizationId,
   allowedLocationIds
