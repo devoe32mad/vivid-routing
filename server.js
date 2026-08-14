@@ -667,7 +667,11 @@ ${navItem(
   `/org-revenue-pipeline?organization_id=${organizationId}`,
   "pipeline"
 )}
-
+${navItem(
+  "Performance Insights",
+  `/org-performance?organization_id=${organizationId}`,
+  "performance"
+)}
 ${navItem(
   "Reports",
   `/org-export?organization_id=${organizationId}`,
