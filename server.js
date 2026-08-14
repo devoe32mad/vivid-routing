@@ -62188,6 +62188,8 @@ const rankedPlacements =
 
 const bestPlacement =
   rankedPlacements[0] || null;
+    const topFivePlacements =
+  rankedPlacements.slice(0, 5);
     /*
     =========================================================
     PAGE
