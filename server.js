@@ -61417,7 +61417,8 @@ const rankedCampaigns =
 
 const bestCampaign =
   rankedCampaigns[0] || null;
-
+const topFiveCampaigns =
+  rankedCampaigns.slice(0, 5);
 
 /*
 Keep the existing page structure working.
