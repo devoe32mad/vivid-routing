@@ -52189,11 +52189,16 @@ ${isSuperAdmin ? `
   class="btn secondary"
   href="/help"
   onclick="
-    window.open(
+    const helpWindow = window.open(
       '/help',
       'vividCoreHelp',
-      'noopener,noreferrer'
+      'width=1200,height=850,resizable=yes,scrollbars=yes'
     );
+
+    if (helpWindow) {
+      helpWindow.focus();
+    }
+
     return false;
   "
 >
