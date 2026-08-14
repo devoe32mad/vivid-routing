@@ -52183,7 +52183,22 @@ ${isSuperAdmin ? `
       Offer Clicks × Conversion Rate × Average Customer Value
     </p>
   </div>
-</div> <div class="note"><strong>Money View:</strong> Campaign ROI now uses allocated spot cost: QR cost / contract days × active days.</div>
+</div>
+
+<a
+  class="btn secondary"
+  href="/help"
+  target="_blank"
+  rel="noopener noreferrer"
+>
+  Help Center
+</a>
+
+<div class="note">
+  <strong>Money View:</strong>
+  Campaign ROI now uses allocated spot cost:
+  QR cost / contract days × active days.
+</div>
         <div class="cards"><div class="card"><div class="label">Total Scans</div><div class="num">${total.scans || 0}</div></div><div class="card"><div class="label">Google Maps Clicks</div><div class="num">${total.maps_clicks || 0}</div></div><div class="card"><div class="label">Offer Clicks</div><div class="num">${total.offer_clicks || 0}</div></div><div class="card"><div class="label">Intent Rate</div><div class="num">${pct(totalIntentRate)}</div></div></div>
         <h2>Daily Trend Activity</h2><table><tr><th>Date</th><th>Scans</th><th>Intent Clicks</th></tr>${trendTable || `<tr><td colspan="3">No activity for selected range.</td></tr>`}</table>
         <h2>Active Campaign Schedules</h2><table><tr><th>QR</th><th>Advertiser</th><th>Campaign</th><th>Day</th><th>Start</th><th>End</th><th>Priority</th><th>Status</th><th>Action</th></tr>${activeScheduleTable || `<tr><td colspan="8">No active schedules.</td></tr>`}</table>
