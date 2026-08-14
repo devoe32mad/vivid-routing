@@ -52188,8 +52188,14 @@ ${isSuperAdmin ? `
 <a
   class="btn secondary"
   href="/help"
-  target="_blank"
-  rel="noopener noreferrer"
+  onclick="
+    window.open(
+      '/help',
+      'vividCoreHelp',
+      'noopener,noreferrer'
+    );
+    return false;
+  "
 >
   Help Center
 </a>
