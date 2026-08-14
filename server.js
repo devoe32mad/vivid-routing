@@ -62537,156 +62537,146 @@ const bestPlacement =
        TOP CAMPAIGN
   ========================================== -->
 
+<div class="card">
+
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:8px;
+  ">
+
+    <h3 style="margin:0;">
+      🏆 Top Performing Campaigns
+    </h3>
+
+    <a
+      href="/reports"
+      style="
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+      "
+    >
+      View All →
+    </a>
+
+  </div>
+
+  <p style="
+    color:#65776b;
+    font-size:13px;
+    margin-top:6px;
+    margin-bottom:14px;
+  ">
+    Ranked by measurable customer results
+  </p>
+
   ${
-    bestCampaign
-      ? `
-        <a
-          href="/admin/edit-campaign/${bestCampaign.id}"
-          style="
-            display:block;
-            text-decoration:none;
-            color:inherit;
-          "
-        >
+    topFiveCampaigns.length
+      ? topFiveCampaigns
+          .map(
+            (campaign, index) => `
 
-          <div
-            class="card"
-            style="
-              height:100%;
-              box-sizing:border-box;
-              cursor:pointer;
-            "
-          >
+              <a
+                href="/admin/edit-campaign/${campaign.id}"
+                style="
+                  display:grid;
+                  grid-template-columns:34px 1fr auto;
+                  gap:10px;
+                  align-items:center;
+                  padding:12px 0;
+                  border-bottom:${
+                    index <
+                    topFiveCampaigns.length - 1
+                      ? "1px solid #e7ece7"
+                      : "none"
+                  };
+                  color:inherit;
+                  text-decoration:none;
+                "
+              >
 
-            <h3 style="
-              margin-top:0;
-              color:#073b22;
-            ">
-              🏆 Top Performing Campaign
-            </h3>
-
-            <div style="
-              font-size:20px;
-              font-weight:bold;
-              color:#073b22;
-              margin-bottom:4px;
-            ">
-              ${bestCampaign.name}
-            </div>
-
-            <div style="
-              color:#65776b;
-              margin-bottom:18px;
-            ">
-              ${bestCampaign.advertiser}
-            </div>
-
-
-            <div style="
-              display:grid;
-              grid-template-columns:
-                repeat(2,minmax(0,1fr));
-              gap:14px;
-            ">
-
-              <div>
-                <div class="label">
-                  Revenue
+                <div style="
+                  width:26px;
+                  height:26px;
+                  border-radius:50%;
+                  background:#f4ead1;
+                  display:flex;
+                  align-items:center;
+                  justify-content:center;
+                  font-weight:bold;
+                ">
+                  ${index + 1}
                 </div>
 
-                <strong>
-                  ${money(bestCampaign.revenue)}
-                </strong>
-              </div>
+                <div>
 
-              <div>
-                <div class="label">
-                  Conversions
+                  <div style="
+                    font-weight:bold;
+                  ">
+                    ${
+                      campaign.name ||
+                      "Unnamed Campaign"
+                    }
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                    margin-top:3px;
+                  ">
+                    ${campaign.advertiser || ""}
+                  </div>
+
                 </div>
 
-                <strong>
-                  ${bestCampaign.conversions}
-                </strong>
-              </div>
+                <div style="
+                  text-align:right;
+                  font-size:13px;
+                  white-space:nowrap;
+                ">
 
-              <div>
-                <div class="label">
-                  ROI
+                  <div>
+                    <strong>
+                      ${money(
+                        campaign.revenue || 0
+                      )}
+                    </strong>
+                    Revenue
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    margin-top:3px;
+                  ">
+                    ${
+                      campaign.conversions || 0
+                    }
+                    Conversions ·
+                    ${pct(
+                      campaign.roi || 0
+                    )}
+                    ROI
+                  </div>
+
                 </div>
 
-                <strong>
-                  ${pct(bestCampaign.roi)}
-                </strong>
-              </div>
+              </a>
 
-              <div>
-                <div class="label">
-                  Intent
-                </div>
-
-                <strong>
-                  ${bestCampaign.intent}
-                </strong>
-              </div>
-
-            </div>
-
-
-            <div style="
-              margin-top:18px;
-              padding:14px;
-              background:#f3f7f3;
-              border-radius:10px;
-              color:#315b4c;
-              line-height:1.5;
-            ">
-
-              <strong>
-                Why Vivid selected it:
-              </strong>
-
-              <div style="margin-top:4px;">
-                ${
-                  bestCampaign.revenue > 0
-                    ? "Highest conversion revenue among the campaigns evaluated."
-                    : bestCampaign.conversions > 0
-                    ? "Strongest conversion performance among the campaigns evaluated."
-                    : bestCampaign.intent > 0
-                    ? "Strongest measurable customer engagement among the campaigns evaluated."
-                    : "Strongest relative performance among the campaigns evaluated."
-                }
-              </div>
-
-            </div>
-
-
-            <div style="
-              margin-top:18px;
-              color:#176b3a;
-              font-weight:bold;
-            ">
-              View Campaign →
-            </div>
-
-          </div>
-
-        </a>
-      `
+            `
+          )
+          .join("")
       : `
-        <div class="card">
-
-          <h3>
-            🏆 Top Performing Campaign
-          </h3>
-
           <p>
-            More campaign activity is needed
-            before Vivid can identify a top performer.
+            No campaign performance data
+            for the selected period.
           </p>
-
-        </div>
-      `
+        `
   }
+
+</div>
 
 
   <!-- =========================================
