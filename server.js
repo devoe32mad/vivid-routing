@@ -61914,7 +61914,270 @@ const topStore = {
       ]
     : []
 };
+/*
+=========================================================
+TOP ADVERTISING PLACEMENT
 
+Rank placements by business performance:
+
+1. Revenue
+2. Conversions
+3. ROI
+4. Intent
+
+Uses existing Vivid QR allocation logic.
+=========================================================
+*/
+
+const placementParams =
+  isSuperAdmin
+    ? [null]
+    : [currentUser.id];
+
+const placementResult = await q(
+  `
+    SELECT DISTINCT
+      qr.id,
+      qr.name,
+
+      s.name AS location_name,
+      s.location AS market
+
+    FROM qr_codes qr
+
+    LEFT JOIN spaces s
+      ON s.id = qr.space_id
+
+    LEFT JOIN qr_campaigns qc
+      ON qc.qr_id = qr.id
+
+    LEFT JOIN campaigns c
+      ON c.id = qc.campaign_id
+
+    WHERE
+      (
+        $1::int IS NULL
+
+        OR s.user_id = $1
+
+        OR c.user_id = $1
+      )
+
+      AND COALESCE(
+        qr.is_archived,
+        false
+      ) = false
+
+    ORDER BY qr.id
+  `,
+  placementParams
+);
+
+
+const placementPerformance = [];
+
+
+for (
+  const placement
+  of placementResult.rows
+) {
+
+  const values = [
+    Number(placement.id)
+  ];
+
+  const placementEventWhere = [
+    `e.qr_id = $1`
+  ];
+
+
+  if (startDate) {
+    values.push(startDate);
+
+    placementEventWhere.push(
+      `e.created_at::date >= $${values.length}::date`
+    );
+  }
+
+
+  if (endDate) {
+    values.push(endDate);
+
+    placementEventWhere.push(
+      `e.created_at::date <= $${values.length}::date`
+    );
+  }
+
+
+  const placementMetricsResult =
+    await q(
+      `
+        SELECT
+
+          COUNT(e.id) FILTER (
+            WHERE e.type = 'scan'
+          )::int AS scans,
+
+          COUNT(e.id) FILTER (
+            WHERE e.type IN (
+              'offer',
+              'maps',
+              'waze'
+            )
+          )::int AS intent,
+
+          COUNT(e.id) FILTER (
+            WHERE e.type = 'conversion'
+          )::int AS conversions,
+
+          COALESCE(
+            SUM(e.value) FILTER (
+              WHERE e.type = 'conversion'
+            ),
+            0
+          )::numeric AS revenue
+
+        FROM events e
+
+        WHERE
+          ${placementEventWhere.join("\nAND ")}
+      `,
+      values
+    );
+
+
+  const placementMetrics =
+    placementMetricsResult.rows[0] || {};
+
+
+  const placementScans =
+    Number(
+      placementMetrics.scans || 0
+    );
+
+  const placementIntent =
+    Number(
+      placementMetrics.intent || 0
+    );
+
+  const placementConversions =
+    Number(
+      placementMetrics.conversions || 0
+    );
+
+  const placementRevenue =
+    Number(
+      placementMetrics.revenue || 0
+    );
+
+
+  const placementCost =
+    Number(
+      await allocatedSpotCostForQr(
+        Number(placement.id),
+        startDate,
+        endDate
+      ) || 0
+    );
+
+
+  const placementRoi =
+    placementCost > 0
+      ? (
+          (
+            placementRevenue -
+            placementCost
+          ) /
+          placementCost
+        ) * 100
+      : 0;
+
+
+  placementPerformance.push({
+
+    id:
+      Number(placement.id),
+
+    name:
+      placement.name || "",
+
+    locationName:
+      placement.location_name || "",
+
+    market:
+      placement.market || "",
+
+    scans:
+      placementScans,
+
+    intent:
+      placementIntent,
+
+    conversions:
+      placementConversions,
+
+    revenue:
+      placementRevenue,
+
+    allocatedCost:
+      placementCost,
+
+    roi:
+      placementRoi
+
+  });
+
+}
+
+
+/*
+Rank placement performance.
+*/
+
+const rankedPlacements =
+  [...placementPerformance]
+    .sort((a, b) => {
+
+      if (
+        b.revenue !==
+        a.revenue
+      ) {
+        return (
+          b.revenue -
+          a.revenue
+        );
+      }
+
+      if (
+        b.conversions !==
+        a.conversions
+      ) {
+        return (
+          b.conversions -
+          a.conversions
+        );
+      }
+
+      if (
+        b.roi !==
+        a.roi
+      ) {
+        return (
+          b.roi -
+          a.roi
+        );
+      }
+
+      return (
+        b.intent -
+        a.intent
+      );
+
+    });
+
+
+const bestPlacement =
+  rankedPlacements[0] || null;
     /*
     =========================================================
     PAGE
