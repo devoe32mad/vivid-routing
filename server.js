@@ -52188,19 +52188,8 @@ ${isSuperAdmin ? `
 <a
   class="btn secondary"
   href="/help"
-  onclick="
-    const helpWindow = window.open(
-      '/help',
-      'vividCoreHelp',
-      'width=1200,height=850,resizable=yes,scrollbars=yes'
-    );
-
-    if (helpWindow) {
-      helpWindow.focus();
-    }
-
-    return false;
-  "
+  target="_blank"
+  rel="noopener noreferrer"
 >
   Help Center
 </a>
