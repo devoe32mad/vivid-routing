@@ -58197,8 +58197,20 @@ app.post("/admin/edit-organization/:id", requireLogin, async (req, res) => {
   app.get("/admin/new-location", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
+const requestedMarketplaceRequestIdRaw =
+  String(
+    req.query.marketplace_request_id || ""
+  ).trim();
+
 const requestedMarketplaceRequestId =
-  Number(req.query.marketplace_request_id);
+  requestedMarketplaceRequestIdRaw
+    ? Number(requestedMarketplaceRequestIdRaw)
+    : null;
+
+const hasMarketplaceRequestId =
+  Number.isInteger(requestedMarketplaceRequestId) &&
+  requestedMarketplaceRequestId > 0;
+    ;
     /*
     =========================================================
     MARKETPLACE LOCATION PREFILL
@@ -58216,51 +58228,58 @@ const requestedMarketplaceRequestId =
     =========================================================
     */
 
-    const marketplaceRequestResult = await q(
-      `
-        SELECT
-          ar.id AS request_id,
-          ar.organization_id,
-          ar.location_id AS source_space_id,
-          ar.opportunity_id,
+ let marketplaceRequest = null;
 
-          o.name AS organization_name,
+if (hasMarketplaceRequestId) {
+  const marketplaceRequestResult = await q(
+    `
+      SELECT
+        ar.id AS request_id,
+        ar.organization_id,
+        ar.location_id AS source_space_id,
+        ar.opportunity_id,
 
-          source_space.name AS space_name,
-          source_space.location AS market,
+        o.name AS organization_name,
 
-          COALESCE(
-  NULLIF(TRIM(oo.description), ''),
-  NULLIF(TRIM(oo.title), '')
-) AS opportunity_description
+        source_space.name AS space_name,
+        source_space.location AS market,
 
-        FROM organization_advertising_requests ar
+        COALESCE(
+          NULLIF(TRIM(oo.description), ''),
+          NULLIF(TRIM(oo.title), '')
+        ) AS opportunity_description
 
-        JOIN organizations o
-          ON o.id = ar.organization_id
+      FROM organization_advertising_requests ar
 
-        JOIN spaces source_space
-          ON source_space.id = ar.location_id
-         AND source_space.organization_id = ar.organization_id
+      JOIN organizations o
+        ON o.id = ar.organization_id
 
-        LEFT JOIN organization_opportunities oo
-          ON oo.id = ar.opportunity_id
-         AND oo.organization_id = ar.organization_id
-         AND oo.space_id = ar.location_id
+      JOIN spaces source_space
+        ON source_space.id = ar.location_id
+       AND source_space.organization_id =
+           ar.organization_id
 
-  WHERE ar.created_vivid_user_id = $1
-  AND ar.status = 'Approved'
-  AND ar.id = $2
+      LEFT JOIN organization_opportunities oo
+        ON oo.id = ar.opportunity_id
+       AND oo.organization_id =
+           ar.organization_id
+       AND oo.space_id = ar.location_id
 
-LIMIT 1
-      `,
-      [
-        currentUser.id,
-        requestedMarketplaceRequestId
-      ]  );
+      WHERE ar.created_vivid_user_id = $1
+        AND ar.status = 'Approved'
+        AND ar.id = $2
 
-    const marketplaceRequest =
-      marketplaceRequestResult.rows[0] || null;
+      LIMIT 1
+    `,
+    [
+      currentUser.id,
+      requestedMarketplaceRequestId
+    ]
+  );
+
+  marketplaceRequest =
+    marketplaceRequestResult.rows[0] || null;
+}
 
     /*
     =========================================================
