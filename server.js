@@ -38528,6 +38528,422 @@ app.get(
     }
   }
 );
+/*
+=========================================================
+ORGANIZATION PERFORMANCE INSIGHTS
+=========================================================
+
+Enterprise executive performance view.
+
+IMPORTANT:
+This page consumes existing Vivid and Organization data.
+It does not create duplicate analytics or calculations.
+=========================================================
+*/
+
+app.get(
+  "/org-performance",
+  async (req, res) => {
+    try {
+      const organizationId =
+        Number(req.query.organization_id) ||
+        Number(
+          req.session.orgUser?.organizationId
+        );
+
+      if (!organizationId) {
+        return res
+          .status(400)
+          .send("Organization required.");
+      }
+
+      const organizationResult =
+        await q(
+          `
+            SELECT
+              id,
+              name
+
+            FROM organizations
+
+            WHERE id = $1
+
+            LIMIT 1
+          `,
+          [organizationId]
+        );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res
+          .status(404)
+          .send(
+            "Organization not found."
+          );
+      }
+
+      const userName =
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        req.session.user?.name ||
+        req.session.user?.email ||
+        "";
+
+      const startDate =
+        String(
+          req.query.startDate || ""
+        ).trim();
+
+      const endDate =
+        String(
+          req.query.endDate || ""
+        ).trim();
+
+      return res.send(
+        orgPage(
+          `Performance Insights - ${organization.name}`,
+          `
+
+            ${organizationNav({
+              organizationId,
+              organizationName:
+                escapeHtml(
+                  organization.name
+                ),
+              activePage:
+                "performance",
+              userName:
+                escapeHtml(userName)
+            })}
+
+
+            <div class="topbar">
+
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                ${escapeHtml(
+                  organization.name
+                )}
+                Performance Insights
+              </h1>
+
+              <p class="subtitle">
+                Executive view of advertising
+                performance, revenue, inventory,
+                contracts, and growth opportunities.
+              </p>
+
+            </div>
+
+
+            <div class="wrap">
+
+
+              <!-- =====================================
+                   DATE FILTER
+              ====================================== -->
+
+              <form
+                method="GET"
+                action="/org-performance"
+                style="
+                  display:flex;
+                  gap:12px;
+                  align-items:end;
+                  flex-wrap:wrap;
+                  margin-bottom:24px;
+                "
+              >
+
+                <input
+                  type="hidden"
+                  name="organization_id"
+                  value="${organizationId}"
+                />
+
+
+                <div>
+
+                  <label>
+                    Start Date
+                  </label>
+                  <br>
+
+                  <input
+                    type="date"
+                    name="startDate"
+                    value="${startDate}"
+                  />
+
+                </div>
+
+
+                <div>
+
+                  <label>
+                    End Date
+                  </label>
+                  <br>
+
+                  <input
+                    type="date"
+                    name="endDate"
+                    value="${endDate}"
+                  />
+
+                </div>
+
+
+                <div>
+
+                  <button
+                    class="btn"
+                    type="submit"
+                  >
+                    Apply Filter
+                  </button>
+
+                </div>
+
+              </form>
+
+
+              <!-- =====================================
+                   EXECUTIVE PERFORMANCE
+              ====================================== -->
+
+              <h2 style="
+                margin-bottom:6px;
+              ">
+                Executive Performance
+              </h2>
+
+              <p style="
+                margin-top:0;
+                color:#65776b;
+              ">
+                Organization-wide advertising
+                performance for the selected period.
+              </p>
+
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(
+                    auto-fit,
+                    minmax(180px,1fr)
+                  );
+                gap:16px;
+                margin:20px 0 30px;
+              ">
+
+                <div class="card">
+                  <div class="label">
+                    Advertising Revenue
+                  </div>
+                  <div class="num">
+                    —
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Active Contract Value
+                  </div>
+                  <div class="num">
+                    —
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Advertiser Revenue Generated
+                  </div>
+                  <div class="num">
+                    —
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Active Advertisers
+                  </div>
+                  <div class="num">
+                    —
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Active Locations
+                  </div>
+                  <div class="num">
+                    —
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Active Placements
+                  </div>
+                  <div class="num">
+                    —
+                  </div>
+                </div>
+
+              </div>
+
+
+              <!-- =====================================
+                   ENTERPRISE PERFORMANCE SECTIONS
+              ====================================== -->
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(
+                    auto-fit,
+                    minmax(300px,1fr)
+                  );
+                gap:20px;
+              ">
+
+                <div class="card">
+                  <h3>
+                    🏆 Top Advertisers
+                  </h3>
+                  <p>
+                    Existing advertiser performance
+                    will appear here.
+                  </p>
+                </div>
+
+
+                <div class="card">
+                  <h3>
+                    📍 Top Locations
+                  </h3>
+                  <p>
+                    Existing location performance
+                    will appear here.
+                  </p>
+                </div>
+
+
+                <div class="card">
+                  <h3>
+                    ⭐ Top Advertising Placements
+                  </h3>
+                  <p>
+                    Existing placement performance
+                    will appear here.
+                  </p>
+                </div>
+
+
+                <div class="card">
+                  <h3>
+                    📄 Contracts & Renewals
+                  </h3>
+                  <p>
+                    Existing contract and renewal
+                    information will appear here.
+                  </p>
+                </div>
+
+
+                <div class="card">
+                  <h3>
+                    📦 Advertising Inventory
+                  </h3>
+                  <p>
+                    Existing inventory and revenue
+                    opportunity data will appear here.
+                  </p>
+                </div>
+
+
+                <div class="card">
+                  <h3>
+                    📈 Revenue Pipeline
+                  </h3>
+                  <p>
+                    Existing pipeline data
+                    will appear here.
+                  </p>
+                </div>
+
+
+                <div class="card">
+                  <h3>
+                    ⚠️ Needs Attention
+                  </h3>
+                  <p>
+                    Risks and exceptions identified
+                    from existing Vivid data
+                    will appear here.
+                  </p>
+                </div>
+
+
+                <div
+                  class="card"
+                  style="
+                    grid-column:span 2;
+                  "
+                >
+
+                  <h3 style="
+                    margin-top:0;
+                  ">
+                    ⚡ What Vivid Sees for
+                    ${escapeHtml(
+                      organization.name
+                    )}
+                  </h3>
+
+                  <p style="
+                    color:#65776b;
+                    margin-bottom:0;
+                  ">
+                    Executive interpretation of
+                    existing advertising,
+                    performance, inventory,
+                    contract, and revenue data.
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        "ORGANIZATION PERFORMANCE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to load Performance Insights: " +
+          err.message
+        );
+
+    }
+  }
+);
 app.get(
   "/org-revenue-pipeline",
   async (req, res) => {
