@@ -63451,7 +63451,121 @@ const executiveInsights =
 
 </div>
        
+<!-- =========================================
+     WHAT VIVID SEES
+========================================== -->
 
+<div
+  class="card"
+  style="
+    grid-column:span 2;
+    height:100%;
+    box-sizing:border-box;
+  "
+>
+
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:20px;
+    margin-bottom:8px;
+  ">
+
+    <div>
+
+      <h3 style="
+        margin:0;
+        color:#073b22;
+        font-size:22px;
+      ">
+        ⚡ ${insightHeader}
+      </h3>
+
+      <div style="
+        color:#65776b;
+        margin-top:6px;
+      ">
+        Executive interpretation of measured advertising performance
+      </div>
+
+    </div>
+
+  </div>
+
+
+  ${
+    executiveInsights.length > 0
+      ? `
+
+        <div style="
+          display:grid;
+          grid-template-columns:
+            repeat(2,minmax(0,1fr));
+          gap:16px;
+          margin-top:22px;
+        ">
+
+          ${executiveInsights
+            .map(
+              insight => `
+                
+                <div style="
+                  padding:18px;
+                  background:#f3f7f3;
+                  border-radius:12px;
+                  box-sizing:border-box;
+                ">
+
+                  <div style="
+                    font-size:13px;
+                    font-weight:bold;
+                    text-transform:uppercase;
+                    letter-spacing:.04em;
+                    color:#176b3a;
+                    margin-bottom:8px;
+                  ">
+                    ${insight.type}
+                  </div>
+
+                  <div style="
+                    color:#073b22;
+                    font-size:16px;
+                    line-height:1.5;
+                    font-weight:600;
+                  ">
+                    ${insight.text}
+                  </div>
+
+                </div>
+
+              `
+            )
+            .join("")}
+
+        </div>
+
+      `
+      : `
+
+        <div style="
+          margin-top:20px;
+          padding:20px;
+          background:#f3f7f3;
+          border-radius:12px;
+          color:#315b4c;
+          line-height:1.5;
+        ">
+
+          Vivid needs additional measurable activity
+          before generating executive performance insights.
+
+        </div>
+
+      `
+  }
+
+</div>
 </div>
 
         </div>
