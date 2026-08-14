@@ -38541,21 +38541,60 @@ It does not create duplicate analytics or calculations.
 =========================================================
 */
 
+/*
+=========================================================
+ORGANIZATION PERFORMANCE INSIGHTS
+=========================================================
+
+Enterprise executive intelligence view.
+
+IMPORTANT ARCHITECTURE RULES
+
+- Vivid remains the source of truth.
+- This page reads existing data only.
+- No duplicate analytics are stored.
+- No new KPI tables are created.
+- Existing Organization / Vivid drill-down pages are reused.
+=========================================================
+*/
+
 app.get(
   "/org-performance",
   async (req, res) => {
     try {
-      const organizationId =
-        Number(req.query.organization_id) ||
-        Number(
-          req.session.orgUser?.organizationId
-        );
 
-      if (!organizationId) {
+      /*
+      =====================================================
+      ORGANIZATION SCOPE
+      =====================================================
+      */
+
+      const scope =
+        await getOrganizationScope(req);
+
+      const {
+        organizationId,
+        fromDate,
+        toDate,
+        queryString: dateQueryString,
+        allowedLocationIds,
+        selectedLocationId
+      } = scope;
+
+
+      if (
+        !Number.isInteger(
+          Number(organizationId)
+        ) ||
+        Number(organizationId) <= 0
+      ) {
         return res
           .status(400)
-          .send("Organization required.");
+          .send(
+            "Organization required."
+          );
       }
+
 
       const organizationResult =
         await q(
@@ -38567,14 +38606,20 @@ app.get(
             FROM organizations
 
             WHERE id = $1
+              AND COALESCE(
+                is_active,
+                true
+              ) = true
 
             LIMIT 1
           `,
           [organizationId]
         );
 
+
       const organization =
         organizationResult.rows[0];
+
 
       if (!organization) {
         return res
@@ -38584,6 +38629,7 @@ app.get(
           );
       }
 
+
       const userName =
         req.session.orgUser?.name ||
         req.session.orgUser?.email ||
@@ -38591,521 +38637,1535 @@ app.get(
         req.session.user?.email ||
         "";
 
-const scope =
-  await getOrganizationScope(req);
 
-if (
-  scope.organizationId !==
-  organizationId
-) {
-  return res
-    .status(403)
-    .send("Access denied");
-}
+      const startDate =
+        fromDate || "";
 
-const {
-  fromDate,
-  toDate,
-  queryString: dateQueryString,
-  allowedLocationIds,
-  selectedLocationId
-} = scope;
+      const endDate =
+        toDate || "";
 
-const startDate =
-  fromDate || "";
 
-const endDate =
-  toDate || "";
-/*
-=========================================================
-EXECUTIVE PERFORMANCE
+      const performanceMoney = value =>
+        "$" +
+        Number(value || 0)
+          .toLocaleString(
+            "en-US",
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }
+          );
 
-Consumes existing Vivid / Organization data only.
-No KPI data is stored here.
-=========================================================
-*/
 
+      const numberLabel = value =>
+        Number(value || 0)
+          .toLocaleString();
 
-/*
----------------------------------------------------------
-ACTIVE CONTRACT VALUE
----------------------------------------------------------
-*/
 
-const activeContractValueResult =
-  await q(
-    `
-      SELECT
-        COALESCE(
-          SUM(c.total_contract_value),
-          0
-        )::numeric
-          AS active_contract_value
-
-      FROM contracts c
-
-      WHERE
-        c.organization_id = $1
-
-        AND c.location_id =
-          ANY($2::int[])
-
-        AND (
-          $3::int IS NULL
-          OR c.location_id = $3::int
-        )
-
-        AND LOWER(
-          COALESCE(c.status, '')
-        ) = 'active'
-
-        AND c.renewed_from_contract_id
-          IS NULL
-    `,
-    [
-      organizationId,
-      allowedLocationIds,
-      selectedLocationId
-    ]
-  );
-
-const activeContractValue =
-  Number(
-    activeContractValueResult
-      .rows[0]
-      ?.active_contract_value || 0
-  );
-
-
-/*
----------------------------------------------------------
-ACTIVE LOCATIONS
----------------------------------------------------------
-*/
-
-const activeLocationsResult =
-  await q(
-    `
-      SELECT
-        COUNT(*)::int
-          AS active_locations
-
-      FROM spaces s
-
-      WHERE
-        s.organization_id = $1
-
-        AND COALESCE(
-          s.is_archived,
-          false
-        ) = false
-
-        AND s.id =
-          ANY($2::int[])
-
-        AND (
-          $3::int IS NULL
-          OR s.id = $3::int
-        )
-    `,
-    [
-      organizationId,
-      allowedLocationIds,
-      selectedLocationId
-    ]
-  );
-
-const activeLocations =
-  Number(
-    activeLocationsResult
-      .rows[0]
-      ?.active_locations || 0
-  );
-
-
-/*
----------------------------------------------------------
-ACTIVE PLACEMENTS
----------------------------------------------------------
-*/
-
-const activePlacementsResult =
-  await q(
-    `
-      SELECT
-        COUNT(DISTINCT qr.id)::int
-          AS active_placements
-
-      FROM qr_codes qr
-
-      JOIN spaces s
-        ON s.id = qr.space_id
-
-      WHERE
-        s.organization_id = $1
-
-        AND s.id =
-          ANY($2::int[])
-
-        AND (
-          $3::int IS NULL
-          OR s.id = $3::int
-        )
-
-        AND COALESCE(
-          s.is_archived,
-          false
-        ) = false
-
-        AND COALESCE(
-          qr.is_archived,
-          false
-        ) = false
-    `,
-    [
-      organizationId,
-      allowedLocationIds,
-      selectedLocationId
-    ]
-  );
-
-const activePlacements =
-  Number(
-    activePlacementsResult
-      .rows[0]
-      ?.active_placements || 0
-  );
-
-
-/*
----------------------------------------------------------
-ACTIVE ADVERTISERS
----------------------------------------------------------
-*/
-
-const activeAdvertisersResult =
-  await q(
-    `
-      SELECT
-        COUNT(
-          DISTINCT c.user_id
-        )::int
-          AS active_advertisers
-
-      FROM campaigns c
-
-      JOIN qr_campaigns qc
-        ON qc.campaign_id = c.id
-
-      JOIN qr_codes qr
-        ON qr.id = qc.qr_id
-
-      JOIN spaces s
-        ON s.id = qr.space_id
-
-      WHERE
-        s.organization_id = $1
-
-        AND s.id =
-          ANY($2::int[])
-
-        AND (
-          $3::int IS NULL
-          OR s.id = $3::int
-        )
-
-        AND COALESCE(
-          c.is_archived,
-          false
-        ) = false
-    `,
-    [
-      organizationId,
-      allowedLocationIds,
-      selectedLocationId
-    ]
-  );
-
-const activeAdvertisers =
-  Number(
-    activeAdvertisersResult
-      .rows[0]
-      ?.active_advertisers || 0
-  );
-
-
-/*
----------------------------------------------------------
-ADVERTISER REVENUE GENERATED
-
-Existing Vivid conversion attribution.
----------------------------------------------------------
-*/
-
-const advertiserRevenueValues = [
-  organizationId,
-  allowedLocationIds,
-  selectedLocationId
-];
-
-let advertiserRevenueDateSql = "";
-
-if (startDate) {
-  advertiserRevenueValues.push(
-    startDate
-  );
-
-  advertiserRevenueDateSql += `
-    AND e.created_at::date >=
-      $${advertiserRevenueValues.length}::date
-  `;
-}
-
-if (endDate) {
-  advertiserRevenueValues.push(
-    endDate
-  );
-
-  advertiserRevenueDateSql += `
-    AND e.created_at::date <=
-      $${advertiserRevenueValues.length}::date
-  `;
-}
-
-const advertiserRevenueResult =
-  await q(
-    `
-      SELECT
-        COALESCE(
-          SUM(e.value) FILTER (
-            WHERE e.type = 'conversion'
-          ),
-          0
-        )::numeric
-          AS advertiser_revenue
-
-      FROM spaces s
-
-      JOIN qr_codes qr
-        ON qr.space_id = s.id
-
-      LEFT JOIN events e
-        ON e.qr_id = qr.id
-
-      WHERE
-        s.organization_id = $1
-
-        AND s.id =
-          ANY($2::int[])
-
-        AND (
-          $3::int IS NULL
-          OR s.id = $3::int
-        )
-
-        ${advertiserRevenueDateSql}
-    `,
-    advertiserRevenueValues
-  );
-
-const advertiserRevenueGenerated =
-  Number(
-    advertiserRevenueResult
-      .rows[0]
-      ?.advertiser_revenue || 0
-  );
-
-
-/*
----------------------------------------------------------
-ADVERTISING REVENUE
-
-Existing active contract value represents
-organization advertising revenue under contract.
----------------------------------------------------------
-*/
-
-const advertisingRevenue =
-  activeContractValue;
-
-
-const performanceMoney = value =>
-  "$" +
-  Number(value || 0).toLocaleString(
-    "en-US",
-    {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }
-  );
       /*
-=========================================================
-TOP ADVERTISERS
+      =====================================================
+      EVENT DATE FILTER
 
-Organization-scoped advertiser performance.
+      Reused by advertiser / location / placement
+      performance queries below.
+      =====================================================
+      */
 
-Uses existing Vivid campaign + event data only.
+      const eventParams = [
+        organizationId,
+        allowedLocationIds,
+        selectedLocationId
+      ];
 
-Rank:
-Revenue
-→ Conversions
-→ Intent
-=========================================================
-*/
+      let eventDateSql = "";
 
-const topAdvertiserValues = [
-  organizationId,
-  allowedLocationIds,
-  selectedLocationId
-];
 
-let topAdvertiserDateSql = "";
+      if (startDate) {
 
-if (startDate) {
-  topAdvertiserValues.push(startDate);
+        eventParams.push(
+          startDate
+        );
 
-  topAdvertiserDateSql += `
-    AND e.created_at::date >=
-      $${topAdvertiserValues.length}::date
-  `;
-}
+        eventDateSql += `
+          AND e.created_at::date >=
+            $${eventParams.length}::date
+        `;
+      }
 
-if (endDate) {
-  topAdvertiserValues.push(endDate);
 
-  topAdvertiserDateSql += `
-    AND e.created_at::date <=
-      $${topAdvertiserValues.length}::date
-  `;
-}
+      if (endDate) {
 
-const topAdvertisersResult =
-  await q(
-    `
-      SELECT
+        eventParams.push(
+          endDate
+        );
 
-        COALESCE(
-          NULLIF(
-            TRIM(u.company),
-            ''
-          ),
-          NULLIF(
-            TRIM(u.name),
-            ''
-          ),
-          u.email,
-          'Unknown Advertiser'
-        ) AS advertiser_name,
+        eventDateSql += `
+          AND e.created_at::date <=
+            $${eventParams.length}::date
+        `;
+      }
 
-        COUNT(e.id) FILTER (
-          WHERE e.type = 'scan'
-        )::int AS scans,
 
-        COUNT(e.id) FILTER (
-          WHERE e.type IN (
-            'offer',
-            'maps',
-            'waze'
-          )
-        )::int AS intent,
+      /*
+      =====================================================
+      EXECUTIVE PERFORMANCE
+      =====================================================
+      */
 
-        COUNT(e.id) FILTER (
-          WHERE e.type = 'conversion'
-        )::int AS conversions,
 
-        COALESCE(
-          SUM(e.value) FILTER (
-            WHERE e.type = 'conversion'
-          ),
-          0
-        )::numeric AS revenue
+      /*
+      -----------------------------------------------------
+      ACTIVE CONTRACT METRICS
+      -----------------------------------------------------
+      */
 
-      FROM campaigns c
+      const contractMetricsResult =
+        await q(
+          `
+            SELECT
 
-      JOIN users u
-        ON u.id = c.user_id
+              COUNT(*) FILTER (
+                WHERE LOWER(
+                  COALESCE(
+                    c.status,
+                    ''
+                  )
+                ) = 'active'
+              )::int
+                AS active_contracts,
 
-      JOIN qr_campaigns qc
-        ON qc.campaign_id = c.id
+              COALESCE(
+                SUM(
+                  c.total_contract_value
+                ) FILTER (
+                  WHERE LOWER(
+                    COALESCE(
+                      c.status,
+                      ''
+                    )
+                  ) = 'active'
+                ),
+                0
+              )::numeric
+                AS active_contract_value,
 
-      JOIN qr_codes qr
-        ON qr.id = qc.qr_id
+              COUNT(*) FILTER (
+                WHERE
+                  LOWER(
+                    COALESCE(
+                      c.status,
+                      ''
+                    )
+                  ) = 'active'
 
-      JOIN spaces s
-        ON s.id = qr.space_id
+                  AND COALESCE(
+                    c.end_date,
+                    c.expiration_date
+                  ) >= CURRENT_DATE
 
-      LEFT JOIN events e
-        ON e.qr_id = qr.id
-        ${topAdvertiserDateSql}
+                  AND COALESCE(
+                    c.end_date,
+                    c.expiration_date
+                  ) <=
+                    CURRENT_DATE + 30
+              )::int
+                AS expiring_30,
 
-      WHERE
-        s.organization_id = $1
+              COUNT(*) FILTER (
+                WHERE
+                  LOWER(
+                    COALESCE(
+                      c.status,
+                      ''
+                    )
+                  ) = 'active'
 
-        AND s.id =
-          ANY($2::int[])
+                  AND COALESCE(
+                    c.end_date,
+                    c.expiration_date
+                  ) >= CURRENT_DATE
 
-        AND (
-          $3::int IS NULL
-          OR s.id = $3::int
-        )
+                  AND COALESCE(
+                    c.end_date,
+                    c.expiration_date
+                  ) <=
+                    CURRENT_DATE + 60
+              )::int
+                AS expiring_60,
 
-        AND COALESCE(
-          c.is_archived,
-          false
-        ) = false
+              COUNT(*) FILTER (
+                WHERE
+                  LOWER(
+                    COALESCE(
+                      c.status,
+                      ''
+                    )
+                  ) = 'active'
 
-      GROUP BY
-        COALESCE(
-          NULLIF(
-            TRIM(u.company),
-            ''
-          ),
-          NULLIF(
-            TRIM(u.name),
-            ''
-          ),
-          u.email,
-          'Unknown Advertiser'
-        )
+                  AND COALESCE(
+                    c.end_date,
+                    c.expiration_date
+                  ) >= CURRENT_DATE
 
-      ORDER BY
-        revenue DESC,
-        conversions DESC,
-        intent DESC
+                  AND COALESCE(
+                    c.end_date,
+                    c.expiration_date
+                  ) <=
+                    CURRENT_DATE + 90
+              )::int
+                AS expiring_90,
 
-      LIMIT 5
-    `,
-    topAdvertiserValues
-  );
+              COALESCE(
+                SUM(
+                  c.total_contract_value
+                ) FILTER (
+                  WHERE
+                    LOWER(
+                      COALESCE(
+                        c.status,
+                        ''
+                      )
+                    ) = 'active'
 
-const topAdvertisers =
-  topAdvertisersResult.rows.map(
-    advertiser => ({
-      name:
-        advertiser.advertiser_name || "",
+                    AND COALESCE(
+                      c.end_date,
+                      c.expiration_date
+                    ) >= CURRENT_DATE
 
-      key:
-        String(
-          advertiser.advertiser_name || ""
-        )
-          .trim()
-          .toLowerCase(),
+                    AND COALESCE(
+                      c.end_date,
+                      c.expiration_date
+                    ) <=
+                      CURRENT_DATE + 90
+                ),
+                0
+              )::numeric
+                AS renewal_value_90
 
-      scans:
-        Number(advertiser.scans || 0),
+            FROM contracts c
 
-      intent:
-        Number(advertiser.intent || 0),
+            WHERE
+              c.organization_id = $1
 
-      conversions:
+              AND c.location_id =
+                ANY($2::int[])
+
+              AND (
+                $3::int IS NULL
+                OR c.location_id = $3::int
+              )
+
+              AND c.renewed_from_contract_id
+                IS NULL
+          `,
+          [
+            organizationId,
+            allowedLocationIds,
+            selectedLocationId
+          ]
+        );
+
+
+      const contractMetrics =
+        contractMetricsResult.rows[0] || {};
+
+
+      const activeContracts =
         Number(
-          advertiser.conversions || 0
-        ),
+          contractMetrics.active_contracts || 0
+        );
 
-      revenue:
-        Number(advertiser.revenue || 0)
-    })
-  );
+      const activeContractValue =
+        Number(
+          contractMetrics.active_contract_value || 0
+        );
+
+      const expiring30 =
+        Number(
+          contractMetrics.expiring_30 || 0
+        );
+
+      const expiring60 =
+        Number(
+          contractMetrics.expiring_60 || 0
+        );
+
+      const expiring90 =
+        Number(
+          contractMetrics.expiring_90 || 0
+        );
+
+      const renewalValue90 =
+        Number(
+          contractMetrics.renewal_value_90 || 0
+        );
+
+
+      /*
+      -----------------------------------------------------
+      ACTIVE LOCATIONS
+      -----------------------------------------------------
+      */
+
+      const activeLocationsResult =
+        await q(
+          `
+            SELECT
+              COUNT(*)::int
+                AS active_locations
+
+            FROM spaces s
+
+            WHERE
+              s.organization_id = $1
+
+              AND s.id =
+                ANY($2::int[])
+
+              AND (
+                $3::int IS NULL
+                OR s.id = $3::int
+              )
+
+              AND COALESCE(
+                s.is_archived,
+                false
+              ) = false
+          `,
+          [
+            organizationId,
+            allowedLocationIds,
+            selectedLocationId
+          ]
+        );
+
+
+      const activeLocations =
+        Number(
+          activeLocationsResult
+            .rows[0]
+            ?.active_locations || 0
+        );
+
+
+      /*
+      -----------------------------------------------------
+      ACTIVE PLACEMENTS
+      -----------------------------------------------------
+      */
+
+      const activePlacementsResult =
+        await q(
+          `
+            SELECT
+              COUNT(
+                DISTINCT qr.id
+              )::int
+                AS active_placements
+
+            FROM qr_codes qr
+
+            JOIN spaces s
+              ON s.id = qr.space_id
+
+            WHERE
+              s.organization_id = $1
+
+              AND s.id =
+                ANY($2::int[])
+
+              AND (
+                $3::int IS NULL
+                OR s.id = $3::int
+              )
+
+              AND COALESCE(
+                s.is_archived,
+                false
+              ) = false
+
+              AND COALESCE(
+                qr.is_archived,
+                false
+              ) = false
+
+              AND COALESCE(
+                qr.is_active,
+                true
+              ) = true
+          `,
+          [
+            organizationId,
+            allowedLocationIds,
+            selectedLocationId
+          ]
+        );
+
+
+      const activePlacements =
+        Number(
+          activePlacementsResult
+            .rows[0]
+            ?.active_placements || 0
+        );
+
+
+      /*
+      -----------------------------------------------------
+      ACTIVE ADVERTISERS
+
+      Uses c.advertiser — same advertiser identity used
+      by the existing Enterprise advertiser detail page.
+      -----------------------------------------------------
+      */
+
+      const activeAdvertisersResult =
+        await q(
+          `
+            SELECT
+              COUNT(
+                DISTINCT LOWER(
+                  TRIM(c.advertiser)
+                )
+              )::int
+                AS active_advertisers
+
+            FROM campaigns c
+
+            JOIN qr_campaigns qc
+              ON qc.campaign_id = c.id
+
+            JOIN qr_codes qr
+              ON qr.id = qc.qr_id
+
+            JOIN spaces s
+              ON s.id = qr.space_id
+
+            WHERE
+              s.organization_id = $1
+
+              AND s.id =
+                ANY($2::int[])
+
+              AND (
+                $3::int IS NULL
+                OR s.id = $3::int
+              )
+
+              AND NULLIF(
+                TRIM(c.advertiser),
+                ''
+              ) IS NOT NULL
+
+              AND COALESCE(
+                c.is_archived,
+                false
+              ) = false
+
+              AND COALESCE(
+                qc.is_active,
+                true
+              ) = true
+
+              AND COALESCE(
+                qr.is_archived,
+                false
+              ) = false
+          `,
+          [
+            organizationId,
+            allowedLocationIds,
+            selectedLocationId
+          ]
+        );
+
+
+      const activeAdvertisers =
+        Number(
+          activeAdvertisersResult
+            .rows[0]
+            ?.active_advertisers || 0
+        );
+
+
+      /*
+      -----------------------------------------------------
+      ADVERTISER REVENUE GENERATED
+
+      Existing Vivid conversion attribution.
+      -----------------------------------------------------
+      */
+
+      const advertiserRevenueResult =
+        await q(
+          `
+            SELECT
+              COALESCE(
+                SUM(e.value) FILTER (
+                  WHERE
+                    e.type = 'conversion'
+                ),
+                0
+              )::numeric
+                AS advertiser_revenue
+
+            FROM spaces s
+
+            JOIN qr_codes qr
+              ON qr.space_id = s.id
+
+            LEFT JOIN events e
+              ON e.qr_id = qr.id
+              ${eventDateSql}
+
+            WHERE
+              s.organization_id = $1
+
+              AND s.id =
+                ANY($2::int[])
+
+              AND (
+                $3::int IS NULL
+                OR s.id = $3::int
+              )
+          `,
+          eventParams
+        );
+
+
+      const advertiserRevenueGenerated =
+        Number(
+          advertiserRevenueResult
+            .rows[0]
+            ?.advertiser_revenue || 0
+        );
+
+
+      /*
+      Contracted advertising revenue.
+
+      For now this intentionally matches active
+      contract value. We are not inventing a separate
+      revenue-recognition definition.
+      */
+
+      const advertisingRevenue =
+        activeContractValue;
+
+
+      /*
+      =====================================================
+      INVENTORY
+      =====================================================
+      */
+
+      const inventoryResult =
+        await q(
+          `
+            SELECT
+
+              COUNT(*) FILTER (
+                WHERE
+                  LOWER(
+                    COALESCE(
+                      oo.status,
+                      ''
+                    )
+                  ) = 'available'
+
+                  AND COALESCE(
+                    oo.is_active,
+                    true
+                  ) = true
+
+                  AND (
+                    oo.available_from IS NULL
+                    OR oo.available_from <= CURRENT_DATE
+                  )
+
+                  AND (
+                    oo.available_until IS NULL
+                    OR oo.available_until >= CURRENT_DATE
+                  )
+              )::int
+                AS available_spots,
+
+              COALESCE(
+                SUM(
+                  COALESCE(
+                    oo.price,
+                    oo.annual_price,
+                    0
+                  )
+                ) FILTER (
+                  WHERE
+                    LOWER(
+                      COALESCE(
+                        oo.status,
+                        ''
+                      )
+                    ) = 'available'
+
+                    AND COALESCE(
+                      oo.is_active,
+                      true
+                    ) = true
+
+                    AND (
+                      oo.available_from IS NULL
+                      OR oo.available_from <= CURRENT_DATE
+                    )
+
+                    AND (
+                      oo.available_until IS NULL
+                      OR oo.available_until >= CURRENT_DATE
+                    )
+                ),
+                0
+              )::numeric
+                AS available_revenue
+
+            FROM organization_opportunities oo
+
+            WHERE
+              oo.organization_id = $1
+
+              AND oo.space_id =
+                ANY($2::int[])
+
+              AND (
+                $3::int IS NULL
+                OR oo.space_id = $3::int
+              )
+          `,
+          [
+            organizationId,
+            allowedLocationIds,
+            selectedLocationId
+          ]
+        );
+
+
+      const availableSpots =
+        Number(
+          inventoryResult
+            .rows[0]
+            ?.available_spots || 0
+        );
+
+      const availableRevenue =
+        Number(
+          inventoryResult
+            .rows[0]
+            ?.available_revenue || 0
+        );
+
+
+      /*
+      =====================================================
+      PENDING PIPELINE
+      =====================================================
+      */
+
+      const pendingResult =
+        await q(
+          `
+            SELECT
+
+              COUNT(
+                DISTINCT r.opportunity_id
+              )::int
+                AS pending_spots,
+
+              COALESCE(
+                SUM(
+                  DISTINCT COALESCE(
+                    r.price,
+                    oo.price,
+                    oo.annual_price,
+                    0
+                  )
+                ),
+                0
+              )::numeric
+                AS pending_revenue
+
+            FROM organization_advertising_requests r
+
+            LEFT JOIN organization_opportunities oo
+              ON oo.id = r.opportunity_id
+             AND oo.organization_id =
+                 r.organization_id
+
+            WHERE
+              r.organization_id = $1
+
+              AND r.location_id =
+                ANY($2::int[])
+
+              AND (
+                $3::int IS NULL
+                OR r.location_id = $3::int
+              )
+
+              AND LOWER(
+                TRIM(
+                  COALESCE(
+                    r.status,
+                    ''
+                  )
+                )
+              ) = 'pending'
+          `,
+          [
+            organizationId,
+            allowedLocationIds,
+            selectedLocationId
+          ]
+        );
+
+
+      const pendingSpots =
+        Number(
+          pendingResult
+            .rows[0]
+            ?.pending_spots || 0
+        );
+
+      const pendingRevenue =
+        Number(
+          pendingResult
+            .rows[0]
+            ?.pending_revenue || 0
+        );
+
+
+      /*
+      =====================================================
+      TOP 5 ADVERTISERS
+      =====================================================
+      */
+
+      const topAdvertisersResult =
+        await q(
+          `
+            WITH advertiser_relationships AS (
+
+              SELECT DISTINCT
+
+                LOWER(
+                  TRIM(c.advertiser)
+                ) AS advertiser_key,
+
+                TRIM(c.advertiser)
+                  AS advertiser_name,
+
+                c.id
+                  AS campaign_id,
+
+                qr.id
+                  AS qr_id
+
+              FROM campaigns c
+
+              JOIN qr_campaigns qc
+                ON qc.campaign_id = c.id
+
+              JOIN qr_codes qr
+                ON qr.id = qc.qr_id
+
+              JOIN spaces s
+                ON s.id = qr.space_id
+
+              WHERE
+                s.organization_id = $1
+
+                AND s.id =
+                  ANY($2::int[])
+
+                AND (
+                  $3::int IS NULL
+                  OR s.id = $3::int
+                )
+
+                AND NULLIF(
+                  TRIM(c.advertiser),
+                  ''
+                ) IS NOT NULL
+
+                AND COALESCE(
+                  c.is_archived,
+                  false
+                ) = false
+
+                AND COALESCE(
+                  qr.is_archived,
+                  false
+                ) = false
+            )
+
+            SELECT
+
+              ar.advertiser_key,
+
+              MIN(
+                ar.advertiser_name
+              ) AS advertiser_name,
+
+              COUNT(e.id) FILTER (
+                WHERE e.type = 'scan'
+              )::int AS scans,
+
+              COUNT(e.id) FILTER (
+                WHERE e.type IN (
+                  'offer',
+                  'maps',
+                  'waze'
+                )
+              )::int AS intent,
+
+              COUNT(e.id) FILTER (
+                WHERE e.type = 'conversion'
+              )::int AS conversions,
+
+              COALESCE(
+                SUM(e.value) FILTER (
+                  WHERE e.type = 'conversion'
+                ),
+                0
+              )::numeric AS revenue
+
+            FROM advertiser_relationships ar
+
+            LEFT JOIN events e
+              ON e.campaign_id =
+                 ar.campaign_id
+
+             AND e.qr_id =
+                 ar.qr_id
+
+             ${eventDateSql}
+
+            GROUP BY
+              ar.advertiser_key
+
+            ORDER BY
+              revenue DESC,
+              conversions DESC,
+              intent DESC,
+              advertiser_name
+
+            LIMIT 5
+          `,
+          eventParams
+        );
+
+
+      const topAdvertisers =
+        topAdvertisersResult.rows.map(
+          row => ({
+
+            key:
+              String(
+                row.advertiser_key || ""
+              ),
+
+            name:
+              row.advertiser_name ||
+              "Unknown Advertiser",
+
+            scans:
+              Number(
+                row.scans || 0
+              ),
+
+            intent:
+              Number(
+                row.intent || 0
+              ),
+
+            conversions:
+              Number(
+                row.conversions || 0
+              ),
+
+            revenue:
+              Number(
+                row.revenue || 0
+              )
+
+          })
+        );
+
+
+      /*
+      =====================================================
+      TOP 5 LOCATIONS
+      =====================================================
+      */
+
+      const topLocationsResult =
+        await q(
+          `
+            SELECT
+
+              s.id,
+              s.name,
+              s.location,
+
+              COUNT(e.id) FILTER (
+                WHERE e.type = 'scan'
+              )::int AS scans,
+
+              COUNT(e.id) FILTER (
+                WHERE e.type IN (
+                  'offer',
+                  'maps',
+                  'waze'
+                )
+              )::int AS intent,
+
+              COUNT(e.id) FILTER (
+                WHERE e.type = 'conversion'
+              )::int AS conversions,
+
+              COALESCE(
+                SUM(e.value) FILTER (
+                  WHERE e.type = 'conversion'
+                ),
+                0
+              )::numeric AS revenue
+
+            FROM spaces s
+
+            LEFT JOIN qr_codes qr
+              ON qr.space_id = s.id
+             AND COALESCE(
+                   qr.is_archived,
+                   false
+                 ) = false
+
+            LEFT JOIN events e
+              ON e.qr_id = qr.id
+              ${eventDateSql}
+
+            WHERE
+              s.organization_id = $1
+
+              AND s.id =
+                ANY($2::int[])
+
+              AND (
+                $3::int IS NULL
+                OR s.id = $3::int
+              )
+
+              AND COALESCE(
+                s.is_archived,
+                false
+              ) = false
+
+            GROUP BY
+              s.id,
+              s.name,
+              s.location
+
+            ORDER BY
+              revenue DESC,
+              conversions DESC,
+              intent DESC,
+              s.name
+
+            LIMIT 5
+          `,
+          eventParams
+        );
+
+
+      const topLocations =
+        topLocationsResult.rows.map(
+          row => ({
+
+            id:
+              Number(row.id),
+
+            name:
+              row.name ||
+              "Unnamed Location",
+
+            market:
+              row.location || "",
+
+            scans:
+              Number(
+                row.scans || 0
+              ),
+
+            intent:
+              Number(
+                row.intent || 0
+              ),
+
+            conversions:
+              Number(
+                row.conversions || 0
+              ),
+
+            revenue:
+              Number(
+                row.revenue || 0
+              )
+
+          })
+        );
+
+
+      /*
+      =====================================================
+      TOP 5 ADVERTISING PLACEMENTS
+      =====================================================
+      */
+
+      const topPlacementsResult =
+        await q(
+          `
+            SELECT
+
+              qr.id,
+              qr.name,
+
+              s.name
+                AS location_name,
+
+              COUNT(e.id) FILTER (
+                WHERE e.type = 'scan'
+              )::int AS scans,
+
+              COUNT(e.id) FILTER (
+                WHERE e.type IN (
+                  'offer',
+                  'maps',
+                  'waze'
+                )
+              )::int AS intent,
+
+              COUNT(e.id) FILTER (
+                WHERE e.type = 'conversion'
+              )::int AS conversions,
+
+              COALESCE(
+                SUM(e.value) FILTER (
+                  WHERE e.type = 'conversion'
+                ),
+                0
+              )::numeric AS revenue
+
+            FROM qr_codes qr
+
+            JOIN spaces s
+              ON s.id = qr.space_id
+
+            LEFT JOIN events e
+              ON e.qr_id = qr.id
+              ${eventDateSql}
+
+            WHERE
+              s.organization_id = $1
+
+              AND s.id =
+                ANY($2::int[])
+
+              AND (
+                $3::int IS NULL
+                OR s.id = $3::int
+              )
+
+              AND COALESCE(
+                s.is_archived,
+                false
+              ) = false
+
+              AND COALESCE(
+                qr.is_archived,
+                false
+              ) = false
+
+            GROUP BY
+              qr.id,
+              qr.name,
+              s.name
+
+            ORDER BY
+              revenue DESC,
+              conversions DESC,
+              intent DESC,
+              qr.name
+
+            LIMIT 5
+          `,
+          eventParams
+        );
+
+
+      const topPlacements =
+        topPlacementsResult.rows.map(
+          row => ({
+
+            id:
+              Number(row.id),
+
+            name:
+              row.name ||
+              "Unnamed Placement",
+
+            locationName:
+              row.location_name || "",
+
+            scans:
+              Number(
+                row.scans || 0
+              ),
+
+            intent:
+              Number(
+                row.intent || 0
+              ),
+
+            conversions:
+              Number(
+                row.conversions || 0
+              ),
+
+            revenue:
+              Number(
+                row.revenue || 0
+              )
+
+          })
+        );
+
+
+      /*
+      =====================================================
+      PERFORMANCE ATTENTION
+
+      Find advertiser relationships showing intent
+      without tracked conversions.
+      =====================================================
+      */
+
+      const attentionAdvertisersResult =
+        await q(
+          `
+            WITH advertiser_relationships AS (
+
+              SELECT DISTINCT
+
+                LOWER(
+                  TRIM(c.advertiser)
+                ) AS advertiser_key,
+
+                TRIM(c.advertiser)
+                  AS advertiser_name,
+
+                c.id
+                  AS campaign_id,
+
+                qr.id
+                  AS qr_id
+
+              FROM campaigns c
+
+              JOIN qr_campaigns qc
+                ON qc.campaign_id = c.id
+
+              JOIN qr_codes qr
+                ON qr.id = qc.qr_id
+
+              JOIN spaces s
+                ON s.id = qr.space_id
+
+              WHERE
+                s.organization_id = $1
+
+                AND s.id =
+                  ANY($2::int[])
+
+                AND (
+                  $3::int IS NULL
+                  OR s.id = $3::int
+                )
+
+                AND NULLIF(
+                  TRIM(c.advertiser),
+                  ''
+                ) IS NOT NULL
+
+                AND COALESCE(
+                  c.is_archived,
+                  false
+                ) = false
+            )
+
+            SELECT
+
+              ar.advertiser_key,
+
+              MIN(
+                ar.advertiser_name
+              ) AS advertiser_name,
+
+              COUNT(e.id) FILTER (
+                WHERE e.type IN (
+                  'offer',
+                  'maps',
+                  'waze'
+                )
+              )::int AS intent,
+
+              COUNT(e.id) FILTER (
+                WHERE e.type = 'conversion'
+              )::int AS conversions
+
+            FROM advertiser_relationships ar
+
+            LEFT JOIN events e
+              ON e.campaign_id =
+                 ar.campaign_id
+
+             AND e.qr_id =
+                 ar.qr_id
+
+             ${eventDateSql}
+
+            GROUP BY
+              ar.advertiser_key
+
+            HAVING
+              COUNT(e.id) FILTER (
+                WHERE e.type IN (
+                  'offer',
+                  'maps',
+                  'waze'
+                )
+              ) > 0
+
+              AND
+
+              COUNT(e.id) FILTER (
+                WHERE e.type = 'conversion'
+              ) = 0
+
+            ORDER BY
+              intent DESC,
+              advertiser_name
+
+            LIMIT 3
+          `,
+          eventParams
+        );
+
+
+      const attentionAdvertisers =
+        attentionAdvertisersResult.rows;
+
+
+      /*
+      =====================================================
+      NEEDS ATTENTION
+      =====================================================
+      */
+
+      const needsAttention = [];
+
+
+      if (expiring30 > 0) {
+
+        needsAttention.push({
+
+          type:
+            "Renewal Risk",
+
+          text:
+            `${expiring30} active contract${
+              expiring30 === 1
+                ? ""
+                : "s"
+            } expire within 30 days.`,
+
+          href:
+            `/org-renewals?organization_id=${organizationId}`
+
+        });
+
+      }
+
+
+      if (pendingSpots > 0) {
+
+        needsAttention.push({
+
+          type:
+            "Pending Revenue",
+
+          text:
+            `${pendingSpots} advertising request${
+              pendingSpots === 1
+                ? ""
+                : "s"
+            } represent ${performanceMoney(
+              pendingRevenue
+            )} in pending revenue.`,
+
+          href:
+            `/org-revenue-pipeline?organization_id=${organizationId}`
+
+        });
+
+      }
+
+
+      if (availableSpots > 0) {
+
+        needsAttention.push({
+
+          type:
+            "Available Inventory",
+
+          text:
+            `${availableSpots} advertising opportunit${
+              availableSpots === 1
+                ? "y"
+                : "ies"
+            } representing ${performanceMoney(
+              availableRevenue
+            )} remain available.`,
+
+          href:
+            `/org-marketplace?organization_id=${organizationId}`
+
+        });
+
+      }
+
+
+      for (
+        const advertiser
+        of attentionAdvertisers
+      ) {
+
+        needsAttention.push({
+
+          type:
+            "Conversion Opportunity",
+
+          text:
+            `${advertiser.advertiser_name} generated ${Number(
+              advertiser.intent || 0
+            )} intent action${
+              Number(
+                advertiser.intent || 0
+              ) === 1
+                ? ""
+                : "s"
+            } but no tracked conversions.`,
+
+          href:
+            `/org-advertiser/${encodeURIComponent(
+              advertiser.advertiser_key
+            )}?organization_id=${organizationId}`
+
+        });
+
+      }
+
+
+      const topNeedsAttention =
+        needsAttention.slice(0, 5);
+
+
+      /*
+      =====================================================
+      WHAT VIVID SEES
+      =====================================================
+      */
+
+      const vividInsights = [];
+
+
+      if (
+        advertiserRevenueGenerated > 0 &&
+        topAdvertisers.length > 0 &&
+        topAdvertisers[0].revenue > 0
+      ) {
+
+        const revenueShare =
+          (
+            topAdvertisers[0].revenue /
+            advertiserRevenueGenerated
+          ) * 100;
+
+
+        if (revenueShare >= 50) {
+
+          vividInsights.push({
+
+            type:
+              "Revenue Concentration",
+
+            text:
+              `${revenueShare.toFixed(1)}% of ${organization.name}'s measured advertiser revenue came from ${topAdvertisers[0].name}.`
+
+          });
+
+        }
+
+      }
+
+
+      if (expiring90 > 0) {
+
+        vividInsights.push({
+
+          type:
+            "Renewal Opportunity",
+
+          text:
+            `${expiring90} active contract${
+              expiring90 === 1
+                ? ""
+                : "s"
+            } representing ${performanceMoney(
+              renewalValue90
+            )} expire within 90 days.`
+
+        });
+
+      }
+
+
+      if (availableRevenue > 0) {
+
+        vividInsights.push({
+
+          type:
+            "Revenue Opportunity",
+
+          text:
+            `${organization.name} currently has ${performanceMoney(
+              availableRevenue
+            )} in available advertising inventory.`
+
+        });
+
+      }
+
+
+      if (
+        attentionAdvertisers.length > 0
+      ) {
+
+        const advertiser =
+          attentionAdvertisers[0];
+
+        vividInsights.push({
+
+          type:
+            "Conversion Opportunity",
+
+          text:
+            `${advertiser.advertiser_name} is generating measurable customer intent without a tracked conversion.`
+
+        });
+
+      }
+
+
+      if (
+        topLocations.length > 0 &&
+        topLocations[0].revenue > 0
+      ) {
+
+        vividInsights.push({
+
+          type:
+            "Location Performance",
+
+          text:
+            `${topLocations[0].name} is currently ${organization.name}'s strongest measured location with ${performanceMoney(
+              topLocations[0].revenue
+            )} in attributed advertiser revenue.`
+
+        });
+
+      }
+
+
+      if (
+        topPlacements.length > 0 &&
+        (
+          topPlacements[0].revenue > 0 ||
+          topPlacements[0].intent > 0
+        )
+      ) {
+
+        vividInsights.push({
+
+          type:
+            "Placement Performance",
+
+          text:
+            `${topPlacements[0].name} at ${topPlacements[0].locationName} is currently the strongest measured advertising placement.`
+
+        });
+
+      }
+
+
+      const executiveInsights =
+        vividInsights.slice(0, 4);
+
+
+      /*
+      =====================================================
+      SMALL RENDER HELPERS
+      =====================================================
+      */
+
+      const rankedRows = (
+        rows,
+        renderRow
+      ) => {
+
+        if (!rows.length) {
+          return `
+            <p style="
+              color:#65776b;
+              margin:16px 0 0;
+            ">
+              No performance data available.
+            </p>
+          `;
+        }
+
+        return rows
+          .map(
+            (row, index) =>
+              renderRow(
+                row,
+                index
+              )
+          )
+          .join("");
+      };
+
+
+      /*
+      =====================================================
+      PAGE
+      =====================================================
+      */
+
       return res.send(
         orgPage(
           `Performance Insights - ${organization.name}`,
@@ -39120,7 +40180,9 @@ const topAdvertisers =
               activePage:
                 "performance",
               userName:
-                escapeHtml(userName)
+                escapeHtml(userName),
+              showAdministration:
+                scope.hasOrganizationWideAccess
             })}
 
 
@@ -39138,9 +40200,9 @@ const topAdvertisers =
               </h1>
 
               <p class="subtitle">
-                Executive view of advertising
-                performance, revenue, inventory,
-                contracts, and growth opportunities.
+                Executive view of advertising performance,
+                revenue, inventory, contracts, and growth
+                opportunities.
               </p>
 
             </div>
@@ -39173,7 +40235,6 @@ const topAdvertisers =
 
 
                 <div>
-
                   <label>
                     Start Date
                   </label>
@@ -39184,12 +40245,10 @@ const topAdvertisers =
                     name="from"
                     value="${startDate}"
                   />
-
                 </div>
 
 
                 <div>
-
                   <label>
                     End Date
                   </label>
@@ -39200,19 +40259,16 @@ const topAdvertisers =
                     name="to"
                     value="${endDate}"
                   />
-
                 </div>
 
 
                 <div>
-
                   <button
                     class="btn"
                     type="submit"
                   >
                     Apply Filter
                   </button>
-
                 </div>
 
               </form>
@@ -39232,8 +40288,8 @@ const topAdvertisers =
                 margin-top:0;
                 color:#65776b;
               ">
-                Organization-wide advertising
-                performance for the selected period.
+                Organization-wide advertising performance
+                for the selected reporting period.
               </p>
 
 
@@ -39248,125 +40304,159 @@ const topAdvertisers =
                 margin:20px 0 30px;
               ">
 
-               <a
-  href="/org-revenue-pipeline?organization_id=${organizationId}"
-  class="card"
-  style="
-    text-decoration:none;
-    color:inherit;
-    cursor:pointer;
-  "
->
-  <div class="label">
-    Advertising Revenue
-  </div>
 
-  <div class="num">
-    ${performanceMoney(advertisingRevenue)}
-  </div>
-</a>
+                <a
+                  href="/org-revenue-pipeline?organization_id=${organizationId}"
+                  class="card"
+                  style="
+                    text-decoration:none;
+                    color:inherit;
+                    cursor:pointer;
+                  "
+                >
+                  <div class="label">
+                    Advertising Revenue
+                  </div>
 
+                  <div class="num">
+                    ${performanceMoney(
+                      advertisingRevenue
+                    )}
+                  </div>
 
-<a
-  href="/org-contracts?organization_id=${organizationId}&status=active"
-  class="card"
-  style="
-    text-decoration:none;
-    color:inherit;
-    cursor:pointer;
-  "
->
-  <div class="label">
-    Active Contract Value
-  </div>
-
-  <div class="num">
-    ${performanceMoney(activeContractValue)}
-  </div>
-</a>
+                  <div class="small"
+                       style="margin-top:6px;">
+                    Current contracted advertising value
+                  </div>
+                </a>
 
 
-<a
-  href="/org-advertisers?organization_id=${organizationId}"
-  class="card"
-  style="
-    text-decoration:none;
-    color:inherit;
-    cursor:pointer;
-  "
->
-  <div class="label">
-    Advertiser Revenue Generated
-  </div>
+                <a
+                  href="/org-contracts?organization_id=${organizationId}&status=active"
+                  class="card"
+                  style="
+                    text-decoration:none;
+                    color:inherit;
+                    cursor:pointer;
+                  "
+                >
+                  <div class="label">
+                    Active Contract Value
+                  </div>
 
-  <div class="num">
-    ${performanceMoney(advertiserRevenueGenerated)}
-  </div>
-</a>
+                  <div class="num">
+                    ${performanceMoney(
+                      activeContractValue
+                    )}
+                  </div>
 
-
-<a
-  href="/org-advertisers?organization_id=${organizationId}"
-  class="card"
-  style="
-    text-decoration:none;
-    color:inherit;
-    cursor:pointer;
-  "
->
-  <div class="label">
-    Active Advertisers
-  </div>
-
-  <div class="num">
-    ${activeAdvertisers.toLocaleString()}
-  </div>
-</a>
+                  <div class="small"
+                       style="margin-top:6px;">
+                    ${numberLabel(
+                      activeContracts
+                    )}
+                    active contract${
+                      activeContracts === 1
+                        ? ""
+                        : "s"
+                    }
+                  </div>
+                </a>
 
 
-<a
-  href="/org-locations?organization_id=${organizationId}"
-  class="card"
-  style="
-    text-decoration:none;
-    color:inherit;
-    cursor:pointer;
-  "
->
-  <div class="label">
-    Active Locations
-  </div>
+                <a
+                  href="/org-advertisers?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}"
+                  class="card"
+                  style="
+                    text-decoration:none;
+                    color:inherit;
+                    cursor:pointer;
+                  "
+                >
+                  <div class="label">
+                    Advertiser Revenue Generated
+                  </div>
 
-  <div class="num">
-    ${activeLocations.toLocaleString()}
-  </div>
-</a>
+                  <div class="num">
+                    ${performanceMoney(
+                      advertiserRevenueGenerated
+                    )}
+                  </div>
+
+                  <div class="small"
+                       style="margin-top:6px;">
+                    Revenue attributed through Vivid
+                  </div>
+                </a>
 
 
-<a
-  href="/org-marketplace?organization_id=${organizationId}"
-  class="card"
-  style="
-    text-decoration:none;
-    color:inherit;
-    cursor:pointer;
-  "
->
-  <div class="label">
-    Active Placements
-  </div>
+                <a
+                  href="/org-advertisers?organization_id=${organizationId}"
+                  class="card"
+                  style="
+                    text-decoration:none;
+                    color:inherit;
+                    cursor:pointer;
+                  "
+                >
+                  <div class="label">
+                    Active Advertisers
+                  </div>
 
-  <div class="num">
-    ${activePlacements.toLocaleString()}
-  </div>
-</a>
-                
+                  <div class="num">
+                    ${numberLabel(
+                      activeAdvertisers
+                    )}
+                  </div>
+                </a>
+
+
+                <a
+                  href="/org-locations?organization_id=${organizationId}"
+                  class="card"
+                  style="
+                    text-decoration:none;
+                    color:inherit;
+                    cursor:pointer;
+                  "
+                >
+                  <div class="label">
+                    Active Locations
+                  </div>
+
+                  <div class="num">
+                    ${numberLabel(
+                      activeLocations
+                    )}
+                  </div>
+                </a>
+
+
+                <a
+                  href="/org-marketplace?organization_id=${organizationId}"
+                  class="card"
+                  style="
+                    text-decoration:none;
+                    color:inherit;
+                    cursor:pointer;
+                  "
+                >
+                  <div class="label">
+                    Active Placements
+                  </div>
+
+                  <div class="num">
+                    ${numberLabel(
+                      activePlacements
+                    )}
+                  </div>
+                </a>
 
               </div>
 
 
               <!-- =====================================
-                   ENTERPRISE PERFORMANCE SECTIONS
+                   ENTERPRISE PERFORMANCE
               ====================================== -->
 
               <div style="
@@ -39379,83 +40469,720 @@ const topAdvertisers =
                 gap:20px;
               ">
 
+
+                <!-- TOP ADVERTISERS -->
+
                 <div class="card">
-                  <h3>
-                    🏆 Top Advertisers
-                  </h3>
-                  <p>
-                    Existing advertiser performance
-                    will appear here.
+
+                  <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:12px;
+                  ">
+
+                    <h3 style="margin:0;">
+                      🏆 Top Advertisers
+                    </h3>
+
+                    <a
+                      href="/org-advertisers?organization_id=${organizationId}"
+                      style="
+                        text-decoration:none;
+                        font-size:13px;
+                        font-weight:bold;
+                      "
+                    >
+                      View All →
+                    </a>
+
+                  </div>
+
+                  <p style="
+                    color:#65776b;
+                    font-size:13px;
+                  ">
+                    Ranked by measurable customer results
                   </p>
+
+
+                  ${rankedRows(
+                    topAdvertisers,
+                    (advertiser, index) => `
+
+                      <a
+                        href="/org-advertiser/${encodeURIComponent(
+                          advertiser.key
+                        )}?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}"
+                        style="
+                          display:grid;
+                          grid-template-columns:
+                            30px 1fr auto;
+                          gap:10px;
+                          align-items:center;
+                          padding:12px 0;
+                          border-bottom:${
+                            index <
+                            topAdvertisers.length - 1
+                              ? "1px solid #e7ece7"
+                              : "none"
+                          };
+                          text-decoration:none;
+                          color:inherit;
+                        "
+                      >
+
+                        <div style="
+                          width:26px;
+                          height:26px;
+                          border-radius:50%;
+                          background:#f4ead1;
+                          display:flex;
+                          align-items:center;
+                          justify-content:center;
+                          font-weight:bold;
+                        ">
+                          ${index + 1}
+                        </div>
+
+                        <div>
+                          <div style="
+                            font-weight:bold;
+                          ">
+                            ${escapeHtml(
+                              advertiser.name
+                            )}
+                          </div>
+
+                          <div style="
+                            color:#65776b;
+                            font-size:12px;
+                            margin-top:3px;
+                          ">
+                            ${numberLabel(
+                              advertiser.intent
+                            )}
+                            Intent
+                          </div>
+                        </div>
+
+                        <div style="
+                          text-align:right;
+                          font-size:12px;
+                          white-space:nowrap;
+                        ">
+                          <strong>
+                            ${performanceMoney(
+                              advertiser.revenue
+                            )}
+                          </strong>
+                          Revenue
+
+                          <div style="
+                            color:#65776b;
+                            margin-top:3px;
+                          ">
+                            ${numberLabel(
+                              advertiser.conversions
+                            )}
+                            Conversions
+                          </div>
+                        </div>
+
+                      </a>
+
+                    `
+                  )}
+
                 </div>
 
 
+                <!-- TOP LOCATIONS -->
+
                 <div class="card">
-                  <h3>
-                    📍 Top Locations
-                  </h3>
-                  <p>
-                    Existing location performance
-                    will appear here.
+
+                  <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:12px;
+                  ">
+
+                    <h3 style="margin:0;">
+                      📍 Top Locations
+                    </h3>
+
+                    <a
+                      href="/org-locations?organization_id=${organizationId}"
+                      style="
+                        text-decoration:none;
+                        font-size:13px;
+                        font-weight:bold;
+                      "
+                    >
+                      View All →
+                    </a>
+
+                  </div>
+
+                  <p style="
+                    color:#65776b;
+                    font-size:13px;
+                  ">
+                    Ranked by measurable customer results
                   </p>
+
+
+                  ${rankedRows(
+                    topLocations,
+                    (location, index) => `
+
+                      <a
+                        href="/org-location/${location.id}?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}"
+                        style="
+                          display:grid;
+                          grid-template-columns:
+                            30px 1fr auto;
+                          gap:10px;
+                          align-items:center;
+                          padding:12px 0;
+                          border-bottom:${
+                            index <
+                            topLocations.length - 1
+                              ? "1px solid #e7ece7"
+                              : "none"
+                          };
+                          text-decoration:none;
+                          color:inherit;
+                        "
+                      >
+
+                        <div style="
+                          width:26px;
+                          height:26px;
+                          border-radius:50%;
+                          background:#e7f6e7;
+                          display:flex;
+                          align-items:center;
+                          justify-content:center;
+                          font-weight:bold;
+                        ">
+                          ${index + 1}
+                        </div>
+
+                        <div>
+                          <div style="
+                            font-weight:bold;
+                          ">
+                            ${escapeHtml(
+                              location.name
+                            )}
+                          </div>
+
+                          <div style="
+                            color:#65776b;
+                            font-size:12px;
+                            margin-top:3px;
+                          ">
+                            ${escapeHtml(
+                              location.market
+                            )}
+                          </div>
+                        </div>
+
+                        <div style="
+                          text-align:right;
+                          font-size:12px;
+                          white-space:nowrap;
+                        ">
+                          <strong>
+                            ${performanceMoney(
+                              location.revenue
+                            )}
+                          </strong>
+                          Revenue
+
+                          <div style="
+                            color:#65776b;
+                            margin-top:3px;
+                          ">
+                            ${numberLabel(
+                              location.conversions
+                            )}
+                            Conversions
+                          </div>
+                        </div>
+
+                      </a>
+
+                    `
+                  )}
+
                 </div>
 
 
+                <!-- TOP PLACEMENTS -->
+
                 <div class="card">
-                  <h3>
-                    ⭐ Top Advertising Placements
-                  </h3>
-                  <p>
-                    Existing placement performance
-                    will appear here.
+
+                  <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:12px;
+                  ">
+
+                    <h3 style="margin:0;">
+                      ⭐ Top Advertising Placements
+                    </h3>
+
+                    <a
+                      href="/org-marketplace?organization_id=${organizationId}"
+                      style="
+                        text-decoration:none;
+                        font-size:13px;
+                        font-weight:bold;
+                      "
+                    >
+                      View All →
+                    </a>
+
+                  </div>
+
+                  <p style="
+                    color:#65776b;
+                    font-size:13px;
+                  ">
+                    Ranked by measurable customer results
                   </p>
+
+
+                  ${rankedRows(
+                    topPlacements,
+                    (placement, index) => `
+
+                      <a
+                        href="/org-qr/${placement.id}?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}"
+                        style="
+                          display:grid;
+                          grid-template-columns:
+                            30px 1fr auto;
+                          gap:10px;
+                          align-items:center;
+                          padding:12px 0;
+                          border-bottom:${
+                            index <
+                            topPlacements.length - 1
+                              ? "1px solid #e7ece7"
+                              : "none"
+                          };
+                          text-decoration:none;
+                          color:inherit;
+                        "
+                      >
+
+                        <div style="
+                          width:26px;
+                          height:26px;
+                          border-radius:50%;
+                          background:#e7efff;
+                          display:flex;
+                          align-items:center;
+                          justify-content:center;
+                          font-weight:bold;
+                        ">
+                          ${index + 1}
+                        </div>
+
+                        <div>
+                          <div style="
+                            font-weight:bold;
+                          ">
+                            ${escapeHtml(
+                              placement.name
+                            )}
+                          </div>
+
+                          <div style="
+                            color:#65776b;
+                            font-size:12px;
+                            margin-top:3px;
+                          ">
+                            ${escapeHtml(
+                              placement.locationName
+                            )}
+                          </div>
+                        </div>
+
+                        <div style="
+                          text-align:right;
+                          font-size:12px;
+                          white-space:nowrap;
+                        ">
+                          <strong>
+                            ${performanceMoney(
+                              placement.revenue
+                            )}
+                          </strong>
+                          Revenue
+
+                          <div style="
+                            color:#65776b;
+                            margin-top:3px;
+                          ">
+                            ${numberLabel(
+                              placement.conversions
+                            )}
+                            Conversions
+                          </div>
+                        </div>
+
+                      </a>
+
+                    `
+                  )}
+
                 </div>
 
 
+                <!-- CONTRACTS & RENEWALS -->
+
                 <div class="card">
-                  <h3>
-                    📄 Contracts & Renewals
-                  </h3>
-                  <p>
-                    Existing contract and renewal
-                    information will appear here.
-                  </p>
+
+                  <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:12px;
+                  ">
+
+                    <h3 style="margin:0;">
+                      📄 Contracts & Renewals
+                    </h3>
+
+                    <a
+                      href="/org-renewals?organization_id=${organizationId}"
+                      style="
+                        text-decoration:none;
+                        font-size:13px;
+                        font-weight:bold;
+                      "
+                    >
+                      View Renewals →
+                    </a>
+
+                  </div>
+
+
+                  <div style="
+                    display:grid;
+                    grid-template-columns:
+                      repeat(2,minmax(0,1fr));
+                    gap:14px;
+                    margin-top:20px;
+                  ">
+
+                    <div>
+                      <div class="label">
+                        Active Contracts
+                      </div>
+                      <strong>
+                        ${numberLabel(
+                          activeContracts
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <div class="label">
+                        Active Value
+                      </div>
+                      <strong>
+                        ${performanceMoney(
+                          activeContractValue
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <div class="label">
+                        Expiring 30 Days
+                      </div>
+                      <strong>
+                        ${numberLabel(
+                          expiring30
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <div class="label">
+                        Expiring 60 Days
+                      </div>
+                      <strong>
+                        ${numberLabel(
+                          expiring60
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <div class="label">
+                        Expiring 90 Days
+                      </div>
+                      <strong>
+                        ${numberLabel(
+                          expiring90
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <div class="label">
+                        90-Day Value
+                      </div>
+                      <strong>
+                        ${performanceMoney(
+                          renewalValue90
+                        )}
+                      </strong>
+                    </div>
+
+                  </div>
+
                 </div>
 
 
-                <div class="card">
-                  <h3>
+                <!-- INVENTORY -->
+
+                <a
+                  href="/org-marketplace?organization_id=${organizationId}"
+                  class="card"
+                  style="
+                    text-decoration:none;
+                    color:inherit;
+                  "
+                >
+
+                  <h3 style="margin-top:0;">
                     📦 Advertising Inventory
                   </h3>
-                  <p>
-                    Existing inventory and revenue
-                    opportunity data will appear here.
-                  </p>
-                </div>
+
+                  <div style="
+                    display:grid;
+                    grid-template-columns:
+                      repeat(2,minmax(0,1fr));
+                    gap:14px;
+                    margin-top:20px;
+                  ">
+
+                    <div>
+                      <div class="label">
+                        Available Opportunities
+                      </div>
+                      <strong>
+                        ${numberLabel(
+                          availableSpots
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <div class="label">
+                        Available Revenue
+                      </div>
+                      <strong>
+                        ${performanceMoney(
+                          availableRevenue
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <div class="label">
+                        Active Placements
+                      </div>
+                      <strong>
+                        ${numberLabel(
+                          activePlacements
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <div class="label">
+                        Active Revenue
+                      </div>
+                      <strong>
+                        ${performanceMoney(
+                          advertisingRevenue
+                        )}
+                      </strong>
+                    </div>
+
+                  </div>
+
+                  <div style="
+                    margin-top:18px;
+                    color:#176b3a;
+                    font-size:13px;
+                    font-weight:bold;
+                  ">
+                    Open Advertising Inventory →
+                  </div>
+
+                </a>
 
 
-                <div class="card">
-                  <h3>
+                <!-- REVENUE PIPELINE -->
+
+                <a
+                  href="/org-revenue-pipeline?organization_id=${organizationId}"
+                  class="card"
+                  style="
+                    text-decoration:none;
+                    color:inherit;
+                  "
+                >
+
+                  <h3 style="margin-top:0;">
                     📈 Revenue Pipeline
                   </h3>
-                  <p>
-                    Existing pipeline data
-                    will appear here.
-                  </p>
-                </div>
 
+                  <div style="
+                    display:grid;
+                    grid-template-columns:
+                      repeat(3,minmax(0,1fr));
+                    gap:12px;
+                    margin-top:20px;
+                  ">
+
+                    <div>
+                      <div class="label">
+                        Available
+                      </div>
+
+                      <strong>
+                        ${performanceMoney(
+                          availableRevenue
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <div class="label">
+                        Pending
+                      </div>
+
+                      <strong>
+                        ${performanceMoney(
+                          pendingRevenue
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <div class="label">
+                        Active
+                      </div>
+
+                      <strong>
+                        ${performanceMoney(
+                          advertisingRevenue
+                        )}
+                      </strong>
+                    </div>
+
+                  </div>
+
+                  <div style="
+                    margin-top:18px;
+                    color:#176b3a;
+                    font-size:13px;
+                    font-weight:bold;
+                  ">
+                    Open Revenue Pipeline →
+                  </div>
+
+                </a>
+
+
+                <!-- NEEDS ATTENTION -->
 
                 <div class="card">
-                  <h3>
+
+                  <h3 style="margin-top:0;">
                     ⚠️ Needs Attention
                   </h3>
-                  <p>
-                    Risks and exceptions identified
-                    from existing Vivid data
-                    will appear here.
+
+                  <p style="
+                    color:#65776b;
+                    font-size:13px;
+                  ">
+                    Revenue, renewal, inventory,
+                    and performance exceptions
                   </p>
+
+
+                  ${
+                    topNeedsAttention.length
+                      ? topNeedsAttention
+                          .map(
+                            (item, index) => `
+
+                              <a
+                                href="${item.href}"
+                                style="
+                                  display:block;
+                                  text-decoration:none;
+                                  color:inherit;
+                                  padding:12px 0;
+                                  border-bottom:${
+                                    index <
+                                    topNeedsAttention.length - 1
+                                      ? "1px solid #f1dddd"
+                                      : "none"
+                                  };
+                                "
+                              >
+
+                                <div style="
+                                  color:#991b1b;
+                                  font-size:12px;
+                                  font-weight:bold;
+                                  text-transform:uppercase;
+                                  margin-bottom:4px;
+                                ">
+                                  ${escapeHtml(
+                                    item.type
+                                  )}
+                                </div>
+
+                                <div style="
+                                  line-height:1.45;
+                                ">
+                                  ${escapeHtml(
+                                    item.text
+                                  )}
+                                </div>
+
+                              </a>
+
+                            `
+                          )
+                          .join("")
+                      : `
+                          <p>
+                            No immediate organization
+                            performance issue detected.
+                          </p>
+                        `
+                  }
+
                 </div>
 
+
+                <!-- WHAT VIVID SEES -->
 
                 <div
                   class="card"
@@ -39466,6 +41193,7 @@ const topAdvertisers =
 
                   <h3 style="
                     margin-top:0;
+                    font-size:22px;
                   ">
                     ⚡ What Vivid Sees for
                     ${escapeHtml(
@@ -39475,15 +41203,85 @@ const topAdvertisers =
 
                   <p style="
                     color:#65776b;
-                    margin-bottom:0;
+                    margin-top:4px;
                   ">
-                    Executive interpretation of
-                    existing advertising,
-                    performance, inventory,
+                    Executive interpretation of existing
+                    advertising, performance, inventory,
                     contract, and revenue data.
                   </p>
 
+
+                  ${
+                    executiveInsights.length
+                      ? `
+                          <div style="
+                            display:grid;
+                            grid-template-columns:
+                              repeat(
+                                2,
+                                minmax(0,1fr)
+                              );
+                            gap:14px;
+                            margin-top:20px;
+                          ">
+
+                            ${executiveInsights
+                              .map(
+                                insight => `
+
+                                  <div style="
+                                    padding:17px;
+                                    background:#f3f7f3;
+                                    border-radius:12px;
+                                  ">
+
+                                    <div style="
+                                      color:#176b3a;
+                                      font-size:12px;
+                                      font-weight:bold;
+                                      text-transform:uppercase;
+                                      margin-bottom:7px;
+                                    ">
+                                      ${escapeHtml(
+                                        insight.type
+                                      )}
+                                    </div>
+
+                                    <div style="
+                                      color:#073b22;
+                                      line-height:1.5;
+                                      font-weight:600;
+                                    ">
+                                      ${escapeHtml(
+                                        insight.text
+                                      )}
+                                    </div>
+
+                                  </div>
+
+                                `
+                              )
+                              .join("")}
+
+                          </div>
+                        `
+                      : `
+                          <div style="
+                            margin-top:20px;
+                            padding:18px;
+                            background:#f3f7f3;
+                            border-radius:12px;
+                            color:#315b4c;
+                          ">
+                            Additional measurable activity
+                            is needed before Vivid can
+                            generate executive insights.
+                          </div>
+                        `
+                  }
+
                 </div>
+
 
               </div>
 
@@ -39491,6 +41289,7 @@ const topAdvertisers =
           `
         )
       );
+
 
     } catch (err) {
 
@@ -39509,6 +41308,9 @@ const topAdvertisers =
     }
   }
 );
+     
+
+
 app.get(
   "/org-revenue-pipeline",
   async (req, res) => {
