@@ -62494,167 +62494,657 @@ const bestPlacement =
 
           </div>
 
+<!-- =========================================
+     EXECUTIVE PERFORMANCE SUMMARY
+========================================== -->
 
-          <!-- =========================================
-               EXISTING PERFORMANCE SUMMARY
-               STEP 2 WILL UPGRADE THIS
-          ========================================== -->
+<h2 style="
+  margin-bottom:6px;
+">
+  Performance Summary
+</h2>
 
-          <h2>
-            Performance Summary
-          </h2>
-
-
-          <div style="
-            display:grid;
-            grid-template-columns:
-              repeat(
-                auto-fit,
-                minmax(320px,1fr)
-              );
-            gap:20px;
-            margin-top:12px;
-          ">
+<p style="
+  margin-top:0;
+  color:#65776b;
+  line-height:1.5;
+">
+  Vivid identifies the strongest measurable
+  results and the areas most deserving attention
+  for the selected reporting period.
+</p>
 
 
-            <div class="card">
-
-              <h3>
-                🏆 Top Performing Campaign
-              </h3>
-
-              <p>
-                <strong>
-                  ${
-                    topCampaign.rows[0]
-                      ?.name ||
-                    "N/A"
-                  }
-                </strong>
-              </p>
-
-              <p>
-                ${
-                  topCampaign.rows[0]
-                    ?.advertiser ||
-                  ""
-                }
-              </p>
-
-              <p>
-                Total Events:
-                ${
-                  topCampaign.rows[0]
-                    ?.total_events ||
-                  0
-                }
-              </p>
-
-            </div>
+<div style="
+  display:grid;
+  grid-template-columns:
+    repeat(auto-fit,minmax(300px,1fr));
+  gap:20px;
+  margin-top:18px;
+">
 
 
-            <div class="card">
+  <!-- =========================================
+       TOP CAMPAIGN
+  ========================================== -->
 
-              <h3>
-                📍 Top Performing Location
-              </h3>
-
-              <p>
-                <strong>
-                  ${
-                    topStore.rows[0]
-                      ?.name ||
-                    "N/A"
-                  }
-                </strong>
-              </p>
-
-              <p>
-                Total Events:
-                ${
-                  topStore.rows[0]
-                    ?.total_events ||
-                  0
-                }
-              </p>
-
-            </div>
-
-
-            <div class="card">
-
-              <h3>
-                ⚠ Campaign Needing Attention
-              </h3>
-
-              <p>
-                <strong>
-                  ${
-                    lowCampaign.rows[0]
-                      ?.name ||
-                    "N/A"
-                  }
-                </strong>
-              </p>
-
-              <p>
-                Lowest event activity detected.
-              </p>
-
-            </div>
-
-          </div>
-
-
-          <!-- =========================================
-               EXISTING RECOMMENDATION
-               STEP 3 WILL REPLACE THIS
-          ========================================== -->
+  ${
+    bestCampaign
+      ? `
+        <a
+          href="/admin/edit-campaign/${bestCampaign.id}"
+          style="
+            display:block;
+            text-decoration:none;
+            color:inherit;
+          "
+        >
 
           <div
             class="card"
-            style="margin-top:20px;"
+            style="
+              height:100%;
+              box-sizing:border-box;
+              cursor:pointer;
+            "
           >
 
-            <h3>
-              ⚡ AI Recommendations
+            <h3 style="
+              margin-top:0;
+              color:#073b22;
+            ">
+              🏆 Top Performing Campaign
             </h3>
 
-            ${
-              Number(
-                lowCampaign.rows[0]
-                  ?.total_events ||
-                0
-              ) < 10
-                ? `
-                    <p>
-                      Campaign
-                      <strong>
-                        ${
-                          lowCampaign.rows[0]
-                            ?.name ||
-                          "Unknown"
-                        }
-                      </strong>
-                      is showing low activity.
-                    </p>
+            <div style="
+              font-size:20px;
+              font-weight:bold;
+              color:#073b22;
+              margin-bottom:4px;
+            ">
+              ${bestCampaign.name}
+            </div>
 
-                    <p>
-                      More detailed recommendations
-                      will be added after the
-                      performance summary logic
-                      is upgraded.
-                    </p>
-                  `
-                : `
-                    <p>
-                      Campaign activity appears
-                      stable for the selected period.
-                    </p>
-                  `
-            }
+            <div style="
+              color:#65776b;
+              margin-bottom:18px;
+            ">
+              ${bestCampaign.advertiser}
+            </div>
+
+
+            <div style="
+              display:grid;
+              grid-template-columns:
+                repeat(2,minmax(0,1fr));
+              gap:14px;
+            ">
+
+              <div>
+                <div class="label">
+                  Revenue
+                </div>
+
+                <strong>
+                  ${money(bestCampaign.revenue)}
+                </strong>
+              </div>
+
+              <div>
+                <div class="label">
+                  Conversions
+                </div>
+
+                <strong>
+                  ${bestCampaign.conversions}
+                </strong>
+              </div>
+
+              <div>
+                <div class="label">
+                  ROI
+                </div>
+
+                <strong>
+                  ${pct(bestCampaign.roi)}
+                </strong>
+              </div>
+
+              <div>
+                <div class="label">
+                  Intent
+                </div>
+
+                <strong>
+                  ${bestCampaign.intent}
+                </strong>
+              </div>
+
+            </div>
+
+
+            <div style="
+              margin-top:18px;
+              padding:14px;
+              background:#f3f7f3;
+              border-radius:10px;
+              color:#315b4c;
+              line-height:1.5;
+            ">
+
+              <strong>
+                Why Vivid selected it:
+              </strong>
+
+              <div style="margin-top:4px;">
+                ${
+                  bestCampaign.revenue > 0
+                    ? "Highest conversion revenue among the campaigns evaluated."
+                    : bestCampaign.conversions > 0
+                    ? "Strongest conversion performance among the campaigns evaluated."
+                    : bestCampaign.intent > 0
+                    ? "Strongest measurable customer engagement among the campaigns evaluated."
+                    : "Strongest relative performance among the campaigns evaluated."
+                }
+              </div>
+
+            </div>
+
+
+            <div style="
+              margin-top:18px;
+              color:#176b3a;
+              font-weight:bold;
+            ">
+              View Campaign →
+            </div>
 
           </div>
+
+        </a>
+      `
+      : `
+        <div class="card">
+
+          <h3>
+            🏆 Top Performing Campaign
+          </h3>
+
+          <p>
+            More campaign activity is needed
+            before Vivid can identify a top performer.
+          </p>
+
+        </div>
+      `
+  }
+
+
+  <!-- =========================================
+       TOP LOCATION
+  ========================================== -->
+
+  ${
+    bestLocation
+      ? `
+        <a
+          href="/reports-location"
+          style="
+            display:block;
+            text-decoration:none;
+            color:inherit;
+          "
+        >
+
+          <div
+            class="card"
+            style="
+              height:100%;
+              box-sizing:border-box;
+              cursor:pointer;
+            "
+          >
+
+            <h3 style="
+              margin-top:0;
+              color:#073b22;
+            ">
+              📍 Top Performing Location
+            </h3>
+
+            <div style="
+              font-size:20px;
+              font-weight:bold;
+              color:#073b22;
+              margin-bottom:4px;
+            ">
+              ${bestLocation.name}
+            </div>
+
+            <div style="
+              color:#65776b;
+              margin-bottom:18px;
+            ">
+              ${bestLocation.market || ""}
+            </div>
+
+
+            <div style="
+              display:grid;
+              grid-template-columns:
+                repeat(2,minmax(0,1fr));
+              gap:14px;
+            ">
+
+              <div>
+                <div class="label">
+                  Revenue
+                </div>
+
+                <strong>
+                  ${money(bestLocation.revenue)}
+                </strong>
+              </div>
+
+              <div>
+                <div class="label">
+                  Conversions
+                </div>
+
+                <strong>
+                  ${bestLocation.conversions}
+                </strong>
+              </div>
+
+              <div>
+                <div class="label">
+                  ROI
+                </div>
+
+                <strong>
+                  ${pct(bestLocation.roi)}
+                </strong>
+              </div>
+
+              <div>
+                <div class="label">
+                  Intent
+                </div>
+
+                <strong>
+                  ${bestLocation.intent}
+                </strong>
+              </div>
+
+            </div>
+
+
+            <div style="
+              margin-top:18px;
+              padding:14px;
+              background:#f3f7f3;
+              border-radius:10px;
+              color:#315b4c;
+              line-height:1.5;
+            ">
+
+              <strong>
+                Why Vivid selected it:
+              </strong>
+
+              <div style="margin-top:4px;">
+                ${
+                  bestLocation.revenue > 0
+                    ? "Highest conversion revenue among measured locations."
+                    : bestLocation.conversions > 0
+                    ? "Strongest conversion performance among measured locations."
+                    : bestLocation.intent > 0
+                    ? "Strongest measurable customer engagement among measured locations."
+                    : "Strongest relative performance among measured locations."
+                }
+              </div>
+
+            </div>
+
+
+            <div style="
+              margin-top:18px;
+              color:#176b3a;
+              font-weight:bold;
+            ">
+              View Location Performance →
+            </div>
+
+          </div>
+
+        </a>
+      `
+      : `
+        <div class="card">
+
+          <h3>
+            📍 Top Performing Location
+          </h3>
+
+          <p>
+            More location activity is needed
+            before Vivid can identify a top performer.
+          </p>
+
+        </div>
+      `
+  }
+
+
+  <!-- =========================================
+       TOP PLACEMENT
+  ========================================== -->
+
+  ${
+    bestPlacement
+      ? `
+        <a
+          href="/reports-qr"
+          style="
+            display:block;
+            text-decoration:none;
+            color:inherit;
+          "
+        >
+
+          <div
+            class="card"
+            style="
+              height:100%;
+              box-sizing:border-box;
+              cursor:pointer;
+            "
+          >
+
+            <h3 style="
+              margin-top:0;
+              color:#073b22;
+            ">
+              ⭐ Top Advertising Placement
+            </h3>
+
+            <div style="
+              font-size:20px;
+              font-weight:bold;
+              color:#073b22;
+              margin-bottom:4px;
+            ">
+              ${bestPlacement.name}
+            </div>
+
+            <div style="
+              color:#65776b;
+              margin-bottom:18px;
+            ">
+              ${bestPlacement.locationName || ""}
+            </div>
+
+
+            <div style="
+              display:grid;
+              grid-template-columns:
+                repeat(2,minmax(0,1fr));
+              gap:14px;
+            ">
+
+              <div>
+                <div class="label">
+                  Revenue
+                </div>
+
+                <strong>
+                  ${money(bestPlacement.revenue)}
+                </strong>
+              </div>
+
+              <div>
+                <div class="label">
+                  Conversions
+                </div>
+
+                <strong>
+                  ${bestPlacement.conversions}
+                </strong>
+              </div>
+
+              <div>
+                <div class="label">
+                  ROI
+                </div>
+
+                <strong>
+                  ${pct(bestPlacement.roi)}
+                </strong>
+              </div>
+
+              <div>
+                <div class="label">
+                  Intent
+                </div>
+
+                <strong>
+                  ${bestPlacement.intent}
+                </strong>
+              </div>
+
+            </div>
+
+
+            <div style="
+              margin-top:18px;
+              padding:14px;
+              background:#f3f7f3;
+              border-radius:10px;
+              color:#315b4c;
+              line-height:1.5;
+            ">
+
+              <strong>
+                Why Vivid selected it:
+              </strong>
+
+              <div style="margin-top:4px;">
+                ${
+                  bestPlacement.revenue > 0
+                    ? "Highest conversion revenue among measured advertising placements."
+                    : bestPlacement.conversions > 0
+                    ? "Strongest conversion performance among measured advertising placements."
+                    : bestPlacement.intent > 0
+                    ? "Strongest measurable customer engagement among advertising placements."
+                    : "Strongest relative performance among measured advertising placements."
+                }
+              </div>
+
+            </div>
+
+
+            <div style="
+              margin-top:18px;
+              color:#176b3a;
+              font-weight:bold;
+            ">
+              View Placement Performance →
+            </div>
+
+          </div>
+
+        </a>
+      `
+      : `
+        <div class="card">
+
+          <h3>
+            ⭐ Top Advertising Placement
+          </h3>
+
+          <p>
+            More placement activity is needed
+            before Vivid can identify a top performer.
+          </p>
+
+        </div>
+      `
+  }
+
+
+  <!-- =========================================
+       NEEDS ATTENTION
+  ========================================== -->
+
+  ${
+    attentionCampaign
+      ? `
+        <a
+          href="/admin/edit-campaign/${attentionCampaign.id}"
+          style="
+            display:block;
+            text-decoration:none;
+            color:inherit;
+          "
+        >
+
+          <div
+            class="card"
+            style="
+              height:100%;
+              box-sizing:border-box;
+              cursor:pointer;
+            "
+          >
+
+            <h3 style="
+              margin-top:0;
+              color:#073b22;
+            ">
+              ⚠️ Needs Attention
+            </h3>
+
+            <div style="
+              font-size:20px;
+              font-weight:bold;
+              color:#073b22;
+              margin-bottom:4px;
+            ">
+              ${attentionCampaign.name}
+            </div>
+
+            <div style="
+              color:#65776b;
+              margin-bottom:18px;
+            ">
+              ${attentionCampaign.advertiser}
+            </div>
+
+
+            <div style="
+              display:grid;
+              grid-template-columns:
+                repeat(2,minmax(0,1fr));
+              gap:14px;
+            ">
+
+              <div>
+                <div class="label">
+                  Investment
+                </div>
+
+                <strong>
+                  ${money(
+                    attentionCampaign.allocatedCost
+                  )}
+                </strong>
+              </div>
+
+              <div>
+                <div class="label">
+                  Revenue
+                </div>
+
+                <strong>
+                  ${money(
+                    attentionCampaign.revenue
+                  )}
+                </strong>
+              </div>
+
+              <div>
+                <div class="label">
+                  Conversions
+                </div>
+
+                <strong>
+                  ${attentionCampaign.conversions}
+                </strong>
+              </div>
+
+              <div>
+                <div class="label">
+                  ROI
+                </div>
+
+                <strong>
+                  ${pct(attentionCampaign.roi)}
+                </strong>
+              </div>
+
+            </div>
+
+
+            <div style="
+              margin-top:18px;
+              padding:14px;
+              background:#fff7ed;
+              border-radius:10px;
+              color:#7c2d12;
+              line-height:1.5;
+            ">
+
+              <strong>
+                Why it needs attention:
+              </strong>
+
+              <div style="margin-top:4px;">
+                ${attentionReason}
+              </div>
+
+            </div>
+
+
+            <div style="
+              margin-top:18px;
+              color:#176b3a;
+              font-weight:bold;
+            ">
+              Review Campaign →
+            </div>
+
+          </div>
+
+        </a>
+      `
+      : `
+        <div class="card">
+
+          <h3>
+            ✅ No Immediate Issue Detected
+          </h3>
+
+          <p>
+            Vivid does not currently have enough
+            evidence to identify a campaign
+            requiring attention.
+          </p>
+
+        </div>
+      `
+  }
+
+</div>
 
         </div>
         `
