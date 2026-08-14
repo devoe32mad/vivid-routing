@@ -52213,6 +52213,20 @@ ${isSuperAdmin ? `
     res.status(500).send("Dashboard error: " + err.message);
   }
 });
+app.get("/dashboard", ... {
+   ...
+});
+
+
+// NEW HELP ROUTE HERE
+app.get(
+  "/help",
+  ...
+);
+
+
+// EXISTING NEXT ROUTE
+app.get("/m...
 app.get("/my-setup", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
