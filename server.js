@@ -62683,157 +62683,149 @@ const bestPlacement =
   <!-- =========================================
        TOP LOCATION
   ========================================== -->
+<div class="card">
+
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:8px;
+  ">
+
+    <h3 style="margin:0;">
+      📍 Top Performing Locations
+    </h3>
+
+    <a
+      href="/reports-location"
+      style="
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+      "
+    >
+      View All →
+    </a>
+
+  </div>
+
+  <p style="
+    color:#65776b;
+    font-size:13px;
+    margin-top:6px;
+    margin-bottom:14px;
+  ">
+    Ranked by measurable customer results
+  </p>
 
   ${
-    bestLocation
-      ? `
-        <a
-          href="/reports-location"
-          style="
-            display:block;
-            text-decoration:none;
-            color:inherit;
-          "
-        >
+    topFiveLocations.length
+      ? topFiveLocations
+          .map(
+            (location, index) => `
 
-          <div
-            class="card"
-            style="
-              height:100%;
-              box-sizing:border-box;
-              cursor:pointer;
-            "
-          >
+              <a
+                href="/reports-location"
+                style="
+                  display:grid;
+                  grid-template-columns:34px 1fr auto;
+                  gap:10px;
+                  align-items:center;
+                  padding:12px 0;
+                  border-bottom:${
+                    index <
+                    topFiveLocations.length - 1
+                      ? "1px solid #e7ece7"
+                      : "none"
+                  };
+                  color:inherit;
+                  text-decoration:none;
+                "
+              >
 
-            <h3 style="
-              margin-top:0;
-              color:#073b22;
-            ">
-              📍 Top Performing Location
-            </h3>
-
-            <div style="
-              font-size:20px;
-              font-weight:bold;
-              color:#073b22;
-              margin-bottom:4px;
-            ">
-              ${bestLocation.name}
-            </div>
-
-            <div style="
-              color:#65776b;
-              margin-bottom:18px;
-            ">
-              ${bestLocation.market || ""}
-            </div>
-
-
-            <div style="
-              display:grid;
-              grid-template-columns:
-                repeat(2,minmax(0,1fr));
-              gap:14px;
-            ">
-
-              <div>
-                <div class="label">
-                  Revenue
+                <div style="
+                  width:26px;
+                  height:26px;
+                  border-radius:50%;
+                  background:#e7f6e7;
+                  display:flex;
+                  align-items:center;
+                  justify-content:center;
+                  font-weight:bold;
+                ">
+                  ${index + 1}
                 </div>
 
-                <strong>
-                  ${money(bestLocation.revenue)}
-                </strong>
-              </div>
+                <div>
 
-              <div>
-                <div class="label">
-                  Conversions
+                  <div style="
+                    font-weight:bold;
+                  ">
+                    ${
+                      location.name ||
+                      "Unnamed Location"
+                    }
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                    margin-top:3px;
+                  ">
+                    ${location.market || ""}
+                  </div>
+
                 </div>
 
-                <strong>
-                  ${bestLocation.conversions}
-                </strong>
-              </div>
+                <div style="
+                  text-align:right;
+                  font-size:13px;
+                  white-space:nowrap;
+                ">
 
-              <div>
-                <div class="label">
-                  ROI
+                  <div>
+                    <strong>
+                      ${money(
+                        location.revenue || 0
+                      )}
+                    </strong>
+                    Revenue
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    margin-top:3px;
+                  ">
+                    ${
+                      location.conversions || 0
+                    }
+                    Conversions ·
+                    ${pct(
+                      location.roi || 0
+                    )}
+                    ROI
+                  </div>
+
                 </div>
 
-                <strong>
-                  ${pct(bestLocation.roi)}
-                </strong>
-              </div>
+              </a>
 
-              <div>
-                <div class="label">
-                  Intent
-                </div>
-
-                <strong>
-                  ${bestLocation.intent}
-                </strong>
-              </div>
-
-            </div>
-
-
-            <div style="
-              margin-top:18px;
-              padding:14px;
-              background:#f3f7f3;
-              border-radius:10px;
-              color:#315b4c;
-              line-height:1.5;
-            ">
-
-              <strong>
-                Why Vivid selected it:
-              </strong>
-
-              <div style="margin-top:4px;">
-                ${
-                  bestLocation.revenue > 0
-                    ? "Highest conversion revenue among measured locations."
-                    : bestLocation.conversions > 0
-                    ? "Strongest conversion performance among measured locations."
-                    : bestLocation.intent > 0
-                    ? "Strongest measurable customer engagement among measured locations."
-                    : "Strongest relative performance among measured locations."
-                }
-              </div>
-
-            </div>
-
-
-            <div style="
-              margin-top:18px;
-              color:#176b3a;
-              font-weight:bold;
-            ">
-              View Location Performance →
-            </div>
-
-          </div>
-
-        </a>
-      `
+            `
+          )
+          .join("")
       : `
-        <div class="card">
-
-          <h3>
-            📍 Top Performing Location
-          </h3>
-
           <p>
-            More location activity is needed
-            before Vivid can identify a top performer.
+            No location performance data
+            for the selected period.
           </p>
-
-        </div>
-      `
+        `
   }
+
+</div>
+
+     
+       
 
 
   <!-- =========================================
