@@ -52213,7 +52213,905 @@ ${isSuperAdmin ? `
     res.status(500).send("Dashboard error: " + err.message);
   }
 });
+/* =========================================================
+   VIVID CORE HELP CENTER
+========================================================= */
 
+app.get(
+  "/help",
+  requireLogin,
+  async (req, res) => {
+    try {
+      const currentUser =
+        req.session.user;
+
+      if (!currentUser) {
+        return res
+          .status(403)
+          .send("Help access denied.");
+      }
+
+      const isSuperAdmin =
+        currentUser.role === "super_admin";
+
+      return res.send(
+        page(
+          "Vivid Core Help Center",
+          `
+
+<div class="topbar">
+
+  <div class="brand">
+    Vivid Spots
+  </div>
+
+  <h1>
+    Help Center
+  </h1>
+
+  <p class="subtitle">
+    Learn how to configure, manage,
+    measure, and optimize your
+    Vivid advertising.
+  </p>
+
+</div>
+
+
+<div
+  id="help-menu"
+  class="wrap"
+>
+
+
+  <!-- =========================================
+       HELP INTRO
+  ========================================== -->
+
+  <div
+    class="card"
+    style="
+      max-width:1000px;
+      margin:0 auto 24px;
+      padding:28px;
+    "
+  >
+
+    <h2 style="
+      margin-top:0;
+      color:#073b22;
+    ">
+      Vivid Core Help Center
+    </h2>
+
+    <p style="
+      color:#65776b;
+      line-height:1.6;
+      margin-bottom:0;
+    ">
+      This guide explains the major
+      setup, campaign, measurement,
+      attribution, and reporting
+      features available in Vivid Core.
+    </p>
+
+    <div style="
+      margin-top:18px;
+      padding:16px;
+      background:#f3f7f3;
+      border-radius:12px;
+      color:#315b4c;
+      line-height:1.6;
+    ">
+      <strong style="color:#073b22;">
+        Tip
+      </strong>
+
+      <div style="margin-top:5px;">
+        Keep this Help Center open in
+        one browser tab while working
+        in Vivid in another.
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- =========================================
+       HELP MENU
+  ========================================== -->
+
+  <div style="
+    display:grid;
+    grid-template-columns:
+      repeat(auto-fit,minmax(240px,1fr));
+    gap:16px;
+    max-width:1000px;
+    margin:0 auto 40px;
+  ">
+
+    <a class="card" href="#getting-started"
+      style="text-decoration:none;color:inherit;margin:0;">
+      <h3>Getting Started</h3>
+      <div>Understand the Vivid Core workflow.</div>
+      <div style="margin-top:12px;font-weight:bold;color:#176b3a;">
+        View Instructions →
+      </div>
+    </a>
+
+    <a class="card" href="#my-setup"
+      style="text-decoration:none;color:inherit;margin:0;">
+      <h3>My Setup</h3>
+      <div>Manage the building blocks of your account.</div>
+      <div style="margin-top:12px;font-weight:bold;color:#176b3a;">
+        View Instructions →
+      </div>
+    </a>
+
+    <a class="card" href="#locations"
+      style="text-decoration:none;color:inherit;margin:0;">
+      <h3>Locations</h3>
+      <div>Create and manage advertising locations.</div>
+      <div style="margin-top:12px;font-weight:bold;color:#176b3a;">
+        View Instructions →
+      </div>
+    </a>
+
+    <a class="card" href="#placements"
+      style="text-decoration:none;color:inherit;margin:0;">
+      <h3>Placements</h3>
+      <div>Manage Vivid-enabled advertising placements.</div>
+      <div style="margin-top:12px;font-weight:bold;color:#176b3a;">
+        View Instructions →
+      </div>
+    </a>
+
+    <a class="card" href="#campaigns"
+      style="text-decoration:none;color:inherit;margin:0;">
+      <h3>Campaigns</h3>
+      <div>Create and manage advertiser campaigns.</div>
+      <div style="margin-top:12px;font-weight:bold;color:#176b3a;">
+        View Instructions →
+      </div>
+    </a>
+
+    <a class="card" href="#assignments"
+      style="text-decoration:none;color:inherit;margin:0;">
+      <h3>Assignments & Scheduling</h3>
+      <div>Connect campaigns to placements and control timing.</div>
+      <div style="margin-top:12px;font-weight:bold;color:#176b3a;">
+        View Instructions →
+      </div>
+    </a>
+
+    <a class="card" href="#customer-actions"
+      style="text-decoration:none;color:inherit;margin:0;">
+      <h3>Customer Actions</h3>
+      <div>Understand customer engagement and intent.</div>
+      <div style="margin-top:12px;font-weight:bold;color:#176b3a;">
+        View Instructions →
+      </div>
+    </a>
+
+    <a class="card" href="#performance"
+      style="text-decoration:none;color:inherit;margin:0;">
+      <h3>Performance & Attribution</h3>
+      <div>Understand conversions, revenue, CAC, and ROI.</div>
+      <div style="margin-top:12px;font-weight:bold;color:#176b3a;">
+        View Instructions →
+      </div>
+    </a>
+
+    <a class="card" href="#reports"
+      style="text-decoration:none;color:inherit;margin:0;">
+      <h3>Reports</h3>
+      <div>Analyze and export Vivid performance.</div>
+      <div style="margin-top:12px;font-weight:bold;color:#176b3a;">
+        View Instructions →
+      </div>
+    </a>
+
+    ${
+      isSuperAdmin
+        ? `
+          <a class="card" href="#admin-tools"
+            style="text-decoration:none;color:inherit;margin:0;">
+            <h3>Admin Tools</h3>
+            <div>Platform setup and administrative controls.</div>
+            <div style="margin-top:12px;font-weight:bold;color:#176b3a;">
+              View Instructions →
+            </div>
+          </a>
+        `
+        : ""
+    }
+
+    <a class="card" href="#glossary"
+      style="text-decoration:none;color:inherit;margin:0;">
+      <h3>Vivid Glossary</h3>
+      <div>Definitions of important Vivid terms and metrics.</div>
+      <div style="margin-top:12px;font-weight:bold;color:#176b3a;">
+        View Instructions →
+      </div>
+    </a>
+
+  </div>
+
+
+  <!-- =========================================
+       GETTING STARTED
+  ========================================== -->
+
+  <section id="getting-started"
+    class="card"
+    style="max-width:1000px;margin:0 auto 24px;padding:28px;">
+
+    <h2>Getting Started</h2>
+
+    <p>
+      Vivid Core connects physical advertising
+      activity to measurable customer engagement,
+      conversions, revenue, and return on investment.
+    </p>
+
+    <h3>The Vivid Workflow</h3>
+
+    <p>
+      <strong>1. Create Locations</strong><br>
+      Add the physical locations where your
+      advertising placements operate.
+    </p>
+
+    <p>
+      <strong>2. Create Placements</strong><br>
+      Add the Vivid placements associated with
+      those locations.
+    </p>
+
+    <p>
+      <strong>3. Create Campaigns</strong><br>
+      Define the advertiser, campaign, destination,
+      dates, and campaign economics.
+    </p>
+
+    <p>
+      <strong>4. Assign Campaigns</strong><br>
+      Connect campaigns to the placements where
+      they should run.
+    </p>
+
+    <p>
+      <strong>5. Schedule When Needed</strong><br>
+      Control campaign dates, days, times,
+      and priorities when scheduling is required.
+    </p>
+
+    <p>
+      <strong>6. Measure Performance</strong><br>
+      Track engagement, customer intent,
+      conversions, revenue, and ROI.
+    </p>
+
+    <div style="
+      margin-top:20px;
+      padding:16px;
+      background:#f3f7f3;
+      border-radius:12px;
+    ">
+      Location →
+      Placement →
+      Campaign →
+      Assignment →
+      Customer Activity →
+      Conversion →
+      Revenue →
+      ROI
+    </div>
+
+    <p style="margin-top:22px;">
+      <a class="btn" href="/my-setup" target="_blank">
+        Open My Setup →
+      </a>
+    </p>
+
+    <p>
+      <a href="#help-menu">↑ Back to Help Menu</a>
+    </p>
+
+  </section>
+
+
+  <!-- =========================================
+       MY SETUP
+  ========================================== -->
+
+  <section id="my-setup"
+    class="card"
+    style="max-width:1000px;margin:0 auto 24px;padding:28px;">
+
+    <h2>My Setup</h2>
+
+    <p>
+      My Setup is your primary workspace for
+      configuring and managing Vivid Core.
+    </p>
+
+    <p>
+      It brings together your locations,
+      placements, campaigns, assignments,
+      schedules, and related configuration.
+    </p>
+
+    <h3>Recommended Order</h3>
+
+    <p>
+      <strong>
+        Location → Placement → Campaign →
+        Assignment → Schedule if needed.
+      </strong>
+    </p>
+
+    <h3>Quick Start Guide</h3>
+
+    <p>
+      The existing Quick Start Guide inside Vivid
+      remains available as a short workflow reminder.
+      This Help Center provides the more detailed
+      reference.
+    </p>
+
+    <p>
+      <a class="btn" href="/my-setup" target="_blank">
+        Open My Setup →
+      </a>
+    </p>
+
+    <p>
+      <a href="#help-menu">↑ Back to Help Menu</a>
+    </p>
+
+  </section>
+
+
+  <!-- =========================================
+       LOCATIONS
+  ========================================== -->
+
+  <section id="locations"
+    class="card"
+    style="max-width:1000px;margin:0 auto 24px;padding:28px;">
+
+    <h2>Locations</h2>
+
+    <p>
+      Locations identify the physical sites where
+      advertising placements operate.
+    </p>
+
+    <p>
+      Locations allow Vivid to organize placements,
+      campaigns, activity, cost, and performance by
+      site.
+    </p>
+
+    <h3>Location Performance</h3>
+
+    <p>
+      Location reporting allows you to compare
+      engagement, revenue, and ROI across different
+      physical locations.
+    </p>
+
+    <p>
+      <a class="btn"
+        href="/admin/new-location"
+        target="_blank">
+        Open New Location →
+      </a>
+    </p>
+
+    <p>
+      <a href="#help-menu">↑ Back to Help Menu</a>
+    </p>
+
+  </section>
+
+
+  <!-- =========================================
+       PLACEMENTS
+  ========================================== -->
+
+  <section id="placements"
+    class="card"
+    style="max-width:1000px;margin:0 auto 24px;padding:28px;">
+
+    <h2>Placements</h2>
+
+    <p>
+      Placements connect physical advertising
+      positions with Vivid measurement,
+      routing, campaigns, and historical reporting.
+    </p>
+
+    <h3>Dynamic Campaign Management</h3>
+
+    <p>
+      A placement may support changing campaigns
+      and destinations without requiring the
+      physical placement itself to be recreated.
+    </p>
+
+    <h3>Historical Reporting</h3>
+
+    <p>
+      Earlier campaign activity remains available
+      even after a placement is later assigned to
+      another campaign.
+    </p>
+
+    <h3>Placement Cost</h3>
+
+    <p>
+      Placement cost is used in Vivid's campaign
+      economics and ROI calculations.
+    </p>
+
+    <p>
+      <a class="btn"
+        href="/admin/new-qr"
+        target="_blank">
+        Open New Placement →
+      </a>
+    </p>
+
+    <p>
+      <a href="#help-menu">↑ Back to Help Menu</a>
+    </p>
+
+  </section>
+
+
+  <!-- =========================================
+       CAMPAIGNS
+  ========================================== -->
+
+  <section id="campaigns"
+    class="card"
+    style="max-width:1000px;margin:0 auto 24px;padding:28px;">
+
+    <h2>Campaigns</h2>
+
+    <p>
+      Campaigns represent the advertiser activity
+      being measured through Vivid.
+    </p>
+
+    <p>
+      Campaign setup may include the advertiser,
+      campaign name, destination, dates,
+      average customer value, conversion assumptions,
+      and other measurement information.
+    </p>
+
+    <h3>Campaign Performance</h3>
+
+    <p>
+      Campaign reporting may include scans,
+      intent, conversions, revenue,
+      allocated placement cost, CAC, and ROI.
+    </p>
+
+    <p>
+      <a class="btn"
+        href="/admin/new-campaign"
+        target="_blank">
+        Open New Campaign →
+      </a>
+    </p>
+
+    <p>
+      <a href="#help-menu">↑ Back to Help Menu</a>
+    </p>
+
+  </section>
+
+
+  <!-- =========================================
+       ASSIGNMENTS
+  ========================================== -->
+
+  <section id="assignments"
+    class="card"
+    style="max-width:1000px;margin:0 auto 24px;padding:28px;">
+
+    <h2>Assignments & Scheduling</h2>
+
+    <p>
+      Assignments connect campaigns to the
+      placements where they should operate.
+    </p>
+
+    <h3>Scheduling</h3>
+
+    <p>
+      Scheduling can control dates, days,
+      times, and campaign priority.
+    </p>
+
+    <h3>Historical Integrity</h3>
+
+    <p>
+      Changing assignments or schedules does
+      not erase earlier campaign history.
+    </p>
+
+    <p>
+      <a class="btn"
+        href="/my-setup"
+        target="_blank">
+        Open My Setup →
+      </a>
+    </p>
+
+    <p>
+      <a href="#help-menu">↑ Back to Help Menu</a>
+    </p>
+
+  </section>
+
+
+  <!-- =========================================
+       CUSTOMER ACTIONS
+  ========================================== -->
+
+  <section id="customer-actions"
+    class="card"
+    style="max-width:1000px;margin:0 auto 24px;padding:28px;">
+
+    <h2>Customer Actions</h2>
+
+    <p>
+      Customer Actions represent measurable steps
+      customers take after engaging with
+      Vivid-enabled advertising.
+    </p>
+
+    <h3>Intent</h3>
+
+    <p>
+      Vivid Intent includes tracked Offer,
+      Google Maps, and Waze actions.
+    </p>
+
+    <h3>Conversions</h3>
+
+    <p>
+      A conversion represents the advertiser's
+      desired business outcome.
+    </p>
+
+    <p>
+      When conversion tracking is configured,
+      Vivid can connect the customer journey
+      from the physical advertising interaction
+      to the conversion.
+    </p>
+
+    <p>
+      <a class="btn"
+        href="/my-setup"
+        target="_blank">
+        Open My Setup →
+      </a>
+    </p>
+
+    <p>
+      <a href="#help-menu">↑ Back to Help Menu</a>
+    </p>
+
+  </section>
+
+
+  <!-- =========================================
+       PERFORMANCE
+  ========================================== -->
+
+  <section id="performance"
+    class="card"
+    style="max-width:1000px;margin:0 auto 24px;padding:28px;">
+
+    <h2>Performance & Attribution</h2>
+
+    <h3>Scans</h3>
+
+    <p>
+      Initial recorded engagement with a
+      Vivid-enabled physical advertising placement.
+    </p>
+
+    <h3>Intent</h3>
+
+    <p>
+      Combined tracked Offer, Maps, and Waze
+      customer actions.
+    </p>
+
+    <h3>Conversions</h3>
+
+    <p>
+      Customer outcomes attributed through
+      the Vivid customer journey.
+    </p>
+
+    <h3>Revenue</h3>
+
+    <p>
+      The value associated with tracked or
+      calculated customer conversions.
+    </p>
+
+    <h3>CAC</h3>
+
+    <p>
+      Customer Acquisition Cost compares
+      advertising cost with customers or
+      conversions generated.
+    </p>
+
+    <h3>ROI</h3>
+
+    <p>
+      Return on Investment compares revenue
+      generated with allocated advertising cost.
+    </p>
+
+    <h3>Allocated Placement Cost</h3>
+
+    <p>
+      Vivid allocates placement cost according
+      to the period a campaign was active rather
+      than assigning the full placement cost to
+      every campaign.
+    </p>
+
+    <p>
+      <a class="btn"
+        href="/reports"
+        target="_blank">
+        Open Reports →
+      </a>
+    </p>
+
+    <p>
+      <a href="#help-menu">↑ Back to Help Menu</a>
+    </p>
+
+  </section>
+
+
+  <!-- =========================================
+       REPORTS
+  ========================================== -->
+
+  <section id="reports"
+    class="card"
+    style="max-width:1000px;margin:0 auto 24px;padding:28px;">
+
+    <h2>Reports</h2>
+
+    <p>
+      Reports provides detailed analysis of
+      campaign, placement, location, customer
+      activity, revenue, and ROI performance.
+    </p>
+
+    <h3>Date Filters</h3>
+
+    <p>
+      Use date ranges when analyzing a specific
+      reporting period or campaign window.
+    </p>
+
+    <h3>Exports</h3>
+
+    <p>
+      Vivid supports reporting exports for sharing,
+      presentation, and additional analysis.
+    </p>
+
+    <p>
+      <a class="btn"
+        href="/reports"
+        target="_blank">
+        Open Reports →
+      </a>
+    </p>
+
+    <p>
+      <a href="#help-menu">↑ Back to Help Menu</a>
+    </p>
+
+  </section>
+
+
+  ${
+    isSuperAdmin
+      ? `
+
+        <!-- =========================================
+             ADMIN
+        ========================================== -->
+
+        <section id="admin-tools"
+          class="card"
+          style="max-width:1000px;margin:0 auto 24px;padding:28px;">
+
+          <h2>Admin Tools</h2>
+
+          <p>
+            Super Admin users have access to
+            additional Vivid platform management tools.
+          </p>
+
+          <h3>Assignments</h3>
+
+          <p>
+            Assign Campaign connects campaigns
+            to Vivid placements.
+          </p>
+
+          <h3>Scheduling</h3>
+
+          <p>
+            Schedule Campaigns provides additional
+            campaign timing and priority control.
+          </p>
+
+          <p>
+            <a class="btn"
+              href="/admin"
+              target="_blank">
+              Open Admin →
+            </a>
+          </p>
+
+          <p>
+            <a href="#help-menu">
+              ↑ Back to Help Menu
+            </a>
+          </p>
+
+        </section>
+
+      `
+      : ""
+  }
+
+
+  <!-- =========================================
+       GLOSSARY
+  ========================================== -->
+
+  <section id="glossary"
+    class="card"
+    style="max-width:1000px;margin:0 auto 24px;padding:28px;">
+
+    <h2>Vivid Glossary</h2>
+
+    <h3>Location</h3>
+    <p>
+      A physical site containing one or more
+      advertising placements.
+    </p>
+
+    <h3>Placement</h3>
+    <p>
+      A Vivid-enabled physical advertising position.
+    </p>
+
+    <h3>Campaign</h3>
+    <p>
+      The advertiser activity or promotion
+      being measured.
+    </p>
+
+    <h3>Assignment</h3>
+    <p>
+      The relationship connecting a campaign
+      to a placement.
+    </p>
+
+    <h3>Schedule</h3>
+    <p>
+      Rules controlling when an assigned
+      campaign operates.
+    </p>
+
+    <h3>Scan</h3>
+    <p>
+      Initial recorded engagement with a
+      Vivid-enabled placement.
+    </p>
+
+    <h3>Intent</h3>
+    <p>
+      Combined Offer, Maps, and Waze actions.
+    </p>
+
+    <h3>Conversion</h3>
+    <p>
+      A tracked customer event representing
+      the advertiser's desired outcome.
+    </p>
+
+    <h3>Revenue</h3>
+    <p>
+      Value generated from tracked or calculated
+      customer conversions.
+    </p>
+
+    <h3>Allocated Placement Cost</h3>
+    <p>
+      The portion of placement cost allocated
+      to a campaign based on its active period.
+    </p>
+
+    <h3>CAC</h3>
+    <p>
+      Customer Acquisition Cost.
+    </p>
+
+    <h3>CPM</h3>
+    <p>
+      Cost per thousand advertising impressions.
+    </p>
+
+    <h3>ROI</h3>
+    <p>
+      Return on Investment.
+    </p>
+
+    <h3>Dynamic Routing</h3>
+    <p>
+      Vivid's ability to change the campaign
+      or destination connected to a placement
+      without replacing the physical placement.
+    </p>
+
+    <h3>Attribution</h3>
+    <p>
+      Connecting customer activity and conversions
+      back to the placement and campaign that
+      generated the interaction.
+    </p>
+
+    <p>
+      <a href="#help-menu">↑ Back to Help Menu</a>
+    </p>
+
+  </section>
+
+
+</div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "VIVID CORE HELP ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to load Vivid Core Help: " +
+          err.message
+        );
+    }
+  }
+);
 app.get("/my-setup", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
