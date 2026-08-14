@@ -62202,6 +62202,319 @@ const bestPlacement =
     const topFivePlacements =
   rankedPlacements.slice(0, 5);
     /*
+=========================================================
+WHAT VIVID SEES
+
+Executive interpretation of existing Vivid performance
+data.
+
+Enterprise / Organization context:
+"What Vivid Sees for CCPS"
+"What Vivid Sees for Marriott"
+
+Core customer context:
+"What Vivid Sees"
+
+No duplicate analytics.
+No new source of truth.
+=========================================================
+*/
+
+
+/*
+=========================================================
+INSIGHT CONTEXT
+
+Use Organization name when this page is being viewed
+in an Organization / Enterprise context.
+
+Otherwise default to Vivid Core language.
+=========================================================
+*/
+
+let insightOrganization = null;
+
+
+/*
+First preference:
+Organization Portal session.
+*/
+
+const insightOrganizationId =
+  Number(
+    req.session.orgUser?.organizationId ||
+    req.session.orgUser?.organization_id ||
+    0
+  );
+
+
+if (insightOrganizationId > 0) {
+
+  const insightOrganizationResult =
+    await q(
+      `
+        SELECT
+          id,
+          name
+
+        FROM organizations
+
+        WHERE id = $1
+
+        LIMIT 1
+      `,
+      [
+        insightOrganizationId
+      ]
+    );
+
+  insightOrganization =
+    insightOrganizationResult.rows[0] || null;
+}
+
+
+/*
+Enterprise context exists only when we have
+a real Organization record.
+
+Core-only users remain Vivid-neutral.
+*/
+
+const isEnterpriseInsightContext =
+  Boolean(
+    insightOrganization?.id &&
+    insightOrganization?.name
+  );
+
+
+const insightOwnerName =
+  isEnterpriseInsightContext
+    ? insightOrganization.name
+    : "Vivid";
+
+
+const insightHeader =
+  isEnterpriseInsightContext
+    ? `What Vivid Sees for ${insightOwnerName}`
+    : "What Vivid Sees";
+
+
+const vividInsights = [];
+
+
+/*
+=========================================================
+1. REVENUE CONCENTRATION
+=========================================================
+*/
+
+if (
+  conversionRevenue > 0 &&
+  bestCampaign &&
+  bestCampaign.revenue > 0
+) {
+
+  const revenueShare =
+    (
+      bestCampaign.revenue /
+      conversionRevenue
+    ) * 100;
+
+
+  if (revenueShare >= 50) {
+
+    vividInsights.push({
+
+      type:
+        "Revenue Concentration",
+
+      text:
+        isEnterpriseInsightContext
+          ? `${pct(revenueShare)} of ${insightOwnerName}'s measured conversion revenue came from ${bestCampaign.name}.`
+          : `${pct(revenueShare)} of measured conversion revenue came from ${bestCampaign.name}.`
+
+    });
+
+  }
+
+}
+
+
+/*
+=========================================================
+2. INVESTMENT RISK
+=========================================================
+*/
+
+if (
+  attentionCampaign &&
+  attentionCampaign.allocatedCost > 0 &&
+  attentionCampaign.conversions === 0
+) {
+
+  vividInsights.push({
+
+    type:
+      "Investment Risk",
+
+    text:
+      isEnterpriseInsightContext
+        ? `${insightOwnerName} has ${money(
+            attentionCampaign.allocatedCost
+          )} allocated to ${attentionCampaign.name} with no tracked conversions.`
+        : `${money(
+            attentionCampaign.allocatedCost
+          )} is allocated to ${attentionCampaign.name} with no tracked conversions.`
+
+  });
+
+}
+
+
+/*
+=========================================================
+3. CONVERSION OPPORTUNITY
+=========================================================
+*/
+
+const intentOpportunity =
+  campaignPerformance
+    .filter(
+      campaign =>
+        campaign.intent > 0 &&
+        campaign.conversions === 0
+    )
+    .sort(
+      (a, b) =>
+        b.intent - a.intent
+    )[0] || null;
+
+
+if (intentOpportunity) {
+
+  vividInsights.push({
+
+    type:
+      "Conversion Opportunity",
+
+    text:
+      `${intentOpportunity.name} generated ` +
+      `${intentOpportunity.intent} intent action${
+        intentOpportunity.intent === 1
+          ? ""
+          : "s"
+      } but no tracked conversions. ` +
+      `Customer interest exists, but the conversion path may deserve review.`
+
+  });
+
+}
+
+
+/*
+=========================================================
+4. LOCATION PERFORMANCE
+=========================================================
+*/
+
+if (
+  bestLocation &&
+  bestLocation.revenue > 0
+) {
+
+  vividInsights.push({
+
+    type:
+      "Location Performance",
+
+    text:
+      isEnterpriseInsightContext
+        ? `${bestLocation.name} is currently the strongest measured location within ${insightOwnerName}, generating ${money(
+            bestLocation.revenue
+          )} in conversion revenue and ${bestLocation.conversions} tracked conversion${
+            bestLocation.conversions === 1
+              ? ""
+              : "s"
+          }.`
+        : `${bestLocation.name} produced the strongest measured location results, generating ${money(
+            bestLocation.revenue
+          )} in conversion revenue and ${bestLocation.conversions} tracked conversion${
+            bestLocation.conversions === 1
+              ? ""
+              : "s"
+          }.`
+
+  });
+
+}
+
+
+/*
+=========================================================
+5. ADVERTISING PLACEMENT PERFORMANCE
+=========================================================
+*/
+
+if (
+  bestPlacement &&
+  (
+    bestPlacement.revenue > 0 ||
+    bestPlacement.conversions > 0 ||
+    bestPlacement.intent > 0
+  )
+) {
+
+  vividInsights.push({
+
+    type:
+      "Placement Performance",
+
+    text:
+      isEnterpriseInsightContext
+        ? `${bestPlacement.name} at ${bestPlacement.locationName} is currently ${insightOwnerName}'s strongest measured advertising placement.`
+        : `${bestPlacement.name} at ${bestPlacement.locationName} is currently the strongest measured advertising placement.`
+
+  });
+
+}
+
+
+/*
+=========================================================
+6. OVERALL PERFORMANCE SIGNAL
+=========================================================
+*/
+
+if (
+  advertisingInvestment > 0 &&
+  conversionRevenue === 0
+) {
+
+  vividInsights.push({
+
+    type:
+      "Performance Risk",
+
+    text:
+      isEnterpriseInsightContext
+        ? `${insightOwnerName} has measurable advertising investment during this period but no tracked conversion revenue yet.`
+        : `Advertising investment is being measured during this period, but no tracked conversion revenue has been recorded yet.`
+
+  });
+
+}
+
+
+/*
+Keep the executive presentation concise.
+
+We can calculate more observations than we display.
+The UI should surface the four most relevant.
+*/
+
+const executiveInsights =
+  vividInsights.slice(0, 4);
+    /*
     =========================================================
     PAGE
     =========================================================
