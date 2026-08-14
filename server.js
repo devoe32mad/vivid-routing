@@ -62834,156 +62834,149 @@ const bestPlacement =
        TOP PLACEMENT
   ========================================== -->
 
+      <div class="card">
+
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:8px;
+  ">
+
+    <h3 style="margin:0;">
+      ⭐ Top Advertising Placements
+    </h3>
+
+    <a
+      href="/reports-qr"
+      style="
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+      "
+    >
+      View All →
+    </a>
+
+  </div>
+
+  <p style="
+    color:#65776b;
+    font-size:13px;
+    margin-top:6px;
+    margin-bottom:14px;
+  ">
+    Ranked by measurable customer results
+  </p>
+
   ${
-    bestPlacement
-      ? `
-        <a
-          href="/reports-qr"
-          style="
-            display:block;
-            text-decoration:none;
-            color:inherit;
-          "
-        >
+    topFivePlacements.length
+      ? topFivePlacements
+          .map(
+            (placement, index) => `
 
-          <div
-            class="card"
-            style="
-              height:100%;
-              box-sizing:border-box;
-              cursor:pointer;
-            "
-          >
+              <a
+                href="/reports-qr"
+                style="
+                  display:grid;
+                  grid-template-columns:34px 1fr auto;
+                  gap:10px;
+                  align-items:center;
+                  padding:12px 0;
+                  border-bottom:${
+                    index <
+                    topFivePlacements.length - 1
+                      ? "1px solid #e7ece7"
+                      : "none"
+                  };
+                  color:inherit;
+                  text-decoration:none;
+                "
+              >
 
-            <h3 style="
-              margin-top:0;
-              color:#073b22;
-            ">
-              ⭐ Top Advertising Placement
-            </h3>
-
-            <div style="
-              font-size:20px;
-              font-weight:bold;
-              color:#073b22;
-              margin-bottom:4px;
-            ">
-              ${bestPlacement.name}
-            </div>
-
-            <div style="
-              color:#65776b;
-              margin-bottom:18px;
-            ">
-              ${bestPlacement.locationName || ""}
-            </div>
-
-
-            <div style="
-              display:grid;
-              grid-template-columns:
-                repeat(2,minmax(0,1fr));
-              gap:14px;
-            ">
-
-              <div>
-                <div class="label">
-                  Revenue
+                <div style="
+                  width:26px;
+                  height:26px;
+                  border-radius:50%;
+                  background:#e7efff;
+                  display:flex;
+                  align-items:center;
+                  justify-content:center;
+                  font-weight:bold;
+                ">
+                  ${index + 1}
                 </div>
 
-                <strong>
-                  ${money(bestPlacement.revenue)}
-                </strong>
-              </div>
+                <div>
 
-              <div>
-                <div class="label">
-                  Conversions
+                  <div style="
+                    font-weight:bold;
+                  ">
+                    ${
+                      placement.name ||
+                      "Unnamed Placement"
+                    }
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                    margin-top:3px;
+                  ">
+                    ${placement.locationName || ""}
+                  </div>
+
                 </div>
 
-                <strong>
-                  ${bestPlacement.conversions}
-                </strong>
-              </div>
+                <div style="
+                  text-align:right;
+                  font-size:13px;
+                  white-space:nowrap;
+                ">
 
-              <div>
-                <div class="label">
-                  ROI
+                  <div>
+                    <strong>
+                      ${money(
+                        placement.revenue || 0
+                      )}
+                    </strong>
+                    Revenue
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    margin-top:3px;
+                  ">
+                    ${
+                      placement.conversions || 0
+                    }
+                    Conversions ·
+                    ${
+                      placement.allocatedCost > 0
+                        ? pct(placement.roi)
+                        : "N/A"
+                    }
+                    ROI
+                  </div>
+
                 </div>
 
-                <strong>
-                  ${pct(bestPlacement.roi)}
-                </strong>
-              </div>
+              </a>
 
-              <div>
-                <div class="label">
-                  Intent
-                </div>
-
-                <strong>
-                  ${bestPlacement.intent}
-                </strong>
-              </div>
-
-            </div>
-
-
-            <div style="
-              margin-top:18px;
-              padding:14px;
-              background:#f3f7f3;
-              border-radius:10px;
-              color:#315b4c;
-              line-height:1.5;
-            ">
-
-              <strong>
-                Why Vivid selected it:
-              </strong>
-
-              <div style="margin-top:4px;">
-                ${
-                  bestPlacement.revenue > 0
-                    ? "Highest conversion revenue among measured advertising placements."
-                    : bestPlacement.conversions > 0
-                    ? "Strongest conversion performance among measured advertising placements."
-                    : bestPlacement.intent > 0
-                    ? "Strongest measurable customer engagement among advertising placements."
-                    : "Strongest relative performance among measured advertising placements."
-                }
-              </div>
-
-            </div>
-
-
-            <div style="
-              margin-top:18px;
-              color:#176b3a;
-              font-weight:bold;
-            ">
-              View Placement Performance →
-            </div>
-
-          </div>
-
-        </a>
-      `
+            `
+          )
+          .join("")
       : `
-        <div class="card">
-
-          <h3>
-            ⭐ Top Advertising Placement
-          </h3>
-
           <p>
-            More placement activity is needed
-            before Vivid can identify a top performer.
+            No placement performance data
+            for the selected period.
           </p>
-
-        </div>
-      `
+        `
   }
+
+</div>   
+
 
 
   <!-- =========================================
