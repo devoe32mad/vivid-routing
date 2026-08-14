@@ -61044,17 +61044,38 @@ selected reporting period even after a campaign is archived.
 =========================================================
 */
 
+/*
+=========================================================
+CAMPAIGN SCOPE
+
+Match existing Vivid Core reporting access.
+
+A campaign belongs in this user's performance view when:
+
+1. The campaign belongs directly to the user
+
+OR
+
+2. The campaign is assigned to a QR placement whose
+   Location / Space belongs to the user.
+
+This preserves Marketplace-created campaigns that are
+connected to the customer's Vivid locations.
+=========================================================
+*/
+
 const campaignParams =
   isSuperAdmin
-    ? []
+    ? [null]
     : [currentUser.id];
 
 const campaignsResult = await q(
   `
-    SELECT
+    SELECT DISTINCT
       c.id,
       c.name,
       c.advertiser,
+
       COALESCE(
         c.is_archived,
         false
@@ -61062,25 +61083,35 @@ const campaignsResult = await q(
 
     FROM campaigns c
 
-    WHERE 1 = 1
+    LEFT JOIN qr_campaigns qc
+      ON qc.campaign_id = c.id
 
-      ${
-        isSuperAdmin
-          ? ""
-          : "AND c.user_id = $1"
-      }
+    LEFT JOIN qr_codes qr
+      ON qr.id = qc.qr_id
+
+    LEFT JOIN spaces s
+      ON s.id = qr.space_id
+
+    WHERE
+      (
+        $1::int IS NULL
+
+        OR c.user_id = $1
+
+        OR s.user_id = $1
+      )
 
     ORDER BY c.id
   `,
   campaignParams
 );
 
-/*
-Active Campaign count is current active campaigns only.
 
-Advertising Investment below will include both active
-and archived campaigns when allocated cost exists in
-the selected reporting period.
+/*
+Current active campaign count.
+
+Archived campaigns remain available for historical
+investment calculations but are not counted as Active.
 */
 
 const activeCampaigns =
@@ -61088,6 +61119,7 @@ const activeCampaigns =
     campaign =>
       !campaign.is_archived
   ).length;
+
     /*
     =========================================================
     ADVERTISING INVESTMENT
