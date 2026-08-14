@@ -61511,11 +61511,21 @@ const attentionCandidates =
         return 1;
       }
 
-      if (a.roi !== b.roi) {
-        return a.roi - b.roi;
-      }
+   if (a.roi !== b.roi) {
+  return a.roi - b.roi;
+}
 
-      return a.intent - b.intent;
+if (
+  b.allocatedCost !==
+  a.allocatedCost
+) {
+  return (
+    b.allocatedCost -
+    a.allocatedCost
+  );
+}
+
+return a.intent - b.intent;   
 
     });
 
