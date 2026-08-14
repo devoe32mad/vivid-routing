@@ -52247,26 +52247,26 @@ app.get(
       */
 
       const openPageLink = (
-        label,
-        href
-      ) => `
-        <div style="
-          margin-top:20px;
-        ">
-          <a
-            class="btn"
-            href="${href}"
-            target="_blank"
-            rel="noopener noreferrer"
-            style="
-              margin:0;
-              text-decoration:none;
-            "
-          >
-            ${label} →
-          </a>
-        </div>
-      `;
+  label,
+  href
+) => `
+  <div style="
+    margin-top:20px;
+  ">
+    <a
+      class="btn"
+      href="${href}"
+      target="_blank"
+      rel="noopener noreferrer"
+      style="
+        margin:0;
+        text-decoration:none;
+      "
+    >
+      ${label} →
+    </a>
+  </div>
+`;
 
       /*
         Back to Help menu.
