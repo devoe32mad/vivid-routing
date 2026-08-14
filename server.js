@@ -38591,15 +38591,31 @@ app.get(
         req.session.user?.email ||
         "";
 
-      const startDate =
-        String(
-          req.query.startDate || ""
-        ).trim();
+const scope =
+  await getOrganizationScope(req);
 
-      const endDate =
-        String(
-          req.query.endDate || ""
-        ).trim();
+if (
+  scope.organizationId !==
+  organizationId
+) {
+  return res
+    .status(403)
+    .send("Access denied");
+}
+
+const {
+  fromDate,
+  toDate,
+  queryString: dateQueryString,
+  allowedLocationIds,
+  selectedLocationId
+} = scope;
+
+const startDate =
+  fromDate || "";
+
+const endDate =
+  toDate || "";
 
       return res.send(
         orgPage(
@@ -38676,7 +38692,7 @@ app.get(
 
                   <input
                     type="date"
-                    name="startDate"
+                    name="from"
                     value="${startDate}"
                   />
 
@@ -38692,7 +38708,7 @@ app.get(
 
                   <input
                     type="date"
-                    name="endDate"
+                    name="to"
                     value="${endDate}"
                   />
 
