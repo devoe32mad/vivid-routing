@@ -61521,7 +61521,8 @@ const attentionCandidates =
 
 const attentionCampaign =
   attentionCandidates[0] || null;
-
+const topFiveAttentionCampaigns =
+  attentionCandidates.slice(0, 5);
 
 /*
 Generate a real explanation.
