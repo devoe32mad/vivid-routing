@@ -60890,238 +60890,968 @@ ${archivedLocations.rows.map(l => `
 });
 app.get("/admin/ai-insights", requireLogin, async (req, res) => {
   try {
-const { startDate, endDate } = req.query;
-    let where = [];
-let params = [];
-const currentUser = req.session.user;
-const isSuperAdmin = currentUser.role === "super_admin";
+    const currentUser = req.session.user;
+    const isSuperAdmin =
+      currentUser.role === "super_admin";
 
-if (!isSuperAdmin) {
-  params.push(currentUser.id);
-  where.push(`c.user_id = $${params.length}`);
-}
-if (startDate) {
-  params.push(startDate);
-  where.push(`e.created_at >= $${params.length}`);
-}
+    const startDate =
+      String(req.query.startDate || "").trim();
 
-if (endDate) {
-  params.push(endDate);
-  where.push(`e.created_at <= $${params.length}`);
-}
-if (!isSuperAdmin) {
-  where.push(`c.user_id = $${params.length + 1}`);
-  params.push(currentUser.id);
-}
-const whereSql = where.length
-  ? `WHERE ${where.join(" AND ")}`
-  : "";
-    const summary = await q(`
-  SELECT
-    COUNT(*) AS total_events,
-    COUNT(DISTINCT e.campaign_id) AS active_campaigns,
-    COUNT(*) FILTER (WHERE e.type = 'scan') AS scans,
-    COUNT(*) FILTER (WHERE e.type = 'offer') AS offer_clicks,
-    COUNT(*) FILTER (WHERE e.type = 'maps') AS map_clicks
-  FROM events e
-LEFT JOIN campaigns c ON c.id = e.campaign_id
-${whereSql}
-`, params);
-    const totalEvents = Number(summary.rows[0]?.total_events || 0);
-const activeCampaigns = Number(summary.rows[0]?.active_campaigns || 0);
-const scans = Number(summary.rows[0]?.scans || 0);
-const offerClicks = Number(summary.rows[0]?.offer_clicks || 0);
-const mapClicks = Number(summary.rows[0]?.map_clicks || 0);
+    const endDate =
+      String(req.query.endDate || "").trim();
 
-const engagementRate =
-  totalEvents > 0
-    ? ((scans / totalEvents) * 100).toFixed(2) + "%"
-    : "0.00%";
-    const topCampaign = await q(`
-      SELECT
-        c.name,
-        c.advertiser,
-        COUNT(*) AS total_events
-      FROM events e
-      LEFT JOIN campaigns c ON c.id = e.campaign_id
-      ${whereSql}
-      GROUP BY c.name, c.advertiser
-      ORDER BY total_events DESC
-      LIMIT 1
-    `, params);
+    /*
+    =========================================================
+    PERFORMANCE INSIGHTS
+    EXECUTIVE SCORECARD
+    =========================================================
 
-    const topStore = await q(`
-      SELECT
-        st.name,
-        COUNT(*) AS total_events
-      FROM events e
-LEFT JOIN campaigns c ON c.id = e.campaign_id
-LEFT JOIN stores st ON st.id = e.store_id
-${whereSql}
-${whereSql ? "AND" : "WHERE"} st.name IS NOT NULL
-GROUP BY st.name
-      ORDER BY total_events DESC
-      LIMIT 1
-    `, params);
+    Uses existing Vivid data only.
 
-    const lowCampaign = await q(`
-      SELECT
-        c.name,
-        COUNT(*) AS total_events
-      FROM events e
-LEFT JOIN campaigns c ON c.id = e.campaign_id
-${whereSql}
-${whereSql ? "AND" : "WHERE"} c.name IS NOT NULL
-GROUP BY c.name
-      ORDER BY total_events ASC
-      LIMIT 1
-    `, params);
+    No duplicate ROI logic.
+    No duplicate cost allocation logic.
 
-    res.send(page("Performance Insights", `
+    Existing source of truth:
+    - events
+    - campaigns
+    - allocatedSpotCostForCampaign()
+    =========================================================
+    */
 
-      <div class="topbar">
-        <div class="brand">Vivid Spots</div>
-        <h1>Performance Insights</h1>
-      </div>
-<form method="GET" style="margin-bottom:24px;display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+    /*
+    =========================================================
+    EVENT FILTER
+    =========================================================
+    */
 
-  <div>
-    <label>Start Date</label><br>
-    <input type="date" name="startDate" value="${startDate || ""}">
-  </div>
+    const eventWhere = [];
+    const eventParams = [];
 
-  <div>
-    <label>End Date</label><br>
-    <input type="date" name="endDate" value="${endDate || ""}">
-  </div>
+    if (!isSuperAdmin) {
+      eventParams.push(currentUser.id);
 
-  <div>
-    <button class="btn" type="submit">
-      Apply Filter
-    </button>
-  </div>
+      eventWhere.push(
+        `c.user_id = $${eventParams.length}`
+      );
+    }
 
-</form>
-      
+    if (startDate) {
+      eventParams.push(startDate);
 
-<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin:20px 0;">
+      eventWhere.push(
+        `e.created_at::date >= $${eventParams.length}::date`
+      );
+    }
 
-  <div class="card" style="min-height:90px;">
-    <div class="label">Total Events</div>
-    <div class="num">${totalEvents}</div>
-  </div>
+    if (endDate) {
+      eventParams.push(endDate);
 
-  <div class="card" style="min-height:90px;">
-    <div class="label">Active Campaigns</div>
-    <div class="num">${activeCampaigns}</div>
-  </div>
+      eventWhere.push(
+        `e.created_at::date <= $${eventParams.length}::date`
+      );
+    }
 
-  <div class="card" style="min-height:90px;">
-    <div class="label">Scans</div>
-    <div class="num">${scans}</div>
-  </div>
+    const eventWhereSql =
+      eventWhere.length
+        ? `WHERE ${eventWhere.join(" AND ")}`
+        : "";
 
-  <div class="card" style="min-height:90px;">
-    <div class="label">Offer Clicks</div>
-    <div class="num">${offerClicks}</div>
-  </div>
+    /*
+    =========================================================
+    EXECUTIVE PERFORMANCE TOTALS
+    =========================================================
+    */
 
-  <div class="card" style="min-height:90px;">
-    <div class="label">Engagement Rate</div>
-    <div class="num">${engagementRate}</div>
-  </div>
-
-</div>
-  
-  </div>
-<div style="
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
-  gap:20px;
-  margin-top:12px;
-">
-</div>
-<div style="
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
-  gap:20px;
-  margin-top:12px;
-">
-        <div class="card">
-          <h3>🏆 Top Performing Campaign</h3>
-          <p><strong>${topCampaign.rows[0]?.name || "N/A"}</strong></p>
-          <p>${topCampaign.rows[0]?.advertiser || ""}</p>
-          <p>Total Events: ${topCampaign.rows[0]?.total_events || 0}</p>
-          <p>
-  ${
-    Number(topCampaign.rows[0]?.total_events || 0) > 100
-      ? '🟢 Excellent Health'
-      : Number(topCampaign.rows[0]?.total_events || 0) > 50
-      ? '🔵 Healthy'
-      : Number(topCampaign.rows[0]?.total_events || 0) > 10
-      ? '🟡 Warning'
-      : '🔴 Critical'
-  }
-</p>
-
- 
-        </div>
-
-        <div class="card">
-          <h3>📍 Top Performing Location</h3>
-          <p><strong>${topStore.rows[0]?.name || "N/A"}</strong></p>
-          <p>Total Events: ${topStore.rows[0]?.total_events || 0}</p>
-          <p>
-  <span style="background:#dbeafe;color:#1d4ed8;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:bold;">
-    ⭐ Top Location
-  </span>
-</p>
-        </div>
-
-        <div class="card">
-          <h3>⚠ Campaign Needing Attention</h3>
-          <p><strong>${lowCampaign.rows[0]?.name || "N/A"}</strong></p>
-          <p>Lowest event activity detected.</p>
-          <p>
-  <span style="background:#fee2e2;color:#991b1b;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:bold;">
-    🔴 Needs Attention
-  </span>
-</p>
-        </div>
-
-      </div>
-  
-    <div class="card" style="margin-top:12px;">  
- <h3>⚡ AI Recommendations</h3>
-
-  ${
-    Number(lowCampaign.rows[0]?.total_events || 0) < 10
-      ? `
-        <p>
-          Campaign <strong>${lowCampaign.rows[0]?.name || "Unknown"}</strong>
-          is underperforming.
-        </p>
-
-        <p>
-          Recommendation: rotate creative, update CTA,
-          or move placement location.
-        </p>
+    const summary = await q(
       `
-      : `
-        <p>
-          Campaign performance appears stable.
-        </p>
-      `
-  }
+        SELECT
 
-</div>
-    `));
+          COUNT(*) FILTER (
+            WHERE e.type = 'scan'
+          )::int AS scans,
+
+          COUNT(*) FILTER (
+            WHERE e.type IN (
+              'offer',
+              'maps',
+              'waze'
+            )
+          )::int AS intent,
+
+          COUNT(*) FILTER (
+            WHERE e.type = 'conversion'
+          )::int AS conversions,
+
+          COALESCE(
+            SUM(e.value) FILTER (
+              WHERE e.type = 'conversion'
+            ),
+            0
+          )::numeric AS conversion_revenue,
+
+          COUNT(
+            DISTINCT e.campaign_id
+          ) FILTER (
+            WHERE e.campaign_id IS NOT NULL
+          )::int AS campaigns_with_activity
+
+        FROM events e
+
+        LEFT JOIN campaigns c
+          ON c.id = e.campaign_id
+
+        ${eventWhereSql}
+      `,
+      eventParams
+    );
+
+    const summaryRow =
+      summary.rows[0] || {};
+
+    const scans =
+      Number(summaryRow.scans || 0);
+
+    const intent =
+      Number(summaryRow.intent || 0);
+
+    const conversions =
+      Number(
+        summaryRow.conversions || 0
+      );
+
+    const conversionRevenue =
+      Number(
+        summaryRow.conversion_revenue || 0
+      );
+
+    /*
+    =========================================================
+    CAMPAIGNS IN SCOPE
+
+    We need campaign IDs so existing Vivid cost allocation
+    can calculate Advertising Investment correctly.
+    =========================================================
+    */
+
+    const campaignWhere = [
+      `COALESCE(c.is_archived, false) = false`
+    ];
+
+    const campaignParams = [];
+
+    if (!isSuperAdmin) {
+      campaignParams.push(currentUser.id);
+
+      campaignWhere.push(
+        `c.user_id = $${campaignParams.length}`
+      );
+    }
+
+    /*
+      When dates are supplied, include campaigns whose
+      operating period overlaps the selected range.
+    */
+
+    if (startDate) {
+      campaignParams.push(startDate);
+
+      campaignWhere.push(`
+        (
+          c.end_date IS NULL
+          OR c.end_date >=
+             $${campaignParams.length}::date
+        )
+      `);
+    }
+
+    if (endDate) {
+      campaignParams.push(endDate);
+
+      campaignWhere.push(`
+        COALESCE(
+          c.start_date,
+          c.live_date,
+          c.created_at::date
+        ) <=
+        $${campaignParams.length}::date
+      `);
+    }
+
+    const campaignsResult = await q(
+      `
+        SELECT
+          c.id,
+          c.name,
+          c.advertiser
+
+        FROM campaigns c
+
+        WHERE
+          ${campaignWhere.join("\nAND ")}
+
+        ORDER BY c.id
+      `,
+      campaignParams
+    );
+
+    const activeCampaigns =
+      campaignsResult.rows.length;
+
+    /*
+    =========================================================
+    ADVERTISING INVESTMENT
+
+    IMPORTANT:
+    Reuse existing Vivid allocation function.
+    =========================================================
+    */
+
+    let advertisingInvestment = 0;
+
+    for (
+      const campaign
+      of campaignsResult.rows
+    ) {
+      const allocatedCost =
+        await allocatedSpotCostForCampaign(
+          Number(campaign.id),
+          startDate,
+          endDate
+        );
+
+      advertisingInvestment +=
+        Number(allocatedCost || 0);
+    }
+
+    /*
+    =========================================================
+    EXECUTIVE FINANCIAL METRICS
+    =========================================================
+    */
+
+    const roi =
+      advertisingInvestment > 0
+        ? (
+            (
+              conversionRevenue -
+              advertisingInvestment
+            ) /
+            advertisingInvestment
+          ) * 100
+        : 0;
+
+    const cac =
+      conversions > 0
+        ? advertisingInvestment /
+          conversions
+        : 0;
+
+    const intentRate =
+      scans > 0
+        ? (intent / scans) * 100
+        : 0;
+
+    /*
+    =========================================================
+    EXISTING PERFORMANCE SUMMARY CARDS
+
+    Preserve for Step 1.
+    We will improve these in Step 2.
+    =========================================================
+    */
+
+    const topCampaign = await q(
+      `
+        SELECT
+          c.id,
+          c.name,
+          c.advertiser,
+          COUNT(e.id)::int
+            AS total_events
+
+        FROM campaigns c
+
+        LEFT JOIN events e
+          ON e.campaign_id = c.id
+
+        ${
+          startDate
+            ? `AND e.created_at::date >= '${startDate}'::date`
+            : ""
+        }
+
+        ${
+          endDate
+            ? `AND e.created_at::date <= '${endDate}'::date`
+            : ""
+        }
+
+        WHERE
+          COALESCE(
+            c.is_archived,
+            false
+          ) = false
+
+          ${
+            !isSuperAdmin
+              ? `AND c.user_id = $1`
+              : ""
+          }
+
+        GROUP BY
+          c.id,
+          c.name,
+          c.advertiser
+
+        ORDER BY
+          total_events DESC,
+          c.id
+
+        LIMIT 1
+      `,
+      isSuperAdmin
+        ? []
+        : [currentUser.id]
+    );
+
+    const topStoreParams = [];
+    const topStoreWhere = [
+      `st.name IS NOT NULL`
+    ];
+
+    if (!isSuperAdmin) {
+      topStoreParams.push(
+        currentUser.id
+      );
+
+      topStoreWhere.push(
+        `c.user_id = $${topStoreParams.length}`
+      );
+    }
+
+    if (startDate) {
+      topStoreParams.push(
+        startDate
+      );
+
+      topStoreWhere.push(
+        `e.created_at::date >= $${topStoreParams.length}::date`
+      );
+    }
+
+    if (endDate) {
+      topStoreParams.push(
+        endDate
+      );
+
+      topStoreWhere.push(
+        `e.created_at::date <= $${topStoreParams.length}::date`
+      );
+    }
+
+    const topStore = await q(
+      `
+        SELECT
+          st.name,
+          COUNT(e.id)::int
+            AS total_events
+
+        FROM events e
+
+        LEFT JOIN campaigns c
+          ON c.id = e.campaign_id
+
+        LEFT JOIN stores st
+          ON st.id = e.store_id
+
+        WHERE
+          ${topStoreWhere.join("\nAND ")}
+
+        GROUP BY st.name
+
+        ORDER BY
+          total_events DESC
+
+        LIMIT 1
+      `,
+      topStoreParams
+    );
+
+    const lowCampaignParams = [];
+    const lowCampaignWhere = [
+      `COALESCE(c.is_archived, false) = false`,
+      `c.name IS NOT NULL`
+    ];
+
+    if (!isSuperAdmin) {
+      lowCampaignParams.push(
+        currentUser.id
+      );
+
+      lowCampaignWhere.push(
+        `c.user_id = $${lowCampaignParams.length}`
+      );
+    }
+
+    if (startDate) {
+      lowCampaignParams.push(
+        startDate
+      );
+    }
+
+    if (endDate) {
+      lowCampaignParams.push(
+        endDate
+      );
+    }
+
+    const lowCampaign = await q(
+      `
+        SELECT
+          c.id,
+          c.name,
+
+          COUNT(e.id)::int
+            AS total_events
+
+        FROM campaigns c
+
+        LEFT JOIN events e
+          ON e.campaign_id = c.id
+
+          ${
+            startDate
+              ? `
+                AND e.created_at::date >=
+                    $${!isSuperAdmin ? 2 : 1}::date
+              `
+              : ""
+          }
+
+          ${
+            endDate
+              ? `
+                AND e.created_at::date <=
+                    $${
+                      (!isSuperAdmin ? 1 : 0) +
+                      (startDate ? 1 : 0) +
+                      1
+                    }::date
+              `
+              : ""
+          }
+
+        WHERE
+          ${lowCampaignWhere.join("\nAND ")}
+
+        GROUP BY
+          c.id,
+          c.name
+
+        ORDER BY
+          total_events ASC,
+          c.id
+
+        LIMIT 1
+      `,
+      lowCampaignParams
+    );
+
+    /*
+    =========================================================
+    PAGE
+    =========================================================
+    */
+
+    res.send(
+      page(
+        "Performance Insights",
+        `
+
+        <div class="topbar">
+
+          <div class="brand">
+            Vivid Spots
+          </div>
+
+          <h1>
+            Performance Insights
+          </h1>
+
+          <p class="subtitle">
+            Executive view of advertising
+            performance, efficiency, and results.
+          </p>
+
+        </div>
+
+
+        <div class="wrap">
+
+          <!-- =========================================
+               DATE FILTER
+          ========================================== -->
+
+          <form
+            method="GET"
+            style="
+              margin-bottom:24px;
+              display:flex;
+              gap:12px;
+              align-items:end;
+              flex-wrap:wrap;
+            "
+          >
+
+            <div>
+
+              <label>
+                Start Date
+              </label>
+              <br>
+
+              <input
+                type="date"
+                name="startDate"
+                value="${startDate}"
+              >
+
+            </div>
+
+
+            <div>
+
+              <label>
+                End Date
+              </label>
+              <br>
+
+              <input
+                type="date"
+                name="endDate"
+                value="${endDate}"
+              >
+
+            </div>
+
+
+            <div>
+
+              <button
+                class="btn"
+                type="submit"
+              >
+                Apply Filter
+              </button>
+
+            </div>
+
+          </form>
+
+
+          <!-- =========================================
+               EXECUTIVE SCORECARD
+          ========================================== -->
+
+          <h2 style="
+            margin-bottom:6px;
+          ">
+            Executive Performance
+          </h2>
+
+          <p style="
+            margin-top:0;
+            color:#65776b;
+          ">
+            Financial and customer outcomes
+            for the selected reporting period.
+          </p>
+
+
+          <div style="
+            display:grid;
+            grid-template-columns:
+              repeat(
+                auto-fit,
+                minmax(180px,1fr)
+              );
+            gap:16px;
+            margin:20px 0 30px;
+          ">
+
+
+            <div
+              class="card"
+              style="min-height:110px;"
+            >
+
+              <div class="label">
+                Advertising Investment
+              </div>
+
+              <div class="num">
+                ${money(
+                  advertisingInvestment
+                )}
+              </div>
+
+              <div
+                class="small"
+                style="margin-top:6px;"
+              >
+                Allocated placement cost
+              </div>
+
+            </div>
+
+
+            <div
+              class="card"
+              style="min-height:110px;"
+            >
+
+              <div class="label">
+                Conversion Revenue
+              </div>
+
+              <div class="num">
+                ${money(
+                  conversionRevenue
+                )}
+              </div>
+
+              <div
+                class="small"
+                style="margin-top:6px;"
+              >
+                Revenue attributed by Vivid
+              </div>
+
+            </div>
+
+
+            <div
+              class="card"
+              style="min-height:110px;"
+            >
+
+              <div class="label">
+                ROI
+              </div>
+
+              <div class="num">
+                ${pct(roi)}
+              </div>
+
+              <div
+                class="small"
+                style="margin-top:6px;"
+              >
+                Revenue vs. advertising investment
+              </div>
+
+            </div>
+
+
+            <div
+              class="card"
+              style="min-height:110px;"
+            >
+
+              <div class="label">
+                Conversions
+              </div>
+
+              <div class="num">
+                ${conversions.toLocaleString()}
+              </div>
+
+              <div
+                class="small"
+                style="margin-top:6px;"
+              >
+                Tracked customer outcomes
+              </div>
+
+            </div>
+
+
+            <div
+              class="card"
+              style="min-height:110px;"
+            >
+
+              <div class="label">
+                CAC
+              </div>
+
+              <div class="num">
+                ${money(cac)}
+              </div>
+
+              <div
+                class="small"
+                style="margin-top:6px;"
+              >
+                Cost per conversion
+              </div>
+
+            </div>
+
+
+            <div
+              class="card"
+              style="min-height:110px;"
+            >
+
+              <div class="label">
+                Intent Rate
+              </div>
+
+              <div class="num">
+                ${pct(intentRate)}
+              </div>
+
+              <div
+                class="small"
+                style="margin-top:6px;"
+              >
+                ${intent.toLocaleString()}
+                intent actions from
+                ${scans.toLocaleString()}
+                scans
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div style="
+            display:flex;
+            gap:12px;
+            flex-wrap:wrap;
+            margin-bottom:26px;
+          ">
+
+            <div style="
+              padding:9px 14px;
+              background:#f3f7f3;
+              border-radius:999px;
+              font-size:13px;
+              font-weight:bold;
+            ">
+              ${activeCampaigns}
+              Active Campaign${
+                activeCampaigns === 1
+                  ? ""
+                  : "s"
+              }
+            </div>
+
+            <div style="
+              padding:9px 14px;
+              background:#f3f7f3;
+              border-radius:999px;
+              font-size:13px;
+              font-weight:bold;
+            ">
+              ${scans.toLocaleString()}
+              Scans
+            </div>
+
+            <div style="
+              padding:9px 14px;
+              background:#f3f7f3;
+              border-radius:999px;
+              font-size:13px;
+              font-weight:bold;
+            ">
+              ${intent.toLocaleString()}
+              Intent Actions
+            </div>
+
+          </div>
+
+
+          <!-- =========================================
+               EXISTING PERFORMANCE SUMMARY
+               STEP 2 WILL UPGRADE THIS
+          ========================================== -->
+
+          <h2>
+            Performance Summary
+          </h2>
+
+
+          <div style="
+            display:grid;
+            grid-template-columns:
+              repeat(
+                auto-fit,
+                minmax(320px,1fr)
+              );
+            gap:20px;
+            margin-top:12px;
+          ">
+
+
+            <div class="card">
+
+              <h3>
+                🏆 Top Performing Campaign
+              </h3>
+
+              <p>
+                <strong>
+                  ${
+                    topCampaign.rows[0]
+                      ?.name ||
+                    "N/A"
+                  }
+                </strong>
+              </p>
+
+              <p>
+                ${
+                  topCampaign.rows[0]
+                    ?.advertiser ||
+                  ""
+                }
+              </p>
+
+              <p>
+                Total Events:
+                ${
+                  topCampaign.rows[0]
+                    ?.total_events ||
+                  0
+                }
+              </p>
+
+            </div>
+
+
+            <div class="card">
+
+              <h3>
+                📍 Top Performing Location
+              </h3>
+
+              <p>
+                <strong>
+                  ${
+                    topStore.rows[0]
+                      ?.name ||
+                    "N/A"
+                  }
+                </strong>
+              </p>
+
+              <p>
+                Total Events:
+                ${
+                  topStore.rows[0]
+                    ?.total_events ||
+                  0
+                }
+              </p>
+
+            </div>
+
+
+            <div class="card">
+
+              <h3>
+                ⚠ Campaign Needing Attention
+              </h3>
+
+              <p>
+                <strong>
+                  ${
+                    lowCampaign.rows[0]
+                      ?.name ||
+                    "N/A"
+                  }
+                </strong>
+              </p>
+
+              <p>
+                Lowest event activity detected.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <!-- =========================================
+               EXISTING RECOMMENDATION
+               STEP 3 WILL REPLACE THIS
+          ========================================== -->
+
+          <div
+            class="card"
+            style="margin-top:20px;"
+          >
+
+            <h3>
+              ⚡ AI Recommendations
+            </h3>
+
+            ${
+              Number(
+                lowCampaign.rows[0]
+                  ?.total_events ||
+                0
+              ) < 10
+                ? `
+                    <p>
+                      Campaign
+                      <strong>
+                        ${
+                          lowCampaign.rows[0]
+                            ?.name ||
+                          "Unknown"
+                        }
+                      </strong>
+                      is showing low activity.
+                    </p>
+
+                    <p>
+                      More detailed recommendations
+                      will be added after the
+                      performance summary logic
+                      is upgraded.
+                    </p>
+                  `
+                : `
+                    <p>
+                      Campaign activity appears
+                      stable for the selected period.
+                    </p>
+                  `
+            }
+
+          </div>
+
+        </div>
+        `
+      )
+    );
 
   } catch (err) {
-    console.error("AI INSIGHTS ERROR:", err);
-    res.status(500).send(err.message);
+    console.error(
+      "AI INSIGHTS ERROR:",
+      err
+    );
+
+    res
+      .status(500)
+      .send(err.message);
   }
 });
+
 app.post(
   "/admin/edit-campaign/:campaignId",
   requireLogin,
