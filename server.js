@@ -38938,6 +38938,174 @@ const performanceMoney = value =>
       maximumFractionDigits: 2
     }
   );
+      /*
+=========================================================
+TOP ADVERTISERS
+
+Organization-scoped advertiser performance.
+
+Uses existing Vivid campaign + event data only.
+
+Rank:
+Revenue
+→ Conversions
+→ Intent
+=========================================================
+*/
+
+const topAdvertiserValues = [
+  organizationId,
+  allowedLocationIds,
+  selectedLocationId
+];
+
+let topAdvertiserDateSql = "";
+
+if (startDate) {
+  topAdvertiserValues.push(startDate);
+
+  topAdvertiserDateSql += `
+    AND e.created_at::date >=
+      $${topAdvertiserValues.length}::date
+  `;
+}
+
+if (endDate) {
+  topAdvertiserValues.push(endDate);
+
+  topAdvertiserDateSql += `
+    AND e.created_at::date <=
+      $${topAdvertiserValues.length}::date
+  `;
+}
+
+const topAdvertisersResult =
+  await q(
+    `
+      SELECT
+
+        COALESCE(
+          NULLIF(
+            TRIM(u.company),
+            ''
+          ),
+          NULLIF(
+            TRIM(u.name),
+            ''
+          ),
+          u.email,
+          'Unknown Advertiser'
+        ) AS advertiser_name,
+
+        COUNT(e.id) FILTER (
+          WHERE e.type = 'scan'
+        )::int AS scans,
+
+        COUNT(e.id) FILTER (
+          WHERE e.type IN (
+            'offer',
+            'maps',
+            'waze'
+          )
+        )::int AS intent,
+
+        COUNT(e.id) FILTER (
+          WHERE e.type = 'conversion'
+        )::int AS conversions,
+
+        COALESCE(
+          SUM(e.value) FILTER (
+            WHERE e.type = 'conversion'
+          ),
+          0
+        )::numeric AS revenue
+
+      FROM campaigns c
+
+      JOIN users u
+        ON u.id = c.user_id
+
+      JOIN qr_campaigns qc
+        ON qc.campaign_id = c.id
+
+      JOIN qr_codes qr
+        ON qr.id = qc.qr_id
+
+      JOIN spaces s
+        ON s.id = qr.space_id
+
+      LEFT JOIN events e
+        ON e.qr_id = qr.id
+        ${topAdvertiserDateSql}
+
+      WHERE
+        s.organization_id = $1
+
+        AND s.id =
+          ANY($2::int[])
+
+        AND (
+          $3::int IS NULL
+          OR s.id = $3::int
+        )
+
+        AND COALESCE(
+          c.is_archived,
+          false
+        ) = false
+
+      GROUP BY
+        COALESCE(
+          NULLIF(
+            TRIM(u.company),
+            ''
+          ),
+          NULLIF(
+            TRIM(u.name),
+            ''
+          ),
+          u.email,
+          'Unknown Advertiser'
+        )
+
+      ORDER BY
+        revenue DESC,
+        conversions DESC,
+        intent DESC
+
+      LIMIT 5
+    `,
+    topAdvertiserValues
+  );
+
+const topAdvertisers =
+  topAdvertisersResult.rows.map(
+    advertiser => ({
+      name:
+        advertiser.advertiser_name || "",
+
+      key:
+        String(
+          advertiser.advertiser_name || ""
+        )
+          .trim()
+          .toLowerCase(),
+
+      scans:
+        Number(advertiser.scans || 0),
+
+      intent:
+        Number(advertiser.intent || 0),
+
+      conversions:
+        Number(
+          advertiser.conversions || 0
+        ),
+
+      revenue:
+        Number(advertiser.revenue || 0)
+    })
+  );
       return res.send(
         orgPage(
           `Performance Insights - ${organization.name}`,
