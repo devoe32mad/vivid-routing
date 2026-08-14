@@ -61032,71 +61032,62 @@ app.get("/admin/ai-insights", requireLogin, async (req, res) => {
     can calculate Advertising Investment correctly.
     =========================================================
     */
+/*
+=========================================================
+CAMPAIGN SCOPE
 
-    const campaignWhere = [
-      `COALESCE(c.is_archived, false) = false`
-    ];
+Match Campaign Reports exactly.
 
-    const campaignParams = [];
+Do not exclude archived campaigns from investment.
+Historical advertising investment remains part of the
+selected reporting period even after a campaign is archived.
+=========================================================
+*/
 
-    if (!isSuperAdmin) {
-      campaignParams.push(currentUser.id);
+const campaignParams =
+  isSuperAdmin
+    ? []
+    : [currentUser.id];
 
-      campaignWhere.push(
-        `c.user_id = $${campaignParams.length}`
-      );
-    }
+const campaignsResult = await q(
+  `
+    SELECT
+      c.id,
+      c.name,
+      c.advertiser,
+      COALESCE(
+        c.is_archived,
+        false
+      ) AS is_archived
 
-    /*
-      When dates are supplied, include campaigns whose
-      operating period overlaps the selected range.
-    */
+    FROM campaigns c
 
-    if (startDate) {
-      campaignParams.push(startDate);
+    WHERE 1 = 1
 
-      campaignWhere.push(`
-        (
-          c.end_date IS NULL
-          OR c.end_date >=
-             $${campaignParams.length}::date
-        )
-      `);
-    }
+      ${
+        isSuperAdmin
+          ? ""
+          : "AND c.user_id = $1"
+      }
 
-    if (endDate) {
-      campaignParams.push(endDate);
+    ORDER BY c.id
+  `,
+  campaignParams
+);
 
-      campaignWhere.push(`
-        COALESCE(
-          c.start_date,
-          c.live_date,
-          c.created_at::date
-        ) <=
-        $${campaignParams.length}::date
-      `);
-    }
+/*
+Active Campaign count is current active campaigns only.
 
-    const campaignsResult = await q(
-      `
-        SELECT
-          c.id,
-          c.name,
-          c.advertiser
+Advertising Investment below will include both active
+and archived campaigns when allocated cost exists in
+the selected reporting period.
+*/
 
-        FROM campaigns c
-
-        WHERE
-          ${campaignWhere.join("\nAND ")}
-
-        ORDER BY c.id
-      `,
-      campaignParams
-    );
-
-    const activeCampaigns =
-      campaignsResult.rows.length;
-
+const activeCampaigns =
+  campaignsResult.rows.filter(
+    campaign =>
+      !campaign.is_archived
+  ).length;
     /*
     =========================================================
     ADVERTISING INVESTMENT
