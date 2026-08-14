@@ -53738,32 +53738,37 @@ SELECT
     THEN 0
 
     ELSE
-      LEAST(
-        CURRENT_DATE,
-        COALESCE(qc.ended_at::date, CURRENT_DATE),
-        COALESCE(qr.end_date::date, CURRENT_DATE),
-        COALESCE(c.end_date::date, CURRENT_DATE)
+  GREATEST(
+    0,
+    LEAST(
+      CURRENT_DATE,
+      COALESCE(qc.ended_at::date, CURRENT_DATE),
+      COALESCE(qr.end_date::date, CURRENT_DATE),
+      COALESCE(c.end_date::date, CURRENT_DATE)
+    )
+    -
+    GREATEST(
+      COALESCE(
+        DATE(qc.started_at),
+        DATE(qc.assigned_at),
+        CURRENT_DATE
+      ),
+      COALESCE(
+        qr.live_date::date,
+        CURRENT_DATE
+      ),
+      COALESCE(
+        c.start_date::date,
+        c.live_date::date,
+        qr.live_date::date,
+        CURRENT_DATE
       )
-      -
-      GREATEST(
-        COALESCE(
-          DATE(qc.started_at),
-          DATE(qc.assigned_at),
-          CURRENT_DATE
-        ),
-        COALESCE(
-          qr.live_date::date,
-          CURRENT_DATE
-        ),
-        COALESCE(
-          c.start_date::date,
-          c.live_date::date,
-          qr.live_date::date,
-          CURRENT_DATE
-        )
-      )
-      + 1
-  END AS assignment_days,
+    )
+    + 1
+  )
+END AS assignment_days,
+    
+      
 
   ROUND(
     (
@@ -53903,33 +53908,36 @@ SELECT
       )
     THEN 0
 
-    ELSE
-      LEAST(
-        CURRENT_DATE,
-        COALESCE(qc.ended_at::date, CURRENT_DATE),
-        COALESCE(qr.end_date::date, CURRENT_DATE),
-        COALESCE(c.end_date::date, CURRENT_DATE)
+ ELSE
+  GREATEST(
+    0,
+    LEAST(
+      CURRENT_DATE,
+      COALESCE(qc.ended_at::date, CURRENT_DATE),
+      COALESCE(qr.end_date::date, CURRENT_DATE),
+      COALESCE(c.end_date::date, CURRENT_DATE)
+    )
+    -
+    GREATEST(
+      COALESCE(
+        DATE(qc.started_at),
+        DATE(qc.assigned_at),
+        CURRENT_DATE
+      ),
+      COALESCE(
+        qr.live_date::date,
+        CURRENT_DATE
+      ),
+      COALESCE(
+        c.start_date::date,
+        c.live_date::date,
+        qr.live_date::date,
+        CURRENT_DATE
       )
-      -
-      GREATEST(
-        COALESCE(
-          DATE(qc.started_at),
-          DATE(qc.assigned_at),
-          CURRENT_DATE
-        ),
-        COALESCE(
-          qr.live_date::date,
-          CURRENT_DATE
-        ),
-        COALESCE(
-          c.start_date::date,
-          c.live_date::date,
-          qr.live_date::date,
-          CURRENT_DATE
-        )
-      )
-      + 1
-  END AS assignment_days,
+    )
+    + 1
+  )
+END AS assignment_days,
 
   ROUND(
     (
