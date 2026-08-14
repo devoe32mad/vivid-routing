@@ -52188,8 +52188,6 @@ ${isSuperAdmin ? `
 <a
   class="btn secondary"
   href="/help"
-  target="_blank"
-  rel="noopener noreferrer"
 >
   Help Center
 </a>
