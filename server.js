@@ -61874,7 +61874,8 @@ const rankedLocations =
 
 const bestLocation =
   rankedLocations[0] || null;
-
+const topFiveLocations =
+  rankedLocations.slice(0, 5);
 
 /*
 Keep current HTML working temporarily.
