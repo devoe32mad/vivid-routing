@@ -60894,12 +60894,11 @@ app.get("/admin/ai-insights", requireLogin, async (req, res) => {
     const isSuperAdmin =
       currentUser.role === "super_admin";
 
-    const startDate =
-      String(req.query.startDate || "").trim();
+ const startDate =
+  String(req.query.startDate || "").trim() || null;
 
-    const endDate =
-      String(req.query.endDate || "").trim();
-
+const endDate =
+  String(req.query.endDate || "").trim() || null;
     /*
     =========================================================
     PERFORMANCE INSIGHTS
