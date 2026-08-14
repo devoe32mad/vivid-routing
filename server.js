@@ -53511,8 +53511,6 @@ app.get(
 );
 
 
-          `
-
 app.get("/my-setup", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
