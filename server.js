@@ -425,7 +425,12 @@ function page(title, body) {
 <a href="/admin/reports" style="color:white;text-decoration:none;">
   Export Center
 </a>
-<a href="/help" style="color:white;text-decoration:none;">
+<a
+  href="/help"
+  target="_blank"
+  rel="noopener noreferrer"
+  style="color:white;text-decoration:none;"
+>
   Help
 </a>
 
