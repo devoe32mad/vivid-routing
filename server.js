@@ -61183,202 +61183,738 @@ const activeCampaigns =
     =========================================================
     */
 
-    const topCampaign = await q(
-      `
-        SELECT
-          c.id,
-          c.name,
-          c.advertiser,
-          COUNT(e.id)::int
-            AS total_events
+   /*
+=========================================================
+PERFORMANCE SUMMARY
 
-        FROM campaigns c
+Use existing Vivid data and allocation functions.
 
-        LEFT JOIN events e
-          ON e.campaign_id = c.id
+Executive ranking priorities:
 
-        ${
-          startDate
-            ? `AND e.created_at::date >= '${startDate}'::date`
-            : ""
+1. Revenue
+2. Conversions
+3. ROI
+4. Intent
+
+Attention ranking prioritizes campaigns with real
+advertising investment but weak business outcomes.
+=========================================================
+*/
+
+
+/*
+=========================================================
+CAMPAIGN PERFORMANCE
+=========================================================
+*/
+
+const campaignPerformance = [];
+
+for (const campaign of campaignsResult.rows) {
+
+  /*
+    Only current campaigns should compete for
+    Top Performer / Needs Attention.
+  */
+
+  if (campaign.is_archived) {
+    continue;
+  }
+
+  const values = [
+    Number(campaign.id)
+  ];
+
+  const eventWhere = [
+    `e.campaign_id = $1`
+  ];
+
+  if (startDate) {
+    values.push(startDate);
+
+    eventWhere.push(
+      `e.created_at::date >= $${values.length}::date`
+    );
+  }
+
+  if (endDate) {
+    values.push(endDate);
+
+    eventWhere.push(
+      `e.created_at::date <= $${values.length}::date`
+    );
+  }
+
+  const metricsResult = await q(
+    `
+      SELECT
+
+        COUNT(e.id) FILTER (
+          WHERE e.type = 'scan'
+        )::int AS scans,
+
+        COUNT(e.id) FILTER (
+          WHERE e.type IN (
+            'offer',
+            'maps',
+            'waze'
+          )
+        )::int AS intent,
+
+        COUNT(e.id) FILTER (
+          WHERE e.type = 'conversion'
+        )::int AS conversions,
+
+        COALESCE(
+          SUM(e.value) FILTER (
+            WHERE e.type = 'conversion'
+          ),
+          0
+        )::numeric AS revenue
+
+      FROM events e
+
+      WHERE
+        ${eventWhere.join("\nAND ")}
+    `,
+    values
+  );
+
+  const row =
+    metricsResult.rows[0] || {};
+
+  const campaignScans =
+    Number(row.scans || 0);
+
+  const campaignIntent =
+    Number(row.intent || 0);
+
+  const campaignConversions =
+    Number(row.conversions || 0);
+
+  const campaignRevenue =
+    Number(row.revenue || 0);
+
+  const allocatedCost =
+    await allocatedSpotCostForCampaign(
+      Number(campaign.id),
+      startDate,
+      endDate
+    );
+
+  const campaignCost =
+    Number(allocatedCost || 0);
+
+  const campaignRoi =
+    campaignCost > 0
+      ? (
+          (
+            campaignRevenue -
+            campaignCost
+          ) /
+          campaignCost
+        ) * 100
+      : 0;
+
+  const campaignCac =
+    campaignConversions > 0
+      ? campaignCost /
+        campaignConversions
+      : 0;
+
+  const campaignIntentRate =
+    campaignScans > 0
+      ? (
+          campaignIntent /
+          campaignScans
+        ) * 100
+      : 0;
+
+  campaignPerformance.push({
+
+    id:
+      Number(campaign.id),
+
+    name:
+      campaign.name || "",
+
+    advertiser:
+      campaign.advertiser || "",
+
+    scans:
+      campaignScans,
+
+    intent:
+      campaignIntent,
+
+    conversions:
+      campaignConversions,
+
+    revenue:
+      campaignRevenue,
+
+    allocatedCost:
+      campaignCost,
+
+    roi:
+      campaignRoi,
+
+    cac:
+      campaignCac,
+
+    intentRate:
+      campaignIntentRate
+
+  });
+}
+
+
+/*
+=========================================================
+TOP CAMPAIGN
+
+Business result first.
+
+Revenue
+→ Conversions
+→ ROI
+→ Intent
+=========================================================
+*/
+
+const rankedCampaigns =
+  [...campaignPerformance]
+    .sort((a, b) => {
+
+      if (b.revenue !== a.revenue) {
+        return b.revenue - a.revenue;
+      }
+
+      if (
+        b.conversions !==
+        a.conversions
+      ) {
+        return (
+          b.conversions -
+          a.conversions
+        );
+      }
+
+      if (b.roi !== a.roi) {
+        return b.roi - a.roi;
+      }
+
+      return b.intent - a.intent;
+
+    });
+
+const bestCampaign =
+  rankedCampaigns[0] || null;
+
+
+/*
+Keep the existing page structure working.
+
+We will redesign the HTML cards next.
+*/
+
+const topCampaign = {
+  rows: bestCampaign
+    ? [
+        {
+          id:
+            bestCampaign.id,
+
+          name:
+            bestCampaign.name,
+
+          advertiser:
+            bestCampaign.advertiser,
+
+          total_events:
+            bestCampaign.scans +
+            bestCampaign.intent +
+            bestCampaign.conversions,
+
+          scans:
+            bestCampaign.scans,
+
+          intent:
+            bestCampaign.intent,
+
+          conversions:
+            bestCampaign.conversions,
+
+          revenue:
+            bestCampaign.revenue,
+
+          allocated_cost:
+            bestCampaign.allocatedCost,
+
+          roi:
+            bestCampaign.roi,
+
+          cac:
+            bestCampaign.cac
         }
+      ]
+    : []
+};
 
-        ${
+
+/*
+=========================================================
+CAMPAIGN NEEDING ATTENTION
+
+Only consider campaigns with meaningful investment.
+
+Priority:
+
+1. Money invested with no conversions
+2. Lowest ROI
+3. Low activity
+=========================================================
+*/
+
+const attentionCandidates =
+  campaignPerformance
+    .filter(
+      campaign =>
+        campaign.allocatedCost > 0
+    )
+    .sort((a, b) => {
+
+      /*
+        Campaign with zero conversions gets
+        attention before one producing customers.
+      */
+
+      if (
+        a.conversions === 0 &&
+        b.conversions > 0
+      ) {
+        return -1;
+      }
+
+      if (
+        b.conversions === 0 &&
+        a.conversions > 0
+      ) {
+        return 1;
+      }
+
+      if (a.roi !== b.roi) {
+        return a.roi - b.roi;
+      }
+
+      return a.intent - b.intent;
+
+    });
+
+const attentionCampaign =
+  attentionCandidates[0] || null;
+
+
+/*
+Generate a real explanation.
+*/
+
+let attentionReason =
+  "No significant performance issue detected.";
+
+if (attentionCampaign) {
+
+  if (
+    attentionCampaign.allocatedCost > 0 &&
+    attentionCampaign.conversions === 0 &&
+    attentionCampaign.intent > 0
+  ) {
+
+    attentionReason =
+      `${attentionCampaign.intent} intent action${
+        attentionCampaign.intent === 1
+          ? ""
+          : "s"
+      } but no tracked conversions.`;
+
+  } else if (
+    attentionCampaign.allocatedCost > 0 &&
+    attentionCampaign.conversions === 0
+  ) {
+
+    attentionReason =
+      `${money(
+        attentionCampaign.allocatedCost
+      )} invested with no tracked conversions.`;
+
+  } else if (
+    attentionCampaign.roi < 0
+  ) {
+
+    attentionReason =
+      `ROI is ${pct(
+        attentionCampaign.roi
+      )} for the selected period.`;
+
+  } else {
+
+    attentionReason =
+      "Performance is below the other active campaigns.";
+
+  }
+
+}
+
+
+const lowCampaign = {
+  rows: attentionCampaign
+    ? [
+        {
+          id:
+            attentionCampaign.id,
+
+          name:
+            attentionCampaign.name,
+
+          advertiser:
+            attentionCampaign.advertiser,
+
+          total_events:
+            attentionCampaign.scans +
+            attentionCampaign.intent +
+            attentionCampaign.conversions,
+
+          scans:
+            attentionCampaign.scans,
+
+          intent:
+            attentionCampaign.intent,
+
+          conversions:
+            attentionCampaign.conversions,
+
+          revenue:
+            attentionCampaign.revenue,
+
+          allocated_cost:
+            attentionCampaign.allocatedCost,
+
+          roi:
+            attentionCampaign.roi,
+
+          reason:
+            attentionReason
+        }
+      ]
+    : []
+};
+
+
+/*
+=========================================================
+TOP LOCATION
+
+Use actual Vivid Locations / Spaces.
+
+Location is ranked by:
+
+Revenue
+→ Conversions
+→ ROI
+→ Intent
+=========================================================
+*/
+
+const locationParams =
+  isSuperAdmin
+    ? [null]
+    : [currentUser.id];
+
+const locationResult = await q(
+  `
+    SELECT DISTINCT
+      s.id,
+      s.name,
+      s.location
+
+    FROM spaces s
+
+    LEFT JOIN qr_codes qr
+      ON qr.space_id = s.id
+
+    LEFT JOIN qr_campaigns qc
+      ON qc.qr_id = qr.id
+
+    LEFT JOIN campaigns c
+      ON c.id = qc.campaign_id
+
+    WHERE
+      (
+        $1::int IS NULL
+
+        OR s.user_id = $1
+
+        OR c.user_id = $1
+      )
+
+      AND COALESCE(
+        s.is_archived,
+        false
+      ) = false
+
+    ORDER BY s.id
+  `,
+  locationParams
+);
+
+
+const locationPerformance = [];
+
+for (
+  const location
+  of locationResult.rows
+) {
+
+  const values = [
+    Number(location.id)
+  ];
+
+  let dateConditions = "";
+
+  if (startDate) {
+    values.push(startDate);
+
+    dateConditions += `
+      AND e.created_at::date >=
+          $${values.length}::date
+    `;
+  }
+
+  if (endDate) {
+    values.push(endDate);
+
+    dateConditions += `
+      AND e.created_at::date <=
+          $${values.length}::date
+    `;
+  }
+
+  const metricsResult = await q(
+    `
+      SELECT
+
+        COUNT(e.id) FILTER (
+          WHERE e.type = 'scan'
+        )::int AS scans,
+
+        COUNT(e.id) FILTER (
+          WHERE e.type IN (
+            'offer',
+            'maps',
+            'waze'
+          )
+        )::int AS intent,
+
+        COUNT(e.id) FILTER (
+          WHERE e.type = 'conversion'
+        )::int AS conversions,
+
+        COALESCE(
+          SUM(e.value) FILTER (
+            WHERE e.type = 'conversion'
+          ),
+          0
+        )::numeric AS revenue
+
+      FROM qr_codes qr
+
+      LEFT JOIN events e
+        ON e.qr_id = qr.id
+
+        ${dateConditions}
+
+      WHERE qr.space_id = $1
+    `,
+    values
+  );
+
+  const metric =
+    metricsResult.rows[0] || {};
+
+  const locationScans =
+    Number(metric.scans || 0);
+
+  const locationIntent =
+    Number(metric.intent || 0);
+
+  const locationConversions =
+    Number(metric.conversions || 0);
+
+  const locationRevenue =
+    Number(metric.revenue || 0);
+
+
+  /*
+    Reuse existing QR allocation logic
+    for location investment.
+  */
+
+  const qrsResult = await q(
+    `
+      SELECT id
+
+      FROM qr_codes
+
+      WHERE space_id = $1
+    `,
+    [
+      Number(location.id)
+    ]
+  );
+
+  let locationCost = 0;
+
+  for (
+    const qr
+    of qrsResult.rows
+  ) {
+
+    locationCost +=
+      Number(
+        await allocatedSpotCostForQr(
+          Number(qr.id),
+          startDate,
           endDate
-            ? `AND e.created_at::date <= '${endDate}'::date`
-            : ""
+        ) || 0
+      );
+
+  }
+
+
+  const locationRoi =
+    locationCost > 0
+      ? (
+          (
+            locationRevenue -
+            locationCost
+          ) /
+          locationCost
+        ) * 100
+      : 0;
+
+
+  locationPerformance.push({
+
+    id:
+      Number(location.id),
+
+    name:
+      location.name || "",
+
+    market:
+      location.location || "",
+
+    scans:
+      locationScans,
+
+    intent:
+      locationIntent,
+
+    conversions:
+      locationConversions,
+
+    revenue:
+      locationRevenue,
+
+    allocatedCost:
+      locationCost,
+
+    roi:
+      locationRoi
+
+  });
+
+}
+
+
+const rankedLocations =
+  [...locationPerformance]
+    .sort((a, b) => {
+
+      if (b.revenue !== a.revenue) {
+        return b.revenue - a.revenue;
+      }
+
+      if (
+        b.conversions !==
+        a.conversions
+      ) {
+        return (
+          b.conversions -
+          a.conversions
+        );
+      }
+
+      if (b.roi !== a.roi) {
+        return b.roi - a.roi;
+      }
+
+      return b.intent - a.intent;
+
+    });
+
+
+const bestLocation =
+  rankedLocations[0] || null;
+
+
+/*
+Keep current HTML working temporarily.
+
+The old variable was called topStore.
+We preserve that name until the cards
+are redesigned in the next step.
+*/
+
+const topStore = {
+  rows: bestLocation
+    ? [
+        {
+          id:
+            bestLocation.id,
+
+          name:
+            bestLocation.name,
+
+          market:
+            bestLocation.market,
+
+          total_events:
+            bestLocation.scans +
+            bestLocation.intent +
+            bestLocation.conversions,
+
+          scans:
+            bestLocation.scans,
+
+          intent:
+            bestLocation.intent,
+
+          conversions:
+            bestLocation.conversions,
+
+          revenue:
+            bestLocation.revenue,
+
+          allocated_cost:
+            bestLocation.allocatedCost,
+
+          roi:
+            bestLocation.roi
         }
-
-        WHERE
-          COALESCE(
-            c.is_archived,
-            false
-          ) = false
-
-          ${
-            !isSuperAdmin
-              ? `AND c.user_id = $1`
-              : ""
-          }
-
-        GROUP BY
-          c.id,
-          c.name,
-          c.advertiser
-
-        ORDER BY
-          total_events DESC,
-          c.id
-
-        LIMIT 1
-      `,
-      isSuperAdmin
-        ? []
-        : [currentUser.id]
-    );
-
-    const topStoreParams = [];
-    const topStoreWhere = [
-      `st.name IS NOT NULL`
-    ];
-
-    if (!isSuperAdmin) {
-      topStoreParams.push(
-        currentUser.id
-      );
-
-      topStoreWhere.push(
-        `c.user_id = $${topStoreParams.length}`
-      );
-    }
-
-    if (startDate) {
-      topStoreParams.push(
-        startDate
-      );
-
-      topStoreWhere.push(
-        `e.created_at::date >= $${topStoreParams.length}::date`
-      );
-    }
-
-    if (endDate) {
-      topStoreParams.push(
-        endDate
-      );
-
-      topStoreWhere.push(
-        `e.created_at::date <= $${topStoreParams.length}::date`
-      );
-    }
-
-    const topStore = await q(
-      `
-        SELECT
-          st.name,
-          COUNT(e.id)::int
-            AS total_events
-
-        FROM events e
-
-        LEFT JOIN campaigns c
-          ON c.id = e.campaign_id
-
-        LEFT JOIN stores st
-          ON st.id = e.store_id
-
-        WHERE
-          ${topStoreWhere.join("\nAND ")}
-
-        GROUP BY st.name
-
-        ORDER BY
-          total_events DESC
-
-        LIMIT 1
-      `,
-      topStoreParams
-    );
-
-    const lowCampaignParams = [];
-    const lowCampaignWhere = [
-      `COALESCE(c.is_archived, false) = false`,
-      `c.name IS NOT NULL`
-    ];
-
-    if (!isSuperAdmin) {
-      lowCampaignParams.push(
-        currentUser.id
-      );
-
-      lowCampaignWhere.push(
-        `c.user_id = $${lowCampaignParams.length}`
-      );
-    }
-
-    if (startDate) {
-      lowCampaignParams.push(
-        startDate
-      );
-    }
-
-    if (endDate) {
-      lowCampaignParams.push(
-        endDate
-      );
-    }
-
-    const lowCampaign = await q(
-      `
-        SELECT
-          c.id,
-          c.name,
-
-          COUNT(e.id)::int
-            AS total_events
-
-        FROM campaigns c
-
-        LEFT JOIN events e
-          ON e.campaign_id = c.id
-
-          ${
-            startDate
-              ? `
-                AND e.created_at::date >=
-                    $${!isSuperAdmin ? 2 : 1}::date
-              `
-              : ""
-          }
-
-          ${
-            endDate
-              ? `
-                AND e.created_at::date <=
-                    $${
-                      (!isSuperAdmin ? 1 : 0) +
-                      (startDate ? 1 : 0) +
-                      1
-                    }::date
-              `
-              : ""
-          }
-
-        WHERE
-          ${lowCampaignWhere.join("\nAND ")}
-
-        GROUP BY
-          c.id,
-          c.name
-
-        ORDER BY
-          total_events ASC,
-          c.id
-
-        LIMIT 1
-      `,
-      lowCampaignParams
-    );
+      ]
+    : []
+};
 
     /*
     =========================================================
