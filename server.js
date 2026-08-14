@@ -62984,153 +62984,150 @@ const bestPlacement =
        NEEDS ATTENTION
   ========================================== -->
 
+  <div class="card">
+
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:8px;
+  ">
+
+    <h3 style="margin:0;">
+      ⚠️ Campaigns Needing Attention
+    </h3>
+
+    <a
+      href="/reports"
+      style="
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+      "
+    >
+      View All →
+    </a>
+
+  </div>
+
+  <p style="
+    color:#65776b;
+    font-size:13px;
+    margin-top:6px;
+    margin-bottom:14px;
+  ">
+    Ranked by investment with weak measurable results
+  </p>
+
   ${
-    attentionCampaign
-      ? `
-        <a
-          href="/admin/edit-campaign/${attentionCampaign.id}"
-          style="
-            display:block;
-            text-decoration:none;
-            color:inherit;
-          "
-        >
+    topFiveAttentionCampaigns.length
+      ? topFiveAttentionCampaigns
+          .map(
+            (campaign, index) => `
 
-          <div
-            class="card"
-            style="
-              height:100%;
-              box-sizing:border-box;
-              cursor:pointer;
-            "
-          >
+              <a
+                href="/admin/edit-campaign/${campaign.id}"
+                style="
+                  display:grid;
+                  grid-template-columns:34px 1fr auto;
+                  gap:10px;
+                  align-items:center;
+                  padding:12px 0;
+                  border-bottom:${
+                    index <
+                    topFiveAttentionCampaigns.length - 1
+                      ? "1px solid #f1dddd"
+                      : "none"
+                  };
+                  color:inherit;
+                  text-decoration:none;
+                "
+              >
 
-            <h3 style="
-              margin-top:0;
-              color:#073b22;
-            ">
-              ⚠️ Needs Attention
-            </h3>
-
-            <div style="
-              font-size:20px;
-              font-weight:bold;
-              color:#073b22;
-              margin-bottom:4px;
-            ">
-              ${attentionCampaign.name}
-            </div>
-
-            <div style="
-              color:#65776b;
-              margin-bottom:18px;
-            ">
-              ${attentionCampaign.advertiser}
-            </div>
-
-
-            <div style="
-              display:grid;
-              grid-template-columns:
-                repeat(2,minmax(0,1fr));
-              gap:14px;
-            ">
-
-              <div>
-                <div class="label">
-                  Investment
+                <div style="
+                  width:26px;
+                  height:26px;
+                  border-radius:50%;
+                  background:#fde8e8;
+                  color:#991b1b;
+                  display:flex;
+                  align-items:center;
+                  justify-content:center;
+                  font-weight:bold;
+                ">
+                  ${index + 1}
                 </div>
 
-                <strong>
-                  ${money(
-                    attentionCampaign.allocatedCost
-                  )}
-                </strong>
-              </div>
+                <div>
 
-              <div>
-                <div class="label">
-                  Revenue
+                  <div style="
+                    font-weight:bold;
+                  ">
+                    ${
+                      campaign.name ||
+                      "Unnamed Campaign"
+                    }
+                  </div>
+
+                  <div style="
+                    color:#65776b;
+                    font-size:13px;
+                    margin-top:3px;
+                  ">
+                    ${campaign.advertiser || ""}
+                  </div>
+
                 </div>
 
-                <strong>
-                  ${money(
-                    attentionCampaign.revenue
-                  )}
-                </strong>
-              </div>
+                <div style="
+                  text-align:right;
+                  font-size:13px;
+                  white-space:nowrap;
+                ">
 
-              <div>
-                <div class="label">
-                  Conversions
+                  <div>
+                    <strong>
+                      ${money(
+                        campaign.allocatedCost || 0
+                      )}
+                    </strong>
+                    Investment
+                  </div>
+
+                  <div style="
+                    color:#991b1b;
+                    margin-top:3px;
+                  ">
+                    ${money(
+                      campaign.revenue || 0
+                    )}
+                    Revenue ·
+                    ${
+                      campaign.allocatedCost > 0
+                        ? pct(campaign.roi)
+                        : "N/A"
+                    }
+                    ROI
+                  </div>
+
                 </div>
 
-                <strong>
-                  ${attentionCampaign.conversions}
-                </strong>
-              </div>
+              </a>
 
-              <div>
-                <div class="label">
-                  ROI
-                </div>
-
-                <strong>
-                  ${pct(attentionCampaign.roi)}
-                </strong>
-              </div>
-
-            </div>
-
-
-            <div style="
-              margin-top:18px;
-              padding:14px;
-              background:#fff7ed;
-              border-radius:10px;
-              color:#7c2d12;
-              line-height:1.5;
-            ">
-
-              <strong>
-                Why it needs attention:
-              </strong>
-
-              <div style="margin-top:4px;">
-                ${attentionReason}
-              </div>
-
-            </div>
-
-
-            <div style="
-              margin-top:18px;
-              color:#176b3a;
-              font-weight:bold;
-            ">
-              Review Campaign →
-            </div>
-
-          </div>
-
-        </a>
-      `
+            `
+          )
+          .join("")
       : `
-        <div class="card">
-
-          <h3>
-            ✅ No Immediate Issue Detected
-          </h3>
-
           <p>
-            Vivid does not currently have enough
-            evidence to identify a campaign
-            requiring attention.
+            No campaign currently requires
+            performance attention.
           </p>
-
-        </div>
-      `
+        `
   }
+
+</div>
+       
 
 </div>
 
