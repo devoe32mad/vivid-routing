@@ -194,17 +194,13 @@ async function processRenewalNotifications() {
             c.end_date
           ) IS NOT NULL
 
-          AND (
-            COALESCE(
-              c.renewal_date,
-              c.expiration_date,
-              c.end_date
-            ) - CURRENT_DATE
-          ) IN (
-            90,
-            60,
-            30
-          )
+         AND (
+  COALESCE(
+    c.renewal_date,
+    c.expiration_date,
+    c.end_date
+  ) - CURRENT_DATE
+) BETWEEN 0 AND 90
 
           /*
           Do not notify once the next renewal
@@ -252,18 +248,23 @@ async function processRenewalNotifications() {
       of contractsResult.rows
     ) {
 
-      const reminderDays =
-        Number(
-          contract.days_until_renewal
-        );
+      const actualDays =
+  Number(
+    contract.days_until_renewal
+  );
 
+const reminderDays =
+  actualDays <= 30
+    ? 30
+    : actualDays <= 60
+      ? 60
+      : actualDays <= 90
+        ? 90
+        : null;
 
-      if (
-        ![90, 60, 30]
-          .includes(reminderDays)
-      ) {
-        continue;
-      }
+if (!reminderDays) {
+  continue;
+}
 
 
       const activityType =
