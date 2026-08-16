@@ -708,8 +708,8 @@ app.get(
       so nobody else receives the test.
       */
 
-      const testEmail =
-        req.session.user.email;
+     const testEmail =
+  "mike@vividspots.com";
 
 
       if (!testEmail) {
