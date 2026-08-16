@@ -977,6 +977,409 @@ async function createAndSendPasswordReset({
     resetUrl
   };
 }
+/*
+=========================================================
+TEST REAL CONTRACT RENEWAL EMAIL
+SUPER ADMIN ONLY
+
+Uses real contract data.
+Forces a 90-day reminder format.
+Sends ONLY to mike@vividspots.com.
+Does NOT log the reminder as sent.
+Does NOT notify organization users.
+=========================================================
+*/
+
+app.get(
+  "/admin/test-renewal-contract/:contractId",
+  async (req, res) => {
+    try {
+
+      if (
+        !req.session.user ||
+        req.session.user.role !== "super_admin"
+      ) {
+        return res
+          .status(403)
+          .send("Access denied.");
+      }
+
+
+      const contractId =
+        Number(req.params.contractId);
+
+
+      if (
+        !Number.isInteger(contractId) ||
+        contractId <= 0
+      ) {
+        return res
+          .status(400)
+          .send("Valid contract required.");
+      }
+
+
+      const contractResult =
+        await q(
+          `
+            SELECT
+              c.id,
+              c.organization_id,
+              c.location_id,
+              c.contract_name,
+              c.total_contract_value,
+              c.renewal_date,
+              c.expiration_date,
+              c.end_date,
+
+              o.name
+                AS organization_name,
+
+              s.name
+                AS location_name,
+
+              COALESCE(
+                ar.business_name,
+                u.name,
+                u.email,
+                'Unknown Advertiser'
+              ) AS advertiser_name,
+
+              COALESCE(
+                oo.title,
+                ar.opportunity_name,
+                c.contract_name
+              ) AS opportunity_name
+
+            FROM contracts c
+
+            JOIN organizations o
+              ON o.id = c.organization_id
+
+            LEFT JOIN spaces s
+              ON s.id = c.location_id
+
+            LEFT JOIN organization_advertising_requests ar
+              ON ar.id = c.advertising_request_id
+             AND ar.organization_id =
+                 c.organization_id
+
+            LEFT JOIN organization_opportunities oo
+              ON oo.id = c.opportunity_id
+             AND oo.organization_id =
+                 c.organization_id
+
+            LEFT JOIN users u
+              ON u.id = c.customer_id
+
+            WHERE
+              c.id = $1
+
+            LIMIT 1
+          `,
+          [contractId]
+        );
+
+
+      const contract =
+        contractResult.rows[0];
+
+
+      if (!contract) {
+        return res
+          .status(404)
+          .send("Contract not found.");
+      }
+
+
+      const testEmail =
+        "mike@vividspots.com";
+
+
+      const reminderDays = 90;
+
+
+      const renewalDate =
+        contract.renewal_date ||
+        contract.expiration_date ||
+        contract.end_date;
+
+
+      const renewalDateLabel =
+        renewalDate
+          ? new Date(
+              renewalDate
+            ).toLocaleDateString(
+              "en-US",
+              {
+                month: "long",
+                day: "numeric",
+                year: "numeric"
+              }
+            )
+          : "Not set";
+
+
+      const subject =
+        `TEST — ${reminderDays}-Day Renewal Reminder: ` +
+        `${contract.advertiser_name}`;
+
+
+      const contractUrl =
+        `${BASE_URL}/org-contract/${contract.id}` +
+        `?organization_id=${contract.organization_id}`;
+
+
+      const html = `
+        <div style="
+          font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+          line-height:1.6;
+          color:#173f2a;
+        ">
+
+          <h2 style="
+            color:#073b22;
+            margin-bottom:6px;
+          ">
+            Advertising Contract Renewal
+          </h2>
+
+          <p>
+            An advertising contract for
+            <strong>
+              ${escapeHtml(
+                contract.advertiser_name
+              )}
+            </strong>
+            is approaching its renewal date.
+          </p>
+
+          <table style="
+            border-collapse:collapse;
+            margin:20px 0;
+          ">
+
+            <tr>
+              <td style="
+                padding:6px 18px 6px 0;
+                color:#65776b;
+              ">
+                Organization
+              </td>
+
+              <td>
+                <strong>
+                  ${escapeHtml(
+                    contract.organization_name
+                  )}
+                </strong>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="
+                padding:6px 18px 6px 0;
+                color:#65776b;
+              ">
+                Advertiser
+              </td>
+
+              <td>
+                <strong>
+                  ${escapeHtml(
+                    contract.advertiser_name
+                  )}
+                </strong>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="
+                padding:6px 18px 6px 0;
+                color:#65776b;
+              ">
+                Location
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  contract.location_name || "—"
+                )}
+              </td>
+            </tr>
+
+            <tr>
+              <td style="
+                padding:6px 18px 6px 0;
+                color:#65776b;
+              ">
+                Advertising Opportunity
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  contract.opportunity_name || "—"
+                )}
+              </td>
+            </tr>
+
+            <tr>
+              <td style="
+                padding:6px 18px 6px 0;
+                color:#65776b;
+              ">
+                Contract Value
+              </td>
+
+              <td>
+                <strong>
+                  $${Number(
+                    contract.total_contract_value || 0
+                  ).toLocaleString(
+                    "en-US",
+                    {
+                      minimumFractionDigits:2,
+                      maximumFractionDigits:2
+                    }
+                  )}
+                </strong>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="
+                padding:6px 18px 6px 0;
+                color:#65776b;
+              ">
+                Renewal Date
+              </td>
+
+              <td>
+                <strong>
+                  ${escapeHtml(
+                    renewalDateLabel
+                  )}
+                </strong>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="
+                padding:6px 18px 6px 0;
+                color:#65776b;
+              ">
+                Reminder
+              </td>
+
+              <td>
+                <strong>
+                  ${reminderDays} Days
+                </strong>
+              </td>
+            </tr>
+
+          </table>
+
+          <p>
+            <a
+              href="${contractUrl}"
+              style="
+                display:inline-block;
+                background:#176b3a;
+                color:white;
+                text-decoration:none;
+                padding:12px 18px;
+                border-radius:8px;
+                font-weight:bold;
+              "
+            >
+              Review Contract
+            </a>
+          </p>
+
+          <p style="
+            margin-top:24px;
+            color:#65776b;
+            font-size:13px;
+          ">
+            TEST ONLY — no renewal notification
+            was recorded for this contract.
+          </p>
+
+        </div>
+      `;
+
+
+      const sent =
+        await sendOrganizationNotification({
+          to:
+            testEmail,
+
+          subject,
+
+          html,
+
+          senderName:
+            `${contract.organization_name} via Vivid`
+        });
+
+
+      if (!sent) {
+        return res
+          .status(500)
+          .send(
+            "Real contract test email failed."
+          );
+      }
+
+
+      return res.send(`
+        <h2>
+          Real Contract Renewal Test Successful
+        </h2>
+
+        <p>
+          Contract:
+          <strong>
+            ${escapeHtml(
+              contract.advertiser_name
+            )}
+          </strong>
+        </p>
+
+        <p>
+          Test email sent to:
+          <strong>
+            ${escapeHtml(testEmail)}
+          </strong>
+        </p>
+
+        <p>
+          No renewal reminder was recorded.
+        </p>
+      `);
+
+
+    } catch (err) {
+
+      console.error(
+        "TEST REAL RENEWAL EMAIL ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to send real contract renewal test: " +
+          err.message
+        );
+
+    }
+  }
+);
 async function q(sql, params = []) {
   return pool.query(sql, params);
 }
