@@ -989,7 +989,77 @@ Does NOT log the reminder as sent.
 Does NOT notify organization users.
 =========================================================
 */
+/*
+=========================================================
+PRODUCTION RENEWAL NOTIFICATION JOB
+=========================================================
 
+Called once daily by Railway.
+
+Security:
+Requires RENEWAL_JOB_SECRET.
+
+The actual renewal logic remains centralized in:
+processRenewalNotifications()
+=========================================================
+*/
+
+app.get(
+  "/internal/process-renewal-notifications",
+  async (req, res) => {
+    try {
+
+      const suppliedSecret =
+        String(
+          req.query.secret || ""
+        );
+
+      const expectedSecret =
+        String(
+          process.env.RENEWAL_JOB_SECRET || ""
+        );
+
+
+      if (
+        !expectedSecret ||
+        suppliedSecret !== expectedSecret
+      ) {
+        return res
+          .status(403)
+          .send("Access denied.");
+      }
+
+
+      console.log(
+        "DAILY RENEWAL JOB TRIGGERED"
+      );
+
+
+      await processRenewalNotifications();
+
+
+      return res.send(
+        "Renewal notification process completed."
+      );
+
+
+    } catch (err) {
+
+      console.error(
+        "DAILY RENEWAL JOB ERROR:",
+        err
+      );
+
+
+      return res
+        .status(500)
+        .send(
+          "Renewal notification process failed."
+        );
+
+    }
+  }
+);
 app.get(
   "/admin/test-renewal-contract/:contractId",
   async (req, res) => {
