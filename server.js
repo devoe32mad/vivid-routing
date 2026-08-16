@@ -85,6 +85,590 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
+/*
+=========================================================
+RENEWAL EMAIL NOTIFICATIONS
+
+V1:
+- 90 days
+- 60 days
+- 30 days
+
+Reads existing Contract data.
+Uses existing Organization users.
+Logs each sent reminder in contract_activity so the
+same reminder is never sent twice.
+=========================================================
+*/
+
+async function processRenewalNotifications() {
+  try {
+
+    console.log(
+      "RENEWAL NOTIFICATION CHECK STARTED"
+    );
+
+
+    /*
+    =====================================================
+    FIND CONTRACTS THAT HAVE HIT A REMINDER WINDOW
+    =====================================================
+    */
+
+    const contractsResult = await q(
+      `
+        SELECT
+          c.id,
+          c.organization_id,
+          c.location_id,
+          c.contract_name,
+          c.total_contract_value,
+          c.renewal_date,
+          c.expiration_date,
+          c.end_date,
+
+          o.name
+            AS organization_name,
+
+          s.name
+            AS location_name,
+
+          COALESCE(
+            ar.business_name,
+            u.name,
+            u.email,
+            'Unknown Advertiser'
+          ) AS advertiser_name,
+
+          COALESCE(
+            oo.title,
+            ar.opportunity_name,
+            c.contract_name
+          ) AS opportunity_name,
+
+          (
+            COALESCE(
+              c.renewal_date,
+              c.expiration_date,
+              c.end_date
+            ) - CURRENT_DATE
+          )::int AS days_until_renewal
+
+        FROM contracts c
+
+        JOIN organizations o
+          ON o.id = c.organization_id
+
+        LEFT JOIN spaces s
+          ON s.id = c.location_id
+
+        LEFT JOIN organization_advertising_requests ar
+          ON ar.id = c.advertising_request_id
+         AND ar.organization_id =
+             c.organization_id
+
+        LEFT JOIN organization_opportunities oo
+          ON oo.id = c.opportunity_id
+         AND oo.organization_id =
+             c.organization_id
+
+        LEFT JOIN users u
+          ON u.id = c.customer_id
+
+        WHERE
+          LOWER(
+            TRIM(
+              COALESCE(
+                c.status,
+                ''
+              )
+            )
+          ) = 'active'
+
+          AND c.renewed_from_contract_id
+            IS NULL
+
+          AND COALESCE(
+            c.renewal_date,
+            c.expiration_date,
+            c.end_date
+          ) IS NOT NULL
+
+          AND (
+            COALESCE(
+              c.renewal_date,
+              c.expiration_date,
+              c.end_date
+            ) - CURRENT_DATE
+          ) IN (
+            90,
+            60,
+            30
+          )
+
+          /*
+          Do not notify once the next renewal
+          has already been scheduled.
+          */
+
+          AND NOT EXISTS (
+            SELECT 1
+
+            FROM contracts renewal
+
+            WHERE
+              renewal.renewed_from_contract_id =
+                c.id
+
+              AND renewal.organization_id =
+                c.organization_id
+
+              AND LOWER(
+                TRIM(
+                  COALESCE(
+                    renewal.status,
+                    ''
+                  )
+                )
+              ) = 'scheduled'
+          )
+
+        ORDER BY
+          c.organization_id,
+          days_until_renewal,
+          c.id
+      `
+    );
+
+
+    /*
+    =====================================================
+    PROCESS EACH CONTRACT
+    =====================================================
+    */
+
+    for (
+      const contract
+      of contractsResult.rows
+    ) {
+
+      const reminderDays =
+        Number(
+          contract.days_until_renewal
+        );
+
+
+      if (
+        ![90, 60, 30]
+          .includes(reminderDays)
+      ) {
+        continue;
+      }
+
+
+      const activityType =
+        `Renewal Email ${reminderDays} Days`;
+
+
+      /*
+      ===================================================
+      DUPLICATE PROTECTION
+
+      If this reminder was already successfully sent,
+      never send it again.
+      ===================================================
+      */
+
+      const alreadySentResult =
+        await q(
+          `
+            SELECT id
+
+            FROM contract_activity
+
+            WHERE
+              contract_id = $1
+
+              AND organization_id = $2
+
+              AND activity_type = $3
+
+            LIMIT 1
+          `,
+          [
+            contract.id,
+            contract.organization_id,
+            activityType
+          ]
+        );
+
+
+      if (
+        alreadySentResult.rows.length
+      ) {
+        continue;
+      }
+
+
+      /*
+      ===================================================
+      ORGANIZATION RECIPIENTS
+
+      V1 sends renewal alerts to active users
+      belonging to the Organization.
+      ===================================================
+      */
+
+      const recipientsResult =
+        await q(
+          `
+            SELECT DISTINCT
+              u.id,
+              u.email,
+              u.name
+
+            FROM organization_users ou
+
+            JOIN users u
+              ON u.id = ou.user_id
+
+            WHERE
+              ou.organization_id = $1
+
+              AND COALESCE(
+                ou.is_active,
+                true
+              ) = true
+
+              AND NULLIF(
+                TRIM(u.email),
+                ''
+              ) IS NOT NULL
+          `,
+          [
+            contract.organization_id
+          ]
+        );
+
+
+      const recipients =
+        recipientsResult.rows
+          .map(
+            recipient =>
+              String(
+                recipient.email || ""
+              ).trim()
+          )
+          .filter(Boolean);
+
+
+      if (!recipients.length) {
+
+        console.log(
+          "RENEWAL NOTIFICATION SKIPPED - NO RECIPIENT:",
+          contract.id
+        );
+
+        continue;
+      }
+
+
+      const renewalDate =
+        contract.renewal_date ||
+        contract.expiration_date ||
+        contract.end_date;
+
+
+      const renewalDateLabel =
+        renewalDate
+          ? new Date(
+              renewalDate
+            ).toLocaleDateString(
+              "en-US",
+              {
+                month:
+                  "long",
+
+                day:
+                  "numeric",
+
+                year:
+                  "numeric"
+              }
+            )
+          : "Not set";
+
+
+      const subject =
+        `${reminderDays}-Day Renewal Reminder: ` +
+        `${contract.advertiser_name}`;
+
+
+      const contractUrl =
+        `${BASE_URL}/org-contract/${contract.id}` +
+        `?organization_id=${contract.organization_id}`;
+
+
+      const html = `
+        <div style="
+          font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+          line-height:1.6;
+          color:#173f2a;
+        ">
+
+          <h2 style="
+            color:#073b22;
+            margin-bottom:6px;
+          ">
+            Advertising Contract Renewal
+          </h2>
+
+          <p>
+            An advertising contract for
+            <strong>
+              ${escapeHtml(
+                contract.advertiser_name
+              )}
+            </strong>
+            is approaching its renewal date.
+          </p>
+
+          <table style="
+            border-collapse:collapse;
+            margin:20px 0;
+          ">
+
+            <tr>
+              <td style="
+                padding:6px 18px 6px 0;
+                color:#65776b;
+              ">
+                Organization
+              </td>
+
+              <td>
+                <strong>
+                  ${escapeHtml(
+                    contract.organization_name
+                  )}
+                </strong>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="
+                padding:6px 18px 6px 0;
+                color:#65776b;
+              ">
+                Advertiser
+              </td>
+
+              <td>
+                <strong>
+                  ${escapeHtml(
+                    contract.advertiser_name
+                  )}
+                </strong>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="
+                padding:6px 18px 6px 0;
+                color:#65776b;
+              ">
+                Location
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  contract.location_name || "—"
+                )}
+              </td>
+            </tr>
+
+            <tr>
+              <td style="
+                padding:6px 18px 6px 0;
+                color:#65776b;
+              ">
+                Advertising Opportunity
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  contract.opportunity_name || "—"
+                )}
+              </td>
+            </tr>
+
+            <tr>
+              <td style="
+                padding:6px 18px 6px 0;
+                color:#65776b;
+              ">
+                Contract Value
+              </td>
+
+              <td>
+                <strong>
+                  $${Number(
+                    contract.total_contract_value || 0
+                  ).toLocaleString(
+                    "en-US",
+                    {
+                      minimumFractionDigits:2,
+                      maximumFractionDigits:2
+                    }
+                  )}
+                </strong>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="
+                padding:6px 18px 6px 0;
+                color:#65776b;
+              ">
+                Renewal Date
+              </td>
+
+              <td>
+                <strong>
+                  ${escapeHtml(
+                    renewalDateLabel
+                  )}
+                </strong>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="
+                padding:6px 18px 6px 0;
+                color:#65776b;
+              ">
+                Reminder
+              </td>
+
+              <td>
+                <strong>
+                  ${reminderDays} Days
+                </strong>
+              </td>
+            </tr>
+
+          </table>
+
+          <p>
+            <a
+              href="${contractUrl}"
+              style="
+                display:inline-block;
+                background:#176b3a;
+                color:white;
+                text-decoration:none;
+                padding:12px 18px;
+                border-radius:8px;
+                font-weight:bold;
+              "
+            >
+              Review Contract
+            </a>
+          </p>
+
+          <p style="
+            margin-top:24px;
+            color:#65776b;
+            font-size:13px;
+          ">
+            This notification was generated automatically
+            by Vivid Renewals.
+          </p>
+
+        </div>
+      `;
+
+
+      const sent =
+        await sendOrganizationNotification({
+          to:
+            recipients,
+
+          subject,
+
+          html,
+
+          senderName:
+            `${contract.organization_name} via Vivid`
+        });
+
+
+      /*
+      ===================================================
+      LOG ONLY AFTER SUCCESSFUL SEND
+      ===================================================
+      */
+
+      if (sent) {
+
+        const activityUserId =
+          Number(
+            recipientsResult.rows[0]
+              ?.id || 0
+          ) || null;
+
+
+        await q(
+          `
+            INSERT INTO contract_activity (
+              contract_id,
+              organization_id,
+              user_id,
+              activity_type,
+              comment,
+              created_at
+            )
+
+            VALUES (
+              $1,
+              $2,
+              $3,
+              $4,
+              $5,
+              CURRENT_TIMESTAMP
+            )
+          `,
+          [
+            contract.id,
+            contract.organization_id,
+            activityUserId,
+            activityType,
+            `${reminderDays}-day renewal notification sent.`
+          ]
+        );
+
+      }
+
+    }
+
+
+    console.log(
+      "RENEWAL NOTIFICATION CHECK COMPLETE"
+    );
+
+
+  } catch (err) {
+
+    console.error(
+      "RENEWAL NOTIFICATION PROCESS ERROR:",
+      err
+    );
+
+  }
+}
 async function createAndSendPasswordReset({
   userId,
   email,
