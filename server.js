@@ -3655,6 +3655,10 @@ await q(`
 `);
   await q(`
   ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS company_name TEXT
+`);
+  await q(`
+  ALTER TABLE users
   ADD COLUMN IF NOT EXISTS name TEXT
 `);
   await q(`
@@ -63033,7 +63037,10 @@ app.post(
           req.body.name || ""
         ).trim();
 
-
+const companyName =
+  String(
+    req.body.company_name || ""
+  ).trim();
       const email =
         String(
           req.body.email || ""
@@ -63058,7 +63065,13 @@ app.post(
             "Email and password are required."
           );
       }
-
+if (!companyName) {
+  return res
+    .status(400)
+    .send(
+      "Company / Organization Name is required."
+    );
+}
 
       /*
       =====================================================
@@ -63070,36 +63083,39 @@ app.post(
         customerType === "advertiser"
       ) {
 
-        await q(
-          `
-            INSERT INTO users (
-              name,
-              email,
-              password,
-              role
-            )
+    await q(
+  `
+    INSERT INTO users (
+      name,
+      company_name,
+      email,
+      password,
+      role
+    )
 
-            VALUES (
-              $1,
-              $2,
-              $3,
-              'customer'
-            )
+    VALUES (
+      $1,
+      $2,
+      $3,
+      $4,
+      'customer'
+    )
 
-            ON CONFLICT (email)
+    ON CONFLICT (email)
 
-            DO UPDATE SET
-              name = EXCLUDED.name,
-              password = EXCLUDED.password,
-              role = 'customer'
-          `,
-          [
-            name || null,
-            email,
-            password
-          ]
-        );
-
+    DO UPDATE SET
+      name = EXCLUDED.name,
+      company_name = EXCLUDED.company_name,
+      password = EXCLUDED.password,
+      role = 'customer'
+  `,
+  [
+    name || null,
+    companyName,
+    email,
+    password
+  ]
+);
 
         return res.redirect(
           "/admin/users"
@@ -63117,11 +63133,8 @@ app.post(
         customerType === "enterprise"
       ) {
 
-        const organizationName =
-          String(
-            req.body.organization_name ||
-            ""
-          ).trim();
+       const organizationName =
+  companyName;
 
 
         const organizationType =
@@ -63157,34 +63170,38 @@ app.post(
         const userResult =
           await q(
             `
-              INSERT INTO users (
-                name,
-                email,
-                password,
-                role
-              )
+             INSERT INTO users (
+  name,
+  company_name,
+  email,
+  password,
+  role
+)
 
-              VALUES (
-                $1,
-                $2,
-                $3,
-                'organization_user'
-              )
+VALUES (
+  $1,
+  $2,
+  $3,
+  $4,
+  'organization_user'
+)
 
               ON CONFLICT (email)
 
-              DO UPDATE SET
-                name = EXCLUDED.name,
-                password = EXCLUDED.password,
-                role = 'organization_user'
+            DO UPDATE SET
+  name = EXCLUDED.name,
+  company_name = EXCLUDED.company_name,
+  password = EXCLUDED.password,
+  role = 'organization_user'
 
               RETURNING id
             `,
-            [
-              name || null,
-              email,
-              password
-            ]
+         [
+  name || null,
+  companyName,
+  email,
+  password
+]
           );
 
 
