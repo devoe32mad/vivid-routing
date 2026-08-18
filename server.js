@@ -62538,83 +62538,726 @@ app.get("/reports-location", requireLogin, async (req, res) => {
     res.send("LOCATION REPORT ERROR: " + err.message);
   }
 });
-app.get("/admin/users", requireSuperAdmin, async (req, res) => {
-  const users = await q(`
-    SELECT id, email, role, created_at
-    FROM users
-    ORDER BY id
-  `);
+app.get(
+  "/admin/users",
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
 
-  res.send(page("Users", `
-    <div class="topbar">
-      <div class="brand">Vivid Spots</div>
-      <h1>User Management</h1>
-      <p class="subtitle">Super admin only</p>
-    </div>
+      const users = await q(`
+        SELECT
+          u.id,
+          u.name,
+          u.email,
+          u.role,
+          u.created_at,
 
-    <div class="wrap">
-      <a class="btn" href="/admin">Back to Admin</a>
+          ou.organization_id,
+          ou.role AS organization_role,
 
-      <h2>Create Customer Login</h2>
+          o.name AS organization_name,
+          o.is_active AS organization_active
 
-      <form method="POST" action="/admin/users">
-        <label>Email</label>
-        <input name="email" type="email" required />
+        FROM users u
 
-        <label>Password</label>
-        <input name="password" required />
+        LEFT JOIN organization_users ou
+          ON ou.user_id = u.id
+         AND COALESCE(ou.is_active, true) = true
 
-        <label>Role</label>
-        <select name="role">
-          <option value="customer">Customer</option>
-          <option value="super_admin">Super Admin</option>
-        </select>
+        LEFT JOIN organizations o
+          ON o.id = ou.organization_id
 
-        <button class="btn" type="submit">Create User</button>
-      </form>
+        ORDER BY
+          u.role,
+          u.email
+      `);
 
-      <h2>Existing Users</h2>
 
-      <table>
-        <tr>
-          <th>ID</th>
-          <th>Email</th>
-          <th>Role</th>
-          <th>Created</th>
-        </tr>
+      const advertiserUsers =
+        users.rows.filter(
+          user =>
+            user.role === "customer"
+        );
 
-        ${users.rows.map(u => `
-          <tr>
-            <td>${u.id}</td>
-            <td>${u.email}</td>
-            <td>${u.role}</td>
-            <td>${new Date(u.created_at).toLocaleString()}</td>
-          </tr>
-        `).join("")}
-      </table>
-    </div>
-  `));
-});
-app.post("/admin/users", requireSuperAdmin, async (req, res) => {
-  try {
-    await q(`
-      INSERT INTO users (email, password, role)
-      VALUES ($1,$2,$3)
-      ON CONFLICT (email)
-      DO UPDATE SET
-        password = EXCLUDED.password,
-        role = EXCLUDED.role
-    `, [
-      req.body.email,
-      req.body.password,
-      req.body.role || "customer"
-    ]);
 
-    res.send("User saved <br><a href='/admin/users'>Back to Users</a>");
-  } catch (err) {
-    res.send("USER CREATE ERROR: " + err.message);
+      const enterpriseUsers =
+        users.rows.filter(
+          user =>
+            user.role === "organization_user"
+        );
+
+
+      return res.send(
+        page(
+          "Customer Management",
+          `
+
+            <div class="topbar">
+
+              <div class="brand">
+                Vivid
+              </div>
+
+              <h1>
+                Customer Management
+              </h1>
+
+              <p class="subtitle">
+                Create and manage Advertiser and
+                Enterprise customers.
+              </p>
+
+            </div>
+
+
+            <div class="wrap">
+
+              <a
+                class="btn secondary"
+                href="/admin"
+              >
+                Back to Admin
+              </a>
+
+
+              <div
+                class="card"
+                style="
+                  margin-top:24px;
+                "
+              >
+
+                <h2 style="margin-top:0;">
+                  Create Customer
+                </h2>
+
+
+                <form
+                  method="POST"
+                  action="/admin/users"
+                  id="createCustomerForm"
+                >
+
+                  <label>
+                    Customer Type
+                  </label>
+
+                  <select
+                    name="customer_type"
+                    id="customerType"
+                    required
+                    onchange="updateCustomerType()"
+                  >
+
+                    <option value="advertiser">
+                      Advertiser
+                    </option>
+
+                    <option value="enterprise">
+                      Enterprise
+                    </option>
+
+                  </select>
+
+
+                  <div
+                    id="enterpriseFields"
+                    style="display:none;"
+                  >
+
+                    <label>
+                      Organization Name
+                    </label>
+
+                    <input
+                      name="organization_name"
+                    />
+
+
+                    <label>
+                      Organization Type
+                    </label>
+
+                    <input
+                      name="organization_type"
+                      placeholder="
+                        School District, Chamber,
+                        Hotel, Media Company, etc.
+                      "
+                    />
+
+
+                    <label>
+                      Enterprise Role
+                    </label>
+
+                    <select
+                      name="organization_role"
+                    >
+
+                      <option
+                        value="organization_admin"
+                      >
+                        Organization Admin
+                      </option>
+
+                      <option
+                        value="location_manager"
+                      >
+                        Location Manager
+                      </option>
+
+                      <option
+                        value="viewer"
+                      >
+                        Viewer
+                      </option>
+
+                    </select>
+
+                  </div>
+
+
+                  <label>
+                    Contact Name
+                  </label>
+
+                  <input
+                    name="name"
+                  />
+
+
+                  <label>
+                    Email
+                  </label>
+
+                  <input
+                    name="email"
+                    type="email"
+                    required
+                  />
+
+
+                  <label>
+                    Password
+                  </label>
+
+                  <input
+                    name="password"
+                    type="password"
+                    required
+                  />
+
+
+                  <button
+                    class="btn"
+                    type="submit"
+                  >
+                    Create Customer
+                  </button>
+
+                </form>
+
+              </div>
+
+
+              <div
+                class="card"
+                style="
+                  margin-top:24px;
+                "
+              >
+
+                <h2 style="margin-top:0;">
+                  Advertiser Customers
+                </h2>
+
+                <table>
+
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                  </tr>
+
+                  ${
+                    advertiserUsers.length
+                      ? advertiserUsers
+                          .map(
+                            user => `
+                              <tr>
+
+                                <td>
+                                  ${user.id}
+                                </td>
+
+                                <td>
+                                  ${escapeHtml(
+                                    user.name || "—"
+                                  )}
+                                </td>
+
+                                <td>
+                                  ${escapeHtml(
+                                    user.email || ""
+                                  )}
+                                </td>
+
+                                <td>
+                                  Active
+                                </td>
+
+                                <td>
+                                  ${
+                                    user.created_at
+                                      ? new Date(
+                                          user.created_at
+                                        ).toLocaleString()
+                                      : ""
+                                  }
+                                </td>
+
+                              </tr>
+                            `
+                          )
+                          .join("")
+                      : `
+                          <tr>
+                            <td colspan="5">
+                              No advertiser customers.
+                            </td>
+                          </tr>
+                        `
+                  }
+
+                </table>
+
+              </div>
+
+
+              <div
+                class="card"
+                style="
+                  margin-top:24px;
+                "
+              >
+
+                <h2 style="margin-top:0;">
+                  Enterprise Users
+                </h2>
+
+                <table>
+
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Organization</th>
+                    <th>Enterprise Role</th>
+                    <th>Status</th>
+                  </tr>
+
+                  ${
+                    enterpriseUsers.length
+                      ? enterpriseUsers
+                          .map(
+                            user => `
+                              <tr>
+
+                                <td>
+                                  ${user.id}
+                                </td>
+
+                                <td>
+                                  ${escapeHtml(
+                                    user.name || "—"
+                                  )}
+                                </td>
+
+                                <td>
+                                  ${escapeHtml(
+                                    user.email || ""
+                                  )}
+                                </td>
+
+                                <td>
+                                  ${escapeHtml(
+                                    user.organization_name ||
+                                    "Not Assigned"
+                                  )}
+                                </td>
+
+                                <td>
+                                  ${escapeHtml(
+                                    user.organization_role ||
+                                    "—"
+                                  )}
+                                </td>
+
+                                <td>
+                                  ${
+                                    user.organization_active === false
+                                      ? "Archived"
+                                      : "Active"
+                                  }
+                                </td>
+
+                              </tr>
+                            `
+                          )
+                          .join("")
+                      : `
+                          <tr>
+                            <td colspan="6">
+                              No Enterprise users.
+                            </td>
+                          </tr>
+                        `
+                  }
+
+                </table>
+
+              </div>
+
+            </div>
+
+
+            <script>
+
+              function updateCustomerType() {
+
+                const type =
+                  document.getElementById(
+                    "customerType"
+                  ).value;
+
+                const enterpriseFields =
+                  document.getElementById(
+                    "enterpriseFields"
+                  );
+
+                enterpriseFields.style.display =
+                  type === "enterprise"
+                    ? "block"
+                    : "none";
+              }
+
+              updateCustomerType();
+
+            </script>
+
+          `
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        "CUSTOMER MANAGEMENT ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "CUSTOMER MANAGEMENT ERROR: " +
+          err.message
+        );
+    }
   }
-});
+);
+app.post(
+  "/admin/users",
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+
+      const customerType =
+        String(
+          req.body.customer_type ||
+          "advertiser"
+        )
+          .trim()
+          .toLowerCase();
+
+
+      const name =
+        String(
+          req.body.name || ""
+        ).trim();
+
+
+      const email =
+        String(
+          req.body.email || ""
+        )
+          .trim()
+          .toLowerCase();
+
+
+      const password =
+        String(
+          req.body.password || ""
+        );
+
+
+      if (
+        !email ||
+        !password
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Email and password are required."
+          );
+      }
+
+
+      /*
+      =====================================================
+      ADVERTISER CUSTOMER
+      =====================================================
+      */
+
+      if (
+        customerType === "advertiser"
+      ) {
+
+        await q(
+          `
+            INSERT INTO users (
+              name,
+              email,
+              password,
+              role
+            )
+
+            VALUES (
+              $1,
+              $2,
+              $3,
+              'customer'
+            )
+
+            ON CONFLICT (email)
+
+            DO UPDATE SET
+              name = EXCLUDED.name,
+              password = EXCLUDED.password,
+              role = 'customer'
+          `,
+          [
+            name || null,
+            email,
+            password
+          ]
+        );
+
+
+        return res.redirect(
+          "/admin/users"
+        );
+      }
+
+
+      /*
+      =====================================================
+      ENTERPRISE CUSTOMER
+      =====================================================
+      */
+
+      if (
+        customerType === "enterprise"
+      ) {
+
+        const organizationName =
+          String(
+            req.body.organization_name ||
+            ""
+          ).trim();
+
+
+        const organizationType =
+          String(
+            req.body.organization_type ||
+            ""
+          ).trim();
+
+
+        const organizationRole =
+          String(
+            req.body.organization_role ||
+            "organization_admin"
+          )
+            .trim()
+            .toLowerCase();
+
+
+        if (!organizationName) {
+
+          return res
+            .status(400)
+            .send(
+              "Organization name is required for an Enterprise customer."
+            );
+        }
+
+
+        /*
+        Create or update the login.
+        */
+
+        const userResult =
+          await q(
+            `
+              INSERT INTO users (
+                name,
+                email,
+                password,
+                role
+              )
+
+              VALUES (
+                $1,
+                $2,
+                $3,
+                'organization_user'
+              )
+
+              ON CONFLICT (email)
+
+              DO UPDATE SET
+                name = EXCLUDED.name,
+                password = EXCLUDED.password,
+                role = 'organization_user'
+
+              RETURNING id
+            `,
+            [
+              name || null,
+              email,
+              password
+            ]
+          );
+
+
+        const userId =
+          Number(
+            userResult.rows[0].id
+          );
+
+
+        /*
+        Create the Enterprise organization.
+        */
+
+        const organizationResult =
+          await q(
+            `
+              INSERT INTO organizations (
+                customer_id,
+                name,
+                organization_type,
+                contact_name,
+                contact_email,
+                is_active
+              )
+
+              VALUES (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                true
+              )
+
+              RETURNING id
+            `,
+            [
+              userId,
+              organizationName,
+              organizationType || "",
+              name || "",
+              email
+            ]
+          );
+
+
+        const organizationId =
+          Number(
+            organizationResult.rows[0].id
+          );
+
+
+        /*
+        Connect the login to the Enterprise
+        organization and assign its role.
+        */
+
+        await q(
+          `
+            INSERT INTO organization_users (
+              organization_id,
+              user_id,
+              role,
+              is_active
+            )
+
+            VALUES (
+              $1,
+              $2,
+              $3,
+              true
+            )
+
+            ON CONFLICT
+              (organization_id, user_id)
+
+            DO UPDATE SET
+              role = EXCLUDED.role,
+              is_active = true
+          `,
+          [
+            organizationId,
+            userId,
+            organizationRole
+          ]
+        );
+
+
+        return res.redirect(
+          `/org-organization/${organizationId}?organization_id=${organizationId}`
+        );
+      }
+
+
+      return res
+        .status(400)
+        .send(
+          "Invalid customer type."
+        );
+
+
+    } catch (err) {
+
+      console.error(
+        "CREATE CUSTOMER ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "CREATE CUSTOMER ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+    
 app.get("/admin", async (req, res) => {
  if (req.session.user && req.session.user.role !== "super_admin") {
   return res.redirect("/my-setup");
