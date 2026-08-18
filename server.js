@@ -62586,12 +62586,13 @@ app.get(
     try {
 
       const users = await q(`
-        SELECT
-          u.id,
-          u.name,
-          u.email,
-          u.role,
-          u.created_at,
+      SELECT
+  u.id,
+  u.name,
+  u.company_name,
+  u.email,
+  u.role,
+  u.created_at,
 
           ou.organization_id,
           ou.role AS organization_role,
@@ -62824,11 +62825,12 @@ app.get(
                 <table>
 
                   <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Status</th>
-                    <th>Created</th>
+                   <th>ID</th>
+<th>Company / Advertiser</th>
+<th>Contact</th>
+<th>Email</th>
+<th>Status</th>
+<th>Created</th>
                   </tr>
 
                   ${
@@ -62842,18 +62844,23 @@ app.get(
                                   ${user.id}
                                 </td>
 
-                                <td>
-                                  ${escapeHtml(
-                                    user.name || "—"
-                                  )}
-                                </td>
+                               <td>
+  ${escapeHtml(
+    user.company_name || "—"
+  )}
+</td>
 
-                                <td>
-                                  ${escapeHtml(
-                                    user.email || ""
-                                  )}
-                                </td>
+<td>
+  ${escapeHtml(
+    user.name || "—"
+  )}
+</td>
 
+<td>
+  ${escapeHtml(
+    user.email || ""
+  )}
+</td>
                                 <td>
                                   Active
                                 </td>
@@ -62874,7 +62881,7 @@ app.get(
                           .join("")
                       : `
                           <tr>
-                            <td colspan="5">
+                            <td colspan="6">
                               No advertiser customers.
                             </td>
                           </tr>
