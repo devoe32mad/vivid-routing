@@ -2471,17 +2471,24 @@ function orgDateFilterForm({
     </form>
   `;
 }
-async function getOrganizationScope(req) {
+async function getOrganizationScope(
+  req,
+  explicitOrganizationId = null
+) {
   let organizationId = null;
 
   const isSuperAdmin =
     req.session.user?.role === "super_admin";
 
-  if (isSuperAdmin) {
-    organizationId = Number(
+if (isSuperAdmin) {
+  organizationId =
+    Number(
+      explicitOrganizationId
+    ) ||
+    Number(
       req.query.organization_id
     );
-  }
+}
 
   if (
     !organizationId &&
