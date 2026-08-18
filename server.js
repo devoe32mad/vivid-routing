@@ -62307,17 +62307,26 @@ app.get("/admin/organizations", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
     const isSuperAdmin = currentUser.role === "super_admin";
+const statusView =
+  String(req.query.status || "active")
+    .trim()
+    .toLowerCase();
 
+const showArchived =
+  statusView === "archived";
     const orgs = await q(
       isSuperAdmin
         ? `
-          SELECT
-            o.*,
-            COUNT(s.id) AS location_count
-          FROM organizations o
-          LEFT JOIN spaces s ON s.organization_id = o.id
-          GROUP BY o.id
-          ORDER BY o.name
+       SELECT
+  o.*,
+  COUNT(s.id) AS location_count
+FROM organizations o
+LEFT JOIN spaces s
+  ON s.organization_id = o.id
+WHERE
+  COALESCE(o.is_active, true) = $1
+GROUP BY o.id
+ORDER BY o.name
         `
           : `
   SELECT
@@ -62334,7 +62343,9 @@ app.get("/admin/organizations", requireLogin, async (req, res) => {
   GROUP BY o.id
   ORDER BY o.name
 `,    
-      isSuperAdmin ? [] : [currentUser.id]
+      isSuperAdmin
+  ? [!showArchived]
+  : [currentUser.id]
     );
 
     let rows = "";
@@ -62393,7 +62404,27 @@ app.get("/admin/organizations", requireLogin, async (req, res) => {
       `
       : ""
   }
+<div style="
+  display:flex;
+  gap:10px;
+  margin-bottom:20px;
+">
 
+  <a
+    class="btn ${!showArchived ? "" : "secondary"}"
+    href="/admin/organizations?status=active"
+  >
+    Active
+  </a>
+
+  <a
+    class="btn ${showArchived ? "" : "secondary"}"
+    href="/admin/organizations?status=archived"
+  >
+    Archived
+  </a>
+
+</div>
   <a
     class="btn secondary"
     href="/my-setup"
