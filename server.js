@@ -5436,25 +5436,59 @@ app.get("/platform-admin", requireLogin, requireSuperAdmin, async (req, res) => 
       <p class="subtitle">Super Admin control center for Vivid platform management.</p>
     </div>
 
-    <div class="wrap">
+   <div class="wrap">
 
-      <div class="card">
-        <h2>Organizations</h2>
-        <p>Create, manage, archive, and review organizations.</p>
-        <a class="btn" href="/org-organizations">Open Organizations</a>
-      </div>
+  <div class="card">
+    <h2>Customer Management</h2>
 
-      <div class="card">
-        <h2>Users</h2>
-        <p>Manage platform users and access.</p>
-        <a class="btn secondary" href="#">Coming Soon</a>
-      </div>
+    <p>
+      Create and manage Advertiser
+      and Enterprise customers.
+    </p>
 
-      <div class="card">
-        <h2>Customers</h2>
-        <p>Manage customers and accounts.</p>
-        <a class="btn secondary" href="#">Coming Soon</a>
-      </div>
+    <a
+      class="btn"
+      href="/admin/users"
+    >
+      Open Customer Management
+    </a>
+  </div>
+
+
+  <div class="card">
+    <h2>Enterprise Customers</h2>
+
+    <p>
+      Manage Enterprise organizations,
+      users, locations, and access.
+    </p>
+
+    <a
+      class="btn secondary"
+      href="/org-organizations"
+    >
+      Open Enterprise Customers
+    </a>
+  </div>
+
+
+  <div class="card">
+    <h2>Platform Users</h2>
+
+    <p>
+      Manage internal Vivid platform
+      users and administrative access.
+    </p>
+
+    <a
+      class="btn secondary"
+      href="#"
+    >
+      Coming Soon
+    </a>
+  </div>
+
+</div>
 
     </div>
   `));
