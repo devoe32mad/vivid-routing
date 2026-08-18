@@ -3366,7 +3366,10 @@ await q(`
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
-
+await q(`
+  ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS company_name TEXT
+`);
   await q(`
     CREATE TABLE IF NOT EXISTS contracts (
       id SERIAL PRIMARY KEY,
