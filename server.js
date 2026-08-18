@@ -62715,13 +62715,7 @@ app.get(
                     style="display:none;"
                   >
 
-                    <label>
-                      Organization Name
-                    </label>
 
-                    <input
-                      name="organization_name"
-                    />
 
 
                     <label>
