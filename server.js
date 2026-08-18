@@ -9718,87 +9718,316 @@ app.get("/org-dashboard", requireOrgLogin, (req, res) => {
     </div>
   `));
 });
-app.get("/org-organizations", requireLogin, requireSuperAdmin, async (req, res) => {
-  try {
+app.get(
+  "/org-organizations",
+  requireLogin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
 
-    const orgs = await q(`
-      SELECT
-        o.id,
-        o.name,
-        COALESCE(o.organization_type,'') AS organization_type,
-        o.is_active,
-        COUNT(DISTINCT s.id) AS location_count,
-        COUNT(DISTINCT ou.user_id) AS user_count
-      FROM organizations o
-      LEFT JOIN spaces s
-        ON s.organization_id = o.id
-       AND COALESCE(s.is_archived,false)=false
-      LEFT JOIN organization_users ou
-        ON ou.organization_id = o.id
-       AND ou.is_active = true
-      GROUP BY
-        o.id,
-        o.name,
-        o.organization_type,
-        o.is_active
-      ORDER BY o.name
-    `);
+      const statusView =
+        String(
+          req.query.status || "active"
+        )
+          .trim()
+          .toLowerCase();
 
-    let rows = "";
+      const showArchived =
+        statusView === "archived";
 
-    for (const org of orgs.rows) {
 
-      rows += `
-      <tr>
-        <td>${org.name}</td>
-        <td>${org.organization_type || "-"}</td>
-        <td style="text-align:center">${org.location_count}</td>
-        <td style="text-align:center">${org.user_count}</td>
-        <td>${org.is_active ? "Active" : "Archived"}</td>
-        <td>
-          <a class="btn" href="/org-organization/${org.id}">
-            Open
-          </a>
-        </td>
-      </tr>`;
+      const orgs = await q(
+        `
+          SELECT
+            o.id,
+            o.name,
+            COALESCE(
+              o.organization_type,
+              ''
+            ) AS organization_type,
+            o.is_active,
+
+            COUNT(
+              DISTINCT s.id
+            ) AS location_count,
+
+            COUNT(
+              DISTINCT ou.user_id
+            ) AS user_count
+
+          FROM organizations o
+
+          LEFT JOIN spaces s
+            ON s.organization_id = o.id
+           AND COALESCE(
+                 s.is_archived,
+                 false
+               ) = false
+
+          LEFT JOIN organization_users ou
+            ON ou.organization_id = o.id
+           AND COALESCE(
+                 ou.is_active,
+                 true
+               ) = true
+
+          WHERE
+            COALESCE(
+              o.is_active,
+              true
+            ) = $1
+
+          GROUP BY
+            o.id,
+            o.name,
+            o.organization_type,
+            o.is_active
+
+          ORDER BY
+            o.name
+        `,
+        [
+          !showArchived
+        ]
+      );
+
+
+      let rows = "";
+
+
+      for (
+        const org
+        of orgs.rows
+      ) {
+
+        rows += `
+          <tr>
+
+            <td>
+              ${escapeHtml(
+                org.name || ""
+              )}
+            </td>
+
+            <td>
+              ${escapeHtml(
+                org.organization_type ||
+                "-"
+              )}
+            </td>
+
+            <td style="
+              text-align:center;
+            ">
+              ${Number(
+                org.location_count || 0
+              )}
+            </td>
+
+            <td style="
+              text-align:center;
+            ">
+              ${Number(
+                org.user_count || 0
+              )}
+            </td>
+
+            <td>
+              ${
+                org.is_active
+                  ? "Active"
+                  : "Archived"
+              }
+            </td>
+
+            <td>
+
+              <a
+                class="btn"
+                href="/org-organization/${org.id}"
+              >
+                Open
+              </a>
+
+            </td>
+
+          </tr>
+        `;
+      }
+
+
+      return res.send(
+        orgPage(
+          "Organizations",
+          `
+
+            <div class="topbar">
+
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Organizations
+              </h1>
+
+              <p class="subtitle">
+                Create, manage, archive,
+                and review Enterprise customers.
+              </p>
+
+            </div>
+
+
+            <div class="wrap">
+
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:12px;
+                flex-wrap:wrap;
+                margin-bottom:20px;
+              ">
+
+                <div style="
+                  display:flex;
+                  gap:10px;
+                  flex-wrap:wrap;
+                ">
+
+                  <a
+                    class="btn"
+                    href="/admin/new-organization"
+                  >
+                    + Create Enterprise Customer
+                  </a>
+
+                </div>
+
+
+                <div style="
+                  display:flex;
+                  gap:10px;
+                  flex-wrap:wrap;
+                ">
+
+                  <a
+                    class="btn ${
+                      !showArchived
+                        ? ""
+                        : "secondary"
+                    }"
+                    href="/org-organizations?status=active"
+                  >
+                    Active
+                  </a>
+
+                  <a
+                    class="btn ${
+                      showArchived
+                        ? ""
+                        : "secondary"
+                    }"
+                    href="/org-organizations?status=archived"
+                  >
+                    Archived
+                  </a>
+
+                </div>
+
+              </div>
+
+
+              <table class="table">
+
+                <thead>
+
+                  <tr>
+                    <th>
+                      Organization
+                    </th>
+
+                    <th>
+                      Type
+                    </th>
+
+                    <th>
+                      Locations
+                    </th>
+
+                    <th>
+                      Users
+                    </th>
+
+                    <th>
+                      Status
+                    </th>
+
+                    <th>
+                      Actions
+                    </th>
+                  </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                  ${
+                    rows ||
+                    `
+                      <tr>
+                        <td
+                          colspan="6"
+                          style="
+                            text-align:center;
+                            padding:30px;
+                            color:#65776b;
+                          "
+                        >
+                          ${
+                            showArchived
+                              ? "No archived organizations."
+                              : "No active organizations."
+                          }
+                        </td>
+                      </tr>
+                    `
+                  }
+
+                </tbody>
+
+              </table>
+
+
+            </div>
+
+          `
+        )
+      );
+
+
+    } catch (err) {
+
+      console.error(
+        "ORG ORGANIZATIONS ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "ORG ORGANIZATIONS ERROR: " +
+          err.message
+        );
+
     }
-
-    res.send(orgPage("Organizations", `
-      <div class="topbar">
-        <div class="brand">Vivid Organizations</div>
-        <h1>Organizations</h1>
-        <p class="subtitle">
-          Manage organizations and drill into their operations.
-        </p>
-      </div>
-
-      <div class="wrap">
-
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Organization</th>
-              <th>Type</th>
-              <th>Locations</th>
-              <th>Users</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-
-          <tbody>
-            ${rows}
-          </tbody>
-
-        </table>
-
-      </div>
-    `));
-
-  } catch (err) {
-    res.send("ERROR: " + err.message);
   }
-});
+);
+
+    
 async function buildOrganizationExportData(
   req,
   organizationId,
