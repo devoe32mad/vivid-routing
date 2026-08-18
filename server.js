@@ -9840,16 +9840,91 @@ app.get(
               }
             </td>
 
-            <td>
+       <td>
 
-              <a
-                class="btn"
-                href="/org-organization/${org.id}"
-              >
-                Open
-              </a>
+  <div style="
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+  ">
 
-            </td>
+    <a
+      class="btn"
+      href="/org-organization/${org.id}"
+    >
+      Open
+    </a>
+
+    <a
+      class="btn secondary"
+      href="/org-users?organization_id=${org.id}"
+    >
+      Manage Users
+    </a>
+
+    ${
+      org.is_active
+        ? `
+          <form
+            method="POST"
+            action="/org-organizations/${org.id}/deactivate"
+            style="margin:0;"
+            onsubmit="
+              return confirm(
+                'Deactivate this Enterprise customer?'
+              );
+            "
+          >
+            <button
+              class="btn secondary"
+              type="submit"
+            >
+              Deactivate
+            </button>
+          </form>
+        `
+        : `
+          <form
+            method="POST"
+            action="/org-organizations/${org.id}/reactivate"
+            style="margin:0;"
+          >
+            <button
+              class="btn"
+              type="submit"
+            >
+              Reactivate
+            </button>
+          </form>
+
+          <form
+            method="POST"
+            action="/org-organizations/${org.id}/delete"
+            style="margin:0;"
+            onsubmit="
+              return confirm(
+                'PERMANENTLY delete this test organization? This cannot be undone.'
+              );
+            "
+          >
+            <button
+              class="btn secondary"
+              type="submit"
+              style="
+                color:#991b1b;
+                border-color:#fecaca;
+              "
+            >
+              Delete
+            </button>
+          </form>
+        `
+    }
+
+  </div>
+
+</td>
 
           </tr>
         `;
@@ -10027,7 +10102,397 @@ app.get(
   }
 );
 
-    
+    /*
+=========================================================
+ENTERPRISE CUSTOMER LIFECYCLE
+Super Admin only
+=========================================================
+*/
+
+
+/*
+---------------------------------------------------------
+DEACTIVATE
+Preserves all historical data.
+Removes Organization from Active list.
+Disables Enterprise memberships.
+---------------------------------------------------------
+*/
+
+app.post(
+  "/org-organizations/:id/deactivate",
+  requireLogin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+
+      const organizationId =
+        Number(req.params.id);
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Valid organization required."
+          );
+      }
+
+
+      await q(
+        `
+          UPDATE organizations
+
+          SET
+            is_active = false,
+            updated_at = CURRENT_TIMESTAMP
+
+          WHERE id = $1
+        `,
+        [organizationId]
+      );
+
+
+      await q(
+        `
+          UPDATE organization_users
+
+          SET
+            is_active = false
+
+          WHERE organization_id = $1
+        `,
+        [organizationId]
+      );
+
+
+      return res.redirect(
+        "/org-organizations?status=active"
+      );
+
+
+    } catch (err) {
+
+      console.error(
+        "DEACTIVATE ORGANIZATION ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to deactivate organization: " +
+          err.message
+        );
+    }
+  }
+);
+
+
+/*
+---------------------------------------------------------
+REACTIVATE
+Restores Organization.
+
+NOTE:
+Memberships are intentionally NOT automatically restored.
+We will manage individual user activation separately.
+---------------------------------------------------------
+*/
+
+app.post(
+  "/org-organizations/:id/reactivate",
+  requireLogin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+
+      const organizationId =
+        Number(req.params.id);
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Valid organization required."
+          );
+      }
+
+
+      await q(
+        `
+          UPDATE organizations
+
+          SET
+            is_active = true,
+            updated_at = CURRENT_TIMESTAMP
+
+          WHERE id = $1
+        `,
+        [organizationId]
+      );
+
+
+      return res.redirect(
+        "/org-organizations?status=active"
+      );
+
+
+    } catch (err) {
+
+      console.error(
+        "REACTIVATE ORGANIZATION ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to reactivate organization: " +
+          err.message
+        );
+    }
+  }
+);
+
+
+/*
+---------------------------------------------------------
+PERMANENT DELETE
+TEST / JUNK ORGANIZATIONS ONLY.
+
+Deletion is blocked if the Organization has business data.
+---------------------------------------------------------
+*/
+
+app.post(
+  "/org-organizations/:id/delete",
+  requireLogin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+
+      const organizationId =
+        Number(req.params.id);
+
+      if (
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Valid organization required."
+          );
+      }
+
+
+      const organizationResult =
+        await q(
+          `
+            SELECT
+              id,
+              name,
+              is_active
+
+            FROM organizations
+
+            WHERE id = $1
+
+            LIMIT 1
+          `,
+          [organizationId]
+        );
+
+
+      const organization =
+        organizationResult.rows[0];
+
+
+      if (!organization) {
+        return res
+          .status(404)
+          .send(
+            "Organization not found."
+          );
+      }
+
+
+      /*
+      Only archived Organizations can be
+      permanently deleted.
+      */
+
+      if (
+        organization.is_active !== false
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Deactivate this organization before permanently deleting it."
+          );
+      }
+
+
+      /*
+      Check for business/history records.
+
+      Any real Organization with business data
+      must remain archived instead of deleted.
+      */
+
+      const usageResult =
+        await q(
+          `
+            SELECT
+
+              (
+                SELECT COUNT(*)
+                FROM spaces
+                WHERE organization_id = $1
+              )::int AS locations,
+
+              (
+                SELECT COUNT(*)
+                FROM contracts
+                WHERE organization_id = $1
+              )::int AS contracts,
+
+              (
+                SELECT COUNT(*)
+                FROM organization_opportunities
+                WHERE organization_id = $1
+              )::int AS opportunities,
+
+              (
+                SELECT COUNT(*)
+                FROM organization_advertising_requests
+                WHERE organization_id = $1
+              )::int AS advertising_requests
+          `,
+          [organizationId]
+        );
+
+
+      const usage =
+        usageResult.rows[0] || {};
+
+
+      const hasBusinessData =
+        Number(usage.locations || 0) > 0 ||
+        Number(usage.contracts || 0) > 0 ||
+        Number(usage.opportunities || 0) > 0 ||
+        Number(
+          usage.advertising_requests || 0
+        ) > 0;
+
+
+      if (hasBusinessData) {
+
+        return res
+          .status(400)
+          .send(`
+            <div style="
+              font-family:Arial,sans-serif;
+              max-width:700px;
+              margin:50px auto;
+              line-height:1.6;
+            ">
+
+              <h2>
+                Organization cannot be deleted
+              </h2>
+
+              <p>
+                <strong>
+                  ${escapeHtml(
+                    organization.name
+                  )}
+                </strong>
+                has historical or operational Vivid data.
+              </p>
+
+              <p>
+                Leave this customer archived so
+                locations, contracts, inventory,
+                requests and reporting remain intact.
+              </p>
+
+              <a
+                href="/org-organizations?status=archived"
+              >
+                Back to Archived Organizations
+              </a>
+
+            </div>
+          `);
+      }
+
+
+      /*
+      Remove access relationships first.
+      These contain access configuration,
+      not business performance/history.
+      */
+
+      await q(
+        `
+          DELETE FROM location_users
+          WHERE organization_id = $1
+        `,
+        [organizationId]
+      );
+
+
+      await q(
+        `
+          DELETE FROM organization_users
+          WHERE organization_id = $1
+        `,
+        [organizationId]
+      );
+
+
+      /*
+      Now remove the empty/test Organization.
+      */
+
+      await q(
+        `
+          DELETE FROM organizations
+          WHERE id = $1
+        `,
+        [organizationId]
+      );
+
+
+      return res.redirect(
+        "/org-organizations?status=archived"
+      );
+
+
+    } catch (err) {
+
+      console.error(
+        "DELETE ORGANIZATION ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to delete organization. " +
+          "If this customer has related Vivid data, archive it instead. " +
+          err.message
+        );
+    }
+  }
+);
 async function buildOrganizationExportData(
   req,
   organizationId,
