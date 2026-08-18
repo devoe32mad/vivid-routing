@@ -62370,9 +62370,36 @@ app.get("/admin/organizations", requireLogin, async (req, res) => {
         <p class="subtitle">Manage the companies, hosts, districts, venues, and groups that own locations.</p>
       </div>
 
-      <div class="wrap">
-        <a class="btn" href="/admin/new-organization">+ New Organization</a>
-        <a class="btn secondary" href="/my-setup">Back to My Setup</a>
+<div class="wrap">
+
+  ${
+    isSuperAdmin
+      ? `
+        <div style="
+          display:flex;
+          gap:10px;
+          flex-wrap:wrap;
+          margin-bottom:20px;
+        ">
+
+          <a
+            class="btn"
+            href="/admin/new-organization"
+          >
+            + Create Enterprise Customer
+          </a>
+
+        </div>
+      `
+      : ""
+  }
+
+  <a
+    class="btn secondary"
+    href="/my-setup"
+  >
+    Back to My Setup
+  </a>
 
         <table>
           <tr>
