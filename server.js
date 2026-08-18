@@ -62585,54 +62585,348 @@ app.get(
   async (req, res) => {
     try {
 
-      const users = await q(`
-      SELECT
-  u.id,
-  u.name,
-  u.company_name,
-  u.email,
-  u.role,
-  u.created_at,
+      /*
+      =====================================================
+      ADVERTISER CUSTOMERS
+      =====================================================
+      */
 
-          ou.organization_id,
-          ou.role AS organization_role,
-
-          o.name AS organization_name,
-          o.is_active AS organization_active
+      const advertisersResult = await q(`
+        SELECT
+          u.id,
+          u.company_name,
+          u.name AS contact_name,
+          u.email,
+          u.created_at
 
         FROM users u
 
-        LEFT JOIN organization_users ou
-          ON ou.user_id = u.id
-         AND COALESCE(ou.is_active, true) = true
-
-        LEFT JOIN organizations o
-          ON o.id = ou.organization_id
+        WHERE u.role = 'customer'
 
         ORDER BY
-          u.role,
-          u.email
+          COALESCE(
+            NULLIF(TRIM(u.company_name), ''),
+            u.email
+          )
       `);
 
 
-      const advertiserUsers =
-        users.rows.filter(
-          user =>
-            user.role === "customer"
+      /*
+      =====================================================
+      ENTERPRISE CUSTOMERS
+
+      IMPORTANT:
+      One row per Organization / Enterprise customer.
+      Do NOT make Enterprise users the customer list.
+      =====================================================
+      */
+
+      const enterpriseResult = await q(`
+        SELECT
+          o.id,
+          o.name AS organization_name,
+          COALESCE(
+            o.organization_type,
+            ''
+          ) AS organization_type,
+
+          o.contact_name,
+          o.contact_email,
+          o.is_active,
+
+          COUNT(
+            DISTINCT ou.user_id
+          ) FILTER (
+            WHERE COALESCE(
+              ou.is_active,
+              true
+            ) = true
+          )::int AS user_count,
+
+          COUNT(
+            DISTINCT s.id
+          ) FILTER (
+            WHERE COALESCE(
+              s.is_archived,
+              false
+            ) = false
+          )::int AS location_count
+
+        FROM organizations o
+
+        LEFT JOIN organization_users ou
+          ON ou.organization_id = o.id
+
+        LEFT JOIN spaces s
+          ON s.organization_id = o.id
+
+        GROUP BY
+          o.id,
+          o.name,
+          o.organization_type,
+          o.contact_name,
+          o.contact_email,
+          o.is_active
+
+        ORDER BY o.name
+      `);
+
+
+      const advertiserCustomers =
+        advertisersResult.rows;
+
+      const enterpriseCustomers =
+        enterpriseResult.rows;
+
+
+      /*
+      =====================================================
+      SUMMARY
+      =====================================================
+      */
+
+      const activeEnterpriseCustomers =
+        enterpriseCustomers.filter(
+          organization =>
+            organization.is_active !== false
         );
 
 
-      const enterpriseUsers =
-        users.rows.filter(
-          user =>
-            user.role === "organization_user"
-        );
+      const advertiserCount =
+        advertiserCustomers.length;
+
+      const enterpriseCount =
+        activeEnterpriseCustomers.length;
+
+      const totalCustomers =
+        advertiserCount +
+        enterpriseCount;
+
+
+      /*
+      =====================================================
+      ADVERTISER ROWS
+      =====================================================
+      */
+
+      const advertiserRows =
+        advertiserCustomers.length
+          ? advertiserCustomers
+              .map(
+                customer => `
+                  <tr>
+
+                    <td>
+                      <strong>
+                        ${escapeHtml(
+                          customer.company_name ||
+                          "—"
+                        )}
+                      </strong>
+                    </td>
+
+                    <td>
+                      ${escapeHtml(
+                        customer.contact_name ||
+                        "—"
+                      )}
+                    </td>
+
+                    <td>
+                      ${escapeHtml(
+                        customer.email ||
+                        ""
+                      )}
+                    </td>
+
+                    <td>
+                      <span style="
+                        display:inline-block;
+                        padding:5px 10px;
+                        border-radius:999px;
+                        background:#e8f5eb;
+                        color:#185b34;
+                        font-weight:700;
+                        font-size:12px;
+                      ">
+                        Active
+                      </span>
+                    </td>
+
+                    <td>
+                      ${
+                        customer.created_at
+                          ? new Date(
+                              customer.created_at
+                            ).toLocaleDateString()
+                          : "—"
+                      }
+                    </td>
+
+                  </tr>
+                `
+              )
+              .join("")
+          : `
+              <tr>
+                <td
+                  colspan="5"
+                  style="
+                    text-align:center;
+                    padding:30px;
+                    color:#65776b;
+                  "
+                >
+                  No Advertiser customers.
+                </td>
+              </tr>
+            `;
+
+
+      /*
+      =====================================================
+      ENTERPRISE ROWS
+      =====================================================
+      */
+
+      const enterpriseRows =
+        activeEnterpriseCustomers.length
+          ? activeEnterpriseCustomers
+              .map(
+                organization => `
+                  <tr>
+
+                    <td>
+                      <strong>
+                        ${escapeHtml(
+                          organization.organization_name ||
+                          "—"
+                        )}
+                      </strong>
+                    </td>
+
+                    <td>
+                      ${escapeHtml(
+                        organization.organization_type ||
+                        "—"
+                      )}
+                    </td>
+
+                    <td>
+                      ${escapeHtml(
+                        organization.contact_name ||
+                        "—"
+                      )}
+                    </td>
+
+                    <td>
+                      ${escapeHtml(
+                        organization.contact_email ||
+                        "—"
+                      )}
+                    </td>
+
+                    <td style="text-align:center;">
+                      ${Number(
+                        organization.location_count ||
+                        0
+                      )}
+                    </td>
+
+                    <td style="text-align:center;">
+                      ${Number(
+                        organization.user_count ||
+                        0
+                      )}
+                    </td>
+
+                    <td>
+                      <span style="
+                        display:inline-block;
+                        padding:5px 10px;
+                        border-radius:999px;
+                        background:#e8f5eb;
+                        color:#185b34;
+                        font-weight:700;
+                        font-size:12px;
+                      ">
+                        Active
+                      </span>
+                    </td>
+
+                    <td>
+                      <div style="
+                        display:flex;
+                        gap:8px;
+                        flex-wrap:wrap;
+                      ">
+
+                        <a
+                          class="btn"
+                          href="/org-organization/${organization.id}?organization_id=${organization.id}"
+                          style="margin:0;"
+                        >
+                          Open
+                        </a>
+
+                        <a
+                          class="btn secondary"
+                          href="/org-users?organization_id=${organization.id}"
+                          style="margin:0;"
+                        >
+                          Manage Users
+                        </a>
+
+                        <form
+                          method="POST"
+                          action="/org-organizations/${organization.id}/deactivate"
+                          style="margin:0;"
+                          onsubmit="
+                            return confirm(
+                              'Deactivate this Enterprise customer?'
+                            );
+                          "
+                        >
+                          <button
+                            class="btn secondary"
+                            type="submit"
+                            style="margin:0;"
+                          >
+                            Deactivate
+                          </button>
+                        </form>
+
+                      </div>
+                    </td>
+
+                  </tr>
+                `
+              )
+              .join("")
+          : `
+              <tr>
+                <td
+                  colspan="8"
+                  style="
+                    text-align:center;
+                    padding:30px;
+                    color:#65776b;
+                  "
+                >
+                  No Enterprise customers.
+                </td>
+              </tr>
+            `;
 
 
       return res.send(
         page(
           "Customer Management",
           `
+
+            <!-- =========================================
+                 HEADER
+            ========================================== -->
 
             <div class="topbar">
 
@@ -62645,8 +62939,8 @@ app.get(
               </h1>
 
               <p class="subtitle">
-                Create and manage Advertiser and
-                Enterprise customers.
+                Create and manage Advertiser
+                and Enterprise customers.
               </p>
 
             </div>
@@ -62654,24 +62948,172 @@ app.get(
 
             <div class="wrap">
 
-              <a
-                class="btn secondary"
-                href="/admin"
-              >
-                Back to Admin
-              </a>
 
+              <!-- =======================================
+                   TOP ACTIONS
+              ======================================== -->
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:12px;
+                flex-wrap:wrap;
+                margin-bottom:24px;
+              ">
+
+                <a
+                  class="btn secondary"
+                  href="/platform-admin"
+                  style="margin:0;"
+                >
+                  Back to Platform Admin
+                </a>
+
+                <button
+                  class="btn"
+                  type="button"
+                  onclick="
+                    const panel =
+                      document.getElementById(
+                        'createCustomerPanel'
+                      );
+
+                    panel.style.display =
+                      panel.style.display === 'none'
+                        ? 'block'
+                        : 'none';
+                  "
+                  style="margin:0;"
+                >
+                  + Create Customer
+                </button>
+
+              </div>
+
+
+              <!-- =======================================
+                   EXECUTIVE CUSTOMER SUMMARY
+              ======================================== -->
 
               <div
+                class="cards"
+                style="
+                  grid-template-columns:
+                    repeat(
+                      4,
+                      minmax(0,1fr)
+                    );
+                  margin-bottom:24px;
+                "
+              >
+
+                <div class="card">
+
+                  <div class="label">
+                    Total Customers
+                  </div>
+
+                  <div class="num">
+                    ${totalCustomers}
+                  </div>
+
+                  <p style="
+                    margin-bottom:0;
+                    color:#65776b;
+                  ">
+                    Active Vivid customers
+                  </p>
+
+                </div>
+
+
+                <div class="card">
+
+                  <div class="label">
+                    Advertiser Customers
+                  </div>
+
+                  <div class="num">
+                    ${advertiserCount}
+                  </div>
+
+                  <p style="
+                    margin-bottom:0;
+                    color:#65776b;
+                  ">
+                    Advertising performance accounts
+                  </p>
+
+                </div>
+
+
+                <div class="card">
+
+                  <div class="label">
+                    Enterprise Customers
+                  </div>
+
+                  <div class="num">
+                    ${enterpriseCount}
+                  </div>
+
+                  <p style="
+                    margin-bottom:0;
+                    color:#65776b;
+                  ">
+                    Organizations using Vivid Enterprise
+                  </p>
+
+                </div>
+
+
+                <div class="card">
+
+                  <div class="label">
+                    Advertiser + Enterprise
+                  </div>
+
+                  <div class="num" style="font-size:22px;">
+                    Not Enabled
+                  </div>
+
+                  <p style="
+                    margin-bottom:0;
+                    color:#65776b;
+                  ">
+                    Dual access will be added intentionally
+                  </p>
+
+                </div>
+
+              </div>
+
+
+              <!-- =======================================
+                   CREATE CUSTOMER
+              ======================================== -->
+
+              <div
+                id="createCustomerPanel"
                 class="card"
                 style="
-                  margin-top:24px;
+                  display:none;
+                  margin-bottom:24px;
                 "
               >
 
                 <h2 style="margin-top:0;">
                   Create Customer
                 </h2>
+
+                <p style="
+                  color:#65776b;
+                  margin-top:-5px;
+                ">
+                  Create either an Advertiser
+                  or Enterprise customer.
+                </p>
 
 
                 <form
@@ -62700,23 +63142,23 @@ app.get(
                     </option>
 
                   </select>
-<label>
-  Company / Organization Name
-</label>
 
-<input
-  name="company_name"
-  required
-  placeholder="Enter company or organization name"
-/>
+
+                  <label>
+                    Company / Organization Name
+                  </label>
+
+                  <input
+                    name="company_name"
+                    required
+                    placeholder="Enter company or organization name"
+                  />
+
 
                   <div
                     id="enterpriseFields"
                     style="display:none;"
                   >
-
-
-
 
                     <label>
                       Organization Type
@@ -62724,10 +63166,7 @@ app.get(
 
                     <input
                       name="organization_type"
-                      placeholder="
-                        School District, Chamber,
-                        Hotel, Media Company, etc.
-                      "
+                      placeholder="School District, Chamber, Hotel, Media Company, etc."
                     />
 
 
@@ -62793,183 +63232,227 @@ app.get(
                   />
 
 
-                  <button
-                    class="btn"
-                    type="submit"
-                  >
-                    Create Customer
-                  </button>
+                  <div style="
+                    display:flex;
+                    gap:10px;
+                    flex-wrap:wrap;
+                    margin-top:8px;
+                  ">
+
+                    <button
+                      class="btn"
+                      type="submit"
+                      style="margin:0;"
+                    >
+                      Create Customer
+                    </button>
+
+                    <button
+                      class="btn secondary"
+                      type="button"
+                      style="margin:0;"
+                      onclick="
+                        document.getElementById(
+                          'createCustomerPanel'
+                        ).style.display='none';
+                      "
+                    >
+                      Cancel
+                    </button>
+
+                  </div>
 
                 </form>
 
               </div>
 
 
+              <!-- =======================================
+                   ADVERTISER CUSTOMERS
+              ======================================== -->
+
               <div
                 class="card"
-                style="
-                  margin-top:24px;
-                "
+                style="margin-bottom:24px;"
               >
 
-                <h2 style="margin-top:0;">
-                  Advertiser Customers
-                </h2>
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:center;
+                  gap:12px;
+                  flex-wrap:wrap;
+                  margin-bottom:15px;
+                ">
 
-                <table>
+                  <div>
 
-                  <tr>
-                   <th>ID</th>
-<th>Company / Advertiser</th>
-<th>Contact</th>
-<th>Email</th>
-<th>Status</th>
-<th>Created</th>
-                  </tr>
+                    <h2 style="
+                      margin:0 0 4px;
+                    ">
+                      Advertiser Customers
+                    </h2>
 
-                  ${
-                    advertiserUsers.length
-                      ? advertiserUsers
-                          .map(
-                            user => `
-                              <tr>
+                    <div style="
+                      color:#65776b;
+                    ">
+                      Advertiser-only Vivid accounts.
+                    </div>
 
-                                <td>
-                                  ${user.id}
-                                </td>
+                  </div>
 
-                               <td>
-  ${escapeHtml(
-    user.company_name || "—"
-  )}
-</td>
+                  <div style="
+                    font-weight:700;
+                  ">
+                    ${advertiserCount} Active
+                  </div>
 
-<td>
-  ${escapeHtml(
-    user.name || "—"
-  )}
-</td>
+                </div>
 
-<td>
-  ${escapeHtml(
-    user.email || ""
-  )}
-</td>
-                                <td>
-                                  Active
-                                </td>
 
-                                <td>
-                                  ${
-                                    user.created_at
-                                      ? new Date(
-                                          user.created_at
-                                        ).toLocaleString()
-                                      : ""
-                                  }
-                                </td>
+                <div style="overflow-x:auto;">
 
-                              </tr>
-                            `
-                          )
-                          .join("")
-                      : `
-                          <tr>
-                            <td colspan="6">
-                              No advertiser customers.
-                            </td>
-                          </tr>
-                        `
-                  }
+                  <table>
 
-                </table>
+                    <tr>
+                      <th>
+                        Company / Advertiser
+                      </th>
+
+                      <th>
+                        Contact
+                      </th>
+
+                      <th>
+                        Email
+                      </th>
+
+                      <th>
+                        Status
+                      </th>
+
+                      <th>
+                        Created
+                      </th>
+                    </tr>
+
+                    ${advertiserRows}
+
+                  </table>
+
+                </div>
 
               </div>
 
 
+              <!-- =======================================
+                   ENTERPRISE CUSTOMERS
+              ======================================== -->
+
               <div
                 class="card"
-                style="
-                  margin-top:24px;
-                "
+                style="margin-bottom:24px;"
               >
 
-                <h2 style="margin-top:0;">
-                  Enterprise Users
-                </h2>
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:center;
+                  gap:12px;
+                  flex-wrap:wrap;
+                  margin-bottom:15px;
+                ">
 
-                <table>
+                  <div>
 
-                  <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Organization</th>
-                    <th>Enterprise Role</th>
-                    <th>Status</th>
-                  </tr>
+                    <h2 style="
+                      margin:0 0 4px;
+                    ">
+                      Enterprise Customers
+                    </h2>
 
-                  ${
-                    enterpriseUsers.length
-                      ? enterpriseUsers
-                          .map(
-                            user => `
-                              <tr>
+                    <div style="
+                      color:#65776b;
+                    ">
+                      Organizations using
+                      Vivid Enterprise.
+                    </div>
 
-                                <td>
-                                  ${user.id}
-                                </td>
+                  </div>
 
-                                <td>
-                                  ${escapeHtml(
-                                    user.name || "—"
-                                  )}
-                                </td>
 
-                                <td>
-                                  ${escapeHtml(
-                                    user.email || ""
-                                  )}
-                                </td>
+                  <div style="
+                    display:flex;
+                    gap:10px;
+                    align-items:center;
+                    flex-wrap:wrap;
+                  ">
 
-                                <td>
-                                  ${escapeHtml(
-                                    user.organization_name ||
-                                    "Not Assigned"
-                                  )}
-                                </td>
+                    <strong>
+                      ${enterpriseCount} Active
+                    </strong>
 
-                                <td>
-                                  ${escapeHtml(
-                                    user.organization_role ||
-                                    "—"
-                                  )}
-                                </td>
+                    <a
+                      class="btn secondary"
+                      href="/org-organizations?status=archived"
+                      style="margin:0;"
+                    >
+                      Archived
+                    </a>
 
-                                <td>
-                                  ${
-                                    user.organization_active === false
-                                      ? "Archived"
-                                      : "Active"
-                                  }
-                                </td>
+                  </div>
 
-                              </tr>
-                            `
-                          )
-                          .join("")
-                      : `
-                          <tr>
-                            <td colspan="6">
-                              No Enterprise users.
-                            </td>
-                          </tr>
-                        `
-                  }
+                </div>
 
-                </table>
+
+                <div style="overflow-x:auto;">
+
+                  <table>
+
+                    <tr>
+
+                      <th>
+                        Organization
+                      </th>
+
+                      <th>
+                        Type
+                      </th>
+
+                      <th>
+                        Primary Contact
+                      </th>
+
+                      <th>
+                        Email
+                      </th>
+
+                      <th>
+                        Locations
+                      </th>
+
+                      <th>
+                        Users
+                      </th>
+
+                      <th>
+                        Status
+                      </th>
+
+                      <th>
+                        Actions
+                      </th>
+
+                    </tr>
+
+                    ${enterpriseRows}
+
+                  </table>
+
+                </div>
 
               </div>
+
 
             </div>
 
@@ -62994,6 +63477,7 @@ app.get(
                     : "none";
               }
 
+
               updateCustomerType();
 
             </script>
@@ -63001,6 +63485,7 @@ app.get(
           `
         )
       );
+
 
     } catch (err) {
 
@@ -63018,6 +63503,7 @@ app.get(
     }
   }
 );
+
 app.post(
   "/admin/users",
   requireSuperAdmin,
