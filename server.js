@@ -16281,7 +16281,11 @@ if (
 }
 
 const scope =
-  await getOrganizationScope(req);
+  await getOrganizationScope(
+    req,
+    orgId
+  );
+  
 
 /*
   The route organization must always match
