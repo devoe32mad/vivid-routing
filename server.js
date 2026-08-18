@@ -62695,7 +62695,15 @@ app.get(
                     </option>
 
                   </select>
+<label>
+  Company / Organization Name
+</label>
 
+<input
+  name="company_name"
+  required
+  placeholder="Enter company or organization name"
+/>
 
                   <div
                     id="enterpriseFields"
