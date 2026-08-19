@@ -63497,9 +63497,7 @@ ${
 `
     : ""
 }
-`
-    : ""
-}
+
             <script>
 
               function updateCustomerType() {
