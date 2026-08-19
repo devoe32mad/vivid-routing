@@ -62584,7 +62584,10 @@ app.get(
   requireSuperAdmin,
   async (req, res) => {
     try {
-
+const customerTypeFilter =
+  String(req.query.type || "all")
+    .trim()
+    .toLowerCase();
       /*
       =====================================================
       ADVERTISER CUSTOMERS
@@ -63266,7 +63269,38 @@ app.get(
 
               </div>
 
+<div style="
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:20px;
+">
 
+  <a
+    class="btn ${customerTypeFilter === "all" ? "" : "secondary"}"
+    href="/admin/users?type=all"
+  >
+    All
+  </a>
+
+  <a
+    class="btn ${customerTypeFilter === "advertiser" ? "" : "secondary"}"
+    href="/admin/users?type=advertiser"
+  >
+    Advertisers
+  </a>
+
+  <a
+    class="btn ${customerTypeFilter === "enterprise" ? "" : "secondary"}"
+    href="/admin/users?type=enterprise"
+  >
+    Enterprise
+  </a>
+
+</div>
+${
+  customerTypeFilter !== "enterprise"
+    ? `
               <!-- =======================================
                    ADVERTISER CUSTOMERS
               ======================================== -->
@@ -63344,7 +63378,12 @@ app.get(
 
               </div>
 
-
+`
+    : ""
+}
+${
+  customerTypeFilter !== "advertiser"
+    ? `
               <!-- =======================================
                    ENTERPRISE CUSTOMERS
               ======================================== -->
@@ -63455,8 +63494,12 @@ app.get(
 
 
             </div>
-
-
+`
+    : ""
+}
+`
+    : ""
+}
             <script>
 
               function updateCustomerType() {
