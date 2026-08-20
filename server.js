@@ -1624,11 +1624,11 @@ function vividThemeStyles() {
       opacity:.92;
     }
 
-    a:not(.btn):not(.choice-btn) {
+    a:not(.btn):not(.choice-btn):not(.marketplace-btn) {
       color:var(--vivid-blue);
     }
 
-    a:not(.btn):not(.choice-btn):hover {
+    a:not(.btn):not(.choice-btn):not(.marketplace-btn):hover {
       color:var(--vivid-blue-dark);
     }
 
