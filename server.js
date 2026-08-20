@@ -63838,7 +63838,7 @@ OPEN ADVERTISER CUSTOMER
 
 app.get(
   "/admin/advertiser-customer/:customerId",
-  requireSuperAdmin,
+    requireAdvertiserCustomerManager,
   async (req, res) => {
     try {
 
@@ -64117,7 +64117,7 @@ MANAGE ADVERTISER USERS
 
 app.get(
   "/admin/advertiser-customer/:customerId/users",
-  requireSuperAdmin,
+    requireAdvertiserCustomerManager,
   async (req, res) => {
     try {
 
@@ -64514,7 +64514,7 @@ EDIT ADVERTISER USER
 
 app.get(
   "/admin/advertiser-customer/:customerId/user/:userId/edit",
-  requireSuperAdmin,
+    requireAdvertiserCustomerManager,
   async (req, res) => {
     try {
 
@@ -64675,7 +64675,7 @@ app.get(
 
 app.post(
   "/admin/advertiser-customer/:customerId/user/:userId/edit",
-  requireSuperAdmin,
+    requireAdvertiserCustomerManager,
   async (req, res) => {
     try {
 
@@ -64774,7 +64774,7 @@ RESET ADVERTISER USER PASSWORD
 
 app.post(
   "/admin/advertiser-customer/:customerId/user/:userId/send-password-reset",
-  requireSuperAdmin,
+    requireAdvertiserCustomerManager,
   async (req, res) => {
     try {
 
@@ -65019,7 +65019,7 @@ ADD ADVERTISER USER
 
 app.get(
   "/admin/advertiser-customer/:customerId/users/new",
-  requireSuperAdmin,
+    requireAdvertiserCustomerManager,
   async (req, res) => {
     try {
 
@@ -65197,7 +65197,7 @@ app.get(
 
 app.post(
   "/admin/advertiser-customer/:customerId/users/new",
-  requireSuperAdmin,
+    requireAdvertiserCustomerManager,
   async (req, res) => {
     try {
 
