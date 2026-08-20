@@ -63592,7 +63592,285 @@ ${
     }
   }
 );
+/*
+=========================================================
+OPEN ADVERTISER CUSTOMER
+=========================================================
+*/
 
+app.get(
+  "/admin/advertiser-customer/:customerId",
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+
+      const customerId =
+        Number(req.params.customerId);
+
+      if (
+        !Number.isInteger(customerId) ||
+        customerId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Invalid Advertiser customer."
+          );
+      }
+
+      const customerResult = await q(
+        `
+          SELECT
+            id,
+            company_name,
+            name AS contact_name,
+            email,
+            account_status,
+            created_at
+
+          FROM users
+
+          WHERE id = $1
+            AND role = 'customer'
+
+          LIMIT 1
+        `,
+        [customerId]
+      );
+
+      const customer =
+        customerResult.rows[0];
+
+      if (!customer) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser customer not found."
+          );
+      }
+
+      const metricsResult = await q(
+        `
+          SELECT
+
+            (
+              SELECT COUNT(*)::int
+              FROM spaces
+              WHERE user_id = $1
+                AND COALESCE(
+                  is_archived,
+                  false
+                ) = false
+            ) AS location_count,
+
+            (
+              SELECT COUNT(*)::int
+              FROM qr_codes qr
+              JOIN spaces s
+                ON s.id = qr.space_id
+              WHERE s.user_id = $1
+                AND COALESCE(
+                  qr.is_archived,
+                  false
+                ) = false
+            ) AS qr_count,
+
+            (
+              SELECT COUNT(*)::int
+              FROM campaigns
+              WHERE user_id = $1
+                AND COALESCE(
+                  is_archived,
+                  false
+                ) = false
+            ) AS campaign_count
+        `,
+        [customerId]
+      );
+
+      const metrics =
+        metricsResult.rows[0] || {};
+
+      return res.send(
+        page(
+          "Advertiser Customer",
+          `
+            <div class="topbar">
+
+              <div class="brand">
+                Vivid Advertisers
+              </div>
+
+              <h1>
+                ${escapeHtml(
+                  customer.company_name ||
+                  customer.email ||
+                  "Advertiser Customer"
+                )}
+              </h1>
+
+              <p class="subtitle">
+                Advertiser customer overview.
+              </p>
+
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                display:flex;
+                gap:10px;
+                flex-wrap:wrap;
+                margin-bottom:24px;
+              ">
+
+                <a
+                  class="btn secondary"
+                  href="/admin/users?type=advertiser"
+                >
+                  Back to Advertisers
+                </a>
+
+              </div>
+
+              <div
+                class="cards"
+                style="
+                  grid-template-columns:
+                    repeat(
+                      3,
+                      minmax(0,1fr)
+                    );
+                  margin-bottom:24px;
+                "
+              >
+
+                <div class="card">
+                  <div class="label">
+                    Locations
+                  </div>
+
+                  <div class="num">
+                    ${Number(
+                      metrics.location_count || 0
+                    )}
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    QR Placements
+                  </div>
+
+                  <div class="num">
+                    ${Number(
+                      metrics.qr_count || 0
+                    )}
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Active Campaigns
+                  </div>
+
+                  <div class="num">
+                    ${Number(
+                      metrics.campaign_count || 0
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="card">
+
+                <h2 style="margin-top:0;">
+                  Customer Information
+                </h2>
+
+                <table>
+
+                  <tr>
+                    <th>Company / Advertiser</th>
+                    <th>Primary Contact</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                  </tr>
+
+                  <tr>
+
+                    <td>
+                      ${escapeHtml(
+                        customer.company_name ||
+                        "—"
+                      )}
+                    </td>
+
+                    <td>
+                      ${escapeHtml(
+                        customer.contact_name ||
+                        "—"
+                      )}
+                    </td>
+
+                    <td>
+                      ${escapeHtml(
+                        customer.email ||
+                        "—"
+                      )}
+                    </td>
+
+                    <td>
+                      ${
+                        String(
+                          customer.account_status ||
+                          "active"
+                        ).toLowerCase() ===
+                        "inactive"
+                          ? "Inactive"
+                          : "Active"
+                      }
+                    </td>
+
+                    <td>
+                      ${
+                        customer.created_at
+                          ? new Date(
+                              customer.created_at
+                            ).toLocaleDateString()
+                          : "—"
+                      }
+                    </td>
+
+                  </tr>
+
+                </table>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        "OPEN ADVERTISER CUSTOMER ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "OPEN ADVERTISER CUSTOMER ERROR: " +
+          err.message
+        );
+    }
+  }
+);
 app.post(
   "/admin/users",
   requireSuperAdmin,
