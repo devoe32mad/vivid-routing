@@ -63957,7 +63957,28 @@ app.get(
             </div>
 
             <div class="wrap">
-
+              ${
+                req.query.message
+                  ? `
+                    <div
+                      class="card"
+                      style="
+                        padding:14px 18px;
+                        margin-bottom:20px;
+                        background:#e8f5eb;
+                        color:#185b34;
+                        font-weight:700;
+                      "
+                    >
+                      ${escapeHtml(
+                        String(
+                          req.query.message
+                        )
+                      )}
+                    </div>
+                  `
+                  : ""
+              }
               <div style="
                 display:flex;
                 justify-content:space-between;
