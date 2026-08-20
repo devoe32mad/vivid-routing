@@ -64394,6 +64394,109 @@ app.post(
     }
   }
 );
+/*
+=========================================================
+RESET ADVERTISER USER PASSWORD
+=========================================================
+*/
+
+app.post(
+  "/admin/advertiser-customer/:customerId/user/:userId/send-password-reset",
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+
+      const customerId =
+        Number(req.params.customerId);
+
+      const userId =
+        Number(req.params.userId);
+
+      if (
+        !Number.isInteger(customerId) ||
+        customerId <= 0 ||
+        !Number.isInteger(userId) ||
+        userId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Valid Advertiser customer and user are required."
+          );
+      }
+
+      const userResult = await q(
+        `
+          SELECT
+            id,
+            name,
+            email
+
+          FROM users
+
+          WHERE id = $1
+            AND id = $2
+            AND role = 'customer'
+
+          LIMIT 1
+        `,
+        [
+          userId,
+          customerId
+        ]
+      );
+
+      const user =
+        userResult.rows[0];
+
+      if (!user) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser user not found."
+          );
+      }
+
+      const result =
+        await createAndSendPasswordReset({
+          userId: Number(user.id),
+          email: user.email,
+          name: user.name || "",
+          requestedByUserId:
+            Number(
+              req.session.user?.id || 0
+            ) || null,
+          organizationId: null
+        });
+
+      if (!result.sent) {
+        return res
+          .status(500)
+          .send(
+            "Unable to send password reset email."
+          );
+      }
+
+      return res.redirect(
+        `/admin/advertiser-customer/${customerId}/users`
+      );
+
+    } catch (err) {
+
+      console.error(
+        "ADVERTISER PASSWORD RESET ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "ADVERTISER PASSWORD RESET ERROR: " +
+          err.message
+        );
+    }
+  }
+);
 app.post(
   "/admin/users",
   requireSuperAdmin,
