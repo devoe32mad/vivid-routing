@@ -62748,6 +62748,10 @@ const showArchivedAdvertisers =
         FROM users u
 
         WHERE u.role = 'customer'
+  AND COALESCE(
+    u.advertiser_customer_id,
+    u.id
+  ) = u.id
 
         ORDER BY
           COALESCE(
