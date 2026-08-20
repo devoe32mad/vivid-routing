@@ -1609,7 +1609,7 @@ function page(title, body) {
   <title>${title}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    ${vividThemeStyles()}
+    
     body{margin:0;font-family:Arial,sans-serif;background:var(--vivid-background);color:var(--vivid-text)}
     
     .topbar{background:linear-gradient(135deg,var(--vivid-navy),var(--vivid-blue));color:white;padding:30px 40px}
@@ -1652,6 +1652,7 @@ function page(title, body) {
     input,select{width:100%;padding:11px;border-radius:10px;border:1px solid #cfdacf;margin:6px 0 14px;font-size:15px;box-sizing:border-box}
     .formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}a{color:#176b3a;font-weight:bold}
     @media(max-width:800px){.topbar,.wrap{padding:22px}.cards,.formgrid{grid-template-columns:1fr}h1{font-size:28px}}
+        ${vividThemeStyles()}
   </style>
 </head>
 <body>
