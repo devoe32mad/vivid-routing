@@ -9099,9 +9099,15 @@ app.post("/login", async (req, res) => {
     const user = await q(`
       SELECT *
       FROM users
-      WHERE email = $1
+            WHERE email = $1
       AND password = $2
+      AND COALESCE(
+        account_status,
+        'active'
+      ) = 'active'
       LIMIT 1
+      
+    
     `, [
       req.body.email,
       req.body.password
