@@ -64924,6 +64924,335 @@ app.post(
     }
   }
 );
+/*
+=========================================================
+ADD ADVERTISER USER
+=========================================================
+*/
+
+app.get(
+  "/admin/advertiser-customer/:customerId/users/new",
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+
+      const customerId =
+        Number(req.params.customerId);
+
+      if (
+        !Number.isInteger(customerId) ||
+        customerId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Invalid Advertiser customer."
+          );
+      }
+
+      const customerResult = await q(
+        `
+          SELECT
+            id,
+            company_name,
+            email
+
+          FROM users
+
+          WHERE id = $1
+            AND role = 'customer'
+
+          LIMIT 1
+        `,
+        [customerId]
+      );
+
+      const customer =
+        customerResult.rows[0];
+
+      if (!customer) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser customer not found."
+          );
+      }
+
+      return res.send(
+        page(
+          "Add Advertiser User",
+          `
+            <div class="topbar">
+
+              <div class="brand">
+                Vivid Advertisers
+              </div>
+
+              <h1>Add User</h1>
+
+              <p class="subtitle">
+                Add a user to
+                ${escapeHtml(
+                  customer.company_name ||
+                  customer.email ||
+                  "this Advertiser account"
+                )}.
+              </p>
+
+            </div>
+
+            <div class="wrap">
+
+              <div style="margin-bottom:20px;">
+
+                <a
+                  class="btn secondary"
+                  href="/admin/advertiser-customer/${customerId}/users"
+                >
+                  Back to Users
+                </a>
+
+              </div>
+
+              <div class="card">
+
+                <form
+                  method="POST"
+                  action="/admin/advertiser-customer/${customerId}/users/new"
+                >
+
+                  <label>
+                    Full Name
+                  </label>
+
+                  <input
+                    name="name"
+                    required
+                  />
+
+                  <label>
+                    Email
+                  </label>
+
+                  <input
+                    name="email"
+                    type="email"
+                    required
+                  />
+
+                  <label>
+                    Temporary Password
+                  </label>
+
+                  <input
+                    name="password"
+                    type="password"
+                    required
+                  />
+
+                  <p style="
+                    color:#65776b;
+                    font-size:13px;
+                  ">
+                    This user will have access to all data
+                    belonging to this Advertiser account.
+                  </p>
+
+                  <div style="
+                    display:flex;
+                    gap:10px;
+                    flex-wrap:wrap;
+                    margin-top:10px;
+                  ">
+
+                    <button
+                      class="btn"
+                      type="submit"
+                    >
+                      Add User
+                    </button>
+
+                    <a
+                      class="btn secondary"
+                      href="/admin/advertiser-customer/${customerId}/users"
+                    >
+                      Cancel
+                    </a>
+
+                  </div>
+
+                </form>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        "ADD ADVERTISER USER FORM ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "ADD ADVERTISER USER FORM ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+
+
+app.post(
+  "/admin/advertiser-customer/:customerId/users/new",
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+
+      const customerId =
+        Number(req.params.customerId);
+
+      const name =
+        String(
+          req.body.name || ""
+        ).trim();
+
+      const email =
+        String(
+          req.body.email || ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const password =
+        String(
+          req.body.password || ""
+        );
+
+      if (
+        !Number.isInteger(customerId) ||
+        customerId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Invalid Advertiser customer."
+          );
+      }
+
+      if (
+        !name ||
+        !email ||
+        !password
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Name, email, and temporary password are required."
+          );
+      }
+
+      const customerResult = await q(
+        `
+          SELECT
+            id,
+            company_name,
+            customer_id
+
+          FROM users
+
+          WHERE id = $1
+            AND role = 'customer'
+
+          LIMIT 1
+        `,
+        [customerId]
+      );
+
+      const customer =
+        customerResult.rows[0];
+
+      if (!customer) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser customer not found."
+          );
+      }
+
+      await q(
+        `
+          INSERT INTO users (
+            name,
+            company_name,
+            email,
+            password,
+            role,
+            customer_id,
+            advertiser_customer_id,
+            account_status,
+            password_created_at,
+            created_at
+          )
+
+          VALUES (
+            $1,
+            $2,
+            $3,
+            $4,
+            'customer',
+            $5,
+            $6,
+            'active',
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          name,
+          customer.company_name || "",
+          email,
+          password,
+          customer.customer_id || null,
+          customerId
+        ]
+      );
+
+      return res.redirect(
+        `/admin/advertiser-customer/${customerId}/users?message=${encodeURIComponent(
+          "Advertiser user added."
+        )}`
+      );
+
+    } catch (err) {
+
+      if (err.code === "23505") {
+        return res
+          .status(400)
+          .send(
+            "A Vivid user already uses this email address."
+          );
+      }
+
+      console.error(
+        "ADD ADVERTISER USER ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "ADD ADVERTISER USER ERROR: " +
+          err.message
+        );
+    }
+  }
+);
 app.post(
   "/admin/users",
   requireSuperAdmin,
