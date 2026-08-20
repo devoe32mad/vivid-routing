@@ -1645,6 +1645,140 @@ function vividThemeStyles() {
     .note {
       border-left-color:var(--vivid-blue);
     }
+        .marketplace-btn {
+      background:var(--vivid-blue);
+      color:white;
+    }
+
+    .marketplace-btn:hover {
+      background:var(--vivid-blue-dark);
+      color:white;
+    }
+
+    .marketplace-btn.secondary {
+      background:var(--vivid-navy);
+      color:white;
+    }
+
+    a[style*="background:#2f7d46"],
+    button[style*="background:#2f7d46"],
+    a[style*="background:#176b3a"],
+    button[style*="background:#176b3a"],
+    a[style*="background:#17733b"],
+    button[style*="background:#17733b"] {
+      background:var(--vivid-blue) !important;
+      color:white !important;
+    }
+
+    a[style*="background:#2f7d46"]:hover,
+    button[style*="background:#2f7d46"]:hover,
+    a[style*="background:#176b3a"]:hover,
+    button[style*="background:#176b3a"]:hover,
+    a[style*="background:#17733b"]:hover,
+    button[style*="background:#17733b"]:hover {
+      background:var(--vivid-blue-dark) !important;
+    }
+
+    a[style*="background:#123d25"],
+    button[style*="background:#123d25"] {
+      background:var(--vivid-navy) !important;
+      color:white !important;
+    }
+
+    a[style*="color:#176b3a"] {
+      color:var(--vivid-blue) !important;
+    }
+
+    form[action*="/deactivate"] .btn,
+    form[action*="/archive"] .btn,
+    form[action*="/delete"] .btn,
+    form[action*="/remove"] .btn {
+      background:#DC2626 !important;
+      color:white !important;
+    }
+
+    form[action*="/deactivate"] .btn:hover,
+    form[action*="/archive"] .btn:hover,
+    form[action*="/delete"] .btn:hover,
+    form[action*="/remove"] .btn:hover {
+      background:#B91C1C !important;
+    }
+        body {
+      background:var(--vivid-background);
+      color:var(--vivid-text);
+    }
+
+    .topbar,
+    .marketplace-topbar {
+      background:linear-gradient(
+        135deg,
+        var(--vivid-navy),
+        var(--vivid-blue)
+      );
+      color:white;
+    }
+
+    .brand,
+    .marketplace-brand,
+    .subtitle,
+    .marketplace-subtitle {
+      color:var(--vivid-blue-light);
+    }
+
+    .card,
+    .marketplace-card,
+    table {
+      background:var(--vivid-surface);
+    }
+
+    .label,
+    .small,
+    .marketplace-label {
+      color:var(--vivid-text-muted);
+    }
+
+    input,
+    select,
+    textarea {
+      background:var(--vivid-surface);
+      color:var(--vivid-text);
+      border-color:var(--vivid-border);
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color:var(--vivid-blue);
+      outline:2px solid var(--vivid-blue-light);
+      outline-offset:1px;
+    }
+
+    .workflow-step {
+      background:var(--vivid-blue-light);
+      border-color:var(--vivid-border);
+      color:var(--vivid-text);
+    }
+
+    div[style*="background:#f7faf7"][style*="border:1px solid #dbe7db"] {
+      background:var(--vivid-blue-light) !important;
+      border-color:var(--vivid-border) !important;
+      color:var(--vivid-text-muted) !important;
+    }
+
+    .user-icon,
+    .user-avatar,
+    .profile-icon,
+    .account-icon,
+    .avatar {
+      background:var(--vivid-blue) !important;
+      color:white !important;
+    }
+
+    [aria-label*="user" i][style*="background"],
+    [title*="user" i][style*="background"] {
+      background:var(--vivid-blue) !important;
+      color:white !important;
+    }
   `;
 }
 
