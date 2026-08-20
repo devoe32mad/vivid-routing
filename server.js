@@ -64730,9 +64730,14 @@ app.post(
 
           FROM users
 
-          WHERE id = $1
-            AND id = $2
+                    WHERE id = $1
             AND role = 'customer'
+            AND COALESCE(
+              advertiser_customer_id,
+              id
+            ) = $2
+      
+            
 
           LIMIT 1
         `,
