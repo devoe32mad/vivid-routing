@@ -1656,7 +1656,7 @@ function page(title, body) {
 </head>
 <body>
 
-<div style="background:#123d25;padding:14px 24px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
+<div style="background:var(--vivid-navy);padding:14px 24px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
 
   <a href="/my-setup" style="color:white;text-decoration:none;font-weight:bold;">
   My Setup
