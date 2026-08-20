@@ -64107,31 +64107,58 @@ app.get(
                         </button>
                       </form>
 
-                      <form
-                        method="POST"
-                        action="/admin/advertiser-customer/${customerId}/deactivate"
-                        style="
-                          display:inline;
-                          margin:0;
-                        "
-                        onsubmit="
-                          return confirm(
-                            'Deactivate this Advertiser customer?'
-                          );
-                        "
-                      >
-                        <button
-                          class="btn secondary"
-                          type="submit"
-                          style="
-                            padding:8px 12px;
-                            margin:0;
-                          "
-                        >
-                          Deactivate
-                        </button>
-                      </form>
-
+                   
+                   
+                      ${
+                        isActive
+                          ? `
+                            <form
+                              method="POST"
+                              action="/admin/advertiser-customer/${customerId}/deactivate"
+                              style="
+                                display:inline;
+                                margin:0;
+                              "
+                              onsubmit="
+                                return confirm(
+                                  'Deactivate this Advertiser customer?'
+                                );
+                              "
+                            >
+                              <button
+                                class="btn secondary"
+                                type="submit"
+                                style="
+                                  padding:8px 12px;
+                                  margin:0;
+                                "
+                              >
+                                Deactivate
+                              </button>
+                            </form>
+                          `
+                          : `
+                            <form
+                              method="POST"
+                              action="/admin/advertiser-customer/${customerId}/reactivate"
+                              style="
+                                display:inline;
+                                margin:0;
+                              "
+                            >
+                              <button
+                                class="btn"
+                                type="submit"
+                                style="
+                                  padding:8px 12px;
+                                  margin:0;
+                                "
+                              >
+                                Reactivate
+                              </button>
+                            </form>
+                          `
+                      }
                     </td>
 
                   </tr>
