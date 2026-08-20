@@ -62616,8 +62616,13 @@ const showArchivedAdvertisers =
           u.id,
           u.company_name,
           u.name AS contact_name,
-          u.email,
-          u.created_at
+                    u.email,
+          u.created_at,
+          COALESCE(
+            u.account_status,
+            'active'
+          ) AS account_status
+          
 
         FROM users u
 
@@ -62692,8 +62697,33 @@ const showArchivedAdvertisers =
       `);
 
 
-      const advertiserCustomers =
+            const allAdvertiserCustomers =
         advertisersResult.rows;
+
+      const activeAdvertiserCustomers =
+        allAdvertiserCustomers.filter(
+          customer =>
+            String(
+              customer.account_status ||
+              "active"
+            ).toLowerCase() !==
+            "inactive"
+        );
+
+      const archivedAdvertiserCustomers =
+        allAdvertiserCustomers.filter(
+          customer =>
+            String(
+              customer.account_status ||
+              "active"
+            ).toLowerCase() ===
+            "inactive"
+        );
+
+      const advertiserCustomers =
+        showArchivedAdvertisers
+          ? archivedAdvertiserCustomers
+          : activeAdvertiserCustomers;
 
       const enterpriseCustomers =
         enterpriseResult.rows;
@@ -62713,7 +62743,7 @@ const showArchivedAdvertisers =
 
 
       const advertiserCount =
-        advertiserCustomers.length;
+        activeAdvertiserCustomers.length;
 
       const enterpriseCount =
         activeEnterpriseCustomers.length;
