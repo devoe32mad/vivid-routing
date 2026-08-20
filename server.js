@@ -62594,6 +62594,17 @@ const customerTypeFilter =
   String(req.query.type || "all")
     .trim()
     .toLowerCase();
+      const advertiserStatusFilter =
+  String(
+    req.query.advertiser_status ||
+    "active"
+  )
+    .trim()
+    .toLowerCase();
+
+const showArchivedAdvertisers =
+  advertiserStatusFilter ===
+  "archived";
       /*
       =====================================================
       ADVERTISER CUSTOMERS
