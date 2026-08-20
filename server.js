@@ -58412,7 +58412,20 @@ app.get("/my-setup", requireLogin, async (req, res) => {
   try {
     const currentUser = req.session.user;
     const isSuperAdmin = currentUser.role === "super_admin";
+    const advertiserCustomerId =
+      Number(
+        currentUser.advertiser_customer_id ||
+        currentUser.id
+      );
 
+    const isPrimaryAdvertiserUser =
+      String(
+        currentUser.role || ""
+      ).toLowerCase() === "customer" &&
+      Number(
+        currentUser.login_user_id ||
+        currentUser.id
+      ) === advertiserCustomerId;
 const locations = await q(
   isSuperAdmin
     ? `
@@ -59298,7 +59311,18 @@ ${a.is_active
 
 </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin:20px 0;">
-
+  ${
+    isPrimaryAdvertiserUser
+      ? `
+        <a
+          class="btn secondary"
+          href="/admin/advertiser-customer/${advertiserCustomerId}/users"
+        >
+          Manage Users
+        </a>
+      `
+      : ""
+  }
   <a class="btn" href="/admin/new-location">
     + New Location
   </a>
