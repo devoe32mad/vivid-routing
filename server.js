@@ -1609,12 +1609,14 @@ function page(title, body) {
   <title>${title}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body{margin:0;font-family:Arial,sans-serif;background:#f4f7f1;color:#073b22}
-    .topbar{background:linear-gradient(135deg,#123d25,#2f7d46);color:white;padding:30px 40px}
-    .brand{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#d7eadb;font-weight:bold}
+    ${vividThemeStyles()}
+    body{margin:0;font-family:Arial,sans-serif;background:var(--vivid-background);color:var(--vivid-text)}
+    
+    .topbar{background:linear-gradient(135deg,var(--vivid-navy),var(--vivid-blue));color:white;padding:30px 40px}
+    .brand{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--vivid-blue-light);font-weight:bold}
     h1{margin:4px 0 6px;font-size:34px}
     h2{margin-top:34px}
-    .subtitle{color:#d7eadb;margin:0}
+    .subtitle{color:var(--vivid-blue-light);margin:0}
     .wrap{padding:30px 40px;max-width:1250px;margin:0 auto}
     .btn{display:inline-block;background:#2f7d46;color:white;padding:12px 16px;border-radius:12px;text-decoration:none;font-weight:bold;margin:5px 8px 5px 0;border:0;cursor:pointer}
     .btn.secondary{background:#123d25}.btn.gold{background:#9a6a00}
