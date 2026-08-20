@@ -62712,7 +62712,7 @@ const customerTypeFilter =
       =====================================================
       */
 
-      const advertiserRows =
+           const advertiserRows =
         advertiserCustomers.length
           ? advertiserCustomers
               .map(
@@ -62766,6 +62766,51 @@ const customerTypeFilter =
                       }
                     </td>
 
+                    <td>
+                      <div style="
+                        display:flex;
+                        gap:8px;
+                        flex-wrap:wrap;
+                      ">
+
+                        <a
+                          class="btn"
+                          href="/admin/advertiser-customer/${customer.id}"
+                          style="margin:0;"
+                        >
+                          Open
+                        </a>
+
+                        <a
+                          class="btn secondary"
+                          href="/admin/advertiser-customer/${customer.id}/users"
+                          style="margin:0;"
+                        >
+                          Manage Users
+                        </a>
+
+                        <form
+                          method="POST"
+                          action="/admin/advertiser-customer/${customer.id}/deactivate"
+                          style="margin:0;"
+                          onsubmit="
+                            return confirm(
+                              'Deactivate this Advertiser customer?'
+                            );
+                          "
+                        >
+                          <button
+                            class="btn secondary"
+                            type="submit"
+                            style="margin:0;"
+                          >
+                            Deactivate
+                          </button>
+                        </form>
+
+                      </div>
+                    </td>
+
                   </tr>
                 `
               )
@@ -62773,7 +62818,7 @@ const customerTypeFilter =
           : `
               <tr>
                 <td
-                  colspan="5"
+                  colspan="6"
                   style="
                     text-align:center;
                     padding:30px;
@@ -63365,11 +63410,14 @@ ${
                         Status
                       </th>
 
-                      <th>
+                                         <th>
                         Created
                       </th>
-                    </tr>
 
+                      <th>
+                        Actions
+                      </th>
+                    </tr>
                     ${advertiserRows}
 
                   </table>
