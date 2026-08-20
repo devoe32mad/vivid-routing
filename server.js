@@ -64334,10 +64334,14 @@ app.get(
                               ? `/admin/advertiser-customer/${customerId}/deactivate`
                               : `/admin/advertiser-customer/${customerId}/user/${user.id}/deactivate`
                           }"
-                          style="
-                            display:inline;
-                            margin:0;
-                          "
+                          
+                            style="${
+  Number(user.id) === customerId
+    ? "display:none;"
+    : "display:inline;"
+}margin:0;"
+                            
+                          
                           onsubmit="
                             return confirm(
                               'Deactivate this Advertiser user?'
