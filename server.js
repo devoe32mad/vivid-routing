@@ -64478,9 +64478,10 @@ app.post(
       }
 
       return res.redirect(
-        `/admin/advertiser-customer/${customerId}/users`
+        `/admin/advertiser-customer/${customerId}/users?message=${encodeURIComponent(
+          "Password reset email sent."
+        )}`
       );
-
     } catch (err) {
 
       console.error(
