@@ -64877,13 +64877,195 @@ app.post(
 );
 /*
 =========================================================
+DEACTIVATE SECONDARY ADVERTISER USER
+=========================================================
+*/
+
+app.post(
+  "/admin/advertiser-customer/:customerId/user/:userId/deactivate",
+  requireAdvertiserCustomerManager,
+  async (req, res) => {
+    try {
+
+      const customerId =
+        Number(req.params.customerId);
+
+      const userId =
+        Number(req.params.userId);
+
+      if (
+        !Number.isInteger(customerId) ||
+        customerId <= 0 ||
+        !Number.isInteger(userId) ||
+        userId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Valid Advertiser customer and user are required."
+          );
+      }
+
+      if (userId === customerId) {
+        return res
+          .status(403)
+          .send(
+            "The Primary Advertiser User cannot be deactivated here."
+          );
+      }
+
+      const result = await q(
+        `
+          UPDATE users
+
+          SET account_status = 'inactive'
+
+          WHERE id = $1
+            AND role = 'customer'
+            AND COALESCE(
+              advertiser_customer_id,
+              id
+            ) = $2
+            AND id <> $2
+
+          RETURNING id
+        `,
+        [
+          userId,
+          customerId
+        ]
+      );
+
+      if (!result.rows[0]) {
+        return res
+          .status(404)
+          .send(
+            "Secondary Advertiser user not found."
+          );
+      }
+
+      return res.redirect(
+        `/admin/advertiser-customer/${customerId}/users?message=${encodeURIComponent(
+          "Advertiser user deactivated."
+        )}`
+      );
+
+    } catch (err) {
+
+      console.error(
+        "DEACTIVATE ADVERTISER USER ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "DEACTIVATE ADVERTISER USER ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
+REACTIVATE SECONDARY ADVERTISER USER
+=========================================================
+*/
+
+app.post(
+  "/admin/advertiser-customer/:customerId/user/:userId/reactivate",
+  requireAdvertiserCustomerManager,
+  async (req, res) => {
+    try {
+
+      const customerId =
+        Number(req.params.customerId);
+
+      const userId =
+        Number(req.params.userId);
+
+      if (
+        !Number.isInteger(customerId) ||
+        customerId <= 0 ||
+        !Number.isInteger(userId) ||
+        userId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Valid Advertiser customer and user are required."
+          );
+      }
+
+      if (userId === customerId) {
+        return res
+          .status(403)
+          .send(
+            "The Primary Advertiser User cannot be reactivated here."
+          );
+      }
+
+      const result = await q(
+        `
+          UPDATE users
+
+          SET account_status = 'active'
+
+          WHERE id = $1
+            AND role = 'customer'
+            AND COALESCE(
+              advertiser_customer_id,
+              id
+            ) = $2
+            AND id <> $2
+
+          RETURNING id
+        `,
+        [
+          userId,
+          customerId
+        ]
+      );
+
+      if (!result.rows[0]) {
+        return res
+          .status(404)
+          .send(
+            "Secondary Advertiser user not found."
+          );
+      }
+
+      return res.redirect(
+        `/admin/advertiser-customer/${customerId}/users?message=${encodeURIComponent(
+          "Advertiser user reactivated."
+        )}`
+      );
+
+    } catch (err) {
+
+      console.error(
+        "REACTIVATE ADVERTISER USER ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "REACTIVATE ADVERTISER USER ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
 DEACTIVATE / REACTIVATE ADVERTISER CUSTOMER
 =========================================================
 */
 
 app.post(
   "/admin/advertiser-customer/:customerId/deactivate",
-  requireAdvertiserCustomerManager,
+  requireSuperAdmin,
   async (req, res) => {
     try {
 
@@ -64949,7 +65131,7 @@ app.post(
 
 app.post(
   "/admin/advertiser-customer/:customerId/reactivate",
-  requireAdvertiserCustomerManager,
+  requireSuperAdmin,
   async (req, res) => {
     try {
 
