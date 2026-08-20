@@ -64364,9 +64364,13 @@ app.get(
                               ? `/admin/advertiser-customer/${customerId}/reactivate`
                               : `/admin/advertiser-customer/${customerId}/user/${user.id}/reactivate`
                           }"
-                          style="
-                            display:inline;
-                            margin:0;
+                            style="${
+  Number(user.id) === customerId
+    ? "display:none;"
+    : "display:inline;"
+}margin:0;"
+                            
+                 
                           "
                         >
                           <button
