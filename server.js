@@ -64519,6 +64519,142 @@ app.post(
     }
   }
 );
+/*
+=========================================================
+DEACTIVATE / REACTIVATE ADVERTISER CUSTOMER
+=========================================================
+*/
+
+app.post(
+  "/admin/advertiser-customer/:customerId/deactivate",
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+
+      const customerId =
+        Number(req.params.customerId);
+
+      if (
+        !Number.isInteger(customerId) ||
+        customerId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Invalid Advertiser customer."
+          );
+      }
+
+      const result = await q(
+        `
+          UPDATE users
+
+          SET account_status = 'inactive'
+
+          WHERE id = $1
+            AND role = 'customer'
+
+          RETURNING id
+        `,
+        [customerId]
+      );
+
+      if (!result.rows[0]) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser customer not found."
+          );
+      }
+
+      return res.redirect(
+        `/admin/advertiser-customer/${customerId}/users?message=${encodeURIComponent(
+          "Advertiser customer deactivated."
+        )}`
+      );
+
+    } catch (err) {
+
+      console.error(
+        "DEACTIVATE ADVERTISER CUSTOMER ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "DEACTIVATE ADVERTISER CUSTOMER ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+
+
+app.post(
+  "/admin/advertiser-customer/:customerId/reactivate",
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+
+      const customerId =
+        Number(req.params.customerId);
+
+      if (
+        !Number.isInteger(customerId) ||
+        customerId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Invalid Advertiser customer."
+          );
+      }
+
+      const result = await q(
+        `
+          UPDATE users
+
+          SET account_status = 'active'
+
+          WHERE id = $1
+            AND role = 'customer'
+
+          RETURNING id
+        `,
+        [customerId]
+      );
+
+      if (!result.rows[0]) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser customer not found."
+          );
+      }
+
+      return res.redirect(
+        `/admin/advertiser-customer/${customerId}/users?message=${encodeURIComponent(
+          "Advertiser customer reactivated."
+        )}`
+      );
+
+    } catch (err) {
+
+      console.error(
+        "REACTIVATE ADVERTISER CUSTOMER ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "REACTIVATE ADVERTISER CUSTOMER ERROR: " +
+          err.message
+        );
+    }
+  }
+);
 app.post(
   "/admin/users",
   requireSuperAdmin,
