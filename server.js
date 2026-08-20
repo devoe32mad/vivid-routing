@@ -62789,17 +62789,41 @@ const showArchivedAdvertisers =
                       )}
                     </td>
 
-                    <td>
+                                      <td>
                       <span style="
                         display:inline-block;
                         padding:5px 10px;
                         border-radius:999px;
-                        background:#e8f5eb;
-                        color:#185b34;
+                        background:${
+                          String(
+                            customer.account_status ||
+                            "active"
+                          ).toLowerCase() ===
+                          "inactive"
+                            ? "#e5e7eb"
+                            : "#e8f5eb"
+                        };
+                        color:${
+                          String(
+                            customer.account_status ||
+                            "active"
+                          ).toLowerCase() ===
+                          "inactive"
+                            ? "#4b5563"
+                            : "#185b34"
+                        };
                         font-weight:700;
                         font-size:12px;
                       ">
-                        Active
+                        ${
+                          String(
+                            customer.account_status ||
+                            "active"
+                          ).toLowerCase() ===
+                          "inactive"
+                            ? "Inactive"
+                            : "Active"
+                        }
                       </span>
                     </td>
 
@@ -62836,24 +62860,48 @@ const showArchivedAdvertisers =
                           Manage Users
                         </a>
 
-                        <form
-                          method="POST"
-                          action="/admin/advertiser-customer/${customer.id}/deactivate"
-                          style="margin:0;"
-                          onsubmit="
-                            return confirm(
-                              'Deactivate this Advertiser customer?'
-                            );
-                          "
-                        >
-                          <button
-                            class="btn secondary"
-                            type="submit"
-                            style="margin:0;"
-                          >
-                            Deactivate
-                          </button>
-                        </form>
+                                           ${
+                          String(
+                            customer.account_status ||
+                            "active"
+                          ).toLowerCase() ===
+                          "inactive"
+                            ? `
+                              <form
+                                method="POST"
+                                action="/admin/advertiser-customer/${customer.id}/reactivate"
+                                style="margin:0;"
+                              >
+                                <button
+                                  class="btn"
+                                  type="submit"
+                                  style="margin:0;"
+                                >
+                                  Reactivate
+                                </button>
+                              </form>
+                            `
+                            : `
+                              <form
+                                method="POST"
+                                action="/admin/advertiser-customer/${customer.id}/deactivate"
+                                style="margin:0;"
+                                onsubmit="
+                                  return confirm(
+                                    'Deactivate this Advertiser customer?'
+                                  );
+                                "
+                              >
+                                <button
+                                  class="btn secondary"
+                                  type="submit"
+                                  style="margin:0;"
+                                >
+                                  Deactivate
+                                </button>
+                              </form>
+                            `
+                        }
 
                       </div>
                     </td>
