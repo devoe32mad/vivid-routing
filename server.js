@@ -9132,14 +9132,49 @@ app.post("/login", async (req, res) => {
       `);
 
     }
+const loginUser =
+  user.rows[0];
+
+const isAdvertiserUser =
+  String(
+    loginUser.role || ""
+  ).toLowerCase() ===
+  "customer";
+
+const advertiserCustomerId =
+  isAdvertiserUser
+    ? Number(
+        loginUser.advertiser_customer_id ||
+        loginUser.id
+      )
+    : null;
+
 delete req.session.orgUser;
- req.session.user = {
-  id: user.rows[0].id,
-  name: user.rows[0].name,
-  email: user.rows[0].email,
-  role: user.rows[0].role,
-  customer_id: user.rows[0].customer_id
+
+req.session.user = {
+  id: isAdvertiserUser
+    ? advertiserCustomerId
+    : loginUser.id,
+
+  login_user_id:
+    loginUser.id,
+
+  name:
+    loginUser.name,
+
+  email:
+    loginUser.email,
+
+  role:
+    loginUser.role,
+
+  customer_id:
+    loginUser.customer_id,
+
+  advertiser_customer_id:
+    advertiserCustomerId
 };
+
 
 /*
   Super Admin enters the platform control center.
