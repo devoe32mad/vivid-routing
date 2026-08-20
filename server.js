@@ -64458,9 +64458,12 @@ app.get(
 
           FROM users
 
-          WHERE id = $1
-            AND id = $2
+                    WHERE id = $1
             AND role = 'customer'
+            AND COALESCE(
+              advertiser_customer_id,
+              id
+            ) = $2
 
           LIMIT 1
         `,
@@ -64634,9 +64637,12 @@ app.post(
             name = $1,
             email = $2
 
-          WHERE id = $3
-            AND id = $4
+                    WHERE id = $3
             AND role = 'customer'
+            AND COALESCE(
+              advertiser_customer_id,
+              id
+            ) = $4
 
           RETURNING id
         `,
