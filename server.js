@@ -3346,7 +3346,17 @@ await q(`
   ADD COLUMN IF NOT EXISTS account_status TEXT
   DEFAULT 'active'
 `);
+await q(`
+  ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS advertiser_customer_id INTEGER
+`);
 
+await q(`
+  UPDATE users
+  SET advertiser_customer_id = id
+  WHERE role = 'customer'
+    AND advertiser_customer_id IS NULL
+`);
 await q(`
   ALTER TABLE users
   ADD COLUMN IF NOT EXISTS password_created_at TIMESTAMP
