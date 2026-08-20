@@ -2900,6 +2900,82 @@ function requireSuperAdmin(req, res, next) {
 
   next();
 }
+/*
+=========================================================
+ADVERTISER CUSTOMER MANAGEMENT PERMISSION
+=========================================================
+*/
+
+function requireAdvertiserCustomerManager(
+  req,
+  res,
+  next
+) {
+
+  if (!req.session.user) {
+    return res.redirect("/login");
+  }
+
+  const customerId =
+    Number(req.params.customerId);
+
+  if (
+    !Number.isInteger(customerId) ||
+    customerId <= 0
+  ) {
+    return res
+      .status(400)
+      .send(
+        "Invalid Advertiser customer."
+      );
+  }
+
+  const sessionUser =
+    req.session.user;
+
+  const isSuperAdmin =
+    String(
+      sessionUser.role || ""
+    ).toLowerCase() ===
+    "super_admin";
+
+  if (isSuperAdmin) {
+    return next();
+  }
+
+  const isAdvertiserUser =
+    String(
+      sessionUser.role || ""
+    ).toLowerCase() ===
+    "customer";
+
+  const accountCustomerId =
+    Number(
+      sessionUser.advertiser_customer_id ||
+      sessionUser.id
+    );
+
+  const actualLoginUserId =
+    Number(
+      sessionUser.login_user_id ||
+      sessionUser.id
+    );
+
+  const isPrimaryAdvertiserUser =
+    isAdvertiserUser &&
+    accountCustomerId === customerId &&
+    actualLoginUserId === customerId;
+
+  if (!isPrimaryAdvertiserUser) {
+    return res
+      .status(403)
+      .send(
+        "Access denied."
+      );
+  }
+
+  next();
+}
 function requireOrgLogin(req, res, next) {
   if (!req.session.orgUser) {
     return res.redirect("/org-login");
