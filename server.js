@@ -1599,6 +1599,52 @@ function vividThemeStyles() {
       --vivid-border: #DBE3EF;
       --vivid-blue-light: #EAF2FF;
     }
+        .btn,
+    .choice-btn {
+      background:var(--vivid-blue);
+      color:white;
+    }
+
+    .btn:hover,
+    .choice-btn:hover {
+      background:var(--vivid-blue-dark);
+      color:white;
+    }
+
+    .btn.secondary,
+    .choice-btn.dark {
+      background:var(--vivid-navy);
+      color:white;
+    }
+
+    .btn.secondary:hover,
+    .choice-btn.dark:hover {
+      background:var(--vivid-navy);
+      color:white;
+      opacity:.92;
+    }
+
+    a:not(.btn):not(.choice-btn) {
+      color:var(--vivid-blue);
+    }
+
+    a:not(.btn):not(.choice-btn):hover {
+      color:var(--vivid-blue-dark);
+    }
+
+    th {
+      background:var(--vivid-blue-light);
+      color:var(--vivid-navy);
+    }
+
+    th,
+    td {
+      border-color:var(--vivid-border);
+    }
+
+    .note {
+      border-left-color:var(--vivid-blue);
+    }
   `;
 }
 
@@ -1735,6 +1781,7 @@ function orgPage(title, body) {
     grid-template-columns:1fr !important;
   }
 }
+    ${vividThemeStyles()}
   </style>
 </head>
 <body>
@@ -2162,6 +2209,7 @@ function marketplacePage(title, body) {
         grid-template-columns:1fr;
       }
     }
+        ${vividThemeStyles()}
   </style>
 </head>
 
@@ -2335,6 +2383,7 @@ function marketplacePage(title, body) {
         grid-template-columns:1fr;
       }
     }
+        ${vividThemeStyles()}
   </style>
 </head>
 
