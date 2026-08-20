@@ -63871,6 +63871,275 @@ app.get(
     }
   }
 );
+/*
+=========================================================
+MANAGE ADVERTISER USERS
+=========================================================
+*/
+
+app.get(
+  "/admin/advertiser-customer/:customerId/users",
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+
+      const customerId =
+        Number(req.params.customerId);
+
+      if (
+        !Number.isInteger(customerId) ||
+        customerId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Invalid Advertiser customer."
+          );
+      }
+
+      const customerResult = await q(
+        `
+          SELECT
+            id,
+            company_name,
+            name,
+            email,
+            account_status
+
+          FROM users
+
+          WHERE id = $1
+            AND role = 'customer'
+
+          LIMIT 1
+        `,
+        [customerId]
+      );
+
+      const customer =
+        customerResult.rows[0];
+
+      if (!customer) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser customer not found."
+          );
+      }
+
+      const isActive =
+        String(
+          customer.account_status ||
+          "active"
+        ).toLowerCase() !== "inactive";
+
+      return res.send(
+        page(
+          "Advertiser Users",
+          `
+            <div class="topbar">
+
+              <div class="brand">
+                Vivid Advertisers
+              </div>
+
+              <h1>Users</h1>
+
+              <p class="subtitle">
+                Manage who can access
+                ${escapeHtml(
+                  customer.company_name ||
+                  customer.email ||
+                  "this Advertiser account"
+                )}.
+              </p>
+
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:12px;
+                flex-wrap:wrap;
+                margin-bottom:24px;
+              ">
+
+                <a
+                  class="btn secondary"
+                  href="/admin/advertiser-customer/${customerId}"
+                >
+                  Back to ${escapeHtml(
+                    customer.company_name ||
+                    "Advertiser"
+                  )}
+                </a>
+
+                <a
+                  class="btn"
+                  href="/admin/advertiser-customer/${customerId}/users/new"
+                >
+                  Add User
+                </a>
+
+              </div>
+
+              <div class="card">
+
+                <table>
+
+                  <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Access</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+
+                  <tr>
+
+                    <td>
+                      <strong>
+                        ${escapeHtml(
+                          customer.name ||
+                          "Unnamed User"
+                        )}
+                      </strong>
+
+                      <div style="
+                        color:#65776b;
+                        margin-top:3px;
+                      ">
+                        ${escapeHtml(
+                          customer.email ||
+                          ""
+                        )}
+                      </div>
+                    </td>
+
+                    <td>
+                      Advertiser User
+                    </td>
+
+                    <td>
+                      All Advertiser Data
+                    </td>
+
+                    <td>
+                      <span style="
+                        display:inline-block;
+                        padding:5px 10px;
+                        border-radius:999px;
+                        background:${
+                          isActive
+                            ? "#dcfce7"
+                            : "#e5e7eb"
+                        };
+                        color:${
+                          isActive
+                            ? "#166534"
+                            : "#4b5563"
+                        };
+                        font-weight:700;
+                        font-size:12px;
+                      ">
+                        ${
+                          isActive
+                            ? "Active"
+                            : "Inactive"
+                        }
+                      </span>
+                    </td>
+
+                    <td style="white-space:nowrap;">
+
+                      <a
+                        class="btn secondary"
+                        href="/admin/advertiser-customer/${customerId}/user/${customerId}/edit"
+                        style="
+                          padding:8px 12px;
+                          margin:0 6px 0 0;
+                        "
+                      >
+                        Edit
+                      </a>
+
+                      <form
+                        method="POST"
+                        action="/admin/advertiser-customer/${customerId}/user/${customerId}/send-password-reset"
+                        style="
+                          display:inline;
+                          margin:0 6px 0 0;
+                        "
+                      >
+                        <button
+                          class="btn secondary"
+                          type="submit"
+                          style="
+                            padding:8px 12px;
+                            margin:0;
+                          "
+                        >
+                          Reset Password
+                        </button>
+                      </form>
+
+                      <form
+                        method="POST"
+                        action="/admin/advertiser-customer/${customerId}/deactivate"
+                        style="
+                          display:inline;
+                          margin:0;
+                        "
+                        onsubmit="
+                          return confirm(
+                            'Deactivate this Advertiser customer?'
+                          );
+                        "
+                      >
+                        <button
+                          class="btn secondary"
+                          type="submit"
+                          style="
+                            padding:8px 12px;
+                            margin:0;
+                          "
+                        >
+                          Deactivate
+                        </button>
+                      </form>
+
+                    </td>
+
+                  </tr>
+
+                </table>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        "MANAGE ADVERTISER USERS ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "MANAGE ADVERTISER USERS ERROR: " +
+          err.message
+        );
+    }
+  }
+);
 app.post(
   "/admin/users",
   requireSuperAdmin,
