@@ -64883,7 +64883,7 @@ DEACTIVATE / REACTIVATE ADVERTISER CUSTOMER
 
 app.post(
   "/admin/advertiser-customer/:customerId/deactivate",
-  requireSuperAdmin,
+  requireAdvertiserCustomerManager,
   async (req, res) => {
     try {
 
@@ -64949,7 +64949,7 @@ app.post(
 
 app.post(
   "/admin/advertiser-customer/:customerId/reactivate",
-  requireSuperAdmin,
+  requireAdvertiserCustomerManager,
   async (req, res) => {
     try {
 
