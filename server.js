@@ -64094,7 +64094,225 @@ app.get(
           customer.account_status ||
           "active"
         ).toLowerCase() !== "inactive";
+      const advertiserUsersResult =
+        await q(
+          `
+            SELECT
+              id,
+              name,
+              email,
+              account_status,
+              created_at
 
+            FROM users
+
+            WHERE role = 'customer'
+              AND COALESCE(
+                advertiser_customer_id,
+                id
+              ) = $1
+
+            ORDER BY
+              CASE
+                WHEN id = $1
+                  THEN 0
+                ELSE 1
+              END,
+              COALESCE(
+                NULLIF(
+                  TRIM(name),
+                  ''
+                ),
+                email
+              )
+          `,
+          [customerId]
+        );
+
+      const advertiserUserRows =
+        advertiserUsersResult.rows
+          .map(user => {
+
+            const userIsActive =
+              String(
+                user.account_status ||
+                "active"
+              ).toLowerCase() !==
+              "inactive";
+
+            const isPrimaryUser =
+              Number(user.id) ===
+              customerId;
+
+            return `
+              <tr>
+
+                <td>
+                  <strong>
+                    ${escapeHtml(
+                      user.name ||
+                      "Unnamed User"
+                    )}
+                  </strong>
+
+                  <div style="
+                    color:#65776b;
+                    margin-top:3px;
+                  ">
+                    ${escapeHtml(
+                      user.email ||
+                      ""
+                    )}
+                  </div>
+
+                  ${
+                    isPrimaryUser
+                      ? `
+                        <div style="
+                          color:#2f855a;
+                          font-size:12px;
+                          font-weight:700;
+                          margin-top:4px;
+                        ">
+                          Primary User
+                        </div>
+                      `
+                      : ""
+                  }
+                </td>
+
+                <td>
+                  Advertiser User
+                </td>
+
+                <td>
+                  All Advertiser Data
+                </td>
+
+                <td>
+                  <span style="
+                    display:inline-block;
+                    padding:5px 10px;
+                    border-radius:999px;
+                    background:${
+                      userIsActive
+                        ? "#dcfce7"
+                        : "#e5e7eb"
+                    };
+                    color:${
+                      userIsActive
+                        ? "#166534"
+                        : "#4b5563"
+                    };
+                    font-weight:700;
+                    font-size:12px;
+                  ">
+                    ${
+                      userIsActive
+                        ? "Active"
+                        : "Inactive"
+                    }
+                  </span>
+                </td>
+
+                <td style="white-space:nowrap;">
+
+                  <a
+                    class="btn secondary"
+                    href="/admin/advertiser-customer/${customerId}/user/${user.id}/edit"
+                    style="
+                      padding:8px 12px;
+                      margin:0 6px 0 0;
+                    "
+                  >
+                    Edit
+                  </a>
+
+                  <form
+                    method="POST"
+                    action="/admin/advertiser-customer/${customerId}/user/${user.id}/send-password-reset"
+                    style="
+                      display:inline;
+                      margin:0 6px 0 0;
+                    "
+                  >
+                    <button
+                      class="btn secondary"
+                      type="submit"
+                      style="
+                        padding:8px 12px;
+                        margin:0;
+                      "
+                    >
+                      Reset Password
+                    </button>
+                  </form>
+
+                  ${
+                    userIsActive
+                      ? `
+                        <form
+                          method="POST"
+                          action="${
+                            isPrimaryUser
+                              ? `/admin/advertiser-customer/${customerId}/deactivate`
+                              : `/admin/advertiser-customer/${customerId}/user/${user.id}/deactivate`
+                          }"
+                          style="
+                            display:inline;
+                            margin:0;
+                          "
+                          onsubmit="
+                            return confirm(
+                              'Deactivate this Advertiser user?'
+                            );
+                          "
+                        >
+                          <button
+                            class="btn secondary"
+                            type="submit"
+                            style="
+                              padding:8px 12px;
+                              margin:0;
+                            "
+                          >
+                            Deactivate
+                          </button>
+                        </form>
+                      `
+                      : `
+                        <form
+                          method="POST"
+                          action="${
+                            isPrimaryUser
+                              ? `/admin/advertiser-customer/${customerId}/reactivate`
+                              : `/admin/advertiser-customer/${customerId}/user/${user.id}/reactivate`
+                          }"
+                          style="
+                            display:inline;
+                            margin:0;
+                          "
+                        >
+                          <button
+                            class="btn"
+                            type="submit"
+                            style="
+                              padding:8px 12px;
+                              margin:0;
+                            "
+                          >
+                            Reactivate
+                          </button>
+                        </form>
+                      `
+                  }
+
+                </td>
+
+              </tr>
+            `;
+          })
+          .join("");
       return res.send(
         page(
           "Advertiser Users",
