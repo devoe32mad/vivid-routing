@@ -64140,6 +64140,260 @@ app.get(
     }
   }
 );
+/*
+=========================================================
+EDIT ADVERTISER USER
+=========================================================
+*/
+
+app.get(
+  "/admin/advertiser-customer/:customerId/user/:userId/edit",
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+
+      const customerId =
+        Number(req.params.customerId);
+
+      const userId =
+        Number(req.params.userId);
+
+      const userResult = await q(
+        `
+          SELECT
+            id,
+            name,
+            email,
+            company_name
+
+          FROM users
+
+          WHERE id = $1
+            AND id = $2
+            AND role = 'customer'
+
+          LIMIT 1
+        `,
+        [
+          userId,
+          customerId
+        ]
+      );
+
+      const user =
+        userResult.rows[0];
+
+      if (!user) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser user not found."
+          );
+      }
+
+      return res.send(
+        page(
+          "Edit Advertiser User",
+          `
+            <div class="topbar">
+
+              <div class="brand">
+                Vivid Advertisers
+              </div>
+
+              <h1>Edit User</h1>
+
+              <p class="subtitle">
+                Update advertiser user information.
+              </p>
+
+            </div>
+
+            <div class="wrap">
+
+              <div style="margin-bottom:20px;">
+
+                <a
+                  class="btn secondary"
+                  href="/admin/advertiser-customer/${customerId}/users"
+                >
+                  Back to Users
+                </a>
+
+              </div>
+
+              <div class="card">
+
+                <form
+                  method="POST"
+                  action="/admin/advertiser-customer/${customerId}/user/${userId}/edit"
+                >
+
+                  <label>
+                    Full Name
+                  </label>
+
+                  <input
+                    name="name"
+                    value="${escapeHtml(
+                      user.name || ""
+                    )}"
+                    required
+                  />
+
+                  <label>
+                    Email
+                  </label>
+
+                  <input
+                    name="email"
+                    type="email"
+                    value="${escapeHtml(
+                      user.email || ""
+                    )}"
+                    required
+                  />
+
+                  <div style="
+                    display:flex;
+                    gap:10px;
+                    flex-wrap:wrap;
+                    margin-top:10px;
+                  ">
+
+                    <button
+                      class="btn"
+                      type="submit"
+                    >
+                      Save User
+                    </button>
+
+                    <a
+                      class="btn secondary"
+                      href="/admin/advertiser-customer/${customerId}/users"
+                    >
+                      Cancel
+                    </a>
+
+                  </div>
+
+                </form>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        "EDIT ADVERTISER USER FORM ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "EDIT ADVERTISER USER FORM ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+
+
+app.post(
+  "/admin/advertiser-customer/:customerId/user/:userId/edit",
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+
+      const customerId =
+        Number(req.params.customerId);
+
+      const userId =
+        Number(req.params.userId);
+
+      const name =
+        String(
+          req.body.name || ""
+        ).trim();
+
+      const email =
+        String(
+          req.body.email || ""
+        )
+          .trim()
+          .toLowerCase();
+
+      if (!name || !email) {
+        return res
+          .status(400)
+          .send(
+            "Name and email are required."
+          );
+      }
+
+      const result = await q(
+        `
+          UPDATE users
+
+          SET
+            name = $1,
+            email = $2
+
+          WHERE id = $3
+            AND id = $4
+            AND role = 'customer'
+
+          RETURNING id
+        `,
+        [
+          name,
+          email,
+          userId,
+          customerId
+        ]
+      );
+
+      if (!result.rows[0]) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser user not found."
+          );
+      }
+
+      return res.redirect(
+        `/admin/advertiser-customer/${customerId}/users`
+      );
+
+    } catch (err) {
+
+      if (err.code === "23505") {
+        return res
+          .status(400)
+          .send(
+            "Another Vivid user already uses this email address."
+          );
+      }
+
+      console.error(
+        "EDIT ADVERTISER USER ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "EDIT ADVERTISER USER ERROR: " +
+          err.message
+        );
+    }
+  }
+);
 app.post(
   "/admin/users",
   requireSuperAdmin,
