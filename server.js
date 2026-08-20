@@ -1586,6 +1586,22 @@ function overlapsDay(day, start, end) {
   if (end && day > end) return false;
   return true;
 }
+function vividThemeStyles() {
+  return `
+    :root {
+      --vivid-blue: #2563EB;
+      --vivid-blue-dark: #1D4ED8;
+      --vivid-navy: #0B1F3A;
+      --vivid-text: #172033;
+      --vivid-text-muted: #5F6B7A;
+      --vivid-background: #F6F8FC;
+      --vivid-surface: #FFFFFF;
+      --vivid-border: #DBE3EF;
+      --vivid-blue-light: #EAF2FF;
+    }
+  `;
+}
+
 function page(title, body) {
   return `<!DOCTYPE html>
 <html>
