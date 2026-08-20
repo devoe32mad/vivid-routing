@@ -63427,12 +63427,34 @@ ${
 
                   </div>
 
-                  <div style="
-                    font-weight:700;
+                                    <div style="
+                    display:flex;
+                    gap:10px;
+                    align-items:center;
+                    flex-wrap:wrap;
                   ">
-                    ${advertiserCount} Active
-                  </div>
 
+                    <strong>
+                      ${advertiserCount} Active
+                    </strong>
+
+                    <a
+                      class="btn secondary"
+                      href="/admin/users?type=advertiser&advertiser_status=${
+                        showArchivedAdvertisers
+                          ? "active"
+                          : "archived"
+                      }"
+                      style="margin:0;"
+                    >
+                      ${
+                        showArchivedAdvertisers
+                          ? "Active"
+                          : "Archived"
+                      }
+                    </a>
+
+                  </div>
                 </div>
 
 
