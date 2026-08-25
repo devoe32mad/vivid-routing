@@ -40110,6 +40110,235 @@ app.get(
 );
 /*
 =========================================================
+ADD ADVERTISER CUSTOMER ACTIVITY FORM
+=========================================================
+*/
+
+app.get(
+  "/org-advertiser/:advertiserKey/activity/new",
+  async (req, res) => {
+    try {
+
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.query.organization_id
+          )
+        );
+
+      const {
+        organizationId,
+        organizationRole,
+        isSuperAdmin
+      } = scope;
+
+      const canManageActivity =
+        isSuperAdmin ||
+        [
+          "owner",
+          "organization_admin",
+          "district_admin"
+        ].includes(
+          String(
+            organizationRole || ""
+          ).toLowerCase()
+        );
+
+      if (!canManageActivity) {
+        return res
+          .status(403)
+          .send("Access denied.");
+      }
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!advertiserKey) {
+        return res
+          .status(400)
+          .send(
+            "A valid advertiser is required."
+          );
+      }
+
+      const advertiserResult = await q(
+        `
+          SELECT
+            id,
+            name
+
+          FROM advertisers
+
+          WHERE organization_id = $1
+            AND LOWER(
+              TRIM(name)
+            ) = $2
+
+          LIMIT 1
+        `,
+        [
+          organizationId,
+          advertiserKey
+        ]
+      );
+
+      const advertiser =
+        advertiserResult.rows[0];
+
+      if (!advertiser) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser relationship not found."
+          );
+      }
+
+      return res.send(
+        orgPage(
+          "Add Customer Activity",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Add Customer Activity</h1>
+
+              <p class="subtitle">
+                ${escapeHtml(
+                  advertiser.name
+                )}
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <a
+                class="btn secondary"
+                href="/org-advertiser/${encodeURIComponent(
+                  advertiserKey
+                )}?organization_id=${organizationId}"
+                style="margin-bottom:24px;"
+              >
+                Back to Advertiser
+              </a>
+
+              <form
+                method="POST"
+                action="/org-advertiser/${encodeURIComponent(
+                  advertiserKey
+                )}/activity"
+                class="card"
+              >
+
+                <input
+                  type="hidden"
+                  name="organization_id"
+                  value="${organizationId}"
+                />
+
+                <label for="activity_type">
+                  Activity Type
+                </label>
+
+                <select
+                  id="activity_type"
+                  name="activity_type"
+                  required
+                >
+                  <option value="Note">
+                    Note
+                  </option>
+
+                  <option value="Phone Call">
+                    Phone Call
+                  </option>
+
+                  <option value="Meeting">
+                    Meeting
+                  </option>
+
+                  <option value="Email">
+                    Email
+                  </option>
+
+                  <option value="Proposal">
+                    Proposal
+                  </option>
+
+                  <option value="Follow-up">
+                    Follow-up
+                  </option>
+
+                  <option value="Renewal Discussion">
+                    Renewal Discussion
+                  </option>
+                </select>
+
+                <label for="comment">
+                  Activity Details
+                </label>
+
+                <textarea
+                  id="comment"
+                  name="comment"
+                  rows="7"
+                  required
+                  placeholder="Enter the customer interaction, outcome, and next steps."
+                ></textarea>
+
+                <div style="
+                  display:flex;
+                  gap:12px;
+                  flex-wrap:wrap;
+                  margin-top:8px;
+                ">
+                  <button
+                    class="btn"
+                    type="submit"
+                  >
+                    Save Activity
+                  </button>
+
+                  <a
+                    class="btn secondary"
+                    href="/org-advertiser/${encodeURIComponent(
+                      advertiserKey
+                    )}?organization_id=${organizationId}"
+                  >
+                    Cancel
+                  </a>
+                </div>
+
+              </form>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        "ADD ADVERTISER ACTIVITY FORM ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "ADD ADVERTISER ACTIVITY FORM ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
 UPDATE ADVERTISER RELATIONSHIP SUMMARY
 =========================================================
 */
