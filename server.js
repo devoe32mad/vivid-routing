@@ -39303,6 +39303,81 @@ const relationship =
       )}
     </div>
   </div>
+  <div style="
+    margin-top:22px;
+    padding-top:18px;
+    border-top:1px solid #DBE3EF;
+    display:grid;
+    grid-template-columns:
+      repeat(
+        auto-fit,
+        minmax(180px, 1fr)
+      );
+    gap:18px;
+  ">
+
+    <div>
+      <div style="
+        font-size:12px;
+        color:#5F6B7A;
+      ">
+        Last Updated By
+      </div>
+
+      <div style="
+        font-weight:700;
+        margin-top:5px;
+      ">
+        ${escapeHtml(
+          relationship.relationship_updated_by ||
+          "Not recorded"
+        )}
+      </div>
+
+      ${
+        relationship.relationship_updated_by_email &&
+        relationship.relationship_updated_by_email !==
+          relationship.relationship_updated_by
+          ? `
+              <div style="
+                color:#5F6B7A;
+                font-size:12px;
+                margin-top:3px;
+              ">
+                ${escapeHtml(
+                  relationship.relationship_updated_by_email
+                )}
+              </div>
+            `
+          : ""
+      }
+    </div>
+
+    <div>
+      <div style="
+        font-size:12px;
+        color:#5F6B7A;
+      ">
+        Last Updated
+      </div>
+
+      <div style="
+        font-weight:700;
+        margin-top:5px;
+      ">
+        ${
+          relationship.relationship_updated_by !==
+            "Not recorded" &&
+          relationship.updated_at
+            ? new Date(
+                relationship.updated_at
+              ).toLocaleString()
+            : "Not recorded"
+        }
+      </div>
+    </div>
+
+  </div>
 </div>
             <div style="
               display:grid;
