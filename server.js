@@ -41874,15 +41874,36 @@ app.get(
 
             <div class="wrap">
 
-              <a
-                class="btn secondary"
-                href="/org-advertiser/${encodeURIComponent(
-                  advertiserKey
-                )}?organization_id=${organizationId}"
-                style="margin-bottom:24px;"
-              >
-                Back to Advertiser
-              </a>
+            <div style="
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:24px;
+">
+
+  <a
+    class="btn secondary"
+    href="/org-advertiser/${encodeURIComponent(
+      advertiserKey
+    )}?organization_id=${organizationId}"
+  >
+    Back to Advertiser
+  </a>
+
+  <a
+    class="btn"
+    href="/org-advertiser/${encodeURIComponent(
+      advertiserKey
+    )}/opportunity/${Number(
+      opportunity.id
+    )}/edit?organization_id=${organizationId}"
+  >
+    Edit Opportunity
+  </a>
+
+</div>
 
               <div class="card">
 
