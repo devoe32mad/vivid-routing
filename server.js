@@ -40258,33 +40258,83 @@ app.get(
                   name="activity_type"
                   required
                 >
+                  
                   <option value="Note">
-                    Note
-                  </option>
+  Note
+</option>
 
-                  <option value="Phone Call">
-                    Phone Call
-                  </option>
+<option value="Phone Call">
+  Phone Call
+</option>
 
-                  <option value="Meeting">
-                    Meeting
-                  </option>
+<option value="Voicemail">
+  Voicemail
+</option>
 
-                  <option value="Email">
-                    Email
-                  </option>
+<option value="Meeting">
+  Meeting
+</option>
 
-                  <option value="Proposal">
-                    Proposal
-                  </option>
+<option value="Site Visit">
+  Site Visit
+</option>
 
-                  <option value="Follow-up">
-                    Follow-up
-                  </option>
+<option value="Email">
+  Email
+</option>
 
-                  <option value="Renewal Discussion">
-                    Renewal Discussion
-                  </option>
+<option value="Text Message">
+  Text Message
+</option>
+
+<option value="Presentation">
+  Presentation
+</option>
+
+<option value="Proposal">
+  Proposal
+</option>
+
+<option value="Quote Sent">
+  Quote Sent
+</option>
+
+<option value="Contract Sent">
+  Contract Sent
+</option>
+
+<option value="Contract Signed">
+  Contract Signed
+</option>
+
+<option value="Follow-up">
+  Follow-up
+</option>
+
+<option value="Renewal Discussion">
+  Renewal Discussion
+</option>
+
+<option value="Upsell Discussion">
+  Upsell Discussion
+</option>
+
+<option value="Billing / Payment">
+  Billing / Payment
+</option>
+
+<option value="Issue / Concern">
+  Issue / Concern
+</option>
+
+<option value="Resolution">
+  Resolution
+</option>
+
+<option value="Other">
+  Other
+</option>
+                   
                 </select>
 
                 <label for="comment">
