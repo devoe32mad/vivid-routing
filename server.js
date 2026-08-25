@@ -42151,6 +42151,609 @@ app.get(
 );
 /*
 =========================================================
+VIEW ALL ADVERTISER SALES OPPORTUNITIES
+=========================================================
+*/
+
+app.get(
+  "/org-advertiser/:advertiserKey/opportunities",
+  async (req, res) => {
+    try {
+
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.query.organization_id
+          )
+        );
+
+      const {
+        organizationId,
+        organizationRole,
+        isSuperAdmin
+      } = scope;
+
+      const canManageOpportunities =
+        isSuperAdmin ||
+        [
+          "owner",
+          "organization_admin",
+          "district_admin"
+        ].includes(
+          String(
+            organizationRole || ""
+          ).toLowerCase()
+        );
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!advertiserKey) {
+        return res
+          .status(400)
+          .send(
+            "A valid advertiser is required."
+          );
+      }
+
+      const advertiserResult = await q(
+        `
+          SELECT
+            id,
+            name
+
+          FROM advertisers
+
+          WHERE organization_id = $1
+            AND LOWER(
+              TRIM(name)
+            ) = $2
+
+          LIMIT 1
+        `,
+        [
+          organizationId,
+          advertiserKey
+        ]
+      );
+
+      const advertiser =
+        advertiserResult.rows[0];
+
+      if (!advertiser) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser not found."
+          );
+      }
+
+      const opportunitiesResult =
+        await q(
+          `
+            SELECT
+              aso.id,
+              aso.opportunity_name,
+              aso.sales_stage,
+              aso.estimated_value,
+              aso.expected_close_date,
+              aso.outcome,
+              aso.created_at,
+              aso.updated_at,
+
+              COALESCE(
+                NULLIF(
+                  TRIM(owner.name),
+                  ''
+                ),
+                owner.email,
+                'Unassigned'
+              ) AS account_owner,
+
+              COUNT(
+                DISTINCT asol.location_id
+              ) AS location_count
+
+            FROM advertiser_sales_opportunities aso
+
+            LEFT JOIN users owner
+              ON owner.id =
+                aso.account_owner_user_id
+
+            LEFT JOIN
+              advertiser_sales_opportunity_locations asol
+              ON asol.sales_opportunity_id =
+                aso.id
+
+            WHERE aso.organization_id = $1
+              AND aso.advertiser_id = $2
+
+            GROUP BY
+              aso.id,
+              aso.opportunity_name,
+              aso.sales_stage,
+              aso.estimated_value,
+              aso.expected_close_date,
+              aso.outcome,
+              aso.created_at,
+              aso.updated_at,
+              owner.name,
+              owner.email
+
+            ORDER BY
+              CASE
+                WHEN COALESCE(
+                  aso.outcome,
+                  'Open'
+                ) = 'Open'
+                  THEN 0
+                ELSE 1
+              END,
+
+              aso.expected_close_date
+                NULLS LAST,
+
+              aso.updated_at DESC
+          `,
+          [
+            organizationId,
+            Number(advertiser.id)
+          ]
+        );
+
+      const opportunities =
+        opportunitiesResult.rows;
+
+      const openOpportunities =
+        opportunities.filter(
+          opportunity =>
+            String(
+              opportunity.outcome ||
+              "Open"
+            ) === "Open"
+        );
+
+      const wonOpportunities =
+        opportunities.filter(
+          opportunity =>
+            String(
+              opportunity.outcome ||
+              ""
+            ) === "Won"
+        );
+
+      const lostOpportunities =
+        opportunities.filter(
+          opportunity =>
+            String(
+              opportunity.outcome ||
+              ""
+            ) === "Lost"
+        );
+
+      const openPipelineValue =
+        openOpportunities.reduce(
+          (total, opportunity) =>
+            total +
+            Number(
+              opportunity.estimated_value ||
+              0
+            ),
+          0
+        );
+
+      const opportunityRows =
+        opportunities.length
+          ? opportunities
+              .map(
+                opportunity => {
+
+                  const outcome =
+                    String(
+                      opportunity.outcome ||
+                      "Open"
+                    );
+
+                  const outcomeBackground =
+                    outcome === "Won"
+                      ? "#DCFCE7"
+                      : outcome === "Lost"
+                        ? "#FEE2E2"
+                        : "#EAF2FF";
+
+                  const outcomeColor =
+                    outcome === "Won"
+                      ? "#166534"
+                      : outcome === "Lost"
+                        ? "#991B1B"
+                        : "#1D4ED8";
+
+                  return `
+                    <div style="
+                      padding:20px 0;
+                      border-top:1px solid #DBE3EF;
+                    ">
+
+                      <div style="
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:flex-start;
+                        gap:18px;
+                        flex-wrap:wrap;
+                      ">
+
+                        <div style="
+                          flex:1;
+                          min-width:240px;
+                        ">
+
+                          <div style="
+                            font-size:18px;
+                            font-weight:700;
+                          ">
+                            ${escapeHtml(
+                              opportunity.opportunity_name ||
+                              "Unnamed Sales Opportunity"
+                            )}
+                          </div>
+
+                          <div style="
+                            color:#5F6B7A;
+                            font-size:13px;
+                            margin-top:5px;
+                          ">
+                            Owner:
+                            ${escapeHtml(
+                              opportunity.account_owner ||
+                              "Unassigned"
+                            )}
+                          </div>
+
+                          <div style="
+                            display:flex;
+                            gap:18px;
+                            flex-wrap:wrap;
+                            color:#5F6B7A;
+                            font-size:13px;
+                            margin-top:10px;
+                          ">
+
+                            <span>
+                              ${
+                                Number(
+                                  opportunity.location_count ||
+                                  0
+                                )
+                              } ${
+                                Number(
+                                  opportunity.location_count ||
+                                  0
+                                ) === 1
+                                  ? "location"
+                                  : Number(
+                                      opportunity.location_count ||
+                                      0
+                                    ) === 0
+                                    ? "locations — Organization-wide"
+                                    : "locations"
+                              }
+                            </span>
+
+                            <span>
+                              Likely close:
+                              ${
+                                opportunity.expected_close_date
+                                  ? dateLabel(
+                                      opportunity.expected_close_date
+                                    )
+                                  : "Not scheduled"
+                              }
+                            </span>
+
+                            <span>
+                              Updated:
+                              ${
+                                opportunity.updated_at
+                                  ? dateLabel(
+                                      opportunity.updated_at
+                                    )
+                                  : "Not recorded"
+                              }
+                            </span>
+
+                          </div>
+
+                        </div>
+
+                        <div style="
+                          display:flex;
+                          align-items:center;
+                          justify-content:flex-end;
+                          gap:12px;
+                          flex-wrap:wrap;
+                        ">
+
+                          <span style="
+                            display:inline-block;
+                            padding:6px 11px;
+                            border-radius:999px;
+                            background:#EAF2FF;
+                            color:#1D4ED8;
+                            font-size:12px;
+                            font-weight:700;
+                          ">
+                            ${escapeHtml(
+                              opportunity.sales_stage ||
+                              "Prospect"
+                            )}
+                          </span>
+
+                          <span style="
+                            display:inline-block;
+                            padding:6px 11px;
+                            border-radius:999px;
+                            background:${outcomeBackground};
+                            color:${outcomeColor};
+                            font-size:12px;
+                            font-weight:700;
+                          ">
+                            ${escapeHtml(outcome)}
+                          </span>
+
+                          <strong style="
+                            font-size:18px;
+                          ">
+                            ${money(
+                              opportunity.estimated_value
+                            )}
+                          </strong>
+
+                          <a
+                            class="btn secondary"
+                            href="/org-advertiser/${encodeURIComponent(
+                              advertiserKey
+                            )}/opportunity/${Number(
+                              opportunity.id
+                            )}?organization_id=${organizationId}"
+                            style="
+                              padding:9px 13px;
+                              margin:0;
+                            "
+                          >
+                            Open
+                          </a>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+                  `;
+                }
+              )
+              .join("")
+          : `
+              <div style="
+                text-align:center;
+                padding:34px 16px;
+                color:#5F6B7A;
+              ">
+                <strong style="
+                  display:block;
+                  color:#172033;
+                  font-size:18px;
+                  margin-bottom:7px;
+                ">
+                  No sales opportunities yet
+                </strong>
+
+                Add the first potential sale, renewal, or expansion for this advertiser.
+              </div>
+            `;
+
+      return res.send(
+        orgPage(
+          "Sales Opportunities",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Sales Opportunities
+              </h1>
+
+              <p class="subtitle">
+                ${escapeHtml(
+                  advertiser.name ||
+                  "Advertiser"
+                )}
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:12px;
+                flex-wrap:wrap;
+                margin-bottom:24px;
+              ">
+
+                <a
+                  class="btn secondary"
+                  href="/org-advertiser/${encodeURIComponent(
+                    advertiserKey
+                  )}?organization_id=${organizationId}"
+                >
+                  Back to Advertiser
+                </a>
+
+                ${
+                  canManageOpportunities
+                    ? `
+                      <a
+                        class="btn"
+                        href="/org-advertiser/${encodeURIComponent(
+                          advertiserKey
+                        )}/opportunities/new?organization_id=${organizationId}"
+                      >
+                        Add Opportunity
+                      </a>
+                    `
+                    : ""
+                }
+
+              </div>
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(
+                    auto-fit,
+                    minmax(180px,1fr)
+                  );
+                gap:14px;
+                margin-bottom:24px;
+              ">
+
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                  ">
+                    Open Opportunities
+                  </div>
+
+                  <div style="
+                    font-size:27px;
+                    font-weight:700;
+                    margin-top:6px;
+                  ">
+                    ${openOpportunities.length}
+                  </div>
+                </div>
+
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                  ">
+                    Open Pipeline Value
+                  </div>
+
+                  <div style="
+                    font-size:27px;
+                    font-weight:700;
+                    margin-top:6px;
+                  ">
+                    ${money(openPipelineValue)}
+                  </div>
+                </div>
+
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                  ">
+                    Won
+                  </div>
+
+                  <div style="
+                    font-size:27px;
+                    font-weight:700;
+                    margin-top:6px;
+                  ">
+                    ${wonOpportunities.length}
+                  </div>
+                </div>
+
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                  ">
+                    Lost
+                  </div>
+
+                  <div style="
+                    font-size:27px;
+                    font-weight:700;
+                    margin-top:6px;
+                  ">
+                    ${lostOpportunities.length}
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="card">
+
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:center;
+                  gap:12px;
+                  flex-wrap:wrap;
+                  margin-bottom:8px;
+                ">
+                  <div>
+                    <h2 style="margin:0 0 5px;">
+                      Complete Pipeline
+                    </h2>
+
+                    <div style="
+                      color:#5F6B7A;
+                      font-size:13px;
+                    ">
+                      Open opportunities appear first, ordered by likely close date.
+                    </div>
+                  </div>
+
+                  <strong>
+                    ${opportunities.length}
+                    ${
+                      opportunities.length === 1
+                        ? "Opportunity"
+                        : "Opportunities"
+                    }
+                  </strong>
+                </div>
+
+                ${opportunityRows}
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        "VIEW ALL SALES OPPORTUNITIES ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "VIEW ALL SALES OPPORTUNITIES ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
 ADD ADVERTISER SALES OPPORTUNITY FORM
 =========================================================
 */
