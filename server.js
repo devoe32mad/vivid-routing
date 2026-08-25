@@ -3685,6 +3685,11 @@ await q(`
   ALTER TABLE advertisers
   ADD COLUMN IF NOT EXISTS next_action_due_date DATE
 `);
+  await q(`
+  ALTER TABLE advertisers
+  ADD COLUMN IF NOT EXISTS relationship_updated_by_user_id INTEGER
+    REFERENCES users(id)
+`);
 await q(`
   ALTER TABLE users
   ADD COLUMN IF NOT EXISTS company_name TEXT
