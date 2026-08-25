@@ -4839,6 +4839,90 @@ await q(`
     )
   )
 `);
+  /*
+=========================================================
+ADVERTISER TASKS AND FOLLOW-UPS
+=========================================================
+*/
+
+await q(`
+  CREATE TABLE IF NOT EXISTS
+    advertiser_relationship_tasks (
+
+      id SERIAL PRIMARY KEY,
+
+      organization_id INTEGER NOT NULL
+        REFERENCES organizations(id)
+        ON DELETE CASCADE,
+
+      advertiser_id INTEGER NOT NULL
+        REFERENCES advertisers(id)
+        ON DELETE CASCADE,
+
+      sales_opportunity_id INTEGER
+        REFERENCES advertiser_sales_opportunities(id)
+        ON DELETE SET NULL,
+
+      task_description TEXT NOT NULL,
+
+      assigned_user_id INTEGER
+        REFERENCES users(id)
+        ON DELETE SET NULL,
+
+      due_date DATE,
+
+      status TEXT NOT NULL
+        DEFAULT 'Open',
+
+      completed_at TIMESTAMP,
+
+      created_by_user_id INTEGER
+        REFERENCES users(id)
+        ON DELETE SET NULL,
+
+      updated_by_user_id INTEGER
+        REFERENCES users(id)
+        ON DELETE SET NULL,
+
+      created_at TIMESTAMP NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+      updated_at TIMESTAMP NOT NULL
+        DEFAULT CURRENT_TIMESTAMP
+    )
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+    idx_advertiser_relationship_tasks_advertiser
+
+  ON advertiser_relationship_tasks (
+    advertiser_id,
+    status,
+    due_date
+  )
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+    idx_advertiser_relationship_tasks_assigned_user
+
+  ON advertiser_relationship_tasks (
+    assigned_user_id,
+    status,
+    due_date
+  )
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+    idx_advertiser_relationship_tasks_opportunity
+
+  ON advertiser_relationship_tasks (
+    sales_opportunity_id,
+    updated_at DESC
+  )
+`);
   await q(`
   CREATE INDEX IF NOT EXISTS
   idx_sales_opportunity_locations_location
