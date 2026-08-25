@@ -5087,7 +5087,103 @@ await q(`
 
   WHERE setup_token IS NOT NULL
 `);
+/*
+=========================================================
+ORGANIZATION ADVERTISER RELATIONSHIP RECORDS
+=========================================================
+*/
 
+/*
+Connect Marketplace-created advertisers to their
+existing Organization.
+*/
+
+await q(`
+  UPDATE advertisers a
+
+  SET
+    organization_id = r.organization_id,
+    updated_at = CURRENT_TIMESTAMP
+
+  FROM organization_advertising_requests r
+
+  WHERE r.created_advertiser_id = a.id
+    AND a.organization_id IS NULL
+    AND r.organization_id IS NOT NULL
+`);
+
+/*
+Create one relationship record for every advertiser
+already connected to an Organization campaign.
+*/
+
+await q(`
+  WITH current_advertisers AS (
+    SELECT
+      s.organization_id,
+
+      LOWER(
+        TRIM(c.advertiser)
+      ) AS advertiser_key,
+
+      MAX(
+        TRIM(c.advertiser)
+      ) AS advertiser_name
+
+    FROM campaigns c
+
+    JOIN qr_campaigns qc
+      ON qc.campaign_id = c.id
+
+    JOIN qr_codes qr
+      ON qr.id = qc.qr_id
+
+    JOIN spaces s
+      ON s.id = qr.space_id
+
+    WHERE s.organization_id IS NOT NULL
+      AND NULLIF(
+        TRIM(c.advertiser),
+        ''
+      ) IS NOT NULL
+
+    GROUP BY
+      s.organization_id,
+      LOWER(
+        TRIM(c.advertiser)
+      )
+  )
+
+  INSERT INTO advertisers (
+    organization_id,
+    name,
+    relationship_status,
+    created_at,
+    updated_at
+  )
+
+  SELECT
+    ca.organization_id,
+    ca.advertiser_name,
+    'Active',
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
+
+  FROM current_advertisers ca
+
+  WHERE NOT EXISTS (
+    SELECT 1
+
+    FROM advertisers a
+
+    WHERE a.organization_id =
+          ca.organization_id
+
+      AND LOWER(
+        TRIM(a.name)
+      ) = ca.advertiser_key
+  )
+`);
 }
 
 function daysBetween(startDate, endDate) {
