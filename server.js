@@ -40060,14 +40060,30 @@ const advertiserTasks =
       </div>
     </div>
 
-    <a
-      class="btn"
-      href="/org-advertiser/${encodeURIComponent(
-        advertiserKey
-      )}/tasks/new?organization_id=${organizationId}"
-    >
-      Add Follow-Up
-    </a>
+<div style="
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+">
+  <a
+    class="btn secondary"
+    href="/org-advertiser/${encodeURIComponent(
+      advertiserKey
+    )}/tasks?organization_id=${organizationId}"
+  >
+    View All Follow-Ups
+  </a>
+
+  <a
+    class="btn"
+    href="/org-advertiser/${encodeURIComponent(
+      advertiserKey
+    )}/tasks/new?organization_id=${organizationId}"
+  >
+    Add Follow-Up
+  </a>
+</div>
 
   </div>
 
