@@ -4731,6 +4731,87 @@ ON organization_opportunities
     status
 )
 `);
+  /*
+=========================================================
+ADVERTISER SALES OPPORTUNITIES
+=========================================================
+*/
+
+await q(`
+  CREATE TABLE IF NOT EXISTS
+  advertiser_sales_opportunities (
+
+    id SERIAL PRIMARY KEY,
+
+    organization_id INTEGER NOT NULL
+      REFERENCES organizations(id)
+      ON DELETE CASCADE,
+
+    advertiser_id INTEGER NOT NULL
+      REFERENCES advertisers(id)
+      ON DELETE CASCADE,
+
+    opportunity_name TEXT NOT NULL,
+
+    account_owner_user_id INTEGER
+      REFERENCES users(id)
+      ON DELETE SET NULL,
+
+    organization_opportunity_id INTEGER
+      REFERENCES organization_opportunities(id)
+      ON DELETE SET NULL,
+
+    sales_stage TEXT NOT NULL
+      DEFAULT 'Prospect',
+
+    estimated_value NUMERIC(12,2)
+      NOT NULL DEFAULT 0,
+
+    expected_close_date DATE,
+
+    notes TEXT,
+
+    outcome TEXT,
+
+    created_by_user_id INTEGER
+      REFERENCES users(id)
+      ON DELETE SET NULL,
+
+    updated_by_user_id INTEGER
+      REFERENCES users(id)
+      ON DELETE SET NULL,
+
+    created_at TIMESTAMP
+      DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP
+      DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+  await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_advertiser_sales_opportunities_org
+  ON advertiser_sales_opportunities (
+    organization_id,
+    updated_at DESC
+  )
+`);
+  await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_advertiser_sales_opportunities_advertiser
+  ON advertiser_sales_opportunities (
+    advertiser_id,
+    updated_at DESC
+  )
+`);
+  await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_advertiser_sales_opportunities_stage
+  ON advertiser_sales_opportunities (
+    organization_id,
+    sales_stage
+  )
+`);
 /*
 =========================================================
 ORGANIZATION ADVERTISING REQUESTS
