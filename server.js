@@ -38706,7 +38706,7 @@ const salesOpportunities =
     `,
     [
       organizationId,
-      Number(advertiser.id)
+      relationship.id || null
     ]
   );
 
