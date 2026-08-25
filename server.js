@@ -39469,6 +39469,121 @@ const advertiserActivity =
 
   </div>
 </div>
+<div
+  class="card"
+  style="
+    margin:0 0 30px;
+  "
+>
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:18px;
+  ">
+    <div>
+      <h2 style="margin:0 0 5px;">
+        Customer Activity
+      </h2>
+
+      <div style="
+        color:#5F6B7A;
+        font-size:13px;
+      ">
+        Relationship and contract activity in one chronological log.
+      </div>
+    </div>
+  </div>
+
+  ${
+    advertiserActivity.length
+      ? advertiserActivity
+          .map(
+            activity => `
+              <div style="
+                padding:16px 0;
+                border-top:1px solid #DBE3EF;
+              ">
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:flex-start;
+                  gap:14px;
+                  flex-wrap:wrap;
+                ">
+                  <div style="
+                    font-weight:700;
+                  ">
+                    ${escapeHtml(
+                      activity.activity_type ||
+                      "Activity"
+                    )}
+                  </div>
+
+                  ${
+                    activity.contract_name
+                      ? `
+                          <div style="
+                            padding:5px 10px;
+                            border-radius:999px;
+                            background:#EAF2FF;
+                            color:#1D4ED8;
+                            font-size:12px;
+                            font-weight:700;
+                          ">
+                            Contract: ${escapeHtml(
+                              activity.contract_name
+                            )}
+                          </div>
+                        `
+                      : ""
+                  }
+                </div>
+
+                <div style="
+                  margin-top:9px;
+                  white-space:pre-wrap;
+                ">
+                  ${escapeHtml(
+                    activity.comment || ""
+                  )}
+                </div>
+
+                <div style="
+                  color:#5F6B7A;
+                  font-size:12px;
+                  margin-top:9px;
+                ">
+                  Entered by
+                  ${escapeHtml(
+                    activity.user_name ||
+                    "Unknown User"
+                  )}
+                  ·
+                  ${
+                    activity.created_at
+                      ? new Date(
+                          activity.created_at
+                        ).toLocaleString()
+                      : "Date not recorded"
+                  }
+                </div>
+              </div>
+            `
+          )
+          .join("")
+      : `
+          <div style="
+            padding:22px 0 5px;
+            color:#5F6B7A;
+          ">
+            No customer activity has been recorded.
+          </div>
+        `
+  }
+</div>
             <div style="
               display:grid;
               grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
