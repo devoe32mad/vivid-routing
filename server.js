@@ -39436,6 +39436,377 @@ const relationship =
 );
 /*
 =========================================================
+EDIT ADVERTISER RELATIONSHIP
+=========================================================
+*/
+
+app.get(
+  "/org-advertiser/:advertiserKey/relationship/edit",
+  async (req, res) => {
+    try {
+
+      const scope =
+        await getOrganizationScope(req);
+
+      const {
+        organizationId,
+        organizationRole,
+        isSuperAdmin
+      } = scope;
+
+      const canManageRelationship =
+        isSuperAdmin ||
+        [
+          "owner",
+          "organization_admin",
+          "district_admin"
+        ].includes(
+          String(
+            organizationRole || ""
+          ).toLowerCase()
+        );
+
+      if (!canManageRelationship) {
+        return res
+          .status(403)
+          .send("Access denied.");
+      }
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!advertiserKey) {
+        return res
+          .status(400)
+          .send(
+            "A valid advertiser is required."
+          );
+      }
+
+      const relationshipResult = await q(
+        `
+          SELECT
+            a.id,
+            a.name,
+            a.account_owner_user_id,
+            a.relationship_status,
+            a.next_action,
+            a.notes,
+
+            TO_CHAR(
+              a.last_contact_date,
+              'YYYY-MM-DD'
+            ) AS last_contact_date,
+
+            TO_CHAR(
+              a.next_action_due_date,
+              'YYYY-MM-DD'
+            ) AS next_action_due_date,
+
+            o.name AS organization_name
+
+          FROM advertisers a
+
+          JOIN organizations o
+            ON o.id = a.organization_id
+
+          WHERE a.organization_id = $1
+            AND LOWER(
+              TRIM(a.name)
+            ) = $2
+
+          LIMIT 1
+        `,
+        [
+          organizationId,
+          advertiserKey
+        ]
+      );
+
+      const relationship =
+        relationshipResult.rows[0];
+
+      if (!relationship) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser relationship not found."
+          );
+      }
+
+      const ownersResult = await q(
+        `
+          SELECT
+            u.id,
+
+            COALESCE(
+              NULLIF(TRIM(u.name), ''),
+              NULLIF(TRIM(u.email), ''),
+              'Unnamed User'
+            ) AS display_name
+
+          FROM organization_users ou
+
+          JOIN users u
+            ON u.id = ou.user_id
+
+          WHERE ou.organization_id = $1
+            AND COALESCE(
+              ou.is_active,
+              true
+            ) = true
+
+          ORDER BY
+            display_name
+        `,
+        [organizationId]
+      );
+
+      const ownerOptions = [
+        `
+          <option value="">
+            Unassigned
+          </option>
+        `,
+        ...ownersResult.rows.map(
+          owner => `
+            <option
+              value="${Number(owner.id)}"
+              ${
+                Number(
+                  relationship.account_owner_user_id
+                ) === Number(owner.id)
+                  ? "selected"
+                  : ""
+              }
+            >
+              ${escapeHtml(
+                owner.display_name
+              )}
+            </option>
+          `
+        )
+      ].join("");
+
+      const relationshipStatuses = [
+        "Prospect",
+        "Active",
+        "At Risk",
+        "Inactive"
+      ];
+
+      const statusOptions =
+        relationshipStatuses
+          .map(
+            status => `
+              <option
+                value="${status}"
+                ${
+                  String(
+                    relationship.relationship_status ||
+                    "Active"
+                  ) === status
+                    ? "selected"
+                    : ""
+                }
+              >
+                ${status}
+              </option>
+            `
+          )
+          .join("");
+
+      return res.send(
+        orgPage(
+          "Edit Advertiser Relationship",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Edit Relationship
+              </h1>
+
+              <p class="subtitle">
+                ${escapeHtml(
+                  relationship.name
+                )}
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                margin-bottom:20px;
+              ">
+                <a
+                  class="btn secondary"
+                  href="/org-advertiser/${encodeURIComponent(
+                    advertiserKey
+                  )}?organization_id=${organizationId}"
+                >
+                  Back to Advertiser
+                </a>
+              </div>
+
+              <div class="card">
+
+                <form
+                  method="POST"
+                  action="/org-advertiser/${encodeURIComponent(
+                    advertiserKey
+                  )}/relationship"
+                >
+
+                  <input
+                    type="hidden"
+                    name="organization_id"
+                    value="${organizationId}"
+                  >
+
+                  <div class="formgrid">
+
+                    <div>
+                      <label>
+                        Account Owner
+                      </label>
+
+                      <select
+                        name="account_owner_user_id"
+                      >
+                        ${ownerOptions}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label>
+                        Relationship Status
+                      </label>
+
+                      <select
+                        name="relationship_status"
+                        required
+                      >
+                        ${statusOptions}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label>
+                        Last-Contact Date
+                      </label>
+
+                      <input
+                        type="date"
+                        name="last_contact_date"
+                        value="${escapeHtml(
+                          relationship.last_contact_date ||
+                          ""
+                        )}"
+                      >
+                    </div>
+
+                    <div>
+                      <label>
+                        Next-Action Due Date
+                      </label>
+
+                      <input
+                        type="date"
+                        name="next_action_due_date"
+                        value="${escapeHtml(
+                          relationship.next_action_due_date ||
+                          ""
+                        )}"
+                      >
+                    </div>
+
+                  </div>
+
+                  <label>
+                    Next Action
+                  </label>
+
+                  <input
+                    type="text"
+                    name="next_action"
+                    value="${escapeHtml(
+                      relationship.next_action ||
+                      ""
+                    )}"
+                    placeholder="Example: Schedule renewal meeting"
+                  >
+
+                  <label>
+                    General Relationship Notes
+                  </label>
+
+                  <textarea
+                    name="notes"
+                    style="
+                      width:100%;
+                      min-height:150px;
+                      box-sizing:border-box;
+                      padding:12px;
+                      border:1px solid #DBE3EF;
+                      border-radius:10px;
+                      font:inherit;
+                      margin:6px 0 18px;
+                    "
+                    placeholder="Add general relationship context..."
+                  >${escapeHtml(
+                    relationship.notes ||
+                    ""
+                  )}</textarea>
+
+                  <button
+                    class="btn"
+                    type="submit"
+                  >
+                    Save Relationship
+                  </button>
+
+                  <a
+                    class="btn secondary"
+                    href="/org-advertiser/${encodeURIComponent(
+                      advertiserKey
+                    )}?organization_id=${organizationId}"
+                  >
+                    Cancel
+                  </a>
+
+                </form>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        "EDIT ADVERTISER RELATIONSHIP ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "EDIT ADVERTISER RELATIONSHIP ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
 UPDATE ADVERTISER RELATIONSHIP SUMMARY
 =========================================================
 */
