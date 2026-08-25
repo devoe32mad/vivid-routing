@@ -40403,14 +40403,27 @@ app.post(
       }
 
       const allowedActivityTypes = [
-        "Note",
-        "Phone Call",
-        "Meeting",
-        "Email",
-        "Proposal",
-        "Follow-up",
-        "Renewal Discussion"
-      ];
+  "Note",
+  "Phone Call",
+  "Voicemail",
+  "Meeting",
+  "Site Visit",
+  "Email",
+  "Text Message",
+  "Presentation",
+  "Proposal",
+  "Quote Sent",
+  "Contract Sent",
+  "Contract Signed",
+  "Follow-up",
+  "Renewal Discussion",
+  "Upsell Discussion",
+  "Billing / Payment",
+  "Issue / Concern",
+  "Resolution",
+  "Other"
+];
+    
 
       const requestedActivityType =
         String(
