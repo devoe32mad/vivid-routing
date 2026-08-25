@@ -3654,6 +3654,11 @@ await q(`
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await q(`
+  ALTER TABLE advertisers
+  ADD COLUMN IF NOT EXISTS organization_id INTEGER
+    REFERENCES organizations(id)
+`);
 await q(`
   ALTER TABLE users
   ADD COLUMN IF NOT EXISTS company_name TEXT
