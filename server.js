@@ -39164,9 +39164,29 @@ const relationship =
     margin:0 0 30px;
   "
 >
-  <h2 style="margin:0 0 18px;">
+  <div style="
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+  margin-bottom:18px;
+">
+  <h2 style="margin:0;">
     Relationship Summary
   </h2>
+
+  <a
+    class="btn"
+    href="/org-advertiser/${encodeURIComponent(
+      advertiserKey
+    )}/relationship/edit?organization_id=${organizationId}"
+  >
+    Edit Relationship
+  </a>
+</div>
+    
+  
 
   <div style="
     display:grid;
