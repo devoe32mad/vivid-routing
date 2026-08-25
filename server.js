@@ -42533,6 +42533,679 @@ app.get(
 );
 /*
 =========================================================
+VIEW ALL ADVERTISER FOLLOW-UPS
+=========================================================
+*/
+
+app.get(
+  "/org-advertiser/:advertiserKey/tasks",
+  async (req, res) => {
+    try {
+
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.query.organization_id
+          )
+        );
+
+      const {
+        organizationId,
+        organizationRole,
+        isSuperAdmin
+      } = scope;
+
+      const canManageTasks =
+        isSuperAdmin ||
+        [
+          "owner",
+          "organization_admin",
+          "district_admin"
+        ].includes(
+          String(
+            organizationRole || ""
+          ).toLowerCase()
+        );
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!advertiserKey) {
+        return res
+          .status(400)
+          .send(
+            "A valid advertiser is required."
+          );
+      }
+
+      const advertiserResult = await q(
+        `
+          SELECT
+            id,
+            name
+
+          FROM advertisers
+
+          WHERE organization_id = $1
+            AND LOWER(
+              TRIM(name)
+            ) = $2
+
+          LIMIT 1
+        `,
+        [
+          organizationId,
+          advertiserKey
+        ]
+      );
+
+      const advertiser =
+        advertiserResult.rows[0];
+
+      if (!advertiser) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser not found."
+          );
+      }
+
+      const tasksResult = await q(
+        `
+          SELECT
+            art.id,
+            art.task_description,
+            art.due_date,
+            art.status,
+            art.completed_at,
+            art.created_at,
+            art.updated_at,
+
+            COALESCE(
+              NULLIF(
+                TRIM(assigned_user.name),
+                ''
+              ),
+              assigned_user.email,
+              'Unassigned'
+            ) AS assigned_user,
+
+            COALESCE(
+              NULLIF(
+                TRIM(created_by.name),
+                ''
+              ),
+              created_by.email,
+              'Not recorded'
+            ) AS created_by,
+
+            COALESCE(
+              NULLIF(
+                TRIM(updated_by.name),
+                ''
+              ),
+              updated_by.email,
+              'Not recorded'
+            ) AS updated_by,
+
+            aso.opportunity_name
+              AS related_opportunity,
+
+            CASE
+              WHEN art.due_date <
+                CURRENT_DATE
+                AND art.status NOT IN (
+                  'Completed',
+                  'Cancelled'
+                )
+              THEN true
+              ELSE false
+            END AS is_overdue
+
+          FROM advertiser_relationship_tasks art
+
+          LEFT JOIN users assigned_user
+            ON assigned_user.id =
+              art.assigned_user_id
+
+          LEFT JOIN users created_by
+            ON created_by.id =
+              art.created_by_user_id
+
+          LEFT JOIN users updated_by
+            ON updated_by.id =
+              art.updated_by_user_id
+
+          LEFT JOIN
+            advertiser_sales_opportunities aso
+            ON aso.id =
+              art.sales_opportunity_id
+
+          WHERE art.organization_id = $1
+            AND art.advertiser_id = $2
+
+          ORDER BY
+            CASE
+              WHEN art.status NOT IN (
+                'Completed',
+                'Cancelled'
+              )
+              THEN 0
+              ELSE 1
+            END,
+
+            CASE
+              WHEN art.due_date <
+                CURRENT_DATE
+                AND art.status NOT IN (
+                  'Completed',
+                  'Cancelled'
+                )
+              THEN 0
+              ELSE 1
+            END,
+
+            art.due_date
+              NULLS LAST,
+
+            art.updated_at DESC
+        `,
+        [
+          organizationId,
+          Number(advertiser.id)
+        ]
+      );
+
+      const tasks =
+        tasksResult.rows;
+
+      const openTasks =
+        tasks.filter(
+          task =>
+            ![
+              "Completed",
+              "Cancelled"
+            ].includes(
+              String(task.status || "")
+            )
+        );
+
+      const overdueTasks =
+        tasks.filter(
+          task =>
+            Boolean(task.is_overdue)
+        );
+
+      const completedTasks =
+        tasks.filter(
+          task =>
+            String(task.status || "") ===
+            "Completed"
+        );
+
+      const taskRows =
+        tasks.length
+          ? tasks
+              .map(
+                task => {
+
+                  const status =
+                    String(
+                      task.status ||
+                      "Open"
+                    );
+
+                  const statusBackground =
+                    status === "Completed"
+                      ? "#DCFCE7"
+                      : status === "Cancelled"
+                        ? "#E5E7EB"
+                        : "#EAF2FF";
+
+                  const statusColor =
+                    status === "Completed"
+                      ? "#166534"
+                      : status === "Cancelled"
+                        ? "#4B5563"
+                        : "#1D4ED8";
+
+                  return `
+                    <div style="
+                      padding:20px 0;
+                      border-top:1px solid #DBE3EF;
+                    ">
+
+                      <div style="
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:flex-start;
+                        gap:18px;
+                        flex-wrap:wrap;
+                      ">
+
+                        <div style="
+                          flex:1;
+                          min-width:250px;
+                        ">
+
+                          <div style="
+                            font-size:17px;
+                            font-weight:700;
+                          ">
+                            ${escapeHtml(
+                              task.task_description ||
+                              "Follow-up"
+                            )}
+                          </div>
+
+                          <div style="
+                            display:flex;
+                            gap:17px;
+                            flex-wrap:wrap;
+                            color:#5F6B7A;
+                            font-size:13px;
+                            margin-top:9px;
+                          ">
+
+                            <span>
+                              Assigned to:
+                              ${escapeHtml(
+                                task.assigned_user ||
+                                "Unassigned"
+                              )}
+                            </span>
+
+                            <span>
+                              Due:
+                              ${
+                                task.due_date
+                                  ? dateLabel(
+                                      task.due_date
+                                    )
+                                  : "No due date"
+                              }
+                            </span>
+
+                            ${
+                              task.related_opportunity
+                                ? `
+                                  <span>
+                                    Opportunity:
+                                    ${escapeHtml(
+                                      task.related_opportunity
+                                    )}
+                                  </span>
+                                `
+                                : ""
+                            }
+
+                          </div>
+
+                          <div style="
+                            color:#5F6B7A;
+                            font-size:12px;
+                            margin-top:9px;
+                          ">
+                            Created by
+                            ${escapeHtml(
+                              task.created_by ||
+                              "Not recorded"
+                            )}
+                            ${
+                              task.created_at
+                                ? ` · ${new Date(
+                                    task.created_at
+                                  ).toLocaleString()}`
+                                : ""
+                            }
+
+                            ${
+                              status === "Completed" &&
+                              task.completed_at
+                                ? `
+                                  <br />
+                                  Completed by
+                                  ${escapeHtml(
+                                    task.updated_by ||
+                                    "Not recorded"
+                                  )}
+                                  ·
+                                  ${new Date(
+                                    task.completed_at
+                                  ).toLocaleString()}
+                                `
+                                : ""
+                            }
+                          </div>
+
+                        </div>
+
+                        <div style="
+                          display:flex;
+                          align-items:center;
+                          justify-content:flex-end;
+                          gap:10px;
+                          flex-wrap:wrap;
+                        ">
+
+                          ${
+                            task.is_overdue
+                              ? `
+                                <span style="
+                                  display:inline-block;
+                                  padding:6px 11px;
+                                  border-radius:999px;
+                                  background:#FEE2E2;
+                                  color:#991B1B;
+                                  font-size:12px;
+                                  font-weight:700;
+                                ">
+                                  Overdue
+                                </span>
+                              `
+                              : ""
+                          }
+
+                          <span style="
+                            display:inline-block;
+                            padding:6px 11px;
+                            border-radius:999px;
+                            background:${statusBackground};
+                            color:${statusColor};
+                            font-size:12px;
+                            font-weight:700;
+                          ">
+                            ${escapeHtml(status)}
+                          </span>
+
+                          ${
+                            canManageTasks &&
+                            ![
+                              "Completed",
+                              "Cancelled"
+                            ].includes(status)
+                              ? `
+                                <form
+                                  method="POST"
+                                  action="/org-advertiser/${encodeURIComponent(
+                                    advertiserKey
+                                  )}/task/${Number(
+                                    task.id
+                                  )}/complete"
+                                  style="
+                                    display:inline;
+                                    margin:0;
+                                  "
+                                  onsubmit="
+                                    return confirm(
+                                      'Mark this follow-up as completed?'
+                                    );
+                                  "
+                                >
+
+                                  <input
+                                    type="hidden"
+                                    name="organization_id"
+                                    value="${organizationId}"
+                                  />
+
+                                  <button
+                                    class="btn"
+                                    type="submit"
+                                    style="
+                                      padding:8px 12px;
+                                      margin:0;
+                                    "
+                                  >
+                                    Mark Complete
+                                  </button>
+
+                                </form>
+                              `
+                              : ""
+                          }
+
+                        </div>
+
+                      </div>
+
+                    </div>
+                  `;
+                }
+              )
+              .join("")
+          : `
+              <div style="
+                padding:34px 16px;
+                border-top:1px solid #DBE3EF;
+                text-align:center;
+                color:#5F6B7A;
+              ">
+                <strong style="
+                  display:block;
+                  color:#172033;
+                  font-size:18px;
+                  margin-bottom:7px;
+                ">
+                  No follow-ups yet
+                </strong>
+
+                Add the first next action for this advertiser.
+              </div>
+            `;
+
+      return res.send(
+        orgPage(
+          "Advertiser Follow-Ups",
+          `
+            <div class="topbar">
+
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Follow-Ups
+              </h1>
+
+              <p class="subtitle">
+                ${escapeHtml(
+                  advertiser.name ||
+                  "Advertiser"
+                )}
+              </p>
+
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:12px;
+                flex-wrap:wrap;
+                margin-bottom:24px;
+              ">
+
+                <a
+                  class="btn secondary"
+                  href="/org-advertiser/${encodeURIComponent(
+                    advertiserKey
+                  )}?organization_id=${organizationId}"
+                >
+                  Back to Advertiser
+                </a>
+
+                ${
+                  canManageTasks
+                    ? `
+                      <a
+                        class="btn"
+                        href="/org-advertiser/${encodeURIComponent(
+                          advertiserKey
+                        )}/tasks/new?organization_id=${organizationId}"
+                      >
+                        Add Follow-Up
+                      </a>
+                    `
+                    : ""
+                }
+
+              </div>
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(
+                    auto-fit,
+                    minmax(180px,1fr)
+                  );
+                gap:14px;
+                margin-bottom:24px;
+              ">
+
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                  ">
+                    Open
+                  </div>
+
+                  <div style="
+                    font-size:27px;
+                    font-weight:700;
+                    margin-top:6px;
+                  ">
+                    ${openTasks.length}
+                  </div>
+                </div>
+
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                  ">
+                    Overdue
+                  </div>
+
+                  <div style="
+                    font-size:27px;
+                    font-weight:700;
+                    margin-top:6px;
+                    color:${
+                      overdueTasks.length
+                        ? "#991B1B"
+                        : "#172033"
+                    };
+                  ">
+                    ${overdueTasks.length}
+                  </div>
+                </div>
+
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                  ">
+                    Completed
+                  </div>
+
+                  <div style="
+                    font-size:27px;
+                    font-weight:700;
+                    margin-top:6px;
+                  ">
+                    ${completedTasks.length}
+                  </div>
+                </div>
+
+                <div class="card" style="margin:0;">
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                  ">
+                    Total
+                  </div>
+
+                  <div style="
+                    font-size:27px;
+                    font-weight:700;
+                    margin-top:6px;
+                  ">
+                    ${tasks.length}
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="card">
+
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:center;
+                  gap:12px;
+                  flex-wrap:wrap;
+                  margin-bottom:8px;
+                ">
+
+                  <div>
+                    <h2 style="margin:0 0 5px;">
+                      All Follow-Ups
+                    </h2>
+
+                    <div style="
+                      color:#5F6B7A;
+                      font-size:13px;
+                    ">
+                      Open and overdue work appears first. Completed work remains visible for reference.
+                    </div>
+                  </div>
+
+                  <strong>
+                    ${tasks.length}
+                    ${
+                      tasks.length === 1
+                        ? "Follow-Up"
+                        : "Follow-Ups"
+                    }
+                  </strong>
+
+                </div>
+
+                ${taskRows}
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        "VIEW ALL ADVERTISER FOLLOW-UPS ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "VIEW ALL ADVERTISER FOLLOW-UPS ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
 ADD ADVERTISER FOLLOW-UP FORM
 =========================================================
 */
