@@ -39674,6 +39674,198 @@ const salesOpportunities =
   ">
     <div>
       <h2 style="margin:0 0 5px;">
+        Sales Opportunities
+      </h2>
+
+      <div style="
+        color:#5F6B7A;
+        font-size:13px;
+      ">
+        Potential sales, renewals, and expansions for this advertiser.
+      </div>
+    </div>
+
+    <a
+      class="btn"
+      href="/org-advertiser/${encodeURIComponent(
+        advertiserKey
+      )}/opportunities/new?organization_id=${organizationId}"
+    >
+      Add Opportunity
+    </a>
+  </div>
+
+  ${
+    salesOpportunities.length
+      ? salesOpportunities
+          .map(
+            opportunity => `
+              <div style="
+                padding:14px 0;
+                border-top:1px solid #DBE3EF;
+              ">
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:flex-start;
+                  gap:12px;
+                  flex-wrap:wrap;
+                ">
+                  <div>
+                    <div style="
+                      font-weight:700;
+                      font-size:16px;
+                    ">
+                      ${escapeHtml(
+                        opportunity.opportunity_name
+                      )}
+                    </div>
+
+                    <div style="
+                      color:#5F6B7A;
+                      font-size:12px;
+                      margin-top:4px;
+                    ">
+                      Owner:
+                      ${escapeHtml(
+                        opportunity.account_owner ||
+                        "Unassigned"
+                      )}
+                    </div>
+                  </div>
+
+                  <div style="
+                    display:flex;
+                    gap:8px;
+                    align-items:center;
+                    flex-wrap:wrap;
+                  ">
+                    <span style="
+                      display:inline-block;
+                      padding:5px 10px;
+                      border-radius:999px;
+                      background:${
+                        opportunity.sales_stage ===
+                          "Closed Lost"
+                          ? "#FEE2E2"
+                          : [
+                              "Approved",
+                              "Active"
+                            ].includes(
+                              opportunity.sales_stage
+                            )
+                            ? "#DCFCE7"
+                            : "#EAF2FF"
+                      };
+                      color:${
+                        opportunity.sales_stage ===
+                          "Closed Lost"
+                          ? "#991B1B"
+                          : [
+                              "Approved",
+                              "Active"
+                            ].includes(
+                              opportunity.sales_stage
+                            )
+                            ? "#166534"
+                            : "#1D4ED8"
+                      };
+                      font-size:12px;
+                      font-weight:700;
+                    ">
+                      ${escapeHtml(
+                        opportunity.sales_stage
+                      )}
+                    </span>
+
+                    <strong>
+                      ${money(
+                        opportunity.estimated_value
+                      )}
+                    </strong>
+                  </div>
+                </div>
+
+                <div style="
+                  display:flex;
+                  gap:18px;
+                  flex-wrap:wrap;
+                  color:#5F6B7A;
+                  font-size:12px;
+                  margin-top:10px;
+                ">
+                  <span>
+                    ${
+                      Number(
+                        opportunity.location_count || 0
+                      ) > 0
+                        ? `${Number(
+                            opportunity.location_count
+                          )} location${
+                            Number(
+                              opportunity.location_count
+                            ) === 1
+                              ? ""
+                              : "s"
+                          }`
+                        : "Organization-wide"
+                    }
+                  </span>
+
+                  <span>
+                    Likely close:
+                    ${
+                      opportunity.expected_close_date
+                        ? dateLabel(
+                            opportunity.expected_close_date
+                          )
+                        : "Not scheduled"
+                    }
+                  </span>
+
+                  ${
+                    opportunity.related_opportunity
+                      ? `
+                          <span>
+                            Advertising opportunity:
+                            ${escapeHtml(
+                              opportunity.related_opportunity
+                            )}
+                          </span>
+                        `
+                      : ""
+                  }
+                </div>
+              </div>
+            `
+          )
+          .join("")
+      : `
+          <div style="
+            padding:18px 0 4px;
+            color:#5F6B7A;
+          ">
+            No sales opportunities have been added.
+          </div>
+        `
+  }
+</div>
+<div
+  class="card"
+  style="
+    margin:0 0 30px;
+  "
+>
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:18px;
+  ">
+    <div>
+      <h2 style="margin:0 0 5px;">
         Customer Activity
       </h2>
 
