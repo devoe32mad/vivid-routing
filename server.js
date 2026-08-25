@@ -39139,7 +39139,152 @@ const relationship =
               fromDate,
               toDate
             })}
+<div
+  class="card"
+  style="
+    margin:0 0 30px;
+  "
+>
+  <h2 style="margin:0 0 18px;">
+    Relationship Summary
+  </h2>
 
+  <div style="
+    display:grid;
+    grid-template-columns:
+      repeat(
+        auto-fit,
+        minmax(180px, 1fr)
+      );
+    gap:18px;
+  ">
+
+    <div>
+      <div style="
+        font-size:12px;
+        color:#5F6B7A;
+      ">
+        Account Owner
+      </div>
+
+      <div style="
+        font-weight:700;
+        margin-top:5px;
+      ">
+        ${escapeHtml(
+          relationship.account_owner ||
+          "Unassigned"
+        )}
+      </div>
+    </div>
+
+    <div>
+      <div style="
+        font-size:12px;
+        color:#5F6B7A;
+      ">
+        Relationship Status
+      </div>
+
+      <div style="
+        font-weight:700;
+        margin-top:5px;
+      ">
+        ${escapeHtml(
+          relationship.relationship_status ||
+          "Not configured"
+        )}
+      </div>
+    </div>
+
+    <div>
+      <div style="
+        font-size:12px;
+        color:#5F6B7A;
+      ">
+        Last Contact
+      </div>
+
+      <div style="
+        font-weight:700;
+        margin-top:5px;
+      ">
+        ${
+          relationship.last_contact_date
+            ? dateLabel(
+                relationship.last_contact_date
+              )
+            : "Not recorded"
+        }
+      </div>
+    </div>
+
+    <div>
+      <div style="
+        font-size:12px;
+        color:#5F6B7A;
+      ">
+        Next-Action Due Date
+      </div>
+
+      <div style="
+        font-weight:700;
+        margin-top:5px;
+      ">
+        ${
+          relationship.next_action_due_date
+            ? dateLabel(
+                relationship.next_action_due_date
+              )
+            : "Not scheduled"
+        }
+      </div>
+    </div>
+
+  </div>
+
+  <div style="
+    margin-top:22px;
+    padding-top:18px;
+    border-top:1px solid #DBE3EF;
+  ">
+    <div style="
+      font-size:12px;
+      color:#5F6B7A;
+    ">
+      Next Action
+    </div>
+
+    <div style="
+      font-weight:700;
+      margin-top:5px;
+    ">
+      ${escapeHtml(
+        relationship.next_action ||
+        "No next action scheduled"
+      )}
+    </div>
+  </div>
+
+  <div style="margin-top:18px;">
+    <div style="
+      font-size:12px;
+      color:#5F6B7A;
+    ">
+      General Relationship Notes
+    </div>
+
+    <div style="
+      margin-top:5px;
+      white-space:pre-wrap;
+    ">
+      ${escapeHtml(
+        relationship.notes ||
+        "No relationship notes recorded"
+      )}
+    </div>
+  </div>
+</div>
             <div style="
               display:grid;
               grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
