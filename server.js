@@ -40339,6 +40339,185 @@ app.get(
 );
 /*
 =========================================================
+SAVE ADVERTISER CUSTOMER ACTIVITY
+=========================================================
+*/
+
+app.post(
+  "/org-advertiser/:advertiserKey/activity",
+  async (req, res) => {
+    try {
+
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.body.organization_id
+          )
+        );
+
+      const {
+        organizationId,
+        organizationRole,
+        isSuperAdmin
+      } = scope;
+
+      const canManageActivity =
+        isSuperAdmin ||
+        [
+          "owner",
+          "organization_admin",
+          "district_admin"
+        ].includes(
+          String(
+            organizationRole || ""
+          ).toLowerCase()
+        );
+
+      if (!canManageActivity) {
+        return res
+          .status(403)
+          .send("Access denied.");
+      }
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!advertiserKey) {
+        return res
+          .status(400)
+          .send(
+            "A valid advertiser is required."
+          );
+      }
+
+      const allowedActivityTypes = [
+        "Note",
+        "Phone Call",
+        "Meeting",
+        "Email",
+        "Proposal",
+        "Follow-up",
+        "Renewal Discussion"
+      ];
+
+      const requestedActivityType =
+        String(
+          req.body.activity_type ||
+          "Note"
+        ).trim();
+
+      const activityType =
+        allowedActivityTypes.includes(
+          requestedActivityType
+        )
+          ? requestedActivityType
+          : "Note";
+
+      const comment = String(
+        req.body.comment || ""
+      ).trim();
+
+      if (!comment) {
+        return res
+          .status(400)
+          .send(
+            "Activity details are required."
+          );
+      }
+
+      const advertiserResult = await q(
+        `
+          SELECT
+            id
+
+          FROM advertisers
+
+          WHERE organization_id = $1
+            AND LOWER(
+              TRIM(name)
+            ) = $2
+
+          LIMIT 1
+        `,
+        [
+          organizationId,
+          advertiserKey
+        ]
+      );
+
+      const advertiser =
+        advertiserResult.rows[0];
+
+      if (!advertiser) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser relationship not found."
+          );
+      }
+
+      const enteredByUserId =
+        Number(
+          req.session.user?.id ||
+          req.session.orgUser?.id ||
+          0
+        ) || null;
+
+      await q(
+        `
+          INSERT INTO contract_activity (
+            advertiser_id,
+            organization_id,
+            user_id,
+            activity_type,
+            comment
+          )
+
+          VALUES (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5
+          )
+        `,
+        [
+          Number(advertiser.id),
+          organizationId,
+          enteredByUserId,
+          activityType,
+          comment
+        ]
+      );
+
+      return res.redirect(
+        `/org-advertiser/${encodeURIComponent(
+          advertiserKey
+        )}?organization_id=${organizationId}`
+      );
+
+    } catch (err) {
+
+      console.error(
+        "SAVE ADVERTISER ACTIVITY ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "SAVE ADVERTISER ACTIVITY ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
 UPDATE ADVERTISER RELATIONSHIP SUMMARY
 =========================================================
 */
