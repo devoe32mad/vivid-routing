@@ -40118,6 +40118,298 @@ app.get(
 );
 /*
 =========================================================
+VIEW ALL ADVERTISER CUSTOMER ACTIVITY
+=========================================================
+*/
+
+app.get(
+  "/org-advertiser/:advertiserKey/activity",
+  async (req, res) => {
+    try {
+
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.query.organization_id
+          )
+        );
+
+      const {
+        organizationId
+      } = scope;
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!advertiserKey) {
+        return res
+          .status(400)
+          .send(
+            "A valid advertiser is required."
+          );
+      }
+
+      const advertiserResult = await q(
+        `
+          SELECT
+            id,
+            name
+
+          FROM advertisers
+
+          WHERE organization_id = $1
+            AND LOWER(
+              TRIM(name)
+            ) = $2
+
+          LIMIT 1
+        `,
+        [
+          organizationId,
+          advertiserKey
+        ]
+      );
+
+      const advertiser =
+        advertiserResult.rows[0];
+
+      if (!advertiser) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser relationship not found."
+          );
+      }
+
+      const activityResult = await q(
+        `
+          SELECT
+            ca.id,
+            ca.activity_type,
+            ca.comment,
+            ca.created_at,
+            ca.contract_id,
+
+            COALESCE(
+              NULLIF(TRIM(u.name), ''),
+              NULLIF(TRIM(u.email), ''),
+              'Unknown User'
+            ) AS user_name,
+
+            c.contract_name
+
+          FROM contract_activity ca
+
+          LEFT JOIN users u
+            ON u.id = ca.user_id
+
+          LEFT JOIN contracts c
+            ON c.id = ca.contract_id
+
+          WHERE ca.organization_id = $1
+            AND (
+              ca.advertiser_id = $2
+
+              OR ca.contract_id IN (
+                SELECT linked_contract.id
+
+                FROM contracts linked_contract
+
+                WHERE linked_contract.organization_id = $1
+                  AND linked_contract.advertiser_id = $2
+              )
+            )
+
+          ORDER BY
+            ca.created_at DESC,
+            ca.id DESC
+        `,
+        [
+          organizationId,
+          Number(advertiser.id)
+        ]
+      );
+
+      const activities =
+        activityResult.rows;
+
+      return res.send(
+        orgPage(
+          "Customer Activity",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Customer Activity</h1>
+
+              <p class="subtitle">
+                ${escapeHtml(
+                  advertiser.name
+                )}
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:12px;
+                flex-wrap:wrap;
+                margin-bottom:24px;
+              ">
+                <a
+                  class="btn secondary"
+                  href="/org-advertiser/${encodeURIComponent(
+                    advertiserKey
+                  )}?organization_id=${organizationId}"
+                >
+                  Back to Advertiser
+                </a>
+
+                <a
+                  class="btn"
+                  href="/org-advertiser/${encodeURIComponent(
+                    advertiserKey
+                  )}/activity/new?organization_id=${organizationId}"
+                >
+                  Add Activity
+                </a>
+              </div>
+
+              <div class="card">
+
+                <h2 style="margin:0 0 5px;">
+                  Complete Activity History
+                </h2>
+
+                <div style="
+                  color:#5F6B7A;
+                  font-size:13px;
+                  margin-bottom:18px;
+                ">
+                  Relationship and contract activity in chronological order.
+                </div>
+
+                ${
+                  activities.length
+                    ? activities
+                        .map(
+                          activity => `
+                            <div style="
+                              padding:16px 0;
+                              border-top:1px solid #DBE3EF;
+                            ">
+                              <div style="
+                                display:flex;
+                                justify-content:space-between;
+                                align-items:flex-start;
+                                gap:14px;
+                                flex-wrap:wrap;
+                              ">
+                                <div style="
+                                  font-weight:700;
+                                ">
+                                  ${escapeHtml(
+                                    activity.activity_type ||
+                                    "Activity"
+                                  )}
+                                </div>
+
+                                ${
+                                  activity.contract_name
+                                    ? `
+                                        <div style="
+                                          padding:5px 10px;
+                                          border-radius:999px;
+                                          background:#EAF2FF;
+                                          color:#1D4ED8;
+                                          font-size:12px;
+                                          font-weight:700;
+                                        ">
+                                          Contract: ${escapeHtml(
+                                            activity.contract_name
+                                          )}
+                                        </div>
+                                      `
+                                    : ""
+                                }
+                              </div>
+
+                              <div style="
+                                margin-top:9px;
+                                white-space:pre-wrap;
+                              ">
+                                ${escapeHtml(
+                                  activity.comment || ""
+                                )}
+                              </div>
+
+                              <div style="
+                                color:#5F6B7A;
+                                font-size:12px;
+                                margin-top:9px;
+                              ">
+                                Entered by
+                                ${escapeHtml(
+                                  activity.user_name ||
+                                  "Unknown User"
+                                )}
+                                ·
+                                ${
+                                  activity.created_at
+                                    ? new Date(
+                                        activity.created_at
+                                      ).toLocaleString()
+                                    : "Date not recorded"
+                                }
+                              </div>
+                            </div>
+                          `
+                        )
+                        .join("")
+                    : `
+                        <div style="
+                          padding:22px 0 5px;
+                          color:#5F6B7A;
+                        ">
+                          No customer activity has been recorded.
+                        </div>
+                      `
+                }
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        "VIEW ADVERTISER ACTIVITY ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "VIEW ADVERTISER ACTIVITY ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
 ADD ADVERTISER CUSTOMER ACTIVITY FORM
 =========================================================
 */
