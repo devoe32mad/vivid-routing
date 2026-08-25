@@ -38636,6 +38636,82 @@ const advertiserActivity =
 
 const salesOpportunities =
   salesOpportunitiesResult.rows;
+      const advertiserTasksResult =
+  await q(
+    `
+      SELECT
+        art.id,
+        art.task_description,
+        art.due_date,
+        art.status,
+        art.sales_opportunity_id,
+        art.created_at,
+        art.updated_at,
+
+        COALESCE(
+          NULLIF(
+            TRIM(assigned_user.name),
+            ''
+          ),
+          assigned_user.email,
+          'Unassigned'
+        ) AS assigned_user,
+
+        aso.opportunity_name
+          AS related_opportunity,
+
+        CASE
+          WHEN art.due_date <
+            CURRENT_DATE
+            AND art.status NOT IN (
+              'Completed',
+              'Cancelled'
+            )
+          THEN true
+          ELSE false
+        END AS is_overdue
+
+      FROM advertiser_relationship_tasks art
+
+      LEFT JOIN users assigned_user
+        ON assigned_user.id =
+          art.assigned_user_id
+
+      LEFT JOIN
+        advertiser_sales_opportunities aso
+        ON aso.id =
+          art.sales_opportunity_id
+
+      WHERE art.organization_id = $1
+        AND art.advertiser_id = $2
+        AND art.status NOT IN (
+          'Completed',
+          'Cancelled'
+        )
+
+      ORDER BY
+        CASE
+          WHEN art.due_date <
+            CURRENT_DATE
+          THEN 0
+          ELSE 1
+        END,
+
+        art.due_date
+          NULLS LAST,
+
+        art.updated_at DESC
+
+      LIMIT 5
+    `,
+    [
+      organizationId,
+      Number(advertiser.id)
+    ]
+  );
+
+const advertiserTasks =
+  advertiserTasksResult.rows;
       /*
         Confirm this advertiser has at least one valid
         relationship during the selected reporting period.
