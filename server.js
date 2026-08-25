@@ -38352,8 +38352,12 @@ const relationship =
       )
 
     ORDER BY
-      ca.created_at DESC,
-      ca.id DESC
+  ca.created_at DESC,
+  ca.id DESC
+
+LIMIT 5
+    
+      
   `,
   [
     organizationId,
