@@ -42589,6 +42589,359 @@ app.get(
 );
 /*
 =========================================================
+SAVE ADVERTISER FOLLOW-UP
+=========================================================
+*/
+
+app.post(
+  "/org-advertiser/:advertiserKey/tasks",
+  async (req, res) => {
+    try {
+
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.body.organization_id
+          )
+        );
+
+      const {
+        organizationId,
+        organizationRole,
+        isSuperAdmin
+      } = scope;
+
+      const canManageTasks =
+        isSuperAdmin ||
+        [
+          "owner",
+          "organization_admin",
+          "district_admin"
+        ].includes(
+          String(
+            organizationRole || ""
+          ).toLowerCase()
+        );
+
+      if (!canManageTasks) {
+        return res
+          .status(403)
+          .send("Access denied.");
+      }
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!advertiserKey) {
+        return res
+          .status(400)
+          .send(
+            "A valid advertiser is required."
+          );
+      }
+
+      const advertiserResult = await q(
+        `
+          SELECT
+            id,
+            name
+
+          FROM advertisers
+
+          WHERE organization_id = $1
+            AND LOWER(
+              TRIM(name)
+            ) = $2
+
+          LIMIT 1
+        `,
+        [
+          organizationId,
+          advertiserKey
+        ]
+      );
+
+      const advertiser =
+        advertiserResult.rows[0];
+
+      if (!advertiser) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser not found."
+          );
+      }
+
+      const taskDescription = String(
+        req.body.task_description || ""
+      ).trim();
+
+      if (!taskDescription) {
+        return res
+          .status(400)
+          .send(
+            "Please explain what needs to be done."
+          );
+      }
+
+      const assignedUserValue = String(
+        req.body.assigned_user_id || ""
+      ).trim();
+
+      const assignedUserId =
+        assignedUserValue
+          ? Number(assignedUserValue)
+          : null;
+
+      if (
+        assignedUserValue &&
+        (
+          !Number.isInteger(
+            assignedUserId
+          ) ||
+          assignedUserId <= 0
+        )
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Please select a valid assigned user."
+          );
+      }
+
+      if (assignedUserId) {
+
+        const assignedUserResult =
+          await q(
+            `
+              SELECT
+                ou.user_id
+
+              FROM organization_users ou
+
+              WHERE ou.organization_id = $1
+                AND ou.user_id = $2
+                AND COALESCE(
+                  ou.is_active,
+                  true
+                ) = true
+
+              LIMIT 1
+            `,
+            [
+              organizationId,
+              assignedUserId
+            ]
+          );
+
+        if (!assignedUserResult.rows[0]) {
+          return res
+            .status(400)
+            .send(
+              "The assigned user does not belong to this Organization."
+            );
+        }
+      }
+
+      const opportunityValue = String(
+        req.body.sales_opportunity_id ||
+        ""
+      ).trim();
+
+      const salesOpportunityId =
+        opportunityValue
+          ? Number(opportunityValue)
+          : null;
+
+      if (
+        opportunityValue &&
+        (
+          !Number.isInteger(
+            salesOpportunityId
+          ) ||
+          salesOpportunityId <= 0
+        )
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Please select a valid Sales Opportunity."
+          );
+      }
+
+      let relatedOpportunityName = null;
+
+      if (salesOpportunityId) {
+
+        const opportunityResult =
+          await q(
+            `
+              SELECT
+                id,
+                opportunity_name
+
+              FROM advertiser_sales_opportunities
+
+              WHERE id = $1
+                AND organization_id = $2
+                AND advertiser_id = $3
+
+              LIMIT 1
+            `,
+            [
+              salesOpportunityId,
+              organizationId,
+              Number(advertiser.id)
+            ]
+          );
+
+        if (!opportunityResult.rows[0]) {
+          return res
+            .status(400)
+            .send(
+              "The selected Sales Opportunity does not belong to this advertiser."
+            );
+        }
+
+        relatedOpportunityName =
+          opportunityResult.rows[0]
+            .opportunity_name;
+      }
+
+      const dueDate =
+        String(
+          req.body.due_date || ""
+        ).trim() || null;
+
+      const currentUserId =
+        Number(
+          req.session.user?.id ||
+          req.session.orgUser?.id ||
+          0
+        ) || null;
+
+      const taskResult = await q(
+        `
+          INSERT INTO
+            advertiser_relationship_tasks (
+              organization_id,
+              advertiser_id,
+              sales_opportunity_id,
+              task_description,
+              assigned_user_id,
+              due_date,
+              status,
+              created_by_user_id,
+              updated_by_user_id,
+              created_at,
+              updated_at
+            )
+
+          VALUES (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6,
+            'Open',
+            $7,
+            $7,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+          )
+
+          RETURNING id
+        `,
+        [
+          organizationId,
+          Number(advertiser.id),
+          salesOpportunityId,
+          taskDescription,
+          assignedUserId,
+          dueDate,
+          currentUserId
+        ]
+      );
+
+      const taskId =
+        Number(
+          taskResult.rows[0].id
+        );
+
+      const activityComment = [
+        `Follow-up: ${taskDescription}`,
+        dueDate
+          ? `Due: ${dueDate}`
+          : "No due date",
+        relatedOpportunityName
+          ? `Related opportunity: ${relatedOpportunityName}`
+          : null
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      await q(
+        `
+          INSERT INTO contract_activity (
+            contract_id,
+            organization_id,
+            advertiser_id,
+            sales_opportunity_id,
+            user_id,
+            activity_type,
+            comment,
+            created_at
+          )
+
+          VALUES (
+            NULL,
+            $1,
+            $2,
+            $3,
+            $4,
+            'Follow-Up Added',
+            $5,
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          organizationId,
+          Number(advertiser.id),
+          salesOpportunityId,
+          currentUserId,
+          activityComment
+        ]
+      );
+
+      return res.redirect(
+        `/org-advertiser/${encodeURIComponent(
+          advertiserKey
+        )}?organization_id=${organizationId}&task_added=${taskId}`
+      );
+
+    } catch (err) {
+
+      console.error(
+        "SAVE ADVERTISER FOLLOW-UP ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "SAVE ADVERTISER FOLLOW-UP ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
 VIEW ALL ADVERTISER SALES OPPORTUNITIES
 =========================================================
 */
