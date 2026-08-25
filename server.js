@@ -42486,12 +42486,24 @@ app.get(
                     What needs to be done?
                   </label>
 
-                  <textarea
-                    name="task_description"
-                    rows="4"
-                    required
-                    placeholder="Example: Call the advertiser to schedule the renewal meeting"
-                  ></textarea>
+                 <textarea
+  name="task_description"
+  rows="4"
+  required
+  placeholder="Example: Call the advertiser to schedule the renewal meeting"
+  style="
+    display:block;
+    width:100%;
+    min-height:110px;
+    box-sizing:border-box;
+    padding:12px;
+    border:1px solid #DBE3EF;
+    border-radius:12px;
+    font:inherit;
+    resize:vertical;
+    margin:6px 0 16px;
+  "
+></textarea>
 
                   <label>
                     Who is responsible?
