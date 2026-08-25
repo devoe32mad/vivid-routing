@@ -38490,6 +38490,68 @@ LIMIT 5
 
 const advertiserActivity =
   advertiserActivityResult.rows;
+      const salesOpportunitiesResult = await q(
+  `
+    SELECT
+      aso.id,
+      aso.opportunity_name,
+      aso.sales_stage,
+      aso.estimated_value,
+      aso.expected_close_date,
+      aso.notes,
+      aso.outcome,
+      aso.created_at,
+      aso.updated_at,
+
+      COALESCE(
+        NULLIF(TRIM(owner.name), ''),
+        NULLIF(TRIM(owner.email), ''),
+        'Unassigned'
+      ) AS account_owner,
+
+      oo.title AS related_opportunity,
+
+      COUNT(
+        DISTINCT asol.location_id
+      )::int AS location_count
+
+    FROM advertiser_sales_opportunities aso
+
+    LEFT JOIN users owner
+      ON owner.id =
+         aso.account_owner_user_id
+
+    LEFT JOIN organization_opportunities oo
+      ON oo.id =
+         aso.organization_opportunity_id
+
+    LEFT JOIN advertiser_sales_opportunity_locations asol
+      ON asol.sales_opportunity_id =
+         aso.id
+
+    WHERE aso.organization_id = $1
+      AND aso.advertiser_id = $2
+
+    GROUP BY
+      aso.id,
+      owner.name,
+      owner.email,
+      oo.title
+
+    ORDER BY
+      aso.updated_at DESC,
+      aso.id DESC
+
+    LIMIT 5
+  `,
+  [
+    organizationId,
+    relationship.id || null
+  ]
+);
+
+const salesOpportunities =
+  salesOpportunitiesResult.rows;
       /*
         Confirm this advertiser has at least one valid
         relationship during the selected reporting period.
