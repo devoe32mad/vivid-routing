@@ -3860,6 +3860,25 @@ await q(`
       DEFAULT CURRENT_TIMESTAMP
   )
 `);
+ await q(`
+  ALTER TABLE contract_activity
+  ALTER COLUMN contract_id
+  DROP NOT NULL
+`);
+  await q(`
+  ALTER TABLE contract_activity
+  ADD COLUMN IF NOT EXISTS advertiser_id INTEGER
+    REFERENCES advertisers(id)
+    ON DELETE CASCADE
+`);
+  await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_contract_activity_advertiser
+  ON contract_activity (
+    advertiser_id,
+    created_at DESC
+  )
+`);
   await q(`
   CREATE INDEX IF NOT EXISTS
   idx_contract_activity_contract
