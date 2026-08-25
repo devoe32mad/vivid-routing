@@ -38231,7 +38231,49 @@ app.get(
           "Organization not found."
         );
       }
+/*
+=========================================================
+ADVERTISER RELATIONSHIP SUMMARY
+=========================================================
+*/
 
+const relationshipResult = await q(
+  `
+    SELECT
+      a.id,
+      a.relationship_status,
+      a.last_contact_date,
+      a.next_action,
+      a.next_action_due_date,
+      a.notes,
+
+      COALESCE(
+        NULLIF(TRIM(owner.name), ''),
+        NULLIF(TRIM(owner.email), ''),
+        'Unassigned'
+      ) AS account_owner
+
+    FROM advertisers a
+
+    LEFT JOIN users owner
+      ON owner.id =
+         a.account_owner_user_id
+
+    WHERE a.organization_id = $1
+      AND LOWER(
+        TRIM(a.name)
+      ) = $2
+
+    LIMIT 1
+  `,
+  [
+    organizationId,
+    advertiserKey
+  ]
+);
+
+const relationship =
+  relationshipResult.rows[0] || {};
       /*
         Confirm this advertiser has at least one valid
         relationship during the selected reporting period.
