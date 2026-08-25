@@ -43217,6 +43217,227 @@ app.post(
 );
 /*
 =========================================================
+COMPLETE ADVERTISER FOLLOW-UP
+=========================================================
+*/
+
+app.post(
+  "/org-advertiser/:advertiserKey/task/:taskId/complete",
+  async (req, res) => {
+    try {
+
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.body.organization_id
+          )
+        );
+
+      const {
+        organizationId,
+        organizationRole,
+        isSuperAdmin
+      } = scope;
+
+      const canManageTasks =
+        isSuperAdmin ||
+        [
+          "owner",
+          "organization_admin",
+          "district_admin"
+        ].includes(
+          String(
+            organizationRole || ""
+          ).toLowerCase()
+        );
+
+      if (!canManageTasks) {
+        return res
+          .status(403)
+          .send("Access denied.");
+      }
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const taskId =
+        Number(req.params.taskId);
+
+      if (
+        !advertiserKey ||
+        !Number.isInteger(taskId) ||
+        taskId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "A valid advertiser and follow-up are required."
+          );
+      }
+
+      const advertiserResult = await q(
+        `
+          SELECT
+            id,
+            name
+
+          FROM advertisers
+
+          WHERE organization_id = $1
+            AND LOWER(
+              TRIM(name)
+            ) = $2
+
+          LIMIT 1
+        `,
+        [
+          organizationId,
+          advertiserKey
+        ]
+      );
+
+      const advertiser =
+        advertiserResult.rows[0];
+
+      if (!advertiser) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser not found."
+          );
+      }
+
+      const currentUserId =
+        Number(
+          req.session.user?.id ||
+          req.session.orgUser?.id ||
+          0
+        ) || null;
+
+      const taskResult = await q(
+        `
+          UPDATE advertiser_relationship_tasks
+
+          SET
+            status = 'Completed',
+            completed_at =
+              CURRENT_TIMESTAMP,
+            updated_by_user_id = $1,
+            updated_at =
+              CURRENT_TIMESTAMP
+
+          WHERE id = $2
+            AND organization_id = $3
+            AND advertiser_id = $4
+            AND status NOT IN (
+              'Completed',
+              'Cancelled'
+            )
+
+          RETURNING
+            id,
+            task_description,
+            sales_opportunity_id,
+            due_date
+        `,
+        [
+          currentUserId,
+          taskId,
+          organizationId,
+          Number(advertiser.id)
+        ]
+      );
+
+      const completedTask =
+        taskResult.rows[0];
+
+      if (!completedTask) {
+        return res
+          .status(404)
+          .send(
+            "Open follow-up not found."
+          );
+      }
+
+      const activityComment = [
+        `Completed: ${
+          completedTask.task_description
+        }`,
+        completedTask.due_date
+          ? `Due: ${
+              new Date(
+                completedTask.due_date
+              )
+                .toISOString()
+                .slice(0, 10)
+            }`
+          : null
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      await q(
+        `
+          INSERT INTO contract_activity (
+            contract_id,
+            organization_id,
+            advertiser_id,
+            sales_opportunity_id,
+            user_id,
+            activity_type,
+            comment,
+            created_at
+          )
+
+          VALUES (
+            NULL,
+            $1,
+            $2,
+            $3,
+            $4,
+            'Follow-Up Completed',
+            $5,
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          organizationId,
+          Number(advertiser.id),
+          completedTask.sales_opportunity_id ||
+            null,
+          currentUserId,
+          activityComment
+        ]
+      );
+
+      return res.redirect(
+        `/org-advertiser/${encodeURIComponent(
+          advertiserKey
+        )}?organization_id=${organizationId}`
+      );
+
+    } catch (err) {
+
+      console.error(
+        "COMPLETE ADVERTISER FOLLOW-UP ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "COMPLETE ADVERTISER FOLLOW-UP ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
 VIEW ALL ADVERTISER SALES OPPORTUNITIES
 =========================================================
 */
