@@ -38312,6 +38312,57 @@ LEFT JOIN users updated_by
 
 const relationship =
   relationshipResult.rows[0] || {};
+      const advertiserActivityResult = await q(
+  `
+    SELECT
+      ca.id,
+      ca.activity_type,
+      ca.comment,
+      ca.created_at,
+      ca.contract_id,
+
+      COALESCE(
+        NULLIF(TRIM(u.name), ''),
+        NULLIF(TRIM(u.email), ''),
+        'Unknown User'
+      ) AS user_name,
+
+      c.contract_name
+
+    FROM contract_activity ca
+
+    LEFT JOIN users u
+      ON u.id = ca.user_id
+
+    LEFT JOIN contracts c
+      ON c.id = ca.contract_id
+
+    WHERE ca.organization_id = $1
+      AND (
+        ca.advertiser_id = $2
+
+        OR ca.contract_id IN (
+          SELECT linked_contract.id
+
+          FROM contracts linked_contract
+
+          WHERE linked_contract.organization_id = $1
+            AND linked_contract.advertiser_id = $2
+        )
+      )
+
+    ORDER BY
+      ca.created_at DESC,
+      ca.id DESC
+  `,
+  [
+    organizationId,
+    relationship.id || null
+  ]
+);
+
+const advertiserActivity =
+  advertiserActivityResult.rows;
       /*
         Confirm this advertiser has at least one valid
         relationship during the selected reporting period.
