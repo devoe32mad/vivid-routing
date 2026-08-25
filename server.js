@@ -5241,62 +5241,161 @@ UNIFIED VIVID PLATFORM ENTRY
 
 app.get(
   "/platform-login",
-  (req, res) => {
+  async (req, res) => {
+    try {
 
-    /*
-      Existing Organization Portal session.
-    */
-    if (
-      req.session.orgUser?.organization_id
-    ) {
-      return res.redirect(
-        `/org-organization/${
-          req.session.orgUser.organization_id
-        }`
-      );
-    }
+      if (
+        req.session.orgUser?.organization_id
+      ) {
+        return res.redirect(
+          `/org-organization/${
+            req.session.orgUser.organization_id
+          }`
+        );
+      }
 
-    /*
-      No active session.
-    */
-    if (!req.session.user) {
+      const sessionUser =
+        req.session.user;
+
+      if (!sessionUser) {
+        return res.redirect("/login");
+      }
+
+      const role = String(
+        sessionUser.role || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (
+        role === "super_admin" ||
+        role === "admin"
+      ) {
+        return res.redirect(
+          role === "super_admin"
+            ? "/platform-admin"
+            : "/admin"
+        );
+      }
+
+      if (
+        role === "customer" ||
+        role === "advertiser"
+      ) {
+        return res.redirect("/my-setup");
+      }
+
+      if (role === "organization_user") {
+
+        const loginUserId = Number(
+          sessionUser.login_user_id ||
+          sessionUser.id
+        );
+
+        const orgResult = await q(
+          `
+            SELECT
+              u.id AS user_id,
+              u.email,
+              o.id AS organization_id,
+              o.name AS organization_name,
+              ou.role AS organization_role
+
+            FROM users u
+
+            JOIN organization_users ou
+              ON ou.user_id = u.id
+             AND COALESCE(
+               ou.is_active,
+               true
+             ) = true
+
+            JOIN organizations o
+              ON o.id = ou.organization_id
+             AND COALESCE(
+               o.is_active,
+               true
+             ) = true
+
+            WHERE u.id = $1
+
+            ORDER BY o.id
+          `,
+          [loginUserId]
+        );
+
+        if (orgResult.rows.length > 1) {
+          return res
+            .status(409)
+            .send(
+              "This user is connected to more than one active organization."
+            );
+        }
+
+        const orgUser =
+          orgResult.rows[0];
+
+        if (!orgUser) {
+          return res
+            .status(403)
+            .send(
+              "No active Organization membership was found."
+            );
+        }
+
+        req.session.orgUser = {
+          id: orgUser.user_id,
+          email: orgUser.email,
+          organization_id:
+            orgUser.organization_id,
+          organization_name:
+            orgUser.organization_name,
+          organization_role:
+            orgUser.organization_role
+        };
+
+        delete req.session.user;
+
+        return req.session.save(
+          err => {
+            if (err) {
+              console.error(
+                "PLATFORM LOGIN SESSION ERROR:",
+                err
+              );
+
+              return res
+                .status(500)
+                .send(
+                  "Unable to open the Organization Portal."
+                );
+            }
+
+            return res.redirect(
+              `/org-organization/${
+                orgUser.organization_id
+              }`
+            );
+          }
+        );
+      }
+
       return res.redirect("/login");
-    }
 
-    const role = String(
-      req.session.user.role || ""
-    )
-      .trim()
-      .toLowerCase();
+    } catch (err) {
 
-    /*
-      Vivid Platform Administrator.
-    */
-    if (
-      role === "super_admin" ||
-      role === "admin"
-    ) {
-      return res.redirect(
-        role === "super_admin"
-          ? "/platform-admin"
-          : "/admin"
+      console.error(
+        "PLATFORM LOGIN ROUTING ERROR:",
+        err
       );
-    }
 
-    /*
-      Advertiser account.
-    */
-    if (
-      role === "customer" ||
-      role === "advertiser"
-    ) {
-      return res.redirect("/my-setup");
+      return res
+        .status(500)
+        .send(
+          "PLATFORM LOGIN ROUTING ERROR: " +
+          err.message
+        );
     }
-
-    /*
-      Unknown or incomplete session.
-    */
-    return res.redirect("/login");
   }
 );
 app.get("/", (req, res) => {
