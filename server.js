@@ -40037,6 +40037,193 @@ const advertiserTasks =
     margin:0 0 30px;
   "
 >
+
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:18px;
+  ">
+
+    <div>
+      <h2 style="margin:0 0 5px;">
+        Follow-Ups
+      </h2>
+
+      <div style="
+        color:#5F6B7A;
+        font-size:13px;
+      ">
+        What needs to happen next with this advertiser.
+      </div>
+    </div>
+
+    <a
+      class="btn"
+      href="/org-advertiser/${encodeURIComponent(
+        advertiserKey
+      )}/tasks/new?organization_id=${organizationId}"
+    >
+      Add Follow-Up
+    </a>
+
+  </div>
+
+  ${
+    advertiserTasks.length
+      ? advertiserTasks
+          .map(
+            task => `
+              <div style="
+                padding:17px 0;
+                border-top:1px solid #DBE3EF;
+              ">
+
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:flex-start;
+                  gap:16px;
+                  flex-wrap:wrap;
+                ">
+
+                  <div style="
+                    flex:1;
+                    min-width:240px;
+                  ">
+
+                    <div style="
+                      font-weight:700;
+                      font-size:16px;
+                    ">
+                      ${escapeHtml(
+                        task.task_description ||
+                        "Follow-up"
+                      )}
+                    </div>
+
+                    <div style="
+                      display:flex;
+                      gap:16px;
+                      flex-wrap:wrap;
+                      color:#5F6B7A;
+                      font-size:13px;
+                      margin-top:8px;
+                    ">
+
+                      <span>
+                        Assigned to:
+                        ${escapeHtml(
+                          task.assigned_user ||
+                          "Unassigned"
+                        )}
+                      </span>
+
+                      <span>
+                        Due:
+                        ${
+                          task.due_date
+                            ? dateLabel(
+                                task.due_date
+                              )
+                            : "No due date"
+                        }
+                      </span>
+
+                      ${
+                        task.related_opportunity
+                          ? `
+                            <span>
+                              Opportunity:
+                              ${escapeHtml(
+                                task.related_opportunity
+                              )}
+                            </span>
+                          `
+                          : ""
+                      }
+
+                    </div>
+
+                  </div>
+
+                  <div style="
+                    display:flex;
+                    align-items:center;
+                    gap:10px;
+                    flex-wrap:wrap;
+                  ">
+
+                    ${
+                      task.is_overdue
+                        ? `
+                          <span style="
+                            display:inline-block;
+                            padding:6px 11px;
+                            border-radius:999px;
+                            background:#FEE2E2;
+                            color:#991B1B;
+                            font-size:12px;
+                            font-weight:700;
+                          ">
+                            Overdue
+                          </span>
+                        `
+                        : ""
+                    }
+
+                    <span style="
+                      display:inline-block;
+                      padding:6px 11px;
+                      border-radius:999px;
+                      background:#EAF2FF;
+                      color:#1D4ED8;
+                      font-size:12px;
+                      font-weight:700;
+                    ">
+                      ${escapeHtml(
+                        task.status ||
+                        "Open"
+                      )}
+                    </span>
+
+                  </div>
+
+                </div>
+
+              </div>
+            `
+          )
+          .join("")
+      : `
+          <div style="
+            padding:28px 12px;
+            border-top:1px solid #DBE3EF;
+            text-align:center;
+            color:#5F6B7A;
+          ">
+            <strong style="
+              display:block;
+              color:#172033;
+              margin-bottom:6px;
+            ">
+              No open follow-ups
+            </strong>
+
+            Add the next action needed for this advertiser.
+          </div>
+        `
+  }
+
+</div>
+<div
+  class="card"
+  style="
+    margin:0 0 30px;
+  "
+>
   <div style="
     display:flex;
     justify-content:space-between;
