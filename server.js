@@ -39436,6 +39436,228 @@ const relationship =
 );
 /*
 =========================================================
+UPDATE ADVERTISER RELATIONSHIP SUMMARY
+=========================================================
+*/
+
+app.post(
+  "/org-advertiser/:advertiserKey/relationship",
+  async (req, res) => {
+    try {
+
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.body.organization_id
+          )
+        );
+
+      const {
+        organizationId,
+        organizationRole,
+        isSuperAdmin
+      } = scope;
+
+      const canManageRelationship =
+        isSuperAdmin ||
+        [
+          "owner",
+          "organization_admin",
+          "district_admin"
+        ].includes(
+          String(
+            organizationRole || ""
+          ).toLowerCase()
+        );
+
+      if (!canManageRelationship) {
+        return res
+          .status(403)
+          .send("Access denied.");
+      }
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!advertiserKey) {
+        return res
+          .status(400)
+          .send(
+            "A valid advertiser is required."
+          );
+      }
+
+      const ownerValue = String(
+        req.body.account_owner_user_id ||
+        ""
+      ).trim();
+
+      const accountOwnerUserId =
+        ownerValue
+          ? Number(ownerValue)
+          : null;
+
+      if (
+        ownerValue &&
+        (
+          !Number.isInteger(
+            accountOwnerUserId
+          ) ||
+          accountOwnerUserId <= 0
+        )
+      ) {
+        return res
+          .status(400)
+          .send(
+            "A valid account owner is required."
+          );
+      }
+
+      if (accountOwnerUserId) {
+
+        const ownerResult = await q(
+          `
+            SELECT
+              ou.user_id
+
+            FROM organization_users ou
+
+            WHERE ou.organization_id = $1
+              AND ou.user_id = $2
+              AND COALESCE(
+                ou.is_active,
+                true
+              ) = true
+
+            LIMIT 1
+          `,
+          [
+            organizationId,
+            accountOwnerUserId
+          ]
+        );
+
+        if (!ownerResult.rows[0]) {
+          return res
+            .status(400)
+            .send(
+              "The selected account owner does not belong to this Organization."
+            );
+        }
+      }
+
+      const allowedStatuses = [
+        "Prospect",
+        "Active",
+        "At Risk",
+        "Inactive"
+      ];
+
+      const requestedStatus = String(
+        req.body.relationship_status ||
+        "Active"
+      ).trim();
+
+      const relationshipStatus =
+        allowedStatuses.includes(
+          requestedStatus
+        )
+          ? requestedStatus
+          : "Active";
+
+      const lastContactDate =
+        String(
+          req.body.last_contact_date ||
+          ""
+        ).trim() || null;
+
+      const nextAction =
+        String(
+          req.body.next_action ||
+          ""
+        ).trim() || null;
+
+      const nextActionDueDate =
+        String(
+          req.body.next_action_due_date ||
+          ""
+        ).trim() || null;
+
+      const notes =
+        String(
+          req.body.notes ||
+          ""
+        ).trim() || null;
+
+      const updateResult = await q(
+        `
+          UPDATE advertisers
+
+          SET
+            account_owner_user_id = $1,
+            relationship_status = $2,
+            last_contact_date = $3,
+            next_action = $4,
+            next_action_due_date = $5,
+            notes = $6,
+            updated_at =
+              CURRENT_TIMESTAMP
+
+          WHERE organization_id = $7
+            AND LOWER(
+              TRIM(name)
+            ) = $8
+
+          RETURNING id
+        `,
+        [
+          accountOwnerUserId,
+          relationshipStatus,
+          lastContactDate,
+          nextAction,
+          nextActionDueDate,
+          notes,
+          organizationId,
+          advertiserKey
+        ]
+      );
+
+      if (!updateResult.rows[0]) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser relationship not found."
+          );
+      }
+
+      return res.redirect(
+        `/org-advertiser/${encodeURIComponent(
+          advertiserKey
+        )}?organization_id=${organizationId}`
+      );
+
+    } catch (err) {
+
+      console.error(
+        "UPDATE ADVERTISER RELATIONSHIP ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "UPDATE ADVERTISER RELATIONSHIP ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
 VIVID MARKETPLACE MODULE
 Separate from Vivid Core and Organization analytics.
 Version 1 presentation preview.
