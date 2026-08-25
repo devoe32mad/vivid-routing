@@ -9617,19 +9617,7 @@ req.session.user = {
     advertiserCustomerId
 };
 
-
-/*
-  Super Admin enters the platform control center.
-  Customer users continue to enter Vivid Core.
-*/
-if (
-  String(user.rows[0].role || "").toLowerCase() ===
-  "super_admin"
-) {
-  return res.redirect("/platform-admin");
-}
-
-return res.redirect("/my-setup");
+return res.redirect("/platform-login");
 
   } catch (err) {
 
