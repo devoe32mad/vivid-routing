@@ -3659,6 +3659,32 @@ await q(`
   ADD COLUMN IF NOT EXISTS organization_id INTEGER
     REFERENCES organizations(id)
 `);
+  await q(`
+  ALTER TABLE advertisers
+  ADD COLUMN IF NOT EXISTS account_owner_user_id INTEGER
+    REFERENCES users(id)
+`);
+
+await q(`
+  ALTER TABLE advertisers
+  ADD COLUMN IF NOT EXISTS relationship_status TEXT
+    DEFAULT 'Active'
+`);
+
+await q(`
+  ALTER TABLE advertisers
+  ADD COLUMN IF NOT EXISTS last_contact_date DATE
+`);
+
+await q(`
+  ALTER TABLE advertisers
+  ADD COLUMN IF NOT EXISTS next_action TEXT
+`);
+
+await q(`
+  ALTER TABLE advertisers
+  ADD COLUMN IF NOT EXISTS next_action_due_date DATE
+`);
 await q(`
   ALTER TABLE users
   ADD COLUMN IF NOT EXISTS company_name TEXT
