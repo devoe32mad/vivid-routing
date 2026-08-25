@@ -5399,10 +5399,7 @@ app.get(
   }
 );
 app.get("/", (req, res) => {
-  res.send(page("Vivid Platform", `
-    <div class="topbar"><div class="brand">Vivid Spots</div><h1>Smart QR Routing Platform</h1><p class="subtitle">Campaign switching, ROI tracking, store routing, schedules, and inventory-aware demand activation.</p></div>
-    <div class="wrap"><a class="btn" href="/dashboard">Dashboard</a><a class="btn secondary" href="/admin">Admin</a><a class="btn gold" href="/r/1">Test QR</a></div>
-  `));
+  return res.redirect("/platform-login");
 });
 
 app.get("/init-db", async (req, res) => {
