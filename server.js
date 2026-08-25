@@ -38250,20 +38250,34 @@ const relationshipResult = await q(
       a.last_contact_date,
       a.next_action,
       a.next_action_due_date,
-      a.notes,
+a.notes,
+a.updated_at,
 
-      COALESCE(
+COALESCE(
+      
+
+    
         NULLIF(TRIM(owner.name), ''),
         NULLIF(TRIM(owner.email), ''),
         'Unassigned'
-      ) AS account_owner
+    ) AS account_owner,
 
-    FROM advertisers a
+COALESCE(
+  NULLIF(TRIM(updated_by.name), ''),
+  NULLIF(TRIM(updated_by.email), ''),
+  'Not recorded'
+) AS relationship_updated_by,
+
+updated_by.email AS relationship_updated_by_email
+
+FROM advertisers a
 
     LEFT JOIN users owner
       ON owner.id =
          a.account_owner_user_id
-
+LEFT JOIN users updated_by
+  ON updated_by.id =
+     a.relationship_updated_by_user_id
     WHERE a.organization_id = $1
       AND LOWER(
         TRIM(a.name)
