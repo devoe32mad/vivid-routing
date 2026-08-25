@@ -40145,7 +40145,54 @@ WHERE organization_id = $8
             "Advertiser relationship not found."
           );
       }
+const relationshipActivityDetails = [
+  `Relationship status: ${relationshipStatus}`,
 
+  lastContactDate
+    ? `Last contact: ${lastContactDate}`
+    : "Last contact: Not recorded",
+
+  nextAction
+    ? `Next action: ${nextAction}`
+    : "Next action: Not scheduled",
+
+  nextActionDueDate
+    ? `Due: ${nextActionDueDate}`
+    : "Due: Not scheduled",
+
+  notes
+    ? `Notes: ${notes}`
+    : null
+]
+  .filter(Boolean)
+  .join(" | ");
+
+await q(
+  `
+    INSERT INTO contract_activity (
+      advertiser_id,
+      organization_id,
+      user_id,
+      activity_type,
+      comment
+    )
+
+    VALUES (
+      $1,
+      $2,
+      $3,
+      $4,
+      $5
+    )
+  `,
+  [
+    Number(updateResult.rows[0].id),
+    organizationId,
+    relationshipUpdatedByUserId,
+    "Relationship Update",
+    relationshipActivityDetails
+  ]
+);
       return res.redirect(
         `/org-advertiser/${encodeURIComponent(
           advertiserKey
