@@ -40059,7 +40059,9 @@ app.post(
         ).trim() || null;
 const relationshipUpdatedByUserId =
   Number(
-    req.session.user?.id || 0
+    req.session.user?.id ||
+    req.session.orgUser?.id ||
+    0
   ) || null;
       const updateResult = await q(
         `
