@@ -5233,7 +5233,72 @@ async function saveEvent({
 
   return result.rows[0];
 }
+/*
+=========================================================
+UNIFIED VIVID PLATFORM ENTRY
+=========================================================
+*/
 
+app.get(
+  "/platform-login",
+  (req, res) => {
+
+    /*
+      Existing Organization Portal session.
+    */
+    if (
+      req.session.orgUser?.organization_id
+    ) {
+      return res.redirect(
+        `/org-organization/${
+          req.session.orgUser.organization_id
+        }`
+      );
+    }
+
+    /*
+      No active session.
+    */
+    if (!req.session.user) {
+      return res.redirect("/login");
+    }
+
+    const role = String(
+      req.session.user.role || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    /*
+      Vivid Platform Administrator.
+    */
+    if (
+      role === "super_admin" ||
+      role === "admin"
+    ) {
+      return res.redirect(
+        role === "super_admin"
+          ? "/platform-admin"
+          : "/admin"
+      );
+    }
+
+    /*
+      Advertiser account.
+    */
+    if (
+      role === "customer" ||
+      role === "advertiser"
+    ) {
+      return res.redirect("/my-setup");
+    }
+
+    /*
+      Unknown or incomplete session.
+    */
+    return res.redirect("/login");
+  }
+);
 app.get("/", (req, res) => {
   res.send(page("Vivid Platform", `
     <div class="topbar"><div class="brand">Vivid Spots</div><h1>Smart QR Routing Platform</h1><p class="subtitle">Campaign switching, ROI tracking, store routing, schedules, and inventory-aware demand activation.</p></div>
