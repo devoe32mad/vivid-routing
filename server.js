@@ -40517,6 +40517,638 @@ app.get(
 );
 /*
 =========================================================
+EDIT ADVERTISER SALES OPPORTUNITY FORM
+=========================================================
+*/
+
+app.get(
+  "/org-advertiser/:advertiserKey/opportunity/:opportunityId/edit",
+  async (req, res) => {
+    try {
+
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.query.organization_id
+          )
+        );
+
+      const {
+        organizationId,
+        organizationRole,
+        isSuperAdmin
+      } = scope;
+
+      const canManageOpportunity =
+        isSuperAdmin ||
+        [
+          "owner",
+          "organization_admin",
+          "district_admin"
+        ].includes(
+          String(
+            organizationRole || ""
+          ).toLowerCase()
+        );
+
+      if (!canManageOpportunity) {
+        return res
+          .status(403)
+          .send("Access denied.");
+      }
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const opportunityId =
+        Number(
+          req.params.opportunityId
+        );
+
+      if (
+        !advertiserKey ||
+        !Number.isInteger(opportunityId) ||
+        opportunityId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "A valid advertiser and sales opportunity are required."
+          );
+      }
+
+      const opportunityResult =
+        await q(
+          `
+            SELECT
+              aso.id,
+              aso.opportunity_name,
+              aso.account_owner_user_id,
+              aso.organization_opportunity_id,
+              aso.sales_stage,
+              aso.estimated_value,
+              aso.expected_close_date,
+              aso.notes,
+              aso.outcome,
+              a.name AS advertiser_name
+
+            FROM advertiser_sales_opportunities aso
+
+            JOIN advertisers a
+              ON a.id = aso.advertiser_id
+
+            WHERE aso.id = $1
+              AND aso.organization_id = $2
+              AND LOWER(
+                TRIM(a.name)
+              ) = $3
+
+            LIMIT 1
+          `,
+          [
+            opportunityId,
+            organizationId,
+            advertiserKey
+          ]
+        );
+
+      const opportunity =
+        opportunityResult.rows[0];
+
+      if (!opportunity) {
+        return res
+          .status(404)
+          .send(
+            "Sales opportunity not found."
+          );
+      }
+
+      const usersResult = await q(
+        `
+          SELECT
+            u.id,
+            COALESCE(
+              NULLIF(
+                TRIM(u.name),
+                ''
+              ),
+              u.email
+            ) AS display_name,
+            u.email
+
+          FROM organization_users ou
+
+          JOIN users u
+            ON u.id = ou.user_id
+
+          WHERE ou.organization_id = $1
+            AND COALESCE(
+              ou.is_active,
+              true
+            ) = true
+
+          ORDER BY
+            COALESCE(
+              NULLIF(
+                TRIM(u.name),
+                ''
+              ),
+              u.email
+            )
+        `,
+        [organizationId]
+      );
+
+      const locationsResult = await q(
+        `
+          SELECT
+            id,
+            name,
+            location
+
+          FROM spaces
+
+          WHERE organization_id = $1
+            AND COALESCE(
+              is_archived,
+              false
+            ) = false
+
+          ORDER BY name
+        `,
+        [organizationId]
+      );
+
+      const advertisingOpportunitiesResult =
+        await q(
+          `
+            SELECT
+              oo.id,
+              oo.title,
+              s.name AS location_name
+
+            FROM organization_opportunities oo
+
+            LEFT JOIN spaces s
+              ON s.id = oo.space_id
+
+            WHERE oo.organization_id = $1
+              AND COALESCE(
+                oo.is_active,
+                true
+              ) = true
+
+            ORDER BY
+              s.name,
+              oo.title
+          `,
+          [organizationId]
+        );
+
+      const selectedLocationsResult =
+        await q(
+          `
+            SELECT location_id
+
+            FROM advertiser_sales_opportunity_locations
+
+            WHERE sales_opportunity_id = $1
+          `,
+          [opportunityId]
+        );
+
+      const selectedLocationIds =
+        new Set(
+          selectedLocationsResult.rows.map(
+            row =>
+              Number(row.location_id)
+          )
+        );
+
+      const stages = [
+        "Prospect",
+        "Contacted",
+        "Meeting",
+        "Proposal",
+        "Approved",
+        "Active",
+        "Renewal",
+        "Closed Lost"
+      ];
+
+      const currentOutcome =
+        String(
+          opportunity.outcome ||
+          "Open"
+        );
+
+      const closeDateValue =
+        opportunity.expected_close_date
+          ? new Date(
+              opportunity.expected_close_date
+            )
+              .toISOString()
+              .slice(0, 10)
+          : "";
+
+      const ownerOptions =
+        usersResult.rows
+          .map(
+            user => `
+              <option
+                value="${Number(user.id)}"
+                ${
+                  Number(
+                    opportunity.account_owner_user_id
+                  ) === Number(user.id)
+                    ? "selected"
+                    : ""
+                }
+              >
+                ${escapeHtml(
+                  user.display_name ||
+                  user.email ||
+                  "Organization User"
+                )}
+              </option>
+            `
+          )
+          .join("");
+
+      const stageOptions =
+        stages
+          .map(
+            stage => `
+              <option
+                value="${escapeHtml(stage)}"
+                ${
+                  String(
+                    opportunity.sales_stage ||
+                    ""
+                  ) === stage
+                    ? "selected"
+                    : ""
+                }
+              >
+                ${escapeHtml(stage)}
+              </option>
+            `
+          )
+          .join("");
+
+      const locationOptions =
+        locationsResult.rows.length
+          ? locationsResult.rows
+              .map(
+                location => `
+                  <label style="
+                    display:flex;
+                    align-items:flex-start;
+                    gap:9px;
+                    padding:10px 4px;
+                    border-bottom:1px solid #DBE3EF;
+                    cursor:pointer;
+                  ">
+                    <input
+                      type="checkbox"
+                      name="location_ids"
+                      value="${Number(
+                        location.id
+                      )}"
+                      ${
+                        selectedLocationIds.has(
+                          Number(location.id)
+                        )
+                          ? "checked"
+                          : ""
+                      }
+                      style="
+                        width:auto;
+                        margin:3px 0 0;
+                      "
+                    />
+
+                    <span>
+                      <strong>
+                        ${escapeHtml(
+                          location.name ||
+                          "Unnamed Location"
+                        )}
+                      </strong>
+
+                      ${
+                        location.location
+                          ? `
+                            <span style="
+                              display:block;
+                              color:#5F6B7A;
+                              font-size:12px;
+                              margin-top:2px;
+                            ">
+                              ${escapeHtml(
+                                location.location
+                              )}
+                            </span>
+                          `
+                          : ""
+                      }
+                    </span>
+                  </label>
+                `
+              )
+              .join("")
+          : `
+              <div style="
+                color:#5F6B7A;
+                padding:8px 0;
+              ">
+                No Organization locations are available.
+              </div>
+            `;
+
+      const advertisingOpportunityOptions =
+        advertisingOpportunitiesResult.rows
+          .map(
+            related => `
+              <option
+                value="${Number(related.id)}"
+                ${
+                  Number(
+                    opportunity.organization_opportunity_id
+                  ) === Number(related.id)
+                    ? "selected"
+                    : ""
+                }
+              >
+                ${escapeHtml(
+                  related.title ||
+                  "Advertising Opportunity"
+                )}${
+                  related.location_name
+                    ? ` — ${escapeHtml(
+                        related.location_name
+                      )}`
+                    : ""
+                }
+              </option>
+            `
+          )
+          .join("");
+
+      return res.send(
+        orgPage(
+          "Edit Sales Opportunity",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Edit Sales Opportunity
+              </h1>
+
+              <p class="subtitle">
+                ${escapeHtml(
+                  opportunity.advertiser_name ||
+                  "Advertiser"
+                )}
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <a
+                class="btn secondary"
+                href="/org-advertiser/${encodeURIComponent(
+                  advertiserKey
+                )}/opportunity/${opportunityId}?organization_id=${organizationId}"
+                style="margin-bottom:24px;"
+              >
+                Back to Opportunity
+              </a>
+
+              <div class="card">
+
+                <form
+                  method="POST"
+                  action="/org-advertiser/${encodeURIComponent(
+                    advertiserKey
+                  )}/opportunity/${opportunityId}"
+                >
+
+                  <input
+                    type="hidden"
+                    name="organization_id"
+                    value="${organizationId}"
+                  />
+
+                  <label>
+                    Opportunity Name
+                  </label>
+
+                  <input
+                    type="text"
+                    name="opportunity_name"
+                    value="${escapeHtml(
+                      opportunity.opportunity_name ||
+                      ""
+                    )}"
+                    required
+                  />
+
+                  <label>
+                    Account Owner
+                  </label>
+
+                  <select
+                    name="account_owner_user_id"
+                  >
+                    <option value="">
+                      Unassigned
+                    </option>
+
+                    ${ownerOptions}
+                  </select>
+
+                  <label>
+                    Sales Stage
+                  </label>
+
+                  <select
+                    name="sales_stage"
+                    required
+                  >
+                    ${stageOptions}
+                  </select>
+
+                  <label>
+                    Outcome
+                  </label>
+
+                  <select name="outcome">
+                    <option
+                      value="Open"
+                      ${
+                        currentOutcome === "Open"
+                          ? "selected"
+                          : ""
+                      }
+                    >
+                      Open
+                    </option>
+
+                    <option
+                      value="Won"
+                      ${
+                        currentOutcome === "Won"
+                          ? "selected"
+                          : ""
+                      }
+                    >
+                      Won
+                    </option>
+
+                    <option
+                      value="Lost"
+                      ${
+                        currentOutcome === "Lost"
+                          ? "selected"
+                          : ""
+                      }
+                    >
+                      Lost
+                    </option>
+                  </select>
+
+                  <label>
+                    Potential Value
+                  </label>
+
+                  <input
+                    type="number"
+                    name="estimated_value"
+                    min="0"
+                    step="0.01"
+                    value="${Number(
+                      opportunity.estimated_value ||
+                      0
+                    )}"
+                  />
+
+                  <label>
+                    Likely Close Date
+                  </label>
+
+                  <input
+                    type="date"
+                    name="expected_close_date"
+                    value="${closeDateValue}"
+                  />
+
+                  <label>
+                    Related Locations
+                  </label>
+
+                  <div style="
+                    border:1px solid #DBE3EF;
+                    border-radius:12px;
+                    padding:5px 14px;
+                    margin:6px 0 14px;
+                    max-height:240px;
+                    overflow-y:auto;
+                  ">
+                    ${locationOptions}
+                  </div>
+
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                    margin:-6px 0 14px;
+                  ">
+                    Leave every location unchecked when this opportunity applies across the entire Organization.
+                  </div>
+
+                  <label>
+                    Related Advertising Opportunity
+                  </label>
+
+                  <select
+                    name="organization_opportunity_id"
+                  >
+                    <option value="">
+                      None
+                    </option>
+
+                    ${advertisingOpportunityOptions}
+                  </select>
+
+                  <label>
+                    Notes
+                  </label>
+
+                  <textarea
+                    name="notes"
+                    rows="7"
+                  >${escapeHtml(
+                    opportunity.notes ||
+                    ""
+                  )}</textarea>
+
+                  <div style="
+                    display:flex;
+                    gap:12px;
+                    flex-wrap:wrap;
+                    margin-top:20px;
+                  ">
+                    <button
+                      class="btn"
+                      type="submit"
+                    >
+                      Save Changes
+                    </button>
+
+                    <a
+                      class="btn secondary"
+                      href="/org-advertiser/${encodeURIComponent(
+                        advertiserKey
+                      )}/opportunity/${opportunityId}?organization_id=${organizationId}"
+                    >
+                      Cancel
+                    </a>
+                  </div>
+
+                </form>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        "EDIT SALES OPPORTUNITY FORM ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "EDIT SALES OPPORTUNITY FORM ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
 VIEW ADVERTISER SALES OPPORTUNITY
 =========================================================
 */
