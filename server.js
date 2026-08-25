@@ -39499,6 +39499,14 @@ const advertiserActivity =
         Relationship and contract activity in one chronological log.
       </div>
     </div>
+    <a
+  class="btn"
+  href="/org-advertiser/${encodeURIComponent(
+    advertiserKey
+  )}/activity/new?organization_id=${organizationId}"
+>
+  Add Activity
+</a>
   </div>
 
   ${
