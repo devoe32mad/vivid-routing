@@ -39684,7 +39684,14 @@ const salesOpportunities =
         Potential sales, renewals, and expansions for this advertiser.
       </div>
     </div>
-
+<a
+  class="btn secondary"
+  href="/org-advertiser/${encodeURIComponent(
+    advertiserKey
+  )}/opportunities?organization_id=${organizationId}"
+>
+  View All Opportunities
+</a>
     <a
       class="btn"
       href="/org-advertiser/${encodeURIComponent(
