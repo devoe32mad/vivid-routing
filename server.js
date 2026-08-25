@@ -41149,6 +41149,553 @@ app.get(
 );
 /*
 =========================================================
+UPDATE ADVERTISER SALES OPPORTUNITY
+=========================================================
+*/
+
+app.post(
+  "/org-advertiser/:advertiserKey/opportunity/:opportunityId",
+  async (req, res) => {
+    try {
+
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.body.organization_id
+          )
+        );
+
+      const {
+        organizationId,
+        organizationRole,
+        isSuperAdmin
+      } = scope;
+
+      const canManageOpportunity =
+        isSuperAdmin ||
+        [
+          "owner",
+          "organization_admin",
+          "district_admin"
+        ].includes(
+          String(
+            organizationRole || ""
+          ).toLowerCase()
+        );
+
+      if (!canManageOpportunity) {
+        return res
+          .status(403)
+          .send("Access denied.");
+      }
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const opportunityId =
+        Number(
+          req.params.opportunityId
+        );
+
+      if (
+        !advertiserKey ||
+        !Number.isInteger(opportunityId) ||
+        opportunityId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "A valid advertiser and sales opportunity are required."
+          );
+      }
+
+      const advertiserResult = await q(
+        `
+          SELECT
+            id,
+            name
+
+          FROM advertisers
+
+          WHERE organization_id = $1
+            AND LOWER(
+              TRIM(name)
+            ) = $2
+
+          LIMIT 1
+        `,
+        [
+          organizationId,
+          advertiserKey
+        ]
+      );
+
+      const advertiser =
+        advertiserResult.rows[0];
+
+      if (!advertiser) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser not found."
+          );
+      }
+
+      const opportunityName = String(
+        req.body.opportunity_name || ""
+      ).trim();
+
+      if (!opportunityName) {
+        return res
+          .status(400)
+          .send(
+            "Opportunity Name is required."
+          );
+      }
+
+      const ownerValue = String(
+        req.body.account_owner_user_id ||
+        ""
+      ).trim();
+
+      const accountOwnerUserId =
+        ownerValue
+          ? Number(ownerValue)
+          : null;
+
+      if (
+        ownerValue &&
+        (
+          !Number.isInteger(
+            accountOwnerUserId
+          ) ||
+          accountOwnerUserId <= 0
+        )
+      ) {
+        return res
+          .status(400)
+          .send(
+            "A valid Account Owner is required."
+          );
+      }
+
+      if (accountOwnerUserId) {
+
+        const ownerResult = await q(
+          `
+            SELECT
+              ou.user_id
+
+            FROM organization_users ou
+
+            WHERE ou.organization_id = $1
+              AND ou.user_id = $2
+              AND COALESCE(
+                ou.is_active,
+                true
+              ) = true
+
+            LIMIT 1
+          `,
+          [
+            organizationId,
+            accountOwnerUserId
+          ]
+        );
+
+        if (!ownerResult.rows[0]) {
+          return res
+            .status(400)
+            .send(
+              "The selected Account Owner does not belong to this Organization."
+            );
+        }
+      }
+
+      const allowedStages = [
+        "Prospect",
+        "Contacted",
+        "Meeting",
+        "Proposal",
+        "Approved",
+        "Active",
+        "Renewal",
+        "Closed Lost"
+      ];
+
+      const salesStage = String(
+        req.body.sales_stage || ""
+      ).trim();
+
+      if (
+        !allowedStages.includes(
+          salesStage
+        )
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Please select a valid Sales Stage."
+          );
+      }
+
+      const allowedOutcomes = [
+        "Open",
+        "Won",
+        "Lost"
+      ];
+
+      const requestedOutcome = String(
+        req.body.outcome ||
+        "Open"
+      ).trim();
+
+      if (
+        !allowedOutcomes.includes(
+          requestedOutcome
+        )
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Please select a valid Outcome."
+          );
+      }
+
+      const storedOutcome =
+        requestedOutcome === "Open"
+          ? null
+          : requestedOutcome;
+
+      const estimatedValueText = String(
+        req.body.estimated_value || "0"
+      ).trim();
+
+      const estimatedValue =
+        Number(estimatedValueText);
+
+      if (
+        !Number.isFinite(
+          estimatedValue
+        ) ||
+        estimatedValue < 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Potential Value must be zero or greater."
+          );
+      }
+
+      const expectedCloseDate =
+        String(
+          req.body.expected_close_date ||
+          ""
+        ).trim() || null;
+
+      const notes =
+        String(
+          req.body.notes ||
+          ""
+        ).trim() || null;
+
+      const relatedOpportunityValue =
+        String(
+          req.body.organization_opportunity_id ||
+          ""
+        ).trim();
+
+      const organizationOpportunityId =
+        relatedOpportunityValue
+          ? Number(
+              relatedOpportunityValue
+            )
+          : null;
+
+      if (
+        relatedOpportunityValue &&
+        (
+          !Number.isInteger(
+            organizationOpportunityId
+          ) ||
+          organizationOpportunityId <= 0
+        )
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Please select a valid Related Advertising Opportunity."
+          );
+      }
+
+      if (organizationOpportunityId) {
+
+        const relatedOpportunityResult =
+          await q(
+            `
+              SELECT id
+
+              FROM organization_opportunities
+
+              WHERE id = $1
+                AND organization_id = $2
+                AND COALESCE(
+                  is_active,
+                  true
+                ) = true
+
+              LIMIT 1
+            `,
+            [
+              organizationOpportunityId,
+              organizationId
+            ]
+          );
+
+        if (
+          !relatedOpportunityResult.rows[0]
+        ) {
+          return res
+            .status(400)
+            .send(
+              "The selected Advertising Opportunity is not available for this Organization."
+            );
+        }
+      }
+
+      const rawLocationIds =
+        req.body.location_ids === undefined
+          ? []
+          : Array.isArray(
+              req.body.location_ids
+            )
+            ? req.body.location_ids
+            : [
+                req.body.location_ids
+              ];
+
+      const locationIds = [
+        ...new Set(
+          rawLocationIds.map(
+            value => Number(value)
+          )
+        )
+      ];
+
+      const invalidLocation =
+        locationIds.some(
+          locationId =>
+            !Number.isInteger(
+              locationId
+            ) ||
+            locationId <= 0
+        );
+
+      if (invalidLocation) {
+        return res
+          .status(400)
+          .send(
+            "One or more selected Locations are invalid."
+          );
+      }
+
+      if (locationIds.length) {
+
+        const validLocationsResult =
+          await q(
+            `
+              SELECT id
+
+              FROM spaces
+
+              WHERE organization_id = $1
+                AND id = ANY($2::int[])
+                AND COALESCE(
+                  is_archived,
+                  false
+                ) = false
+            `,
+            [
+              organizationId,
+              locationIds
+            ]
+          );
+
+        if (
+          validLocationsResult.rows.length !==
+          locationIds.length
+        ) {
+          return res
+            .status(400)
+            .send(
+              "One or more selected Locations do not belong to this Organization."
+            );
+        }
+      }
+
+      const updatedByUserId =
+        Number(
+          req.session.user?.id ||
+          req.session.orgUser?.id ||
+          0
+        ) || null;
+
+      const updateResult = await q(
+        `
+          UPDATE advertiser_sales_opportunities
+
+          SET
+            opportunity_name = $1,
+            account_owner_user_id = $2,
+            organization_opportunity_id = $3,
+            sales_stage = $4,
+            estimated_value = $5,
+            expected_close_date = $6,
+            notes = $7,
+            outcome = $8,
+            updated_by_user_id = $9,
+            updated_at =
+              CURRENT_TIMESTAMP
+
+          WHERE id = $10
+            AND organization_id = $11
+            AND advertiser_id = $12
+
+          RETURNING id
+        `,
+        [
+          opportunityName,
+          accountOwnerUserId,
+          organizationOpportunityId,
+          salesStage,
+          estimatedValue,
+          expectedCloseDate,
+          notes,
+          storedOutcome,
+          updatedByUserId,
+          opportunityId,
+          organizationId,
+          Number(advertiser.id)
+        ]
+      );
+
+      if (!updateResult.rows[0]) {
+        return res
+          .status(404)
+          .send(
+            "Sales opportunity not found."
+          );
+      }
+
+      await q(
+        `
+          DELETE FROM
+            advertiser_sales_opportunity_locations
+
+          WHERE sales_opportunity_id = $1
+        `,
+        [opportunityId]
+      );
+
+      for (
+        const locationId
+        of locationIds
+      ) {
+        await q(
+          `
+            INSERT INTO
+              advertiser_sales_opportunity_locations (
+                sales_opportunity_id,
+                location_id
+              )
+
+            VALUES (
+              $1,
+              $2
+            )
+          `,
+          [
+            opportunityId,
+            locationId
+          ]
+        );
+      }
+
+      const activityComment = [
+        `Opportunity: ${opportunityName}`,
+        `Stage: ${salesStage}`,
+        `Outcome: ${requestedOutcome}`,
+        `Potential value: $${estimatedValue.toFixed(
+          2
+        )}`,
+        expectedCloseDate
+          ? `Likely close: ${expectedCloseDate}`
+          : null
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      await q(
+        `
+          INSERT INTO contract_activity (
+            contract_id,
+            organization_id,
+            advertiser_id,
+            sales_opportunity_id,
+            user_id,
+            activity_type,
+            comment,
+            created_at
+          )
+
+          VALUES (
+            NULL,
+            $1,
+            $2,
+            $3,
+            $4,
+            'Sales Opportunity Updated',
+            $5,
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          organizationId,
+          Number(advertiser.id),
+          opportunityId,
+          updatedByUserId,
+          activityComment
+        ]
+      );
+
+      return res.redirect(
+        `/org-advertiser/${encodeURIComponent(
+          advertiserKey
+        )}/opportunity/${opportunityId}?organization_id=${organizationId}`
+      );
+
+    } catch (err) {
+
+      console.error(
+        "UPDATE SALES OPPORTUNITY ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "UPDATE SALES OPPORTUNITY ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
 VIEW ADVERTISER SALES OPPORTUNITY
 =========================================================
 */
