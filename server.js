@@ -4812,6 +4812,48 @@ await q(`
     sales_stage
   )
 `);
+  /*
+=========================================================
+SALES OPPORTUNITY LOCATIONS
+=========================================================
+*/
+
+await q(`
+  CREATE TABLE IF NOT EXISTS
+  advertiser_sales_opportunity_locations (
+
+    sales_opportunity_id INTEGER NOT NULL
+      REFERENCES advertiser_sales_opportunities(id)
+      ON DELETE CASCADE,
+
+    location_id INTEGER NOT NULL
+      REFERENCES spaces(id)
+      ON DELETE CASCADE,
+
+    created_at TIMESTAMP
+      DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (
+      sales_opportunity_id,
+      location_id
+    )
+  )
+`);
+  await q(`
+  CREATE INDEX IF NOT EXISTS
+  idx_sales_opportunity_locations_location
+  ON advertiser_sales_opportunity_locations (
+    location_id,
+    sales_opportunity_id
+  )
+`);
+  await q(`
+  ALTER TABLE contract_activity
+  ADD COLUMN IF NOT EXISTS
+  sales_opportunity_id INTEGER
+    REFERENCES advertiser_sales_opportunities(id)
+    ON DELETE SET NULL
+`);
 /*
 =========================================================
 ORGANIZATION ADVERTISING REQUESTS
