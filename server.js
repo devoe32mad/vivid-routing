@@ -39968,7 +39968,10 @@ app.post(
           req.body.notes ||
           ""
         ).trim() || null;
-
+const relationshipUpdatedByUserId =
+  Number(
+    req.session.user?.id || 0
+  ) || null;
       const updateResult = await q(
         `
           UPDATE advertisers
@@ -39979,27 +39982,30 @@ app.post(
             last_contact_date = $3,
             next_action = $4,
             next_action_due_date = $5,
-            notes = $6,
-            updated_at =
-              CURRENT_TIMESTAMP
+          notes = $6,
+relationship_updated_by_user_id = $7,
+updated_at =
+  CURRENT_TIMESTAMP
 
-          WHERE organization_id = $7
-            AND LOWER(
-              TRIM(name)
-            ) = $8
+WHERE organization_id = $8
+  AND LOWER(
+    TRIM(name)
+  ) = $9
 
           RETURNING id
         `,
-        [
-          accountOwnerUserId,
-          relationshipStatus,
-          lastContactDate,
-          nextAction,
-          nextActionDueDate,
-          notes,
-          organizationId,
-          advertiserKey
-        ]
+       [
+  accountOwnerUserId,
+  relationshipStatus,
+  lastContactDate,
+  nextAction,
+  nextActionDueDate,
+  notes,
+  relationshipUpdatedByUserId,
+  organizationId,
+  advertiserKey
+]
+        
       );
 
       if (!updateResult.rows[0]) {
