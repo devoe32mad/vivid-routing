@@ -40503,6 +40503,433 @@ app.get(
 );
 /*
 =========================================================
+VIEW ADVERTISER SALES OPPORTUNITY
+=========================================================
+*/
+
+app.get(
+  "/org-advertiser/:advertiserKey/opportunity/:opportunityId",
+  async (req, res) => {
+    try {
+
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.query.organization_id
+          )
+        );
+
+      const {
+        organizationId
+      } = scope;
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const opportunityId =
+        Number(
+          req.params.opportunityId
+        );
+
+      if (
+        !advertiserKey ||
+        !Number.isInteger(
+          opportunityId
+        ) ||
+        opportunityId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "A valid sales opportunity is required."
+          );
+      }
+
+      const opportunityResult = await q(
+        `
+          SELECT
+            aso.id,
+            aso.opportunity_name,
+            aso.sales_stage,
+            aso.estimated_value,
+            aso.expected_close_date,
+            aso.notes,
+            aso.outcome,
+            aso.created_at,
+            aso.updated_at,
+
+            a.name AS advertiser_name,
+
+            COALESCE(
+              NULLIF(TRIM(owner.name), ''),
+              NULLIF(TRIM(owner.email), ''),
+              'Unassigned'
+            ) AS account_owner,
+
+            oo.title AS related_opportunity,
+
+            COALESCE(
+              NULLIF(TRIM(created_by.name), ''),
+              NULLIF(TRIM(created_by.email), ''),
+              'Unknown User'
+            ) AS created_by_name,
+
+            COALESCE(
+              NULLIF(TRIM(updated_by.name), ''),
+              NULLIF(TRIM(updated_by.email), ''),
+              'Unknown User'
+            ) AS updated_by_name
+
+          FROM advertiser_sales_opportunities aso
+
+          JOIN advertisers a
+            ON a.id = aso.advertiser_id
+
+          LEFT JOIN users owner
+            ON owner.id =
+               aso.account_owner_user_id
+
+          LEFT JOIN organization_opportunities oo
+            ON oo.id =
+               aso.organization_opportunity_id
+
+          LEFT JOIN users created_by
+            ON created_by.id =
+               aso.created_by_user_id
+
+          LEFT JOIN users updated_by
+            ON updated_by.id =
+               aso.updated_by_user_id
+
+          WHERE aso.id = $1
+            AND aso.organization_id = $2
+            AND LOWER(
+              TRIM(a.name)
+            ) = $3
+
+          LIMIT 1
+        `,
+        [
+          opportunityId,
+          organizationId,
+          advertiserKey
+        ]
+      );
+
+      const opportunity =
+        opportunityResult.rows[0];
+
+      if (!opportunity) {
+        return res
+          .status(404)
+          .send(
+            "Sales opportunity not found."
+          );
+      }
+
+      const locationsResult = await q(
+        `
+          SELECT
+            s.id,
+            s.name
+
+          FROM
+          advertiser_sales_opportunity_locations asol
+
+          JOIN spaces s
+            ON s.id = asol.location_id
+
+          WHERE asol.sales_opportunity_id = $1
+            AND s.organization_id = $2
+
+          ORDER BY s.name
+        `,
+        [
+          opportunityId,
+          organizationId
+        ]
+      );
+
+      const locations =
+        locationsResult.rows;
+
+      return res.send(
+        orgPage(
+          "Sales Opportunity",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                ${escapeHtml(
+                  opportunity.opportunity_name
+                )}
+              </h1>
+
+              <p class="subtitle">
+                ${escapeHtml(
+                  opportunity.advertiser_name
+                )}
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <a
+                class="btn secondary"
+                href="/org-advertiser/${encodeURIComponent(
+                  advertiserKey
+                )}?organization_id=${organizationId}"
+                style="margin-bottom:24px;"
+              >
+                Back to Advertiser
+              </a>
+
+              <div class="card">
+
+                <div style="
+                  display:grid;
+                  grid-template-columns:
+                    repeat(
+                      auto-fit,
+                      minmax(180px,1fr)
+                    );
+                  gap:20px;
+                ">
+
+                  <div>
+                    <div style="
+                      color:#5F6B7A;
+                      font-size:12px;
+                    ">
+                      Sales Stage
+                    </div>
+
+                    <div style="
+                      font-weight:700;
+                      margin-top:5px;
+                    ">
+                      ${escapeHtml(
+                        opportunity.sales_stage
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style="
+                      color:#5F6B7A;
+                      font-size:12px;
+                    ">
+                      Potential Value
+                    </div>
+
+                    <div style="
+                      font-weight:700;
+                      margin-top:5px;
+                    ">
+                      ${money(
+                        opportunity.estimated_value
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style="
+                      color:#5F6B7A;
+                      font-size:12px;
+                    ">
+                      Likely Close Date
+                    </div>
+
+                    <div style="
+                      font-weight:700;
+                      margin-top:5px;
+                    ">
+                      ${
+                        opportunity.expected_close_date
+                          ? dateLabel(
+                              opportunity.expected_close_date
+                            )
+                          : "Not scheduled"
+                      }
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style="
+                      color:#5F6B7A;
+                      font-size:12px;
+                    ">
+                      Account Owner
+                    </div>
+
+                    <div style="
+                      font-weight:700;
+                      margin-top:5px;
+                    ">
+                      ${escapeHtml(
+                        opportunity.account_owner
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+
+                <div style="
+                  margin-top:22px;
+                  padding-top:18px;
+                  border-top:1px solid #DBE3EF;
+                ">
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                  ">
+                    Related Locations
+                  </div>
+
+                  <div style="
+                    font-weight:700;
+                    margin-top:5px;
+                  ">
+                    ${
+                      locations.length
+                        ? locations
+                            .map(
+                              location =>
+                                escapeHtml(
+                                  location.name
+                                )
+                            )
+                            .join(", ")
+                        : "Organization-wide"
+                    }
+                  </div>
+                </div>
+
+                <div style="margin-top:18px;">
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                  ">
+                    Related Advertising Opportunity
+                  </div>
+
+                  <div style="
+                    font-weight:700;
+                    margin-top:5px;
+                  ">
+                    ${escapeHtml(
+                      opportunity.related_opportunity ||
+                      "None"
+                    )}
+                  </div>
+                </div>
+
+                <div style="margin-top:18px;">
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                  ">
+                    Outcome
+                  </div>
+
+                  <div style="
+                    font-weight:700;
+                    margin-top:5px;
+                  ">
+                    ${escapeHtml(
+                      opportunity.outcome ||
+                      "Open"
+                    )}
+                  </div>
+                </div>
+
+                <div style="margin-top:18px;">
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                  ">
+                    Notes
+                  </div>
+
+                  <div style="
+                    margin-top:5px;
+                    white-space:pre-wrap;
+                  ">
+                    ${escapeHtml(
+                      opportunity.notes ||
+                      "No notes recorded"
+                    )}
+                  </div>
+                </div>
+
+                <div style="
+                  margin-top:22px;
+                  padding-top:18px;
+                  border-top:1px solid #DBE3EF;
+                  color:#5F6B7A;
+                  font-size:12px;
+                ">
+                  Created by
+                  ${escapeHtml(
+                    opportunity.created_by_name
+                  )}
+                  ·
+                  ${
+                    opportunity.created_at
+                      ? new Date(
+                          opportunity.created_at
+                        ).toLocaleString()
+                      : "Date not recorded"
+                  }
+
+                  <br />
+
+                  Last updated by
+                  ${escapeHtml(
+                    opportunity.updated_by_name
+                  )}
+                  ·
+                  ${
+                    opportunity.updated_at
+                      ? new Date(
+                          opportunity.updated_at
+                        ).toLocaleString()
+                      : "Date not recorded"
+                  }
+                </div>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        "VIEW SALES OPPORTUNITY ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "VIEW SALES OPPORTUNITY ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
 ADD ADVERTISER SALES OPPORTUNITY FORM
 =========================================================
 */
