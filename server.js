@@ -40188,7 +40188,42 @@ const advertiserTasks =
                         "Open"
                       )}
                     </span>
+<form
+  method="POST"
+  action="/org-advertiser/${encodeURIComponent(
+    advertiserKey
+  )}/task/${Number(
+    task.id
+  )}/complete"
+  style="
+    display:inline;
+    margin:0;
+  "
+  onsubmit="
+    return confirm(
+      'Mark this follow-up as completed?'
+    );
+  "
+>
 
+  <input
+    type="hidden"
+    name="organization_id"
+    value="${organizationId}"
+  />
+
+  <button
+    class="btn"
+    type="submit"
+    style="
+      padding:8px 12px;
+      margin:0;
+    "
+  >
+    Mark Complete
+  </button>
+
+</form>
                   </div>
 
                 </div>
