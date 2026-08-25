@@ -39783,6 +39783,20 @@ const salesOpportunities =
                         opportunity.estimated_value
                       )}
                     </strong>
+                <a
+  class="btn secondary"
+  href="/org-advertiser/${encodeURIComponent(
+    advertiserKey
+  )}/opportunity/${Number(
+    opportunity.id
+  )}?organization_id=${organizationId}"
+  style="
+    padding:7px 11px;
+    margin:0;
+  "
+>
+  Open
+</a>
                   </div>
                 </div>
 
