@@ -45957,12 +45957,14 @@ app.get(
                                 )}
                                 ·
                                 ${
-                                  activity.created_at
-                                    easternDateTimeLabel(
   activity.created_at
-)
-                                    : "Date not recorded"
-                                }
+    ? easternDateTimeLabel(
+        activity.created_at
+      )
+    : "Date not recorded"
+}
+                                
+                                
                               </div>
                             </div>
                           `
