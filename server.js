@@ -1486,6 +1486,37 @@ function dateLabel(d, fallback = "Not Set") {
 
   return date.toLocaleDateString();
 }
+function easternDateTimeLabel(value) {
+  if (!value) {
+    return "Not recorded";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "Not recorded";
+  }
+
+  return date.toLocaleString(
+    "en-US",
+    {
+      timeZone:
+        "America/New_York",
+      month: "numeric",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      timeZoneName: "short"
+    }
+  );
+}
 function daysActive(startAt, endAt = null) {
   if (!startAt) return 0;
 
