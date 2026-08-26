@@ -42526,33 +42526,33 @@ app.get(
                   color:#5F6B7A;
                   font-size:12px;
                 ">
-                  Created by
-                  ${escapeHtml(
-                    opportunity.created_by_name
-                  )}
-                  ·
-                  ${
-                    opportunity.created_at
-                 easternDateTimeLabel(
+   Created by
+${escapeHtml(
+  opportunity.created_by_name
+)}
+·
+${
   opportunity.created_at
-)
-                      : "Date not recorded"
-                  }
+    ? easternDateTimeLabel(
+        opportunity.created_at
+      )
+    : "Date not recorded"
+}
 
-                  <br />
+<br />
 
-                  Last updated by
-                  ${escapeHtml(
-                    opportunity.updated_by_name
-                  )}
-                  ·
-                  ${
-                    opportunity.updated_at
-                   easternDateTimeLabel(
+Last updated by
+${escapeHtml(
+  opportunity.updated_by_name
+)}
+·
+${
   opportunity.updated_at
-)
-                      : "Date not recorded"
-                  }
+    ? easternDateTimeLabel(
+        opportunity.updated_at
+      )
+    : "Date not recorded"
+}
                 </div>
 
               </div>
