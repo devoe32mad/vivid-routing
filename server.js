@@ -42902,13 +42902,13 @@ app.get(
                               task.created_by ||
                               "Not recorded"
                             )}
-                            ${
-                              task.created_at
-                                ? ` · ${new Date(
-                                    task.created_at
-                                  ).toLocaleString()}`
-                                : ""
-                            }
+${
+  task.created_at
+    ? ` · ${easternDateTimeLabel(
+        task.created_at
+      )}`
+    : ""
+}
 
                             ${
                               status === "Completed" &&
