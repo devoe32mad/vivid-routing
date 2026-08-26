@@ -40784,6 +40784,145 @@ ${
       </div>
     `
 }
+            ${
+  expansionOpportunities.length
+    ? `
+      <div
+        class="card"
+        style="margin:0 0 30px;"
+      >
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:14px;
+          flex-wrap:wrap;
+          margin-bottom:18px;
+        ">
+          <div>
+            <h2 style="margin:0 0 5px;">
+              Available Expansion Opportunities
+            </h2>
+
+            <div style="
+              color:#5F6B7A;
+              font-size:13px;
+            ">
+              Marketplace inventory this advertiser could add.
+            </div>
+          </div>
+
+          <a
+            class="btn secondary"
+            href="/org-marketplace?organization_id=${organizationId}"
+          >
+            View Marketplace
+          </a>
+        </div>
+
+        <div style="
+          display:grid;
+          grid-template-columns:
+            repeat(
+              auto-fit,
+              minmax(230px,1fr)
+            );
+          gap:12px;
+        ">
+          ${expansionOpportunities
+            .map(
+              opportunity => `
+                <div style="
+                  border:1px solid #DBE3EF;
+                  border-radius:14px;
+                  padding:16px;
+                  background:#FFFFFF;
+                ">
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                  ">
+                    ${escapeHtml(
+                      opportunity.location_name ||
+                      "Organization Location"
+                    )}
+                  </div>
+
+                  <div style="
+                    font-weight:700;
+                    font-size:16px;
+                    margin-top:4px;
+                  ">
+                    ${escapeHtml(
+                      opportunity.title ||
+                      "Advertising Opportunity"
+                    )}
+                  </div>
+
+                  ${
+                    opportunity.category
+                      ? `
+                          <div style="
+                            color:#5F6B7A;
+                            font-size:12px;
+                            margin-top:5px;
+                          ">
+                            ${escapeHtml(
+                              opportunity.category
+                            )}
+                          </div>
+                        `
+                      : ""
+                  }
+
+                  <div style="
+                    font-weight:700;
+                    margin-top:12px;
+                  ">
+                    ${money(
+                      opportunity.opportunity_value
+                    )}
+
+                    ${
+                      opportunity.pricing_unit
+                        ? `
+                            <span style="
+                              color:#5F6B7A;
+                              font-size:12px;
+                              font-weight:400;
+                            ">
+                              ${escapeHtml(
+                                opportunity.pricing_unit
+                              )}
+                            </span>
+                          `
+                        : ""
+                    }
+                  </div>
+
+                  <a
+                    href="/org-opportunity/edit/${Number(
+                      opportunity.id
+                    )}?organization_id=${organizationId}"
+                    style="
+                      display:inline-block;
+                      margin-top:14px;
+                      color:#2563EB;
+                      font-weight:700;
+                      text-decoration:none;
+                    "
+                  >
+                    Open Opportunity →
+                  </a>
+                </div>
+              `
+            )
+            .join("")}
+        </div>
+      </div>
+    `
+    : ""
+}
             <h2>Performance Analytics</h2>
 
             <div style="
