@@ -38606,6 +38606,68 @@ const currentContractResult = await q(
 
 const currentContract =
   currentContractResult.rows[0] || null;
+      /*
+=========================================================
+AVAILABLE EXPANSION OPPORTUNITIES
+=========================================================
+*/
+
+const expansionOpportunitiesResult =
+  await q(
+    `
+      SELECT
+        oo.id,
+        oo.title,
+        oo.description,
+        oo.category,
+        COALESCE(
+          oo.price,
+          oo.annual_price,
+          0
+        ) AS opportunity_value,
+        oo.pricing_unit,
+        oo.status,
+        s.id AS location_id,
+        s.name AS location_name,
+        s.location AS location_address
+
+      FROM organization_opportunities oo
+
+      JOIN spaces s
+        ON s.id = oo.space_id
+       AND s.organization_id =
+           oo.organization_id
+
+      WHERE oo.organization_id = $1
+        AND COALESCE(
+          oo.is_active,
+          true
+        ) = true
+        AND LOWER(
+          TRIM(
+            COALESCE(
+              oo.status,
+              'Available'
+            )
+          )
+        ) = 'available'
+        AND COALESCE(
+          s.is_archived,
+          false
+        ) = false
+
+      ORDER BY
+        s.name,
+        oo.display_order,
+        oo.title
+
+      LIMIT 6
+    `,
+    [organizationId]
+  );
+
+const expansionOpportunities =
+  expansionOpportunitiesResult.rows;
       const advertiserActivityResult = await q(
   `
     SELECT
