@@ -42990,6 +42990,20 @@ ${
                               "Cancelled"
                             ].includes(status)
                               ? `
+                             <a
+  class="btn secondary"
+  href="/org-advertiser/${encodeURIComponent(
+    advertiserKey
+  )}/task/${Number(
+    task.id
+  )}/edit?organization_id=${organizationId}"
+  style="
+    padding:8px 12px;
+    margin:0;
+  "
+>
+  Edit
+</a>
                                 <form
                                   method="POST"
                                   action="/org-advertiser/${encodeURIComponent(
