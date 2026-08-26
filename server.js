@@ -38550,6 +38550,62 @@ LEFT JOIN users updated_by
 
 const relationship =
   relationshipResult.rows[0] || {};
+      /*
+=========================================================
+ADVERTISER CONTRACT INTELLIGENCE
+=========================================================
+*/
+
+const currentContractResult = await q(
+  `
+    SELECT
+      c.id,
+      c.contract_name,
+      c.total_contract_value,
+      c.start_date,
+      c.end_date,
+      c.expiration_date,
+      c.renewal_date,
+      c.status
+
+    FROM contracts c
+
+    WHERE c.organization_id = $1
+      AND c.advertiser_id = $2
+      AND COALESCE(
+        LOWER(c.status),
+        'active'
+      ) NOT IN (
+        'cancelled',
+        'inactive',
+        'closed lost'
+      )
+
+    ORDER BY
+      CASE
+        WHEN LOWER(
+          COALESCE(c.status, 'active')
+        ) = 'active'
+        THEN 0
+        ELSE 1
+      END,
+      COALESCE(
+        c.renewal_date,
+        c.expiration_date,
+        c.end_date
+      ) DESC NULLS LAST,
+      c.id DESC
+
+    LIMIT 1
+  `,
+  [
+    organizationId,
+    relationship.id || null
+  ]
+);
+
+const currentContract =
+  currentContractResult.rows[0] || null;
       const advertiserActivityResult = await q(
   `
     SELECT
