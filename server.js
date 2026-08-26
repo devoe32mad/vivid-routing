@@ -29689,10 +29689,95 @@ const advertiserLocationOptions = [
        OR e.created_at::date <= NULLIF($3, '')::date
      )
 
-    GROUP BY fr.advertiser_key
+        GROUP BY fr.advertiser_key
+  ),
+
+  advertiser_crm AS (
+    SELECT
+      a.id AS advertiser_id,
+      LOWER(TRIM(a.name))
+        AS advertiser_key,
+
+      a.relationship_status,
+      a.next_action,
+      a.next_action_due_date,
+
+      COALESCE(
+        NULLIF(TRIM(owner.name), ''),
+        NULLIF(TRIM(owner.email), ''),
+        'Unassigned'
+      ) AS account_owner
+
+    FROM advertisers a
+
+    LEFT JOIN users owner
+      ON owner.id =
+         a.account_owner_user_id
+
+    WHERE a.organization_id = $1
+  ),
+
+  follow_up_summary AS (
+    SELECT
+      art.advertiser_id,
+
+      COUNT(*) FILTER (
+        WHERE art.status NOT IN (
+          'Completed',
+          'Cancelled'
+        )
+      )::int AS open_follow_ups,
+
+      COUNT(*) FILTER (
+        WHERE art.due_date <
+          CURRENT_DATE
+          AND art.status NOT IN (
+            'Completed',
+            'Cancelled'
+          )
+      )::int AS overdue_follow_ups
+
+    FROM advertiser_relationship_tasks art
+
+    WHERE art.organization_id = $1
+
+    GROUP BY art.advertiser_id
+  ),
+
+  opportunity_summary AS (
+    SELECT
+      aso.advertiser_id,
+
+      COUNT(*) FILTER (
+        WHERE COALESCE(
+          aso.outcome,
+          'Open'
+        ) = 'Open'
+      )::int AS open_opportunities,
+
+      COALESCE(
+        SUM(
+          aso.estimated_value
+        ) FILTER (
+          WHERE COALESCE(
+            aso.outcome,
+            'Open'
+          ) = 'Open'
+        ),
+        0
+      )::numeric AS open_opportunity_value
+
+    FROM advertiser_sales_opportunities aso
+
+    WHERE aso.organization_id = $1
+
+    GROUP BY aso.advertiser_id
   )
 
   SELECT
+  
+
+  
     ar.advertiser_key,
     ar.advertiser_name,
     ar.locations,
@@ -29705,16 +29790,57 @@ const advertiserLocationOptions = [
     COALESCE(ae.conversions, 0)::int
       AS conversions,
 
-    COALESCE(
+       COALESCE(
       ae.revenue_generated,
       0
-    )::numeric AS revenue_generated
+    )::numeric AS revenue_generated,
+
+    ac.advertiser_id,
+    ac.account_owner,
+
+    COALESCE(
+      ac.relationship_status,
+      'Not configured'
+    ) AS relationship_status,
+
+    ac.next_action,
+    ac.next_action_due_date,
+
+    COALESCE(
+      fus.open_follow_ups,
+      0
+    )::int AS open_follow_ups,
+
+    COALESCE(
+      fus.overdue_follow_ups,
+      0
+    )::int AS overdue_follow_ups,
+
+    COALESCE(
+      os.open_opportunities,
+      0
+    )::int AS open_opportunities,
+
+    COALESCE(
+      os.open_opportunity_value,
+      0
+    )::numeric AS open_opportunity_value
 
   FROM advertiser_relationships ar
 
   LEFT JOIN advertiser_events ae
     ON ae.advertiser_key = ar.advertiser_key
+  LEFT JOIN advertiser_crm ac
+    ON ac.advertiser_key =
+       ar.advertiser_key
 
+  LEFT JOIN follow_up_summary fus
+    ON fus.advertiser_id =
+       ac.advertiser_id
+
+  LEFT JOIN opportunity_summary os
+    ON os.advertiser_id =
+       ac.advertiser_id
   ORDER BY ar.advertiser_name
 `, [
   organizationId,
