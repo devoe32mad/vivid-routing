@@ -43619,6 +43619,481 @@ app.get(
 );
 /*
 =========================================================
+EDIT ADVERTISER FOLLOW-UP FORM
+=========================================================
+*/
+
+app.get(
+  "/org-advertiser/:advertiserKey/task/:taskId/edit",
+  async (req, res) => {
+    try {
+
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.query.organization_id
+          )
+        );
+
+      const {
+        organizationId,
+        organizationRole,
+        isSuperAdmin
+      } = scope;
+
+      const canManageTasks =
+        isSuperAdmin ||
+        [
+          "owner",
+          "organization_admin",
+          "district_admin"
+        ].includes(
+          String(
+            organizationRole || ""
+          ).toLowerCase()
+        );
+
+      if (!canManageTasks) {
+        return res
+          .status(403)
+          .send("Access denied.");
+      }
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const taskId =
+        Number(req.params.taskId);
+
+      if (
+        !advertiserKey ||
+        !Number.isInteger(taskId) ||
+        taskId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "A valid advertiser and follow-up are required."
+          );
+      }
+
+      const advertiserResult = await q(
+        `
+          SELECT
+            id,
+            name
+
+          FROM advertisers
+
+          WHERE organization_id = $1
+            AND LOWER(
+              TRIM(name)
+            ) = $2
+
+          LIMIT 1
+        `,
+        [
+          organizationId,
+          advertiserKey
+        ]
+      );
+
+      const advertiser =
+        advertiserResult.rows[0];
+
+      if (!advertiser) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser not found."
+          );
+      }
+
+      const taskResult = await q(
+        `
+          SELECT
+            id,
+            task_description,
+            assigned_user_id,
+            due_date,
+            sales_opportunity_id,
+            status
+
+          FROM advertiser_relationship_tasks
+
+          WHERE id = $1
+            AND organization_id = $2
+            AND advertiser_id = $3
+
+          LIMIT 1
+        `,
+        [
+          taskId,
+          organizationId,
+          Number(advertiser.id)
+        ]
+      );
+
+      const task =
+        taskResult.rows[0];
+
+      if (!task) {
+        return res
+          .status(404)
+          .send(
+            "Follow-up not found."
+          );
+      }
+
+      const usersResult = await q(
+        `
+          SELECT
+            u.id,
+            COALESCE(
+              NULLIF(
+                TRIM(u.name),
+                ''
+              ),
+              u.email
+            ) AS display_name,
+            u.email
+
+          FROM organization_users ou
+
+          JOIN users u
+            ON u.id = ou.user_id
+
+          WHERE ou.organization_id = $1
+            AND COALESCE(
+              ou.is_active,
+              true
+            ) = true
+
+          ORDER BY
+            COALESCE(
+              NULLIF(
+                TRIM(u.name),
+                ''
+              ),
+              u.email
+            )
+        `,
+        [organizationId]
+      );
+
+      const opportunitiesResult =
+        await q(
+          `
+            SELECT
+              id,
+              opportunity_name,
+              sales_stage
+
+            FROM advertiser_sales_opportunities
+
+            WHERE organization_id = $1
+              AND advertiser_id = $2
+              AND (
+                COALESCE(
+                  outcome,
+                  'Open'
+                ) = 'Open'
+                OR id = $3
+              )
+
+            ORDER BY
+              expected_close_date
+                NULLS LAST,
+              updated_at DESC
+          `,
+          [
+            organizationId,
+            Number(advertiser.id),
+            task.sales_opportunity_id
+          ]
+        );
+
+      const userOptions =
+        usersResult.rows
+          .map(
+            user => `
+              <option
+                value="${Number(user.id)}"
+                ${
+                  Number(
+                    task.assigned_user_id
+                  ) === Number(user.id)
+                    ? "selected"
+                    : ""
+                }
+              >
+                ${escapeHtml(
+                  user.display_name ||
+                  user.email ||
+                  "Organization User"
+                )}
+              </option>
+            `
+          )
+          .join("");
+
+      const opportunityOptions =
+        opportunitiesResult.rows
+          .map(
+            opportunity => `
+              <option
+                value="${Number(
+                  opportunity.id
+                )}"
+                ${
+                  Number(
+                    task.sales_opportunity_id
+                  ) ===
+                  Number(opportunity.id)
+                    ? "selected"
+                    : ""
+                }
+              >
+                ${escapeHtml(
+                  opportunity.opportunity_name ||
+                  "Sales Opportunity"
+                )} — ${escapeHtml(
+                  opportunity.sales_stage ||
+                  "Prospect"
+                )}
+              </option>
+            `
+          )
+          .join("");
+
+      const dueDateValue =
+        task.due_date
+          ? new Date(
+              task.due_date
+            )
+              .toISOString()
+              .slice(0, 10)
+          : "";
+
+      return res.send(
+        orgPage(
+          "Edit Follow-Up",
+          `
+            <div class="topbar">
+
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>
+                Edit Follow-Up
+              </h1>
+
+              <p class="subtitle">
+                ${escapeHtml(
+                  advertiser.name ||
+                  "Advertiser"
+                )}
+              </p>
+
+            </div>
+
+            <div class="wrap">
+
+              <a
+                class="btn secondary"
+                href="/org-advertiser/${encodeURIComponent(
+                  advertiserKey
+                )}/tasks?organization_id=${organizationId}"
+                style="margin-bottom:24px;"
+              >
+                Back to Follow-Ups
+              </a>
+
+              <div class="card">
+
+                <form
+                  method="POST"
+                  action="/org-advertiser/${encodeURIComponent(
+                    advertiserKey
+                  )}/task/${taskId}/edit"
+                >
+
+                  <input
+                    type="hidden"
+                    name="organization_id"
+                    value="${organizationId}"
+                  />
+
+                  <label>
+                    What needs to be done?
+                  </label>
+
+                  <textarea
+                    name="task_description"
+                    rows="4"
+                    required
+                    style="
+                      display:block;
+                      width:100%;
+                      min-height:110px;
+                      box-sizing:border-box;
+                      padding:12px;
+                      border:1px solid #DBE3EF;
+                      border-radius:12px;
+                      font:inherit;
+                      resize:vertical;
+                      margin:6px 0 16px;
+                    "
+                  >${escapeHtml(
+                    task.task_description || ""
+                  )}</textarea>
+
+                  <label>
+                    Who is responsible?
+                  </label>
+
+                  <select
+                    name="assigned_user_id"
+                  >
+                    <option
+                      value=""
+                      ${
+                        !task.assigned_user_id
+                          ? "selected"
+                          : ""
+                      }
+                    >
+                      Unassigned
+                    </option>
+
+                    ${userOptions}
+                  </select>
+
+                  <label>
+                    When is it due?
+                  </label>
+
+                  <input
+                    type="date"
+                    name="due_date"
+                    value="${dueDateValue}"
+                  />
+
+                  <label>
+                    Status
+                  </label>
+
+                  <select name="status">
+                    ${[
+                      "Open",
+                      "In Progress",
+                      "Completed",
+                      "Cancelled"
+                    ]
+                      .map(
+                        status => `
+                          <option
+                            value="${status}"
+                            ${
+                              String(
+                                task.status || "Open"
+                              ) === status
+                                ? "selected"
+                                : ""
+                            }
+                          >
+                            ${status}
+                          </option>
+                        `
+                      )
+                      .join("")}
+                  </select>
+
+                  <label>
+                    Related Sales Opportunity
+                  </label>
+
+                  <select
+                    name="sales_opportunity_id"
+                  >
+                    <option
+                      value=""
+                      ${
+                        !task.sales_opportunity_id
+                          ? "selected"
+                          : ""
+                      }
+                    >
+                      None
+                    </option>
+
+                    ${opportunityOptions}
+                  </select>
+
+                  <div style="
+                    color:#5F6B7A;
+                    font-size:12px;
+                    margin:-6px 0 18px;
+                  ">
+                    Choose an opportunity only when this follow-up relates to a specific sale, renewal, or expansion.
+                  </div>
+
+                  <div style="
+                    display:flex;
+                    gap:12px;
+                    flex-wrap:wrap;
+                  ">
+
+                    <button
+                      class="btn"
+                      type="submit"
+                    >
+                      Save Changes
+                    </button>
+
+                    <a
+                      class="btn secondary"
+                      href="/org-advertiser/${encodeURIComponent(
+                        advertiserKey
+                      )}/tasks?organization_id=${organizationId}"
+                    >
+                      Cancel
+                    </a>
+
+                  </div>
+
+                </form>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        "EDIT ADVERTISER FOLLOW-UP FORM ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "EDIT ADVERTISER FOLLOW-UP FORM ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
 SAVE ADVERTISER FOLLOW-UP
 =========================================================
 */
