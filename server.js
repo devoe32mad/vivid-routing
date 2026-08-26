@@ -40710,6 +40710,14 @@ ${
 
         <div style="color:#5F6B7A;">
           No current contract is connected to this advertiser.
+          <div style="margin-top:16px;">
+  <a
+    class="btn secondary"
+    href="/org-contracts?organization_id=${organizationId}"
+  >
+    View Organization Contracts
+  </a>
+</div>
         </div>
       </div>
     `
