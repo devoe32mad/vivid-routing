@@ -42533,9 +42533,9 @@ app.get(
                   ·
                   ${
                     opportunity.created_at
-                      ? new Date(
-                          opportunity.created_at
-                        ).toLocaleString()
+                 easternDateTimeLabel(
+  opportunity.created_at
+)
                       : "Date not recorded"
                   }
 
@@ -42548,9 +42548,9 @@ app.get(
                   ·
                   ${
                     opportunity.updated_at
-                      ? new Date(
-                          opportunity.updated_at
-                        ).toLocaleString()
+                   easternDateTimeLabel(
+  opportunity.updated_at
+)
                       : "Date not recorded"
                   }
                 </div>
