@@ -42910,23 +42910,23 @@ ${
     : ""
 }
 
-                            ${
-                              status === "Completed" &&
-                              task.completed_at
-                                ? `
-                                  <br />
-                                  Completed by
-                                  ${escapeHtml(
-                                    task.updated_by ||
-                                    "Not recorded"
-                                  )}
-                                  ·
-                                  ${new Date(
-                                    task.completed_at
-                                  ).toLocaleString()}
-                                `
-                                : ""
-                            }
+                          ${
+  status === "Completed" &&
+  task.completed_at
+    ? `
+        <br />
+        Completed by
+        ${escapeHtml(
+          task.updated_by ||
+          "Not recorded"
+        )}
+        ·
+        ${easternDateTimeLabel(
+          task.completed_at
+        )}
+      `
+    : ""
+} 
                           </div>
 
                         </div>
