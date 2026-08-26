@@ -44450,7 +44450,437 @@ app.post(
 COMPLETE ADVERTISER FOLLOW-UP
 =========================================================
 */
+/*
+=========================================================
+UPDATE ADVERTISER FOLLOW-UP
+=========================================================
+*/
 
+app.post(
+  "/org-advertiser/:advertiserKey/task/:taskId/edit",
+  async (req, res) => {
+    try {
+
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.body.organization_id
+          )
+        );
+
+      const {
+        organizationId,
+        organizationRole,
+        isSuperAdmin
+      } = scope;
+
+      const canManageTasks =
+        isSuperAdmin ||
+        [
+          "owner",
+          "organization_admin",
+          "district_admin"
+        ].includes(
+          String(
+            organizationRole || ""
+          ).toLowerCase()
+        );
+
+      if (!canManageTasks) {
+        return res
+          .status(403)
+          .send("Access denied.");
+      }
+
+      const advertiserKey = String(
+        req.params.advertiserKey || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const taskId =
+        Number(req.params.taskId);
+
+      if (
+        !advertiserKey ||
+        !Number.isInteger(taskId) ||
+        taskId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "A valid advertiser and follow-up are required."
+          );
+      }
+
+      const advertiserResult = await q(
+        `
+          SELECT
+            id,
+            name
+
+          FROM advertisers
+
+          WHERE organization_id = $1
+            AND LOWER(
+              TRIM(name)
+            ) = $2
+
+          LIMIT 1
+        `,
+        [
+          organizationId,
+          advertiserKey
+        ]
+      );
+
+      const advertiser =
+        advertiserResult.rows[0];
+
+      if (!advertiser) {
+        return res
+          .status(404)
+          .send(
+            "Advertiser not found."
+          );
+      }
+
+      const existingTaskResult = await q(
+        `
+          SELECT
+            id
+
+          FROM advertiser_relationship_tasks
+
+          WHERE id = $1
+            AND organization_id = $2
+            AND advertiser_id = $3
+
+          LIMIT 1
+        `,
+        [
+          taskId,
+          organizationId,
+          Number(advertiser.id)
+        ]
+      );
+
+      if (!existingTaskResult.rows[0]) {
+        return res
+          .status(404)
+          .send(
+            "Follow-up not found."
+          );
+      }
+
+      const taskDescription = String(
+        req.body.task_description || ""
+      ).trim();
+
+      if (!taskDescription) {
+        return res
+          .status(400)
+          .send(
+            "Please explain what needs to be done."
+          );
+      }
+
+      const assignedUserValue = String(
+        req.body.assigned_user_id || ""
+      ).trim();
+
+      const assignedUserId =
+        assignedUserValue
+          ? Number(assignedUserValue)
+          : null;
+
+      if (
+        assignedUserValue &&
+        (
+          !Number.isInteger(
+            assignedUserId
+          ) ||
+          assignedUserId <= 0
+        )
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Please select a valid assigned user."
+          );
+      }
+
+      let assignedUserName =
+        "Unassigned";
+
+      if (assignedUserId) {
+
+        const assignedUserResult =
+          await q(
+            `
+              SELECT
+                ou.user_id,
+
+                COALESCE(
+                  NULLIF(
+                    TRIM(u.name),
+                    ''
+                  ),
+                  u.email,
+                  'Organization User'
+                ) AS display_name
+
+              FROM organization_users ou
+
+              JOIN users u
+                ON u.id = ou.user_id
+
+              WHERE ou.organization_id = $1
+                AND ou.user_id = $2
+                AND COALESCE(
+                  ou.is_active,
+                  true
+                ) = true
+
+              LIMIT 1
+            `,
+            [
+              organizationId,
+              assignedUserId
+            ]
+          );
+
+        if (!assignedUserResult.rows[0]) {
+          return res
+            .status(400)
+            .send(
+              "The assigned user does not belong to this Organization."
+            );
+        }
+
+        assignedUserName =
+          assignedUserResult.rows[0]
+            .display_name;
+      }
+
+      const opportunityValue = String(
+        req.body.sales_opportunity_id ||
+        ""
+      ).trim();
+
+      const salesOpportunityId =
+        opportunityValue
+          ? Number(opportunityValue)
+          : null;
+
+      if (
+        opportunityValue &&
+        (
+          !Number.isInteger(
+            salesOpportunityId
+          ) ||
+          salesOpportunityId <= 0
+        )
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Please select a valid Sales Opportunity."
+          );
+      }
+
+      let relatedOpportunityName = null;
+
+      if (salesOpportunityId) {
+
+        const opportunityResult =
+          await q(
+            `
+              SELECT
+                id,
+                opportunity_name
+
+              FROM advertiser_sales_opportunities
+
+              WHERE id = $1
+                AND organization_id = $2
+                AND advertiser_id = $3
+
+              LIMIT 1
+            `,
+            [
+              salesOpportunityId,
+              organizationId,
+              Number(advertiser.id)
+            ]
+          );
+
+        if (!opportunityResult.rows[0]) {
+          return res
+            .status(400)
+            .send(
+              "The selected Sales Opportunity does not belong to this advertiser."
+            );
+        }
+
+        relatedOpportunityName =
+          opportunityResult.rows[0]
+            .opportunity_name;
+      }
+
+      const allowedStatuses = [
+        "Open",
+        "In Progress",
+        "Completed",
+        "Cancelled"
+      ];
+
+      const status = String(
+        req.body.status || "Open"
+      ).trim();
+
+      if (!allowedStatuses.includes(status)) {
+        return res
+          .status(400)
+          .send(
+            "Please select a valid follow-up status."
+          );
+      }
+
+      const dueDate =
+        String(
+          req.body.due_date || ""
+        ).trim() || null;
+
+      const currentUserId =
+        Number(
+          req.session.user?.id ||
+          req.session.orgUser?.id ||
+          0
+        ) || null;
+
+      const updateResult = await q(
+        `
+          UPDATE advertiser_relationship_tasks
+
+          SET
+            task_description = $1,
+            assigned_user_id = $2,
+            due_date = $3,
+            sales_opportunity_id = $4,
+            status = $5,
+
+            completed_at =
+              CASE
+                WHEN $5 = 'Completed'
+                  THEN COALESCE(
+                    completed_at,
+                    CURRENT_TIMESTAMP
+                  )
+                ELSE NULL
+              END,
+
+            updated_by_user_id = $6,
+            updated_at =
+              CURRENT_TIMESTAMP
+
+          WHERE id = $7
+            AND organization_id = $8
+            AND advertiser_id = $9
+
+          RETURNING id
+        `,
+        [
+          taskDescription,
+          assignedUserId,
+          dueDate,
+          salesOpportunityId,
+          status,
+          currentUserId,
+          taskId,
+          organizationId,
+          Number(advertiser.id)
+        ]
+      );
+
+      if (!updateResult.rows[0]) {
+        return res
+          .status(404)
+          .send(
+            "Follow-up not found."
+          );
+      }
+
+      const activityComment = [
+        `Follow-up: ${taskDescription}`,
+        `Status: ${status}`,
+        `Assigned to: ${assignedUserName}`,
+        dueDate
+          ? `Due: ${dueDate}`
+          : "No due date",
+        relatedOpportunityName
+          ? `Related opportunity: ${relatedOpportunityName}`
+          : null
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      await q(
+        `
+          INSERT INTO contract_activity (
+            contract_id,
+            organization_id,
+            advertiser_id,
+            sales_opportunity_id,
+            user_id,
+            activity_type,
+            comment,
+            created_at
+          )
+
+          VALUES (
+            NULL,
+            $1,
+            $2,
+            $3,
+            $4,
+            'Follow-Up Updated',
+            $5,
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          organizationId,
+          Number(advertiser.id),
+          salesOpportunityId,
+          currentUserId,
+          activityComment
+        ]
+      );
+
+      return res.redirect(
+        `/org-advertiser/${encodeURIComponent(
+          advertiserKey
+        )}/tasks?organization_id=${organizationId}`
+      );
+
+    } catch (err) {
+
+      console.error(
+        "UPDATE ADVERTISER FOLLOW-UP ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "UPDATE ADVERTISER FOLLOW-UP ERROR: " +
+          err.message
+        );
+    }
+  }
+);
 app.post(
   "/org-advertiser/:advertiserKey/task/:taskId/complete",
   async (req, res) => {
