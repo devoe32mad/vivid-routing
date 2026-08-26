@@ -40567,7 +40567,153 @@ const advertiserTasks =
                 </div>
               </div>
             </div>
+${
+  currentContract
+    ? `
+      <div
+        class="card"
+        style="margin:0 0 30px;"
+      >
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:14px;
+          flex-wrap:wrap;
+          margin-bottom:20px;
+        ">
+          <div>
+            <h2 style="margin:0 0 5px;">
+              Contract & Renewal
+            </h2>
 
+            <div style="
+              color:#5F6B7A;
+              font-size:13px;
+            ">
+              Current agreement information already stored in Vivid.
+            </div>
+          </div>
+
+          <a
+            class="btn secondary"
+            href="/org-contract/${Number(
+              currentContract.id
+            )}?organization_id=${organizationId}"
+          >
+            Open Contract
+          </a>
+        </div>
+
+        <div style="
+          display:grid;
+          grid-template-columns:
+            repeat(
+              auto-fit,
+              minmax(180px, 1fr)
+            );
+          gap:18px;
+        ">
+          <div>
+            <div style="
+              color:#5F6B7A;
+              font-size:12px;
+            ">
+              Contract
+            </div>
+
+            <div style="
+              font-weight:700;
+              margin-top:5px;
+            ">
+              ${escapeHtml(
+                currentContract.contract_name ||
+                "Current Contract"
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div style="
+              color:#5F6B7A;
+              font-size:12px;
+            ">
+              Contract Value
+            </div>
+
+            <div style="
+              font-weight:700;
+              margin-top:5px;
+            ">
+              ${money(
+                currentContract.total_contract_value ||
+                0
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div style="
+              color:#5F6B7A;
+              font-size:12px;
+            ">
+              Renewal Date
+            </div>
+
+            <div style="
+              font-weight:700;
+              margin-top:5px;
+            ">
+              ${
+                currentContract.renewal_date ||
+                currentContract.expiration_date ||
+                currentContract.end_date
+                  ? dateLabel(
+                      currentContract.renewal_date ||
+                      currentContract.expiration_date ||
+                      currentContract.end_date
+                    )
+                  : "Not scheduled"
+              }
+            </div>
+          </div>
+
+          <div>
+            <div style="
+              color:#5F6B7A;
+              font-size:12px;
+            ">
+              Contract Status
+            </div>
+
+            <div style="
+              font-weight:700;
+              margin-top:5px;
+            ">
+              ${escapeHtml(
+                currentContract.status ||
+                "Active"
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+    : `
+      <div
+        class="card"
+        style="margin:0 0 30px;"
+      >
+        <h2 style="margin:0 0 5px;">
+          Contract & Renewal
+        </h2>
+
+        <div style="color:#5F6B7A;">
+          No current contract is connected to this advertiser.
+        </div>
+      </div>
+    `
+}
             <h2>Performance Analytics</h2>
 
             <div style="
