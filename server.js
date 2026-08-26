@@ -45958,9 +45958,9 @@ app.get(
                                 ·
                                 ${
                                   activity.created_at
-                                    ? new Date(
-                                        activity.created_at
-                                      ).toLocaleString()
+                                    easternDateTimeLabel(
+  activity.created_at
+)
                                     : "Date not recorded"
                                 }
                               </div>
