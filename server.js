@@ -29900,7 +29900,7 @@ summary.conversions += Number(
           box-shadow:0 5px 14px rgba(0,0,0,.07);
           box-sizing:border-box;
           width:260px;
-          min-height:220px;
+          min-height:390px;
         ">
 
           <div style="
@@ -29970,7 +29970,157 @@ summary.conversions += Number(
             </div>
 
           </div>
+<div style="
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid #DBE3EF;
+">
 
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    align-items:center;
+  ">
+    <div style="
+      font-size:10px;
+      color:#5F6B7A;
+    ">
+      Relationship
+    </div>
+
+    <div style="
+      padding:4px 8px;
+      border-radius:999px;
+      background:#EAF2FF;
+      color:#1D4ED8;
+      font-size:10px;
+      font-weight:700;
+    ">
+      ${escapeHtml(
+        advertiser.relationship_status ||
+        "Not configured"
+      )}
+    </div>
+  </div>
+
+  <div style="
+    margin-top:10px;
+    font-size:10px;
+    color:#5F6B7A;
+  ">
+    Account Owner
+  </div>
+
+  <div style="
+    font-size:12px;
+    font-weight:700;
+    margin-top:2px;
+  ">
+    ${escapeHtml(
+      advertiser.account_owner ||
+      "Unassigned"
+    )}
+  </div>
+
+  <div style="
+    margin-top:10px;
+    font-size:10px;
+    color:#5F6B7A;
+  ">
+    Next Action
+  </div>
+
+  <div style="
+    font-size:12px;
+    font-weight:700;
+    margin-top:2px;
+  ">
+    ${escapeHtml(
+      advertiser.next_action ||
+      "No next action scheduled"
+    )}
+  </div>
+
+  <div style="
+    margin-top:8px;
+    font-size:11px;
+    color:${
+      Number(
+        advertiser.overdue_follow_ups || 0
+      ) > 0
+        ? "#991B1B"
+        : "#5F6B7A"
+    };
+    font-weight:${
+      Number(
+        advertiser.overdue_follow_ups || 0
+      ) > 0
+        ? "700"
+        : "400"
+    };
+  ">
+    ${
+      advertiser.next_action_due_date
+        ? `Due: ${dateLabel(
+            advertiser.next_action_due_date
+          )}`
+        : "No due date"
+    }
+
+    ${
+      Number(
+        advertiser.overdue_follow_ups || 0
+      ) > 0
+        ? " · Overdue"
+        : ""
+    }
+  </div>
+
+  <div style="
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:12px;
+  ">
+    <div>
+      <div style="
+        font-size:10px;
+        color:#5F6B7A;
+      ">
+        Open Follow-Ups
+      </div>
+
+      <div style="
+        font-size:14px;
+        font-weight:700;
+      ">
+        ${Number(
+          advertiser.open_follow_ups || 0
+        )}
+      </div>
+    </div>
+
+    <div>
+      <div style="
+        font-size:10px;
+        color:#5F6B7A;
+      ">
+        Open Pipeline
+      </div>
+
+      <div style="
+        font-size:14px;
+        font-weight:700;
+      ">
+        ${money(
+          advertiser.open_opportunity_value
+        )}
+      </div>
+    </div>
+  </div>
+
+</div>
           <div style="
             margin-top:13px;
             padding-top:9px;
