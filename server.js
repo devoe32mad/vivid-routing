@@ -39835,15 +39835,15 @@ const advertiserTasks =
         font-weight:700;
         margin-top:5px;
       ">
-        ${
-          relationship.relationship_updated_by !==
-            "Not recorded" &&
-          relationship.updated_at
-            ? new Date(
-                relationship.updated_at
-              ).toLocaleString()
-            : "Not recorded"
-        }
+    ${
+  relationship.relationship_updated_by !==
+    "Not recorded" &&
+  relationship.updated_at
+    ? easternDateTimeLabel(
+        relationship.updated_at
+      )
+    : "Not recorded"
+}
       </div>
     </div>
 
