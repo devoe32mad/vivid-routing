@@ -40409,13 +40409,13 @@ const advertiserTasks =
                     "Unknown User"
                   )}
                   ·
-                  ${
-                    activity.created_at
-                      ? new Date(
-                          activity.created_at
-                        ).toLocaleString()
-                      : "Date not recorded"
-                  }
+             ${
+  activity.created_at
+    ? easternDateTimeLabel(
+        activity.created_at
+      )
+    : "Date not recorded"
+}
                 </div>
               </div>
             `
