@@ -2711,7 +2711,17 @@ async function getOrganizationScope(
   let organizationId = null;
 
   const isSuperAdmin =
-    req.session.user?.role === "super_admin";
+  [
+    "super_admin",
+    "admin"
+  ].includes(
+    String(
+      req.session.user?.role || ""
+    )
+      .trim()
+      .toLowerCase()
+  );
+  
 
 if (isSuperAdmin) {
   organizationId =
