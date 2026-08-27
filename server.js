@@ -3386,11 +3386,24 @@ function organizationRoleHasPermission(role, permissionKey) {
 function requireOrganizationPermission(permissionKey) {
   return (req, res, next) => {
 
-    if (
-      req.session.user?.role === "super_admin"
-    ) {
-      return next();
-    }
+  if (
+  [
+    "super_admin",
+    "admin"
+  ].includes(
+    String(
+      req.session.user?.role || ""
+    )
+      .trim()
+      .toLowerCase()
+  )
+) {
+  return next();
+}
+      
+  
+      
+    
 
     if (!req.session.orgUser) {
       return res.redirect("/org-login");
@@ -26879,7 +26892,548 @@ ${
   }
 );
        
+/*
+=========================================================
+ADD ORGANIZATION LOCATION
+Vivid Admin and authorized Organization Admin workflow.
+=========================================================
+*/
 
+app.get(
+  "/org-location/new",
+  requireOrganizationPermission(
+    "manage_locations"
+  ),
+  async (req, res) => {
+    try {
+      const platformRole =
+        String(
+          req.session.user?.role || ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const isVividAdmin =
+        [
+          "super_admin",
+          "admin"
+        ].includes(platformRole);
+
+      let organizationId = null;
+      let organizationOptions = "";
+
+      /*
+        Vivid administrators can select any
+        active organization.
+      */
+
+      if (isVividAdmin) {
+        const requestedOrganizationId =
+          Number(
+            req.query.organization_id
+          );
+
+        organizationId =
+          Number.isInteger(
+            requestedOrganizationId
+          ) &&
+          requestedOrganizationId > 0
+            ? requestedOrganizationId
+            : null;
+
+        const organizationsResult =
+          await q(
+            `
+              SELECT
+                id,
+                name
+
+              FROM organizations
+
+              WHERE COALESCE(
+                is_active,
+                true
+              ) = true
+
+              ORDER BY name
+            `
+          );
+
+        organizationOptions = `
+          <label>
+            Organization
+          </label>
+
+          <select
+            name="organization_id"
+            required
+          >
+            <option value="">
+              Select Organization
+            </option>
+
+            ${organizationsResult.rows
+              .map(
+                organization => `
+                  <option
+                    value="${Number(
+                      organization.id
+                    )}"
+                    ${
+                      Number(
+                        organization.id
+                      ) ===
+                      Number(
+                        organizationId
+                      )
+                        ? "selected"
+                        : ""
+                    }
+                  >
+                    ${escapeHtml(
+                      organization.name
+                    )}
+                  </option>
+                `
+              )
+              .join("")}
+          </select>
+        `;
+      } else {
+        /*
+          Organization users are permanently
+          restricted to their session organization.
+        */
+
+        organizationId =
+          Number(
+            req.session.orgUser
+              ?.organization_id
+          );
+
+        const organizationResult =
+          await q(
+            `
+              SELECT
+                id,
+                name
+
+              FROM organizations
+
+              WHERE id = $1
+                AND COALESCE(
+                  is_active,
+                  true
+                ) = true
+
+              LIMIT 1
+            `,
+            [organizationId]
+          );
+
+        const organization =
+          organizationResult.rows[0];
+
+        if (!organization) {
+          return res
+            .status(404)
+            .send(
+              "Organization not found."
+            );
+        }
+
+        organizationOptions = `
+          <input
+            type="hidden"
+            name="organization_id"
+            value="${organizationId}"
+          >
+
+          <label>
+            Organization
+          </label>
+
+          <div style="
+            padding:12px 14px;
+            background:#F6F8FC;
+            border:1px solid #DBE3EF;
+            border-radius:10px;
+            margin-bottom:18px;
+            font-weight:700;
+          ">
+            ${escapeHtml(
+              organization.name
+            )}
+          </div>
+        `;
+      }
+
+      return res.send(
+        orgPage(
+          "Add Organization Location",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Add Location</h1>
+
+              <p class="subtitle">
+                Create a new organization location.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div
+                class="card"
+                style="
+                  max-width:720px;
+                  margin:0 auto;
+                "
+              >
+                <form
+                  method="POST"
+                  action="/org-location/new"
+                >
+                  ${organizationOptions}
+
+                  <label>
+                    Location Name
+                  </label>
+
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Example: Naples High School"
+                    required
+                  >
+
+                  <label>
+                    Market
+                  </label>
+
+                  <input
+                    type="text"
+                    name="location"
+                    placeholder="Naples, FL"
+                  >
+
+                  <label>
+                    Description
+                  </label>
+
+                  <textarea
+                    name="description"
+                    rows="4"
+                    placeholder="Optional location description"
+                    style="
+                      width:100%;
+                      box-sizing:border-box;
+                      padding:12px;
+                      border:1px solid #DBE3EF;
+                      border-radius:10px;
+                      font-family:Arial,sans-serif;
+                      margin-bottom:18px;
+                    "
+                  ></textarea>
+
+                  <label>
+                    Start Date
+                  </label>
+
+                  <input
+                    type="date"
+                    name="live_date"
+                    required
+                  >
+
+                  <div style="
+                    display:flex;
+                    gap:12px;
+                    flex-wrap:wrap;
+                    margin-top:22px;
+                  ">
+                    <button
+                      class="btn"
+                      type="submit"
+                    >
+                      Create Location
+                    </button>
+
+                    <a
+                      class="btn secondary"
+                      href="${
+                        organizationId
+                          ? `/org-locations?organization_id=${organizationId}`
+                          : "/org-organizations"
+                      }"
+                    >
+                      Cancel
+                    </a>
+                  </div>
+                </form>
+              </div>
+
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "NEW ORGANIZATION LOCATION PAGE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to load Add Location: " +
+          err.message
+        );
+    }
+  }
+);
+
+app.post(
+  "/org-location/new",
+  requireOrganizationPermission(
+    "manage_locations"
+  ),
+  async (req, res) => {
+    try {
+      const platformRole =
+        String(
+          req.session.user?.role || ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const isVividAdmin =
+        [
+          "super_admin",
+          "admin"
+        ].includes(platformRole);
+
+      /*
+        Vivid administrators use the selected
+        organization.
+
+        Organization administrators are restricted
+        to their authenticated organization.
+      */
+
+      const organizationId =
+        isVividAdmin
+          ? Number(
+              req.body.organization_id
+            )
+          : Number(
+              req.session.orgUser
+                ?.organization_id
+            );
+
+      const name =
+        String(
+          req.body.name || ""
+        ).trim();
+
+      const market =
+        String(
+          req.body.location || ""
+        ).trim();
+
+      const description =
+        String(
+          req.body.description || ""
+        ).trim();
+
+      const liveDate =
+        String(
+          req.body.live_date || ""
+        ).trim();
+
+      const creatorUserId =
+        Number(
+          req.session.user?.id ||
+          req.session.orgUser?.id
+        );
+
+      if (
+        !Number.isInteger(
+          organizationId
+        ) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send(
+            "A valid organization is required."
+          );
+      }
+
+      if (
+        !Number.isInteger(
+          creatorUserId
+        ) ||
+        creatorUserId <= 0
+      ) {
+        return res
+          .status(403)
+          .send(
+            "A valid authenticated user is required."
+          );
+      }
+
+      if (!name) {
+        return res
+          .status(400)
+          .send(
+            "Location name is required."
+          );
+      }
+
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(
+          liveDate
+        )
+      ) {
+        return res
+          .status(400)
+          .send(
+            "A valid start date is required."
+          );
+      }
+
+      /*
+        Confirm the organization exists and is active.
+      */
+
+      const organizationResult =
+        await q(
+          `
+            SELECT
+              id
+
+            FROM organizations
+
+            WHERE id = $1
+              AND COALESCE(
+                is_active,
+                true
+              ) = true
+
+            LIMIT 1
+          `,
+          [organizationId]
+        );
+
+      if (!organizationResult.rows[0]) {
+        return res
+          .status(404)
+          .send(
+            "Organization not found."
+          );
+      }
+
+      /*
+        Prevent duplicate active locations inside
+        the same organization.
+      */
+
+      const duplicateResult =
+        await q(
+          `
+            SELECT
+              id
+
+            FROM spaces
+
+            WHERE organization_id = $1
+              AND LOWER(
+                TRIM(name)
+              ) = LOWER(
+                TRIM($2)
+              )
+              AND COALESCE(
+                is_archived,
+                false
+              ) = false
+
+            LIMIT 1
+          `,
+          [
+            organizationId,
+            name
+          ]
+        );
+
+      if (duplicateResult.rows[0]) {
+        return res
+          .status(409)
+          .send(
+            "An active location with this name already exists."
+          );
+      }
+
+      const createdResult =
+        await q(
+          `
+            INSERT INTO spaces (
+              user_id,
+              organization_id,
+              name,
+              location,
+              description,
+              live_date
+            )
+
+            VALUES (
+              $1,
+              $2,
+              $3,
+              $4,
+              $5,
+              $6
+            )
+
+            RETURNING id
+          `,
+          [
+            creatorUserId,
+            organizationId,
+            name,
+            market || null,
+            description || null,
+            liveDate
+          ]
+        );
+
+      const createdLocationId =
+        Number(
+          createdResult.rows[0].id
+        );
+
+      return res.redirect(
+        `/org-location/${createdLocationId}` +
+        `?organization_id=${organizationId}`
+      );
+    } catch (err) {
+      console.error(
+        "CREATE ORGANIZATION LOCATION ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to create location: " +
+          err.message
+        );
+    }
+  }
+);
 app.get(
   "/org-locations",
   async (req, res) => {
@@ -27022,7 +27576,38 @@ const {
         </div>
 
         <div class="wrap">
-
+${
+  [
+    "super_admin",
+    "admin"
+  ].includes(
+    String(
+      req.session.user?.role || ""
+    )
+      .trim()
+      .toLowerCase()
+  ) ||
+  organizationRoleHasPermission(
+    req.session.orgUser
+      ?.organization_role,
+    "manage_locations"
+  )
+    ? `
+        <div style="
+          display:flex;
+          justify-content:flex-end;
+          margin-bottom:18px;
+        ">
+          <a
+            class="btn"
+            href="/org-location/new?organization_id=${org.id}"
+          >
+            + Add Location
+          </a>
+        </div>
+      `
+    : ""
+}
           <div style="
             background:white;
             border-radius:18px;
