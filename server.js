@@ -48424,11 +48424,19 @@ app.get(
       /*
         Super Admin access.
       */
-      if (
-        !organizationId &&
-        req.session.user?.role ===
-          "super_admin"
-      ) {
+     if (
+  !organizationId &&
+  [
+    "super_admin",
+    "admin"
+  ].includes(
+    String(
+      req.session.user?.role || ""
+    )
+      .trim()
+      .toLowerCase()
+  )
+) {
         organizationId = Number(
           req.query.organization_id
         );
@@ -48443,7 +48451,16 @@ app.get(
         );
       }
 const isSuperAdmin =
-  req.session.user?.role === "super_admin";
+  [
+    "super_admin",
+    "admin"
+  ].includes(
+    String(
+      req.session.user?.role || ""
+    )
+      .trim()
+      .toLowerCase()
+  );
 
 let locationScope = {
   restricted: false,
