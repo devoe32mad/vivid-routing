@@ -76408,7 +76408,36 @@ if (hasMarketplaceRequestId) {
     =========================================================
     */
 
-    const orgs = await q(
+   const isVividAdmin =
+  [
+    "super_admin",
+    "admin"
+  ].includes(
+    String(
+      currentUser?.role || ""
+    )
+      .trim()
+      .toLowerCase()
+  );
+
+const orgs = isVividAdmin
+  ? await q(
+      `
+        SELECT
+          o.id,
+          o.name
+
+        FROM organizations o
+
+        WHERE COALESCE(
+          o.is_active,
+          true
+        ) = true
+
+        ORDER BY o.name
+      `
+    )
+  : await q(
       `
         SELECT
           o.id,
@@ -76417,11 +76446,18 @@ if (hasMarketplaceRequestId) {
         FROM organization_users ou
 
         JOIN organizations o
-          ON o.id = ou.organization_id
+          ON o.id =
+             ou.organization_id
 
         WHERE ou.user_id = $1
-          AND COALESCE(ou.is_active, true) = true
-          AND COALESCE(o.is_active, true) = true
+          AND COALESCE(
+            ou.is_active,
+            true
+          ) = true
+          AND COALESCE(
+            o.is_active,
+            true
+          ) = true
 
         ORDER BY o.name
       `,
@@ -76654,36 +76690,56 @@ return res.redirect(
   `?space_id=${existingMarketplaceLocationId}` +
   `&marketplace_request_id=${marketplaceRequestId}`
 );
-    } else {
-      /*
-      Normal Vivid users must retain the existing organization
-      membership requirement.
-      */
+   } else {
+  /*
+  Vivid administrators may create locations for
+  any active organization.
 
-      const allowedOrg = await q(
-        `
-          SELECT 1
+  Normal Vivid users must have an active
+  organization membership.
+  */
 
-          FROM organization_users
+  const isVividAdmin =
+    [
+      "super_admin",
+      "admin"
+    ].includes(
+      String(
+        currentUser?.role || ""
+      )
+        .trim()
+        .toLowerCase()
+    );
 
-          WHERE organization_id = $1
-            AND user_id = $2
-            AND COALESCE(is_active, true) = true
+  if (!isVividAdmin) {
+    const allowedOrg = await q(
+      `
+        SELECT 1
 
-          LIMIT 1
-        `,
-        [
-          organizationId,
-          currentUser.id
-        ]
+        FROM organization_users
+
+        WHERE organization_id = $1
+          AND user_id = $2
+          AND COALESCE(
+            is_active,
+            true
+          ) = true
+
+        LIMIT 1
+      `,
+      [
+        organizationId,
+        currentUser.id
+      ]
+    );
+
+    if (!allowedOrg.rows[0]) {
+      return res.status(403).send(
+        "You do not have access to this organization."
       );
-
-      if (!allowedOrg.rows[0]) {
-        return res.status(403).send(
-          "You do not have access to this organization."
-        );
-      }
     }
+  }
+}
 
     /*
     =========================================================
