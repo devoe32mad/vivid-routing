@@ -30819,7 +30819,45 @@ summary.conversions += Number(
         </div>
 </a>
 `).join("");
+const advertiserSummaryCard = (
+  label,
+  value,
+  href
+) => `
+  <a
+    class="card"
+    href="${escapeHtml(href)}"
+    style="
+      display:block;
+      margin:0;
+      color:inherit;
+      text-decoration:none;
+    "
+  >
+    <div style="
+      font-size:12px;
+      color:#65776b;
+    ">
+      ${escapeHtml(label)}
+    </div>
 
+    <div style="
+      font-size:27px;
+      font-weight:bold;
+      margin-top:6px;
+    ">
+      ${escapeHtml(value)}
+    </div>
+  </a>
+`;
+
+const advertiserDetailQuery =
+  `organization_id=${organizationId}` +
+  (
+    advertiserQueryString
+      ? `&${advertiserQueryString}`
+      : ""
+  );
       res.send(orgPage(
         "Organization Advertisers",
         `
@@ -30952,62 +30990,47 @@ summary.conversions += Number(
               margin-bottom:30px;
             ">
 
-              <div class="card" style="margin:0;">
-                <div style="font-size:12px;color:#65776b;">
-                  Advertisers
-                </div>
+              ${advertiserSummaryCard(
+  "Advertisers",
+  advertisers.length.toLocaleString(),
+  "#advertiser-list"
+)}
 
-                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
-                  ${advertisers.length.toLocaleString()}
-                </div>
-              </div>
+${advertiserSummaryCard(
+  "Active Campaigns",
+  totals.activeCampaigns.toLocaleString(),
+  `/org-revenue?${advertiserDetailQuery}`
+)}
 
-              <div class="card" style="margin:0;">
-                <div style="font-size:12px;color:#65776b;">
-                  Active Campaigns
-                </div>
+${advertiserSummaryCard(
+  "QR Placements",
+  totals.qrPlacements.toLocaleString(),
+  `/org-locations?${advertiserDetailQuery}`
+)}
 
-                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
-                  ${totals.activeCampaigns.toLocaleString()}
-                </div>
-              </div>
+${advertiserSummaryCard(
+  "Scans",
+  totals.scans.toLocaleString(),
+  `/org-revenue?${advertiserDetailQuery}`
+)}
 
-              <div class="card" style="margin:0;">
-                <div style="font-size:12px;color:#65776b;">
-                  QR Placements
-                </div>
-
-                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
-                  ${totals.qrPlacements.toLocaleString()}
-                </div>
-              </div>
-
-              <div class="card" style="margin:0;">
-                <div style="font-size:12px;color:#65776b;">
-                  Scans
-                </div>
-
-                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
-                  ${totals.scans.toLocaleString()}
-                </div>
-              </div>
-
-              <div class="card" style="margin:0;">
-                <div style="font-size:12px;color:#65776b;">
-                  Revenue Generated
-                </div>
-
-                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
-                  ${money(totals.revenueGenerated)}
-                </div>
-              </div>
+${advertiserSummaryCard(
+  "Revenue Generated",
+  money(totals.revenueGenerated),
+  `/org-revenue?${advertiserDetailQuery}`
+)}
+                
+              
 
             </div>
 
-            <div style="margin-bottom:14px;">
-              <h2 style="margin:0 0 5px;">
-                Advertisers
-              </h2>
+            <div
+  id="advertiser-list"
+  style="margin-bottom:14px;"
+>
+          <h2 style="margin:0 0 5px;">
+  Advertisers    
+                            </h2>
 
               <div style="color:#65776b;">
                 Advertisers connected to Vivid campaigns inside this organization.
