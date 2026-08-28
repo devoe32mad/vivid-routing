@@ -127,6 +127,34 @@ app.use(
 );
 /*
 =========================================================
+DISABLED PUBLIC MAINTENANCE ROUTES
+=========================================================
+*/
+
+const disabledPublicMaintenanceRoutes =
+  new Set([
+    "/seed-admin",
+    "/reset-admin",
+    "/init-db",
+    "/db-test",
+    "/test-email"
+  ]);
+
+app.use((req, res, next) => {
+  if (
+    disabledPublicMaintenanceRoutes.has(
+      req.path
+    )
+  ) {
+    return res
+      .status(404)
+      .send("Not found.");
+  }
+
+  next();
+});
+/*
+=========================================================
 RENEWAL EMAIL NOTIFICATIONS
 
 V1:
