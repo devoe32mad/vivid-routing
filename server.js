@@ -17412,11 +17412,12 @@ if (selectedLocationId) {
   location and reporting-date filters.
 */
 const executiveCardPaths = {
-  "Approved Revenue": "/org-revenue",
-  "Pending Revenue": "/org-revenue",
-  "Available Revenue": "/org-revenue",
-  "Placement Value": "/org-revenue",
-  "Inventory Utilization": "/org-revenue",
+  "Approved Revenue": "/org-revenue-pipeline",
+  "Pending Revenue": "/org-revenue-pipeline",
+  "Available Revenue": "/org-revenue-pipeline",
+  "Placement Value": "/org-performance",
+  "Inventory Utilization": "/org-performance",
+  
 
   "Advertiser Revenue": "/org-advertisers",
   "Economic Impact": "/org-advertisers",
@@ -30999,7 +31000,7 @@ const advertiserDetailQuery =
 ${advertiserSummaryCard(
   "Active Campaigns",
   totals.activeCampaigns.toLocaleString(),
-  `/org-revenue?${advertiserDetailQuery}`
+  `/org-performance?${advertiserDetailQuery}`
 )}
 
 ${advertiserSummaryCard(
@@ -31011,13 +31012,13 @@ ${advertiserSummaryCard(
 ${advertiserSummaryCard(
   "Scans",
   totals.scans.toLocaleString(),
-  `/org-revenue?${advertiserDetailQuery}`
+  `/org-performance?${advertiserDetailQuery}`
 )}
 
 ${advertiserSummaryCard(
   "Revenue Generated",
   money(totals.revenueGenerated),
-  `/org-revenue?${advertiserDetailQuery}`
+  `/org-performance?${advertiserDetailQuery}`
 )}
                 
               
