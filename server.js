@@ -1,5 +1,7 @@
 const express = require("express");
 const session = require("express-session");
+const PgSession =
+  require("connect-pg-simple")(session);
 const { Pool } = require("pg");
 const PDFDocument = require("pdfkit");
 const multer = require("multer");
@@ -74,17 +76,55 @@ const importUpload = multer({
     fileSize: 10 * 1024 * 1024 // 10 MB
   }
 });
-app.use(express.urlencoded({ extended: true }));
+app.use(
+  express.urlencoded({
+    extended: true
+  })
+);
+
 app.use(express.json());
-app.use(session({
-  secret: "vivid-secret-key",
-  resave: false,
-  saveUninitialized: false
-}));
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  connectionString:
+    process.env.DATABASE_URL,
+
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
+
+app.set("trust proxy", 1);
+
+app.use(
+  session({
+    store: new PgSession({
+      pool,
+      tableName: "user_sessions",
+      createTableIfMissing: true
+    }),
+
+    secret:
+      process.env.SESSION_SECRET ||
+      "vivid-secret-key",
+
+    resave: false,
+    saveUninitialized: false,
+    rolling: true,
+
+    cookie: {
+      httpOnly: true,
+
+      secure:
+        process.env.NODE_ENV ===
+        "production",
+
+      sameSite: "lax",
+
+      maxAge:
+        8 * 60 * 60 * 1000
+    }
+  })
+);
 /*
 =========================================================
 RENEWAL EMAIL NOTIFICATIONS
