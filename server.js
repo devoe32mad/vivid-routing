@@ -12481,6 +12481,7 @@ campaigns.forEach(campaign => {
       scans: 0,
       intent: 0,
       visitors: 0,
+     visitorsConverted: 0, 
       clicks: 0,
       conversions: 0,
       advertiserRevenue: 0
@@ -12512,7 +12513,10 @@ campaigns.forEach(campaign => {
 
   advertiser.visitors +=
     Number(campaign.visitors || 0);
-
+advertiser.visitorsConverted +=
+  Number(
+    campaign.visitorsConverted || 0
+  );
   advertiser.clicks +=
     Number(campaign.clicks || 0);
 
@@ -12579,12 +12583,12 @@ const advertisers =
           advertiserRevenue,
 
         conversionRate:
-          advertiser.visitors > 0
-            ? (
-                advertiser.conversions /
-                advertiser.visitors
-              ) * 100
-            : 0,
+  advertiser.visitors > 0
+    ? (
+        advertiser.visitorsConverted /
+        advertiser.visitors
+      ) * 100
+    : 0,
 
         revenuePerVisitor:
           advertiser.visitors > 0
@@ -12881,7 +12885,15 @@ const visitors =
       Number(row.visitors || 0),
     0
   );
-
+const visitorsConverted =
+  campaigns.reduce(
+    (total, row) =>
+      total +
+      Number(
+        row.visitorsConverted || 0
+      ),
+    0
+  );
 const clicks =
   campaigns.reduce(
     (total, row) =>
@@ -12974,12 +12986,12 @@ const summary = {
     advertiserRevenue,
 
   conversionRate:
-    visitors > 0
-      ? (
-          conversions /
-          visitors
-        ) * 100
-      : 0,
+  visitors > 0
+    ? (
+        visitorsConverted /
+        visitors
+      ) * 100
+    : 0,
 
   revenuePerAdvertiser:
     advertisers.length > 0
