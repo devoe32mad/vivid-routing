@@ -139,13 +139,24 @@ const disabledPublicMaintenanceRoutes =
     "/db-test",
     "/test-email"
   ]);
-
+const disabledDebugRoutePrefixes = [
+  "/debug-",
+  "/debug/"
+];
 app.use((req, res, next) => {
   if (
-    disabledPublicMaintenanceRoutes.has(
-      req.path
-    )
-  ) {
+  disabledPublicMaintenanceRoutes.has(
+    req.path
+  ) ||
+  disabledDebugRoutePrefixes.some(
+    prefix =>
+      req.path.startsWith(prefix)
+  )
+) {
+    
+  
+    
+  
     return res
       .status(404)
       .send("Not found.");
