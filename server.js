@@ -17407,13 +17407,52 @@ if (selectedLocationId) {
         organizationUser?.name ||
         organizationUser?.email ||
         "Organization User";
+/*
+  Executive cards retain the current organization,
+  location and reporting-date filters.
+*/
+const executiveCardPaths = {
+  "Approved Revenue": "/org-revenue",
+  "Pending Revenue": "/org-revenue",
+  "Available Revenue": "/org-revenue",
+  "Placement Value": "/org-revenue",
+  "Inventory Utilization": "/org-revenue",
 
+  "Advertiser Revenue": "/org-advertisers",
+  "Economic Impact": "/org-advertisers",
+  "Visitors": "/org-advertisers",
+  "Clicks": "/org-advertisers",
+  "Conversions": "/org-advertisers",
+  "Conversion Rate": "/org-advertisers",
+
+  "Locations": "/org-locations",
+  "QR Placements": "/org-locations",
+  "Advertisers": "/org-advertisers",
+  "Campaigns": "/org-advertisers",
+  "Customer Actions": "/org-advertisers",
+  "Scans": "/org-advertisers",
+  "Intent": "/org-advertisers"
+};
+
+const executiveCardHref = label => {
+  const path =
+    executiveCardPaths[label];
+
+  return path
+    ? `${path}?${exportQuery.toString()}`
+    : "";
+};
       const card = (
         label,
         value,
         href = ""
       ) => {
-        const inner = `
+  const destinationHref =
+    href ||
+    executiveCardHref(label);
+
+  const inner = `
+        
           <div
             style="
               color:#64748b;
@@ -17437,10 +17476,10 @@ if (selectedLocationId) {
           </div>
         `;
 
-        if (href) {
+        if (destinationHref) {
           return `
             <a
-              href="${escapeHtml(href)}"
+              href="${escapeHtml(destinationHref)}"
               style="
                 display:block;
                 background:white;
@@ -17859,12 +17898,11 @@ if (selectedLocationId) {
                 "
               >
                 ${card(
-                  "Locations",
-                  formatNumber(
-                    data.summary.locations
-                  ),
-                  `/org-locations?organization_id=${organizationId}`
-                )}
+  "Locations",
+  formatNumber(
+    data.summary.locations
+  )
+)}
 
                 ${card(
                   "QR Placements",
