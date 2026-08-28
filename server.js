@@ -135,7 +135,7 @@ const disabledPublicMaintenanceRoutes =
   new Set([
     "/seed-admin",
     "/reset-admin",
-    "/init-db",
+    
     "/db-test",
     "/test-email"
   ]);
@@ -5882,14 +5882,19 @@ app.get("/", (req, res) => {
   return res.redirect("/platform-login");
 });
 
-app.get("/init-db", async (req, res) => {
+app.get(
+  "/init-db",
+  requireLogin,
+  requireSuperAdmin,
+  async (req, res) => {
   try {
     await initDb();
     res.send("Full Vivid DB initialized and updated");
   } catch (err) {
     res.status(500).send("INIT DB ERROR: " + err.message);
   }
-});
+  }
+);
 /*
 =========================================================
 INTERNAL ADMIN TOOL — LOCATION MERGE PREVIEW
