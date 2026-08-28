@@ -55871,25 +55871,60 @@ if (
         Find an existing Vivid account first.
       */
       const existingUserResult =
-        await client.query(
-          `
-            SELECT
-              id,
-              name,
-              email,
-              role
+  await client.query(
+    `
+      SELECT
+        id,
+        name,
+        email,
+        role,
+        advertiser_customer_id,
+        customer_id
 
-            FROM users
+      FROM users
 
-            WHERE LOWER(TRIM(email)) = $1
+      WHERE LOWER(TRIM(email)) = $1
 
-            LIMIT 1
-          `,
-          [advertiserEmail]
-        );
+      LIMIT 1
+    `,
+    [advertiserEmail]
+  );
 
-      let vividUserId =
-        existingUserResult.rows[0]?.id || null;
+const existingUser =
+  existingUserResult.rows[0] || null;
+
+/*
+  An administrator or organization user cannot also
+  serve as the Marketplace advertiser account.
+*/
+if (
+  existingUser &&
+  String(existingUser.role || "")
+    .trim()
+    .toLowerCase() !== "customer"
+) {
+  await client.query("ROLLBACK");
+
+  return res
+    .status(409)
+    .send(
+      "This email already belongs to a non-advertiser Vivid account. " +
+      "Please use a separate advertiser email address."
+    );
+}
+
+/*
+  Existing advertiser logins resolve to their primary
+  advertiser account.
+*/
+let vividUserId =
+  existingUser
+    ? Number(
+        existingUser.advertiser_customer_id ||
+        existingUser.customer_id ||
+        existingUser.id
+      )
+    : null;
 let vividUserWasCreated = false;
       /*
         Create the Vivid Core customer account only when
