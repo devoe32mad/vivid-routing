@@ -5775,148 +5775,360 @@ app.get(
         );
       }
 
-      const sessionUser =
-        req.session.user;
+     const sessionUser =
+  req.session.user;
 
-      if (!sessionUser) {
-        return res.redirect("/login");
-      }
+if (!sessionUser) {
+  return res.redirect("/login");
+}
 
-      const role = String(
-        sessionUser.role || ""
-      )
-        .trim()
-        .toLowerCase();
+const role = String(
+  sessionUser.role || ""
+)
+  .trim()
+  .toLowerCase();
 
-      if (
-        role === "super_admin" ||
-        role === "admin"
-      ) {
-        return res.redirect(
-          role === "super_admin"
-            ? "/platform-admin"
-            : "/admin"
-        );
-      }
+const portal = String(
+  req.query.portal || ""
+)
+  .trim()
+  .toLowerCase();
 
-      if (
-        role === "customer" ||
-        role === "advertiser"
-      ) {
-        return res.redirect("/my-setup");
-      }
 
-      if (role === "organization_user") {
+// --------------------------------------------------
+// PLATFORM ADMINS
+// --------------------------------------------------
 
-        const loginUserId = Number(
-          sessionUser.login_user_id ||
-          sessionUser.id
-        );
+if (
+  role === "super_admin" ||
+  role === "admin"
+) {
+  return res.redirect(
+    role === "super_admin"
+      ? "/platform-admin"
+      : "/admin"
+  );
+}
 
-        const orgResult = await q(
-          `
-            SELECT
-              u.id AS user_id,
-              u.email,
-              o.id AS organization_id,
-              o.name AS organization_name,
-              ou.role AS organization_role
 
-            FROM users u
+// --------------------------------------------------
+// CHECK ORGANIZATION / ENTERPRISE ACCESS
+// --------------------------------------------------
 
-            JOIN organization_users ou
-              ON ou.user_id = u.id
-             AND COALESCE(
-               ou.is_active,
-               true
-             ) = true
+const loginUserId = Number(
+  sessionUser.login_user_id ||
+  sessionUser.id
+);
 
-            JOIN organizations o
-              ON o.id = ou.organization_id
-             AND COALESCE(
-               o.is_active,
-               true
-             ) = true
+const orgResult = await q(
+  `
+    SELECT
+      u.id AS user_id,
+      u.email,
+      o.id AS organization_id,
+      o.name AS organization_name,
+      ou.role AS organization_role
 
-            WHERE u.id = $1
+    FROM users u
 
-            ORDER BY o.id
-          `,
-          [loginUserId]
-        );
+    JOIN organization_users ou
+      ON ou.user_id = u.id
+     AND COALESCE(
+       ou.is_active,
+       true
+     ) = true
 
-        if (orgResult.rows.length > 1) {
-          return res
-            .status(409)
-            .send(
-              "This user is connected to more than one active organization."
-            );
-        }
+    JOIN organizations o
+      ON o.id = ou.organization_id
+     AND COALESCE(
+       o.is_active,
+       true
+     ) = true
 
-        const orgUser =
-          orgResult.rows[0];
+    WHERE u.id = $1
 
-        if (!orgUser) {
-          return res
-            .status(403)
-            .send(
-              "No active Organization membership was found."
-            );
-        }
+    ORDER BY o.id
+  `,
+  [loginUserId]
+);
 
-        req.session.orgUser = {
-          id: orgUser.user_id,
-          email: orgUser.email,
-          organization_id:
-            orgUser.organization_id,
-          organization_name:
-            orgUser.organization_name,
-          organization_role:
-            orgUser.organization_role
-        };
+if (orgResult.rows.length > 1) {
+  return res
+    .status(409)
+    .send(
+      "This user is connected to more than one active organization."
+    );
+}
 
-        delete req.session.user;
+const orgUser =
+  orgResult.rows[0] || null;
 
-        return req.session.save(
-          err => {
-            if (err) {
-              console.error(
-                "PLATFORM LOGIN SESSION ERROR:",
-                err
-              );
+const hasAdvertiserAccess =
+  role === "customer" ||
+  role === "advertiser";
 
-              return res
-                .status(500)
-                .send(
-                  "Unable to open the Organization Portal."
-                );
+const hasEnterpriseAccess =
+  Boolean(orgUser);
+
+
+// --------------------------------------------------
+// DUAL ACCESS
+// Advertiser + Enterprise
+// --------------------------------------------------
+
+if (
+  hasAdvertiserAccess &&
+  hasEnterpriseAccess
+) {
+
+  // User has not selected a portal yet.
+  if (!portal) {
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1"
+          >
+          <title>Choose Portal | Vivid</title>
+
+          <style>
+            * {
+              box-sizing: border-box;
             }
 
-            return res.redirect(
-              `/org-organization/${
-                orgUser.organization_id
-              }`
+            body {
+              margin: 0;
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              background: #F6F8FC;
+              font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+              color: #172033;
+            }
+
+            .card {
+              width: 92%;
+              max-width: 520px;
+              background: #FFFFFF;
+              border: 1px solid #DBE3EF;
+              border-radius: 16px;
+              padding: 36px;
+              box-shadow:
+                0 12px 30px
+                rgba(11, 31, 58, 0.08);
+            }
+
+            h1 {
+              margin: 0 0 10px;
+              color: #0B1F3A;
+              font-size: 28px;
+            }
+
+            p {
+              margin: 0 0 28px;
+              color: #5F6B7A;
+              line-height: 1.5;
+            }
+
+            .portal {
+              display: block;
+              width: 100%;
+              padding: 18px 20px;
+              margin-top: 14px;
+              border-radius: 10px;
+              text-decoration: none;
+              font-weight: 700;
+              text-align: center;
+            }
+
+            .enterprise {
+              background: #2563EB;
+              color: white;
+            }
+
+            .enterprise:hover {
+              background: #1D4ED8;
+            }
+
+            .advertiser {
+              background: #EAF2FF;
+              color: #0B1F3A;
+              border: 1px solid #DBE3EF;
+            }
+          </style>
+        </head>
+
+        <body>
+          <div class="card">
+
+            <h1>Welcome to Vivid</h1>
+
+            <p>
+              Your account has access to more than
+              one Vivid portal. Choose where you
+              would like to go.
+            </p>
+
+            <a
+              class="portal enterprise"
+              href="/platform-login?portal=enterprise"
+            >
+              Enterprise Portal
+            </a>
+
+            <a
+              class="portal advertiser"
+              href="/platform-login?portal=advertiser"
+            >
+              Advertiser Portal
+            </a>
+
+          </div>
+        </body>
+      </html>
+    `);
+  }
+
+
+  // Advertiser selected.
+  if (portal === "advertiser") {
+    return res.redirect("/my-setup");
+  }
+
+
+  // Enterprise selected.
+  if (portal === "enterprise") {
+
+    req.session.platformUser = {
+      ...sessionUser
+    };
+
+    req.session.orgUser = {
+      id: orgUser.user_id,
+      email: orgUser.email,
+      organization_id:
+        orgUser.organization_id,
+      organization_name:
+        orgUser.organization_name,
+      organization_role:
+        orgUser.organization_role
+    };
+
+    delete req.session.user;
+
+    return req.session.save(
+      err => {
+
+        if (err) {
+          console.error(
+            "PLATFORM LOGIN SESSION ERROR:",
+            err
+          );
+
+          return res
+            .status(500)
+            .send(
+              "Unable to open the Enterprise Portal."
             );
-          }
+        }
+
+        return res.redirect(
+          `/org-organization/${
+            orgUser.organization_id
+          }`
         );
       }
+    );
+  }
 
-      return res.redirect("/login");
 
-    } catch (err) {
+  return res.redirect("/platform-login");
+}
 
-      console.error(
-        "PLATFORM LOGIN ROUTING ERROR:",
-        err
+
+// --------------------------------------------------
+// ADVERTISER ONLY
+// --------------------------------------------------
+
+if (hasAdvertiserAccess) {
+  return res.redirect("/my-setup");
+}
+
+
+// --------------------------------------------------
+// ENTERPRISE ONLY
+// --------------------------------------------------
+
+if (
+  role === "organization_user"
+) {
+
+  if (!orgUser) {
+    return res
+      .status(403)
+      .send(
+        "No active Organization membership was found."
       );
+  }
 
-      return res
-        .status(500)
-        .send(
-          "PLATFORM LOGIN ROUTING ERROR: " +
-          err.message
+  req.session.orgUser = {
+    id: orgUser.user_id,
+    email: orgUser.email,
+    organization_id:
+      orgUser.organization_id,
+    organization_name:
+      orgUser.organization_name,
+    organization_role:
+      orgUser.organization_role
+  };
+
+  delete req.session.user;
+
+  return req.session.save(
+    err => {
+
+      if (err) {
+        console.error(
+          "PLATFORM LOGIN SESSION ERROR:",
+          err
         );
+
+        return res
+          .status(500)
+          .send(
+            "Unable to open the Organization Portal."
+          );
+      }
+
+      return res.redirect(
+        `/org-organization/${
+          orgUser.organization_id
+        }`
+      );
     }
+  );
+}
+
+
+return res.redirect("/login");
+
+     
+       
+          
+          
+
+           
+
+      
+ 
+     
   }
 );
 app.get("/", (req, res) => {
