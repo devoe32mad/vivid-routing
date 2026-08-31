@@ -57589,26 +57589,29 @@ app.post(
       }
 
       /*
-        Vivid currently uses the stored password directly
-        during login, so this follows the existing system.
-      */
-      await client.query(
-        `
-          UPDATE users
+  Store only a secure password hash.
+*/
+const securedPassword =
+  await hashPassword(password);
 
-          SET
-            password = $1,
-            account_status = 'active',
-            password_created_at =
-              CURRENT_TIMESTAMP
+await client.query(
+  `
+    UPDATE users
 
-          WHERE id = $2
-        `,
-        [
-          password,
-          setup.vivid_user_id
-        ]
-      );
+    SET
+      password = $1,
+      account_status = 'active',
+      password_created_at =
+        CURRENT_TIMESTAMP
+
+    WHERE id = $2
+  `,
+  [
+    securedPassword,
+    setup.vivid_user_id
+  ]
+);
+       
 
       await client.query(
         `
