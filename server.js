@@ -56158,7 +56158,9 @@ let vividUserWasCreated = false;
       */
       if (!vividUserId) {
         const lockedTemporaryPassword =
-          crypto.randomBytes(32).toString("hex");
+  await hashPassword(
+    crypto.randomBytes(32).toString("hex")
+  );
 
         const newUserResult =
           await client.query(
