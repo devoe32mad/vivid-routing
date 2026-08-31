@@ -7,6 +7,75 @@ const PDFDocument = require("pdfkit");
 const multer = require("multer");
 const ExcelJS = require("exceljs");
 const crypto = require("crypto");
+function derivePasswordHash(password, salt) {
+  return new Promise((resolve, reject) => {
+    crypto.scrypt(
+      String(password),
+      salt,
+      64,
+      (error, derivedKey) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve(derivedKey);
+      }
+    );
+  });
+}
+
+async function hashPassword(password) {
+  const salt =
+    crypto.randomBytes(16).toString("hex");
+
+  const derivedKey =
+    await derivePasswordHash(password, salt);
+
+  return [
+    "scrypt",
+    salt,
+    derivedKey.toString("hex")
+  ].join("$");
+}
+
+function isHashedPassword(value) {
+  return String(value || "").startsWith("scrypt$");
+}
+
+async function verifyHashedPassword(
+  password,
+  storedPassword
+) {
+  try {
+    const parts =
+      String(storedPassword || "").split("$");
+
+    if (
+      parts.length !== 3 ||
+      parts[0] !== "scrypt"
+    ) {
+      return false;
+    }
+
+    const salt = parts[1];
+    const storedKey =
+      Buffer.from(parts[2], "hex");
+
+    const suppliedKey =
+      await derivePasswordHash(password, salt);
+
+    return (
+      storedKey.length === suppliedKey.length &&
+      crypto.timingSafeEqual(
+        storedKey,
+        suppliedKey
+      )
+    );
+  } catch (_) {
+    return false;
+  }
+}
 const { Resend } = require("resend");
 const app = express();
 const resend = new Resend(process.env.RESEND_API_KEY);
