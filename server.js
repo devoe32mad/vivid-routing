@@ -10457,22 +10457,25 @@ app.post(
           `);
       }
 
-      await client.query(
-        `
-          UPDATE users
+    const securedPassword =
+  await hashPassword(password);
 
-          SET
-            password = $1,
-            account_status = 'active',
-            password_created_at = CURRENT_TIMESTAMP
+await client.query(
+  `
+    UPDATE users
 
-          WHERE id = $2
-        `,
-        [
-          password,
-          invitation.user_id
-        ]
-      );
+    SET
+      password = $1,
+      account_status = 'active',
+      password_created_at = CURRENT_TIMESTAMP
+
+    WHERE id = $2
+  `,
+  [
+    securedPassword,
+    invitation.user_id
+  ]
+);
 
       await client.query(
         `
