@@ -76552,42 +76552,61 @@ const securedPassword =
         */
 
         const userResult =
-          await q(
-            `
-             INSERT INTO users (
-  name,
-  company_name,
-  email,
-  password,
-  role
-)
+  await q(
+    `
+      INSERT INTO users (
+        name,
+        company_name,
+        email,
+        password,
+        role
+      )
 
-VALUES (
-  $1,
-  $2,
-  $3,
-  $4,
-  'organization_user'
-)
+      VALUES (
+        $1,
+        $2,
+        $3,
+        $4,
+        'organization_user'
+      )
 
-              ON CONFLICT (email)
+      ON CONFLICT (email)
 
-            DO UPDATE SET
-  name = EXCLUDED.name,
-  company_name = EXCLUDED.company_name,
-  password = EXCLUDED.password,
-  role = 'organization_user'
+      DO UPDATE SET
+        name = EXCLUDED.name,
+        company_name = EXCLUDED.company_name,
 
-              RETURNING id
-            `,
-         [
-  name || null,
-  companyName,
-  email,
-  securedPassword
-]
-          );
+        password =
+          CASE
+            WHEN LOWER(users.role) IN (
+              'customer',
+              'advertiser'
+            )
+            THEN users.password
+            ELSE EXCLUDED.password
+          END,
 
+        role =
+          CASE
+            WHEN LOWER(users.role) IN (
+              'customer',
+              'advertiser'
+            )
+            THEN users.role
+            ELSE 'organization_user'
+          END
+
+      RETURNING id
+    `,
+    [
+      name || null,
+      companyName,
+      email,
+      securedPassword
+    ]
+  );
+          
+            
 
         const userId =
           Number(
