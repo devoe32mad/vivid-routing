@@ -4215,20 +4215,7 @@ await q(`
   ALTER TABLE campaigns
   ADD COLUMN IF NOT EXISTS conversion_url TEXT
 `);
-  await q(`
-    INSERT INTO users (
-      name,
-      email,
-      password,
-      role
-    )
-    VALUES (
-      'Vivid Admin',
-      'admin@vividspots.com',
-      'admin123',
-      'admin'
-    )
-  `);
+  
 
 }
   await q(`CREATE TABLE IF NOT EXISTS customers (
