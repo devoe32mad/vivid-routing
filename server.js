@@ -32395,7 +32395,85 @@ await client.query(
 const invitationUrl =
   `${BASE_URL}/org-invitation/${rawInvitationToken}`;
       await client.query("COMMIT");
+const invitationEmailSent =
+  await sendOrganizationNotification({
+    to: email,
 
+    subject:
+      "Welcome to Vivid — Set Up Your Account",
+
+    senderName:
+      "Vivid",
+
+    html: `
+      <div style="
+        font-family:Arial,sans-serif;
+        max-width:640px;
+        margin:0 auto;
+        line-height:1.6;
+        color:#172033;
+      ">
+
+        <h2 style="
+          color:#0B1F3A;
+          margin-bottom:16px;
+        ">
+          Welcome to Vivid
+        </h2>
+
+        <p>
+          Your Vivid account has been created.
+        </p>
+
+        <p>
+          Use the button below to complete your
+          account setup and create your password.
+        </p>
+
+        <div style="margin:28px 0;">
+          <a
+            href="${invitationUrl}"
+            style="
+              display:inline-block;
+              background:#2563EB;
+              color:#ffffff;
+              text-decoration:none;
+              padding:14px 24px;
+              border-radius:8px;
+              font-weight:700;
+            "
+          >
+            Set Up Your Vivid Account
+          </a>
+        </div>
+
+        <p>
+          Once your account is set up, you can
+          access Vivid anytime through the
+          Platform Login.
+        </p>
+
+        <p>
+          If you have any questions, simply reply
+          to this email.
+        </p>
+
+        <p style="margin-top:28px;">
+          Thank you for your time,<br>
+          <strong>Mike DeVoe</strong><br>
+          Vivid
+        </p>
+
+      </div>
+    `
+  });
+
+if (!invitationEmailSent) {
+  console.error(
+    "VIVID INVITATION EMAIL FAILED:",
+    email
+  );
+}
       /*
       =====================================================
       SUCCESS
