@@ -6117,7 +6117,24 @@ if (
 }
 
 
-return res.redirect("/login");
+      return res.redirect("/login");
+
+    } catch (err) {
+
+      console.error(
+        "PLATFORM LOGIN ROUTING ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "PLATFORM LOGIN ROUTING ERROR: " +
+          err.message
+        );
+    }
+  }
+);
 
      
        
@@ -6129,8 +6146,7 @@ return res.redirect("/login");
       
  
      
-  }
-);
+  
 app.get("/", (req, res) => {
   return res.redirect("/platform-login");
 });
