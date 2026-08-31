@@ -10582,43 +10582,103 @@ app.get("/org-login", (req, res) => {
 });
 app.post("/org-login", async (req, res) => {
   try {
-    const result = await q(`
-      SELECT
-        u.id AS user_id,
-        u.email,
-        u.role AS platform_role,
+  const email =
+  String(req.body.email || "")
+    .trim()
+    .toLowerCase();
 
-        o.id AS organization_id,
-        o.name AS organization_name,
+const suppliedPassword =
+  String(req.body.password || "");
 
-        ou.role AS organization_role
+const result = await q(
+  `
+    SELECT
+      u.id AS user_id,
+      u.email,
+      u.password AS stored_password,
+      u.role AS platform_role,
 
-      FROM users u
+      o.id AS organization_id,
+      o.name AS organization_name,
 
-      JOIN organization_users ou
-        ON ou.user_id = u.id
-       AND COALESCE(ou.is_active, true) = true
+      ou.role AS organization_role
 
-      JOIN organizations o
-        ON o.id = ou.organization_id
-       AND COALESCE(o.is_active, true) = true
+    FROM users u
 
-      WHERE LOWER(u.email) = LOWER($1)
-        AND u.password = $2
+    JOIN organization_users ou
+      ON ou.user_id = u.id
+     AND COALESCE(ou.is_active, true) = true
 
-      ORDER BY o.id
-    `, [
-      req.body.email,
-      req.body.password
-    ]);
+    JOIN organizations o
+      ON o.id = ou.organization_id
+     AND COALESCE(o.is_active, true) = true
 
-    if (result.rows.length === 0) {
-      return res.send(`
-        Invalid Organization Portal login or no active organization access.
-        <br><br>
-        <a href="/org-login">Try Again</a>
-      `);
-    }
+    WHERE LOWER(TRIM(u.email)) =
+          LOWER(TRIM($1))
+      AND COALESCE(
+        u.account_status,
+        'active'
+      ) = 'active'
+
+    ORDER BY o.id
+  `,
+  [email]
+);
+
+if (result.rows.length === 0) {
+  return res.send(`
+    Invalid Organization Portal login or no active organization access.
+    <br><br>
+    <a href="/org-login">Try Again</a>
+  `);
+}
+
+const storedPassword =
+  result.rows[0].stored_password;
+
+const passwordMatches =
+  isHashedPassword(storedPassword)
+    ? await verifyHashedPassword(
+        suppliedPassword,
+        storedPassword
+      )
+    : suppliedPassword ===
+      String(storedPassword || "");
+
+if (!passwordMatches) {
+  return res.send(`
+    Invalid Organization Portal login or no active organization access.
+    <br><br>
+    <a href="/org-login">Try Again</a>
+  `);
+}
+
+/*
+  Upgrade a valid legacy password after login.
+*/
+if (!isHashedPassword(storedPassword)) {
+  const upgradedPassword =
+    await hashPassword(suppliedPassword);
+
+  await q(
+    `
+      UPDATE users
+      SET
+        password = $1,
+        password_created_at =
+          CURRENT_TIMESTAMP
+      WHERE id = $2
+        AND password = $3
+    `,
+    [
+      upgradedPassword,
+      result.rows[0].user_id,
+      storedPassword
+    ]
+  );
+}
+
+     
 
     /*
       A user should have one active organization for automatic login.
