@@ -10037,34 +10037,88 @@ app.post("/login", async (req, res) => {
 
   try {
 
-    const user = await q(`
-      SELECT *
-      FROM users
-            WHERE email = $1
-      AND password = $2
+  const email =
+  String(req.body.email || "")
+    .trim()
+    .toLowerCase();
+
+const suppliedPassword =
+  String(req.body.password || "");
+
+const user = await q(
+  `
+    SELECT *
+    FROM users
+    WHERE LOWER(TRIM(email)) =
+          LOWER(TRIM($1))
       AND COALESCE(
         account_status,
         'active'
       ) = 'active'
-      LIMIT 1
-      
-    
-    `, [
-      req.body.email,
-      req.body.password
-    ]);
+    LIMIT 1
+  `,
+  [email]
+);
 
-    if (!user.rows[0]) {
+if (!user.rows[0]) {
+  return res.send(`
+    Invalid login
+    <br><br>
+    <a href="/login">Try Again</a>
+  `);
+}
 
-      return res.send(`
-        Invalid login
-        <br><br>
-        <a href="/login">Try Again</a>
-      `);
-
-    }
 const loginUser =
   user.rows[0];
+
+const passwordMatches =
+  isHashedPassword(loginUser.password)
+    ? await verifyHashedPassword(
+        suppliedPassword,
+        loginUser.password
+      )
+    : suppliedPassword ===
+      String(loginUser.password || "");
+
+if (!passwordMatches) {
+  return res.send(`
+    Invalid login
+    <br><br>
+    <a href="/login">Try Again</a>
+  `);
+}
+
+/*
+  Existing plaintext passwords are upgraded only
+  after a successful login.
+*/
+if (!isHashedPassword(loginUser.password)) {
+  const upgradedPassword =
+    await hashPassword(suppliedPassword);
+
+  await q(
+    `
+      UPDATE users
+      SET
+        password = $1,
+        password_created_at =
+          CURRENT_TIMESTAMP
+      WHERE id = $2
+        AND password = $3
+    `,
+    [
+      upgradedPassword,
+      loginUser.id,
+      loginUser.password
+    ]
+  );
+
+  loginUser.password =
+    upgradedPassword;
+}  
+      
+   
+   
 
 const isAdvertiserUser =
   String(
