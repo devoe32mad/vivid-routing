@@ -76141,7 +76141,8 @@ if (!companyName) {
       "Company / Organization Name is required."
     );
 }
-
+const securedPassword =
+  await hashPassword(password);
       /*
       =====================================================
       ADVERTISER CUSTOMER
@@ -76182,7 +76183,7 @@ if (!companyName) {
     name || null,
     companyName,
     email,
-    password
+    securedPassword
   ]
 );
 
