@@ -3309,10 +3309,13 @@ function requireAdvertiserCustomerManager(
   }
 
   const isAdvertiserUser =
+  ["customer", "advertiser"].includes(
     String(
       sessionUser.role || ""
-    ).toLowerCase() ===
-    "customer";
+    )
+      .trim()
+      .toLowerCase()
+  );
 
   const accountCustomerId =
     Number(
@@ -10353,10 +10356,13 @@ if (!isHashedPassword(loginUser.password)) {
    
 
 const isAdvertiserUser =
-  String(
-    loginUser.role || ""
-  ).toLowerCase() ===
-  "customer";
+  ["customer", "advertiser"].includes(
+    String(
+      loginUser.role || ""
+    )
+      .trim()
+      .toLowerCase()
+  );
 
 const advertiserCustomerId =
   isAdvertiserUser
@@ -10757,9 +10763,9 @@ await client.query(
 
                 <a
                   class="btn"
-                  href="/org-login"
+                  href="/platform-login"
                 >
-                  Go to Organization Login
+                  Go to Vivid Login
                 </a>
               </div>
             </div>
