@@ -76270,7 +76270,7 @@ VALUES (
   name || null,
   companyName,
   email,
-  password
+  securedPassword
 ]
           );
 
