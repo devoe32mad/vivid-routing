@@ -76016,7 +76016,8 @@ app.post(
             "Advertiser customer not found."
           );
       }
-
+const securedPassword =
+  await hashPassword(password);
       await q(
         `
           INSERT INTO users (
@@ -76049,7 +76050,7 @@ app.post(
           name,
           customer.company_name || "",
           email,
-          password,
+          securedPassword,
           customer.customer_id || null,
           customerId
         ]
