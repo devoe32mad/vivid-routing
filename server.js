@@ -9723,7 +9723,8 @@ app.post(
             </a>
           `);
       }
-
+const securedPassword =
+  await hashPassword(password);
       await client.query(
         `
           UPDATE users
@@ -9734,9 +9735,12 @@ app.post(
           WHERE id = $2
         `,
         [
-          password,
-          reset.user_id
-        ]
+  securedPassword,
+  reset.user_id
+]
+          
+          
+        
       );
 
       await client.query(
