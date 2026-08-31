@@ -3174,34 +3174,8 @@ async function processScheduledContractRenewals() {
   }
 }
    
-app.get("/seed-admin", async (req, res) => {
-  try {
-    await q(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        name TEXT,
-        email TEXT UNIQUE,
-        password TEXT,
-        role TEXT DEFAULT 'advertiser',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
 
-    await q(`
-      INSERT INTO users (name, email, password, role)
-      VALUES ('Vivid Admin', 'admin@vividspots.com', 'admin123', 'admin')
-      ON CONFLICT (email)
-      DO UPDATE SET
-        password = EXCLUDED.password,
-        role = EXCLUDED.role,
-        name = EXCLUDED.name
-    `);
 
-    res.send("✅ Admin user reset. Go to <a href='/login'>Login</a>");
-  } catch (err) {
-    res.send("SEED ADMIN ERROR: " + err.message);
-  }
-});
 function requireLogin(req, res, next) {
 
   if (!req.session.user) {
@@ -9297,42 +9271,8 @@ if (type === "maps") {
   }
   res.redirect("/");
 });
-app.get("/reset-admin", async (req, res) => {
-  try {
-    await q(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        email TEXT UNIQUE,
-        password TEXT,
-        role TEXT DEFAULT 'admin',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
 
-    await q(`
-      ALTER TABLE users
-      ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'super_admin'
-    `);
-
-    await q(`
-      ALTER TABLE users
-      ADD COLUMN IF NOT EXISTS password TEXT
-    `);
-
-    await q(`
-      INSERT INTO users (email, password, role)
-      VALUES ('admin@vividspots.com', 'admin123', 'super_admin')
-      ON CONFLICT (email)
-      DO UPDATE SET
-        password = EXCLUDED.password,
-        role = EXCLUDED.role
-    `);
-
-    res.send("Admin reset complete. Go to <a href='/login'>login</a>.");
-  } catch (err) {
-    res.send("RESET ADMIN ERROR: " + err.message);
-  }
-});
+ 
 app.get("/logout", (req, res) => {
 
   req.session.destroy(() => {
