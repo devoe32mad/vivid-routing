@@ -10449,6 +10449,12 @@ app.get(
           AND oui.accepted_at IS NULL
 
           AND oui.expires_at > NOW()
+          AND u.password IS NULL
+
+AND COALESCE(
+  u.account_status,
+  'pending'
+) = 'pending'
 
         LIMIT 1
         `,
@@ -10662,6 +10668,12 @@ app.post(
               AND oui.revoked_at IS NULL
               AND oui.accepted_at IS NULL
               AND oui.expires_at > CURRENT_TIMESTAMP
+              AND u.password IS NULL
+
+AND COALESCE(
+  u.account_status,
+  'pending'
+) = 'pending'
 
             LIMIT 1
 
@@ -32057,7 +32069,8 @@ app.post(
         id,
         name,
         email,
-        account_status
+        account_status,
+password IS NULL AS needs_password_setup
       FROM users
       WHERE LOWER(TRIM(email)) =
             LOWER(TRIM($1))
@@ -32069,6 +32082,7 @@ app.post(
 
 let userId = null;
 let existingVividUser = false;
+let requiresAccountSetup = true;
 
 if (existingUserResult.rows.length > 0) {
   userId = Number(
@@ -32076,6 +32090,9 @@ if (existingUserResult.rows.length > 0) {
   );
 
   existingVividUser = true;
+  requiresAccountSetup =
+  existingUserResult.rows[0]
+    .needs_password_setup === true;
 } else {
   const newUserResult =
     await client.query(
@@ -32325,161 +32342,173 @@ CREATE ORGANIZATION USER INVITATION
 =====================================================
 */
 
-const rawInvitationToken =
-  crypto.randomBytes(32).toString("hex");
+let invitationUrl = null;
+let invitationEmailSent = false;
 
-const invitationTokenHash =
-  crypto
-    .createHash("sha256")
-    .update(rawInvitationToken)
-    .digest("hex");
+if (requiresAccountSetup) {
+  const rawInvitationToken =
+    crypto.randomBytes(32).toString("hex");
 
-const invitationExpiresAt =
-  new Date(
-    Date.now() +
-    7 * 24 * 60 * 60 * 1000
-  );
+  const invitationTokenHash =
+    crypto
+      .createHash("sha256")
+      .update(rawInvitationToken)
+      .digest("hex");
 
-const invitedByUserId =
-  req.session.orgUser?.user_id
-    ? Number(req.session.orgUser.user_id)
-    : null;
+  const invitationExpiresAt =
+    new Date(
+      Date.now() +
+      7 * 24 * 60 * 60 * 1000
+    );
 
-/*
-  Revoke any previous unused invitations for this
-  organization and user before creating a new one.
-*/
-await client.query(
-  `
-    UPDATE organization_user_invitations
+  const invitedByUserId =
+    req.session.orgUser?.user_id
+      ? Number(req.session.orgUser.user_id)
+      : null;
 
-    SET revoked_at = CURRENT_TIMESTAMP
-
-    WHERE organization_id = $1
-      AND user_id = $2
-      AND accepted_at IS NULL
-      AND revoked_at IS NULL
-  `,
-  [
-    organizationId,
-    userId
-  ]
-);
-
-await client.query(
-  `
-    INSERT INTO organization_user_invitations (
-      organization_id,
-      user_id,
-      organization_user_id,
-      invited_by_user_id,
-      email,
-      token_hash,
-      expires_at
-    )
-    VALUES (
-      $1,
-      $2,
-      $3,
-      $4,
-      $5,
-      $6,
-      $7
-    )
-  `,
-  [
-    organizationId,
-    userId,
-    organizationUserId,
-    invitedByUserId,
-    email,
-    invitationTokenHash,
-    invitationExpiresAt
-  ]
-);
-
-const invitationUrl =
-  `${BASE_URL}/org-invitation/${rawInvitationToken}`;
-      await client.query("COMMIT");
-const invitationEmailSent =
-  await sendOrganizationNotification({
-    to: email,
-
-    subject:
-      "Welcome to Vivid — Set Up Your Account",
-
-    senderName:
-      "Vivid",
-
-    html: `
-      <div style="
-        font-family:Arial,sans-serif;
-        max-width:640px;
-        margin:0 auto;
-        line-height:1.6;
-        color:#172033;
-      ">
-
-        <h2 style="
-          color:#0B1F3A;
-          margin-bottom:16px;
-        ">
-          Welcome to Vivid
-        </h2>
-
-        <p>
-          Your Vivid account has been created.
-        </p>
-
-        <p>
-          Use the button below to complete your
-          account setup and create your password.
-        </p>
-
-        <div style="margin:28px 0;">
-          <a
-            href="${invitationUrl}"
-            style="
-              display:inline-block;
-              background:#2563EB;
-              color:#ffffff;
-              text-decoration:none;
-              padding:14px 24px;
-              border-radius:8px;
-              font-weight:700;
-            "
-          >
-            Set Up Your Vivid Account
-          </a>
-        </div>
-
-        <p>
-          Once your account is set up, you can
-          access Vivid anytime through the
-          Platform Login.
-        </p>
-
-        <p>
-          If you have any questions, simply reply
-          to this email.
-        </p>
-
-        <p style="margin-top:28px;">
-          Thank you for your time,<br>
-          <strong>Mike DeVoe</strong><br>
-          Vivid
-        </p>
-
-      </div>
+  /*
+    Revoke any previous unused invitations for this
+    organization and user before creating a new one.
+  */
+  await client.query(
     `
-  });
+      UPDATE organization_user_invitations
 
-if (!invitationEmailSent) {
-  console.error(
-    "VIVID INVITATION EMAIL FAILED:",
-    email
+      SET revoked_at = CURRENT_TIMESTAMP
+
+      WHERE organization_id = $1
+        AND user_id = $2
+        AND accepted_at IS NULL
+        AND revoked_at IS NULL
+    `,
+    [
+      organizationId,
+      userId
+    ]
   );
+
+  await client.query(
+    `
+      INSERT INTO organization_user_invitations (
+        organization_id,
+        user_id,
+        organization_user_id,
+        invited_by_user_id,
+        email,
+        token_hash,
+        expires_at
+      )
+      VALUES (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6,
+        $7
+      )
+    `,
+    [
+      organizationId,
+      userId,
+      organizationUserId,
+      invitedByUserId,
+      email,
+      invitationTokenHash,
+      invitationExpiresAt
+    ]
+  );
+
+  invitationUrl =
+    `${BASE_URL}/org-invitation/${rawInvitationToken}`;
 }
+
+await client.query("COMMIT");
+
+if (requiresAccountSetup && invitationUrl) {
+  invitationEmailSent =
+    await sendOrganizationNotification({
+      to: email,
+
+      subject:
+        "Welcome to Vivid — Set Up Your Account",
+
+      senderName:
+        "Vivid",
+
+      html: `
+        <div style="
+          font-family:Arial,sans-serif;
+          max-width:640px;
+          margin:0 auto;
+          line-height:1.6;
+          color:#172033;
+        ">
+
+          <h2 style="
+            color:#0B1F3A;
+            margin-bottom:16px;
+          ">
+            Welcome to Vivid
+          </h2>
+
+          <p>
+            Your Vivid account has been created.
+          </p>
+
+          <p>
+            Use the button below to complete your
+            account setup and create your password.
+          </p>
+
+          <div style="margin:28px 0;">
+            <a
+              href="${invitationUrl}"
+              style="
+                display:inline-block;
+                background:#2563EB;
+                color:#ffffff;
+                text-decoration:none;
+                padding:14px 24px;
+                border-radius:8px;
+                font-weight:700;
+              "
+            >
+              Set Up Your Vivid Account
+            </a>
+          </div>
+
+          <p>
+            Once your account is set up, you can
+            access Vivid anytime through the
+            Platform Login.
+          </p>
+
+          <p>
+            If you have any questions, simply reply
+            to this email.
+          </p>
+
+          <p style="margin-top:28px;">
+            Thank you for your time,<br>
+            <strong>Mike DeVoe</strong><br>
+            Vivid
+          </p>
+
+        </div>
+      `
+    });
+
+  if (!invitationEmailSent) {
+    console.error(
+      "VIVID INVITATION EMAIL FAILED:",
+      email
+    );
+  }
+}
+
+    
+    
       /*
       =====================================================
       SUCCESS
@@ -32539,7 +32568,7 @@ if (!invitationEmailSent) {
                 </p>
 
                 ${
-                  existingVividUser
+                  !requiresAccountSetup
                     ? `
                       <div
                         style="
