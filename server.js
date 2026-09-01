@@ -9730,6 +9730,441 @@ app.get("/admin/conversion-tracking", requireLogin, async (req, res) => {
     </div>
   `));
 });
+/*
+=========================================================
+SEND ORGANIZATION USER PASSWORD RESET
+=========================================================
+*/
+
+app.post(
+  "/org-user/:id/send-password-reset",
+  requireOrganizationPermission("manage_users"),
+  async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+      const organizationUserId =
+        Number(req.params.id);
+
+      let organizationId = null;
+
+      const isSuperAdmin =
+        req.session.user?.role === "super_admin";
+
+      if (isSuperAdmin) {
+        organizationId =
+          Number(req.query.organization_id);
+      }
+
+      if (
+        !organizationId &&
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId =
+          Number(
+            req.session.orgUser.organization_id
+          );
+      }
+
+      if (
+        !Number.isInteger(organizationUserId) ||
+        organizationUserId <= 0 ||
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res
+          .status(400)
+          .send("Invalid user or organization.");
+      }
+
+      await client.query("BEGIN");
+
+      /*
+      =====================================================
+      CONFIRM USER BELONGS TO THIS ORGANIZATION
+      =====================================================
+      */
+
+      const userResult =
+        await client.query(
+          `
+            SELECT
+              ou.id AS organization_user_id,
+              ou.user_id,
+              ou.role AS organization_role,
+              ou.is_active,
+              u.name,
+              u.email,
+              u.role AS platform_role,
+              u.account_status,
+              u.password IS NOT NULL
+                AS has_password
+
+            FROM organization_users ou
+
+            INNER JOIN users u
+              ON u.id = ou.user_id
+
+            WHERE ou.id = $1
+              AND ou.organization_id = $2
+
+            LIMIT 1
+
+            FOR UPDATE
+          `,
+          [
+            organizationUserId,
+            organizationId
+          ]
+        );
+
+      const targetUser =
+        userResult.rows[0];
+
+      if (
+        !targetUser ||
+        targetUser.is_active !== true
+      ) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(404)
+          .send(
+            "Active organization user not found."
+          );
+      }
+
+      /*
+        Pending users should finish account setup
+        through their invitation rather than password reset.
+      */
+      if (!targetUser.has_password) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(409)
+          .send(`
+            This user has not completed account setup yet.
+            <br><br>
+            Use the account invitation process instead.
+            <br><br>
+            <a href="/org-users${
+              isSuperAdmin
+                ? `?organization_id=${organizationId}`
+                : ""
+            }">
+              Back to Users
+            </a>
+          `);
+      }
+
+      if (
+        String(
+          targetUser.account_status || ""
+        ).toLowerCase() !== "active"
+      ) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(409)
+          .send(`
+            This Vivid account is not active.
+            Password reset was not sent.
+            <br><br>
+            <a href="/org-users${
+              isSuperAdmin
+                ? `?organization_id=${organizationId}`
+                : ""
+            }">
+              Back to Users
+            </a>
+          `);
+      }
+
+      /*
+      =====================================================
+      PROTECT HIGHER-PRIVILEGE ACCOUNTS
+      =====================================================
+      */
+
+      const actorOrgRole =
+        String(
+          req.session.orgUser?.role || ""
+        ).toLowerCase();
+
+      const targetOrgRole =
+        String(
+          targetUser.organization_role || ""
+        ).toLowerCase();
+
+      if (
+        !isSuperAdmin &&
+        targetOrgRole === "owner" &&
+        actorOrgRole !== "owner"
+      ) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(403)
+          .send(
+            "Only the organization owner can reset the owner's password."
+          );
+      }
+
+      if (
+        !isSuperAdmin &&
+        String(
+          targetUser.platform_role || ""
+        ).toLowerCase() === "super_admin"
+      ) {
+        await client.query("ROLLBACK");
+
+        return res
+          .status(403)
+          .send(
+            "This account cannot be reset from the Organization Portal."
+          );
+      }
+
+      /*
+      =====================================================
+      INVALIDATE OLD RESET LINKS
+      =====================================================
+      */
+
+      await client.query(
+        `
+          UPDATE password_reset_tokens
+
+          SET used_at = CURRENT_TIMESTAMP
+
+          WHERE user_id = $1
+            AND used_at IS NULL
+        `,
+        [targetUser.user_id]
+      );
+
+      /*
+      =====================================================
+      CREATE NEW RESET TOKEN
+      =====================================================
+      */
+
+      const rawResetToken =
+        crypto.randomBytes(32).toString("hex");
+
+      const resetTokenHash =
+        crypto
+          .createHash("sha256")
+          .update(rawResetToken)
+          .digest("hex");
+
+      const resetExpiresAt =
+        new Date(
+          Date.now() +
+          60 * 60 * 1000
+        );
+
+      await client.query(
+        `
+          INSERT INTO password_reset_tokens (
+            user_id,
+            token_hash,
+            expires_at
+          )
+
+          VALUES (
+            $1,
+            $2,
+            $3
+          )
+        `,
+        [
+          targetUser.user_id,
+          resetTokenHash,
+          resetExpiresAt
+        ]
+      );
+
+      const resetUrl =
+        `${BASE_URL}/reset-password/${rawResetToken}`;
+
+      await client.query("COMMIT");
+
+      /*
+      =====================================================
+      SEND RESET EMAIL
+      =====================================================
+      */
+
+      const resetEmailSent =
+        await sendOrganizationNotification({
+          to: targetUser.email,
+
+          subject:
+            "Vivid Password Reset",
+
+          senderName:
+            "Vivid",
+
+          html: `
+            <div style="
+              font-family:Arial,sans-serif;
+              max-width:640px;
+              margin:0 auto;
+              line-height:1.6;
+              color:#172033;
+            ">
+
+              <h2 style="color:#0B1F3A;">
+                Reset Your Vivid Password
+              </h2>
+
+              <p>
+                A password reset was requested
+                for your Vivid account.
+              </p>
+
+              <div style="margin:28px 0;">
+                <a
+                  href="${resetUrl}"
+                  style="
+                    display:inline-block;
+                    background:#2563EB;
+                    color:#ffffff;
+                    text-decoration:none;
+                    padding:14px 24px;
+                    border-radius:8px;
+                    font-weight:700;
+                  "
+                >
+                  Reset Password
+                </a>
+              </div>
+
+              <p>
+                This link expires in 60 minutes.
+              </p>
+
+              <p>
+                If you did not expect this request,
+                contact your organization administrator.
+              </p>
+
+              <p style="margin-top:28px;">
+                Thank you for your time,<br>
+                <strong>Mike DeVoe</strong><br>
+                Vivid
+              </p>
+
+            </div>
+          `
+        });
+
+      if (!resetEmailSent) {
+        console.error(
+          "ORGANIZATION PASSWORD RESET EMAIL FAILED:",
+          targetUser.email
+        );
+
+        return res
+          .status(500)
+          .send(`
+            The reset link was created, but the email
+            could not be delivered.
+            <br><br>
+            <a href="/org-users${
+              isSuperAdmin
+                ? `?organization_id=${organizationId}`
+                : ""
+            }">
+              Back to Users
+            </a>
+          `);
+      }
+
+      return res.send(
+        orgPage(
+          "Password Reset Sent",
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Password Reset Sent</h1>
+
+              <p class="subtitle">
+                A secure password reset email has
+                been sent.
+              </p>
+            </div>
+
+            <div class="wrap">
+              <div
+                class="card"
+                style="
+                  max-width:650px;
+                  margin:30px auto;
+                "
+              >
+                <h2 style="margin-top:0;">
+                  ${escapeHtml(
+                    targetUser.name ||
+                    targetUser.email
+                  )}
+                </h2>
+
+                <p>
+                  The reset link was sent to
+                  <strong>
+                    ${escapeHtml(targetUser.email)}
+                  </strong>.
+                </p>
+
+                <p>
+                  The link expires in 60 minutes
+                  and can only be used once.
+                </p>
+
+                <a
+                  class="btn"
+                  href="/org-users${
+                    isSuperAdmin
+                      ? `?organization_id=${organizationId}`
+                      : ""
+                  }"
+                >
+                  Back to Users
+                </a>
+              </div>
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (_) {}
+
+      console.error(
+        "SEND ORGANIZATION PASSWORD RESET ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to send password reset: " +
+          err.message
+        );
+
+    } finally {
+      client.release();
+    }
+  }
+);
 app.get(
   "/reset-password/:token",
   async (req, res) => {
@@ -9764,6 +10199,10 @@ app.get(
           WHERE prt.token_hash = $1
             AND prt.used_at IS NULL
             AND prt.expires_at > CURRENT_TIMESTAMP
+           AND COALESCE(
+  u.account_status,
+  'active'
+) = 'active' 
           LIMIT 1
         `,
         [tokenHash]
@@ -9925,12 +10364,26 @@ app.post(
             SELECT
               prt.id,
               prt.user_id
-            FROM password_reset_tokens prt
-            WHERE prt.token_hash = $1
-              AND prt.used_at IS NULL
-              AND prt.expires_at > CURRENT_TIMESTAMP
-            LIMIT 1
-            FOR UPDATE
+           FROM password_reset_tokens prt
+
+INNER JOIN users u
+  ON u.id = prt.user_id
+
+WHERE prt.token_hash = $1
+  AND prt.used_at IS NULL
+  AND prt.expires_at > CURRENT_TIMESTAMP
+  AND COALESCE(
+    u.account_status,
+    'active'
+  ) = 'active'
+
+LIMIT 1
+FOR UPDATE 
+            
+          
+              
+            
+            
           `,
           [tokenHash]
         );
@@ -9959,11 +10412,15 @@ const securedPassword =
       await client.query(
         `
           UPDATE users
-          SET
-            password = $1,
-            account_status = 'active',
-            password_created_at = CURRENT_TIMESTAMP
-          WHERE id = $2
+SET
+  password = $1,
+  password_created_at = CURRENT_TIMESTAMP
+WHERE id = $2
+        
+            
+            
+            
+    
         `,
         [
   securedPassword,
@@ -9974,14 +10431,7 @@ const securedPassword =
         
       );
 
-      await client.query(
-        `
-          UPDATE password_reset_tokens
-          SET used_at = CURRENT_TIMESTAMP
-          WHERE id = $1
-        `,
-        [reset.id]
-      );
+     
 
       await client.query("COMMIT");
 
