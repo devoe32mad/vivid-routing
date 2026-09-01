@@ -5969,7 +5969,12 @@ const orgResult = await q(
 
     WHERE u.id = $1
 
-    ORDER BY o.id
+  AND COALESCE(
+    u.account_status,
+    'active'
+  ) = 'active'
+
+ORDER BY o.id
   `,
   [loginUserId]
 );
@@ -34354,7 +34359,97 @@ if (
         role = "owner";
         isActive = true;
       }
+/*
+=====================================================
+PROTECT ADMINISTRATIVE ACCESS
+=====================================================
+*/
 
+const currentOrgUserId =
+  Number(req.session.orgUser?.id);
+
+/*
+  Organization users cannot deactivate
+  their own membership through Edit User.
+*/
+if (
+  !isSuperAdmin &&
+  currentOrgUserId === userId &&
+  isActive === false
+) {
+  await client.query("ROLLBACK");
+
+  return res
+    .status(400)
+    .send(
+      "You cannot deactivate your own organization access."
+    );
+}
+
+const currentIsAdministrator = [
+  "owner",
+  "organization_admin",
+  "district_admin"
+].includes(currentRole);
+
+const newIsAdministrator =
+  isActive === true &&
+  [
+    "owner",
+    "organization_admin",
+    "district_admin"
+  ].includes(role);
+
+/*
+  If this edit would remove administrator-level
+  access from an existing administrator, confirm
+  another active administrator will remain.
+*/
+if (
+  currentIsAdministrator &&
+  !newIsAdministrator
+) {
+  const remainingAdminResult =
+    await client.query(
+      `
+        SELECT
+          COUNT(*)::int AS admin_count
+
+        FROM organization_users
+
+        WHERE organization_id = $1
+          AND id <> $2
+          AND COALESCE(is_active, true) = true
+          AND LOWER(
+            COALESCE(role, '')
+          ) IN (
+            'owner',
+            'organization_admin',
+            'district_admin'
+          )
+      `,
+      [
+        organizationId,
+        organizationUserId
+      ]
+    );
+
+  const remainingAdminCount =
+    Number(
+      remainingAdminResult.rows[0]
+        ?.admin_count || 0
+    );
+
+  if (remainingAdminCount === 0) {
+    await client.query("ROLLBACK");
+
+    return res
+      .status(400)
+      .send(
+        "This change would remove the last active organization administrator."
+      );
+  }
+}
       const allowedRoles = [
         "organization_admin",
         "location_manager",
