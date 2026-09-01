@@ -32612,7 +32612,7 @@ if (requiresAccountSetup && invitationUrl) {
   </p>
 
   <p style="margin-bottom:8px;">
-    Email delivery will be connected next.
+    A secure account setup email has been sent.
   </p>
 
   <a
