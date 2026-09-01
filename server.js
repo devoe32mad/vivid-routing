@@ -34063,6 +34063,8 @@ app.post(
     const client = await pool.connect();
 
     try {
+      const isSuperAdmin =
+  req.session.user?.role === "super_admin";
 let organizationId = null;
 
 if (
@@ -34369,20 +34371,25 @@ if (
       =====================================================
       */
 
-      await client.query(
-        `
-          UPDATE users
-          SET
-            name = $1,
-            email = $2
-          WHERE id = $3
-        `,
-        [
-          name,
-          email,
-          userId
-        ]
-      );
+      if (isSuperAdmin) {
+  await client.query(
+    `
+      UPDATE users
+      SET
+        name = $1,
+        email = $2
+      WHERE id = $3
+    `,
+    [
+      name,
+      email,
+      userId
+    ]
+  );
+}
+        
+         
+      
 
       /*
       =====================================================
