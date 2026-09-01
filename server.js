@@ -34744,7 +34744,25 @@ if (
         String(membership.role || "")
           .trim()
           .toLowerCase();
+const currentOrgUserId =
+  Number(req.session.orgUser?.id);
 
+const isSuperAdmin =
+  req.session.user?.role === "super_admin";
+
+if (
+  !isSuperAdmin &&
+  Number.isInteger(currentOrgUserId) &&
+  currentOrgUserId === userId
+) {
+  await client.query("ROLLBACK");
+
+  return res
+    .status(400)
+    .send(
+      "You cannot deactivate your own organization access."
+    );
+}
       /*
         Never allow the organization owner
         to be removed.
@@ -34758,7 +34776,53 @@ if (
             "The organization owner cannot be removed."
           );
       }
+const isAdministratorRole = [
+  "organization_admin",
+  "district_admin"
+].includes(role);
 
+if (isAdministratorRole) {
+  const remainingAdminResult =
+    await client.query(
+      `
+        SELECT
+          COUNT(*)::int AS admin_count
+
+        FROM organization_users
+
+        WHERE organization_id = $1
+          AND id <> $2
+          AND COALESCE(is_active, true) = true
+          AND LOWER(
+            COALESCE(role, '')
+          ) IN (
+            'owner',
+            'organization_admin',
+            'district_admin'
+          )
+      `,
+      [
+        organizationId,
+        organizationUserId
+      ]
+    );
+
+  const remainingAdminCount =
+    Number(
+      remainingAdminResult.rows[0]
+        ?.admin_count || 0
+    );
+
+  if (remainingAdminCount === 0) {
+    await client.query("ROLLBACK");
+
+    return res
+      .status(400)
+      .send(
+        "You cannot deactivate the last active organization administrator."
+      );
+  }
+}
       /*
         Remove location access.
       */
