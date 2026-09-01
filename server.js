@@ -3509,48 +3509,167 @@ function organizationRoleHasPermission(role, permissionKey) {
   return readOnly.includes(permissionKey);
 }
 function requireOrganizationPermission(permissionKey) {
-  return (req, res, next) => {
-
-  if (
-  [
-    "super_admin",
-    "admin"
-  ].includes(
-    String(
-      req.session.user?.role || ""
-    )
-      .trim()
-      .toLowerCase()
-  )
-) {
-  return next();
-}
-      
-  
-      
-    
-
-    if (!req.session.orgUser) {
-      return res.redirect("/org-login");
-    }
-
-    const role =
-      req.session.orgUser.organization_role;
-
-    if (
-      !organizationRoleHasPermission(
-        role,
-        permissionKey
+  return async (req, res, next) => {
+    try {
+      const platformRole = String(
+        req.session.user?.role || ""
       )
-    ) {
-      return res
-        .status(403)
-        .send("Access denied");
-    }
+        .trim()
+        .toLowerCase();
 
-    next();
+      /*
+        Vivid platform administrators retain
+        platform-level access.
+      */
+      if (
+        [
+          "super_admin",
+          "admin"
+        ].includes(platformRole)
+      ) {
+        return next();
+      }
+
+      /*
+        Organization users must have an
+        organization session.
+      */
+      if (!req.session.orgUser) {
+        return res.redirect("/org-login");
+      }
+
+      const userId = Number(
+        req.session.orgUser.id
+      );
+
+      const organizationId = Number(
+        req.session.orgUser.organization_id
+      );
+
+      if (
+        !Number.isInteger(userId) ||
+        userId <= 0 ||
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        delete req.session.orgUser;
+
+        return res.redirect("/org-login");
+      }
+
+      /*
+      =====================================================
+      REVALIDATE ORGANIZATION ACCESS
+      =====================================================
+
+      Do not rely on the role stored in the browser
+      session. Re-read the user's current membership
+      on every protected Organization request.
+
+      This makes deactivation and role changes take
+      effect immediately.
+      */
+
+      const accessResult = await q(
+        `
+          SELECT
+            ou.role AS organization_role
+
+          FROM organization_users ou
+
+          INNER JOIN users u
+            ON u.id = ou.user_id
+
+          INNER JOIN organizations o
+            ON o.id = ou.organization_id
+
+          WHERE ou.user_id = $1
+            AND ou.organization_id = $2
+
+            AND COALESCE(
+              ou.is_active,
+              true
+            ) = true
+
+            AND COALESCE(
+              o.is_active,
+              true
+            ) = true
+
+            AND COALESCE(
+              u.account_status,
+              'active'
+            ) = 'active'
+
+          LIMIT 1
+        `,
+        [
+          userId,
+          organizationId
+        ]
+      );
+
+      const currentAccess =
+        accessResult.rows[0];
+
+      /*
+        Membership removed/deactivated,
+        organization disabled, or global
+        account disabled.
+      */
+      if (!currentAccess) {
+        delete req.session.orgUser;
+
+        return req.session.save(
+          (sessionErr) => {
+            if (sessionErr) {
+              console.error(
+                "ORGANIZATION SESSION CLEAR ERROR:",
+                sessionErr
+              );
+            }
+
+            return res.redirect("/org-login");
+          }
+        );
+      }
+
+      /*
+        Refresh the role stored in session so the
+        session reflects the database.
+      */
+      req.session.orgUser.organization_role =
+        currentAccess.organization_role;
+
+      if (
+        !organizationRoleHasPermission(
+          currentAccess.organization_role,
+          permissionKey
+        )
+      ) {
+        return res
+          .status(403)
+          .send("Access denied");
+      }
+
+      return next();
+
+    } catch (err) {
+      console.error(
+        "ORGANIZATION PERMISSION ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Unable to verify organization access."
+        );
+    }
   };
 }
+
+
 /*
 =========================================================
 ORGANIZATION LOCATION ACCESS SCOPE
