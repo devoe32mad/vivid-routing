@@ -163,7 +163,14 @@ const pool = new Pool({
 });
 
 app.set("trust proxy", 1);
+const sessionSecret =
+  process.env.SESSION_SECRET;
 
+if (!sessionSecret) {
+  throw new Error(
+    "SESSION_SECRET environment variable is required."
+  );
+}
 app.use(
   session({
     store: new PgSession({
@@ -172,9 +179,9 @@ app.use(
       createTableIfMissing: true
     }),
 
-    secret:
-      process.env.SESSION_SECRET ||
-      "vivid-secret-key",
+    secret: sessionSecret,
+      
+      
 
     resave: false,
     saveUninitialized: false,
