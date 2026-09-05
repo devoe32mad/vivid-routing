@@ -62246,13 +62246,15 @@ app.post(
         by the protected form.
       */
       if (
-        !organizationId &&
-        req.session.user?.role === "super_admin"
-      ) {
-        organizationId = Number(
-          req.body.organization_id
-        );
-      }
+  !organizationId &&
+  ["super_admin", "admin"].includes(
+    req.session.user?.role
+  )
+) {
+  organizationId = Number(
+    req.body.organization_id
+  );
+}
 
       const spaceId = Number(
         req.body.space_id
