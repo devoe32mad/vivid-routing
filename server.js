@@ -63221,9 +63221,13 @@ SELECT
                 </div>
 
                 <form
-                  method="POST"
-                  action="/org-opportunity/edit/${opportunity.id}"
-                >
+  method="POST"
+  action="/org-opportunity/edit/${opportunity.id}"
+  enctype="multipart/form-data"
+>
+                  
+                  
+                
 
                   <input
                     type="hidden"
@@ -63330,7 +63334,31 @@ SELECT
                         "
                       >${opportunity.description || ""}</textarea>
                     </div>
+<div style="grid-column:1 / -1;">
+  <label style="
+    display:block;
+    font-weight:bold;
+    margin-bottom:7px;
+  ">
+    Sponsorship Photo
+  </label>
 
+  <input
+    type="file"
+    name="sponsorship_photo"
+    accept="image/jpeg,image/png,image/webp"
+    style="margin:0;"
+  >
+
+  <div style="
+    color:#65776b;
+    font-size:13px;
+    margin-top:7px;
+  ">
+    Leave blank to keep the current photo.
+    JPG, PNG, or WebP. Maximum size: 8 MB.
+  </div>
+</div>
                     <div>
   <label style="
     display:block;
@@ -63605,7 +63633,12 @@ SELECT
 );
 app.post(
   "/org-opportunity/edit/:opportunityId",
+  sponsorshipPhotoUpload.single(
+    "sponsorship_photo"
+  ),
   async (req, res) => {
+  
+  
     try {
       const opportunityId = Number(
         req.params.opportunityId
@@ -63654,6 +63687,15 @@ app.post(
         req.body.description || ""
       ).trim();
 
+
+      const photoData =
+  req.file?.buffer || null;
+
+const photoMimeType =
+  req.file?.mimetype || null;
+
+const photoFileName =
+  req.file?.originalname || null;
       const price = Number(
   req.body.price
 );
@@ -63890,34 +63932,51 @@ if (!allowedTermUnits.includes(suggestedTermUnit)) {
         `);
       }
 
-      await q(`
-        UPDATE organization_opportunities
+    await q(`
+  UPDATE organization_opportunities
 
-        SET
-  qr_id = $1,
-  title = $2,
-  description = $3,
-  category = $4,
+  SET
+    qr_id = $1,
+    title = $2,
+    description = $3,
+    category = $4,
 
-  price = $5,
-  annual_price = $5,
-  pricing_unit = $6,
-  suggested_term_length = $7,
-  suggested_term_unit = $8,
+    photo_data = COALESCE(
+      $5,
+      photo_data
+    ),
+    photo_mime_type = COALESCE(
+      $6,
+      photo_mime_type
+    ),
+    photo_file_name = COALESCE(
+      $7,
+      photo_file_name
+    ),
 
-  status = $9,
-  display_order = $10,
-  updated_at = CURRENT_TIMESTAMP
+    price = $8,
+    annual_price = $8,
+    pricing_unit = $9,
+    suggested_term_length = $10,
+    suggested_term_unit = $11,
 
-WHERE id = $11
-  AND organization_id = $12
-  AND space_id = $13
-          AND COALESCE(is_active, true) = true
-      `, [
+    status = $12,
+    display_order = $13,
+    updated_at = CURRENT_TIMESTAMP
+
+  WHERE id = $14
+    AND organization_id = $15
+    AND space_id = $16
+    AND COALESCE(is_active, true) = true
+`, [
   qrId,
   title,
   description || null,
   category || null,
+
+  photoData,
+  photoMimeType,
+  photoFileName,
 
   price,
   pricingUnit,
@@ -63931,6 +63990,8 @@ WHERE id = $11
   organizationId,
   spaceId
 ]);
+
+
         return res.redirect(
         `/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}`
       );
