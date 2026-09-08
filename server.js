@@ -57987,7 +57987,20 @@ opportunities =
   <form
     method="POST"
     action="/org-opportunity/duplicate/${opportunity.id}"
-    onsubmit="return confirm('Create a copy of this opportunity?');"
+    onsubmit="
+  const newTitle = prompt(
+    'Enter the name of the new opportunity:'
+  );
+
+  if (!newTitle || !newTitle.trim()) {
+    return false;
+  }
+
+  this.elements.copy_title.value =
+    newTitle.trim();
+
+  return true;
+"
     style="margin:0;"
   >
     <input
@@ -57995,7 +58008,11 @@ opportunities =
       name="organization_id"
       value="${organizationId}"
     >
-
+<input
+  type="hidden"
+  name="copy_title"
+  value=""
+>
     <button
       class="marketplace-btn secondary"
       type="submit"
@@ -62768,40 +62785,44 @@ app.post(
         );
       }
 
-      let copyNumber = 1;
-      let copyTitle =
-        `${source.title} - Copy`;
+     const copyTitle = String(
+  req.body.copy_title || ""
+).trim();
 
-      while (true) {
-        const duplicateResult = await q(`
-          SELECT id
+if (!copyTitle) {
+  return res.status(400).send(
+    "New opportunity name is required."
+  );
+}
 
-          FROM organization_opportunities
+const duplicateResult = await q(`
+  SELECT id
 
-          WHERE organization_id = $1
-            AND space_id = $2
-            AND LOWER(TRIM(title)) =
-                LOWER(TRIM($3))
-            AND COALESCE(
-              is_active,
-              true
-            ) = true
+  FROM organization_opportunities
 
-          LIMIT 1
-        `, [
-          organizationId,
-          spaceId,
-          copyTitle
-        ]);
+  WHERE organization_id = $1
+    AND space_id = $2
+    AND LOWER(TRIM(title)) =
+        LOWER(TRIM($3))
+    AND COALESCE(
+      is_active,
+      true
+    ) = true
 
-        if (!duplicateResult.rows[0]) {
-          break;
-        }
+  LIMIT 1
+`, [
+  organizationId,
+  spaceId,
+  copyTitle
+]);
 
-        copyNumber += 1;
-        copyTitle =
-          `${source.title} - Copy ${copyNumber}`;
-      }
+if (duplicateResult.rows[0]) {
+  return res.status(409).send(
+    "An opportunity with that name already exists at this location."
+  );
+}
+       
+         
 
       const createdBy =
         req.session.orgUser?.id ||
