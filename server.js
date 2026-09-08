@@ -145,6 +145,32 @@ const importUpload = multer({
     fileSize: 10 * 1024 * 1024 // 10 MB
   }
 });
+
+const sponsorshipPhotoUpload = multer({
+  storage: multer.memoryStorage(),
+
+  limits: {
+    fileSize: 8 * 1024 * 1024
+  },
+
+  fileFilter: (req, file, callback) => {
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp"
+    ];
+
+    if (!allowedTypes.includes(file.mimetype)) {
+      return callback(
+        new Error(
+          "Sponsorship photo must be a JPG, PNG, or WebP image."
+        )
+      );
+    }
+
+    callback(null, true);
+  }
+});
 app.use(
   express.urlencoded({
     extended: true
@@ -4972,7 +4998,21 @@ await q(`
   ALTER TABLE organization_opportunities
   ADD COLUMN IF NOT EXISTS suggested_term_unit
     TEXT DEFAULT 'Months'
+    await q(`
+  ALTER TABLE organization_opportunities
+  ADD COLUMN IF NOT EXISTS photo_data BYTEA
 `);
+
+await q(`
+  ALTER TABLE organization_opportunities
+  ADD COLUMN IF NOT EXISTS photo_mime_type TEXT
+`);
+
+await q(`
+  ALTER TABLE organization_opportunities
+  ADD COLUMN IF NOT EXISTS photo_file_name TEXT
+`);
+
   await q(`
   UPDATE organization_opportunities
   SET
@@ -57854,7 +57894,7 @@ const opportunityResult = await q(
       oo.status,
       oo.display_order,
       oo.is_active,
-
+oo.photo_data IS NOT NULL AS has_photo,
       s.name AS location_name,
       qr.name AS qr_name
 
@@ -57908,7 +57948,20 @@ opportunities =
     `
     : opportunities.map(opportunity => `
       <div class="marketplace-card">
-
+${opportunity.has_photo ? `
+  <img
+    src="/org-opportunity/${opportunity.id}/photo"
+    alt="${escapeHtml(opportunity.title)}"
+    style="
+      width:100%;
+      height:220px;
+      object-fit:cover;
+      border-radius:12px;
+      margin-bottom:20px;
+      display:block;
+    "
+  >
+` : ""}
         <div class="marketplace-label">
           Location
         </div>
@@ -61664,6 +61717,71 @@ app.post(
   }
 );
 app.get(
+  "/org-opportunity/:opportunityId/photo",
+  async (req, res) => {
+    try {
+      const opportunityId = Number(
+        req.params.opportunityId
+      );
+
+      if (
+        !Number.isInteger(opportunityId) ||
+        opportunityId <= 0
+      ) {
+        return res
+          .status(400)
+          .send("Invalid opportunity.");
+      }
+
+      const photoResult = await q(`
+        SELECT
+          photo_data,
+          photo_mime_type
+
+        FROM organization_opportunities
+
+        WHERE id = $1
+          AND COALESCE(is_active, true) = true
+
+        LIMIT 1
+      `, [
+        opportunityId
+      ]);
+
+      const photo =
+        photoResult.rows[0];
+
+      if (!photo?.photo_data) {
+        return res
+          .status(404)
+          .send("Photo not found.");
+      }
+
+      res.set(
+        "Content-Type",
+        photo.photo_mime_type || "image/jpeg"
+      );
+
+      res.set(
+        "Cache-Control",
+        "public, max-age=86400"
+      );
+
+      return res.send(photo.photo_data);
+
+    } catch (err) {
+      console.error(
+        "ORG OPPORTUNITY PHOTO ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send("Unable to load photo.");
+    }
+  }
+);
+app.get(
   "/org-opportunity/new",
   async (req, res) => {
     try {
@@ -61939,7 +62057,11 @@ const spaceId =
            <form
   method="POST"
   action="/org-opportunity/new"
+  enctype="multipart/form-data"
 >
+  
+  
+
 
   <input
     type="hidden"
@@ -62044,7 +62166,30 @@ const spaceId =
         "
       ></textarea>
     </div>
+<div style="grid-column:1 / -1;">
+  <label style="
+    display:block;
+    font-weight:bold;
+    margin-bottom:7px;
+  ">
+    Sponsorship Photo
+  </label>
 
+  <input
+    type="file"
+    name="sponsorship_photo"
+    accept="image/jpeg,image/png,image/webp"
+    style="margin:0;"
+  >
+
+  <div style="
+    color:#65776b;
+    font-size:13px;
+    margin-top:7px;
+  ">
+    JPG, PNG, or WebP. Maximum size: 8 MB.
+  </div>
+</div>
  <div>
   <label style="
     display:block;
@@ -62259,7 +62404,12 @@ const spaceId =
 );
 app.post(
   "/org-opportunity/new",
+  sponsorshipPhotoUpload.single(
+    "sponsorship_photo"
+  ),
   async (req, res) => {
+  
+  
     try {
       let organizationId = null;
 
@@ -62303,7 +62453,14 @@ app.post(
       const description = String(
         req.body.description || ""
       ).trim();
+const photoData =
+  req.file?.buffer || null;
 
+const photoMimeType =
+  req.file?.mimetype || null;
+
+const photoFileName =
+  req.file?.originalname || null;
       const price = Number(
         req.body.price
       );
@@ -62585,66 +62742,82 @@ if (
         annual_price temporarily mirrors price so that
         older code remains compatible during conversion.
       */
-      await q(`
-        INSERT INTO organization_opportunities (
-          organization_id,
-          space_id,
-          qr_id,
-          title,
-          description,
-          category,
+     await q(`
+  INSERT INTO organization_opportunities (
+    organization_id,
+    space_id,
+    qr_id,
+    title,
+    description,
+    category,
 
-          price,
-          annual_price,
-          pricing_unit,
-          suggested_term_length,
-          suggested_term_unit,
+    photo_data,
+    photo_mime_type,
+    photo_file_name,
 
-          status,
-          display_order,
-          is_active,
-          created_by,
-          created_at,
-          updated_at
-        )
-        VALUES (
-          $1,
-          $2,
-          $3,
-          $4,
-          $5,
-          $6,
+    price,
+    annual_price,
+    pricing_unit,
+    suggested_term_length,
+    suggested_term_unit,
 
-          $7,
-          $7,
-          $8,
-          $9,
-          $10,
+    status,
+    display_order,
+    is_active,
+    created_by,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
 
-          $11,
-          $12,
-          true,
-          $13,
-          CURRENT_TIMESTAMP,
-          CURRENT_TIMESTAMP
-        )
-      `, [
-        organizationId,          // $1
-        spaceId,                 // $2
-        qrId,                    // $3
-        title,                   // $4
-        description || null,     // $5
-        category || null,        // $6
+    $7,
+    $8,
+    $9,
 
-        price,                   // $7
-        pricingUnit,             // $8
-        suggestedTermLength,     // $9
-        suggestedTermUnit,       // $10
+    $10,
+    $10,
+    $11,
+    $12,
+    $13,
 
-        status,                  // $11
-        displayOrder,            // $12
-        createdBy                // $13
-      ]);
+    $14,
+    $15,
+    true,
+    $16,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
+  )
+`, [
+  organizationId,          // $1
+  spaceId,                 // $2
+  qrId,                    // $3
+  title,                   // $4
+  description || null,     // $5
+  category || null,        // $6
+
+  photoData,               // $7
+  photoMimeType,           // $8
+  photoFileName,           // $9
+
+  price,                   // $10
+  pricingUnit,             // $11
+  suggestedTermLength,     // $12
+  suggestedTermUnit,       // $13
+
+  status,                  // $14
+  displayOrder,            // $15
+  createdBy                // $16
+]);
+
+         
+        
+      
 
       return res.redirect(
         `/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}`
