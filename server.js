@@ -57987,20 +57987,7 @@ opportunities =
   <form
     method="POST"
     action="/org-opportunity/duplicate/${opportunity.id}"
-    onsubmit="
-  const newTitle = prompt(
-    'Enter the name of the new opportunity:'
-  );
-
-  if (!newTitle || !newTitle.trim()) {
-    return false;
-  }
-
-  this.elements.copy_title.value =
-    newTitle.trim();
-
-  return true;
-"
+onsubmit="return confirm('Duplicate this opportunity?');"
     style="margin:0;"
   >
     <input
@@ -58008,11 +57995,7 @@ opportunities =
       name="organization_id"
       value="${organizationId}"
     >
-<input
-  type="hidden"
-  name="copy_title"
-  value=""
->
+
     <button
       class="marketplace-btn secondary"
       type="submit"
@@ -62785,43 +62768,10 @@ app.post(
         );
       }
 
-     const copyTitle = String(
-  req.body.copy_title || ""
-).trim();
+  const copyTitle =
+  source.title;
 
-if (!copyTitle) {
-  return res.status(400).send(
-    "New opportunity name is required."
-  );
-}
-
-const duplicateResult = await q(`
-  SELECT id
-
-  FROM organization_opportunities
-
-  WHERE organization_id = $1
-    AND space_id = $2
-    AND LOWER(TRIM(title)) =
-        LOWER(TRIM($3))
-    AND COALESCE(
-      is_active,
-      true
-    ) = true
-
-  LIMIT 1
-`, [
-  organizationId,
-  spaceId,
-  copyTitle
-]);
-
-if (duplicateResult.rows[0]) {
-  return res.status(409).send(
-    "An opportunity with that name already exists at this location."
-  );
-}
-       
+  
          
 
       const createdBy =
