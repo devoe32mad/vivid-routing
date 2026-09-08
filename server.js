@@ -5892,7 +5892,46 @@ UNIFIED VIVID PLATFORM ENTRY
 app.get(
   "/platform-login",
   async (req, res) => {
-    try {
+       try {
+      const sessionUser =
+        req.session.user;
+
+      if (!sessionUser) {
+        return res.redirect("/login");
+      }
+
+      const role = String(
+        sessionUser.role || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const portal = String(
+        req.query.portal || ""
+      )
+        .trim()
+        .toLowerCase();
+
+
+      // --------------------------------------------------
+      // PLATFORM ADMINS
+      // --------------------------------------------------
+
+      if (
+        role === "super_admin" ||
+        role === "admin"
+      ) {
+        return res.redirect(
+          role === "super_admin"
+            ? "/platform-admin"
+            : "/admin"
+        );
+      }
+
+
+      // --------------------------------------------------
+      // EXISTING ORGANIZATION SESSION
+      // --------------------------------------------------
 
       if (
         req.session.orgUser?.organization_id
@@ -5903,42 +5942,8 @@ app.get(
           }`
         );
       }
-
-     const sessionUser =
-  req.session.user;
-
-if (!sessionUser) {
-  return res.redirect("/login");
-}
-
-const role = String(
-  sessionUser.role || ""
-)
-  .trim()
-  .toLowerCase();
-
-const portal = String(
-  req.query.portal || ""
-)
-  .trim()
-  .toLowerCase();
-
-
-// --------------------------------------------------
-// PLATFORM ADMINS
-// --------------------------------------------------
-
-if (
-  role === "super_admin" ||
-  role === "admin"
-) {
-  return res.redirect(
-    role === "super_admin"
-      ? "/platform-admin"
-      : "/admin"
-  );
-}
-
+  
+  
 
 // --------------------------------------------------
 // CHECK ORGANIZATION / ENTERPRISE ACCESS
