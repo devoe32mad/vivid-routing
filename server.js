@@ -4998,7 +4998,9 @@ await q(`
   ALTER TABLE organization_opportunities
   ADD COLUMN IF NOT EXISTS suggested_term_unit
     TEXT DEFAULT 'Months'
-    await q(`
+`);
+
+await q(`
   ALTER TABLE organization_opportunities
   ADD COLUMN IF NOT EXISTS photo_data BYTEA
 `);
