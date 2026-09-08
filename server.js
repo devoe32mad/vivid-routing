@@ -77354,25 +77354,29 @@ const securedPassword =
         name = EXCLUDED.name,
         company_name = EXCLUDED.company_name,
 
-        password =
-          CASE
-            WHEN LOWER(users.role) IN (
-              'customer',
-              'advertiser'
-            )
-            THEN users.password
-            ELSE EXCLUDED.password
-          END,
+       password =
+  CASE
+    WHEN LOWER(users.role) IN (
+      'super_admin',
+      'admin',
+      'customer',
+      'advertiser'
+    )
+    THEN users.password
+    ELSE EXCLUDED.password
+  END,
 
-        role =
-          CASE
-            WHEN LOWER(users.role) IN (
-              'customer',
-              'advertiser'
-            )
-            THEN users.role
-            ELSE 'organization_user'
-          END
+role =
+  CASE
+    WHEN LOWER(users.role) IN (
+      'super_admin',
+      'admin',
+      'customer',
+      'advertiser'
+    )
+    THEN users.role
+    ELSE 'organization_user'
+  END
 
       RETURNING id
     `,
