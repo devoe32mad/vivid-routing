@@ -57980,7 +57980,34 @@ opportunities =
   border-top:1px solid #e7eee7;
   display:flex;
   justify-content:flex-end;
+  gap:10px;
+  flex-wrap:wrap;
 ">
+
+  <form
+    method="POST"
+    action="/org-opportunity/duplicate/${opportunity.id}"
+    onsubmit="return confirm('Create a copy of this opportunity?');"
+    style="margin:0;"
+  >
+    <input
+      type="hidden"
+      name="organization_id"
+      value="${organizationId}"
+    >
+
+    <button
+      class="marketplace-btn secondary"
+      type="submit"
+      style="
+        margin:0;
+        padding:8px 14px;
+        font-size:13px;
+      "
+    >
+      Duplicate Opportunity
+    </button>
+  </form>
 
   <a
     class="marketplace-btn"
@@ -62636,6 +62663,227 @@ if (
     }
   }
 );
+app.post(
+  "/org-opportunity/duplicate/:id",
+  async (req, res) => {
+    try {
+      const opportunityId = Number(
+        req.params.id
+      );
+
+      let organizationId = null;
+
+      if (
+        req.session.orgUser?.organization_id
+      ) {
+        organizationId = Number(
+          req.session.orgUser.organization_id
+        );
+      }
+
+      const platformRole = String(
+        req.session.user?.role || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (
+        !organizationId &&
+        [
+          "super_admin",
+          "admin"
+        ].includes(platformRole)
+      ) {
+        organizationId = Number(
+          req.body.organization_id
+        );
+      }
+
+      if (
+        !Number.isInteger(opportunityId) ||
+        opportunityId <= 0 ||
+        !Number.isInteger(organizationId) ||
+        organizationId <= 0
+      ) {
+        return res.status(400).send(
+          "Valid organization and opportunity are required."
+        );
+      }
+
+      const scope =
+        await getOrganizationScope(
+          req,
+          organizationId
+        );
+
+      const sourceResult = await q(`
+        SELECT
+          id,
+          organization_id,
+          space_id,
+          title,
+          description,
+          category,
+          price,
+          pricing_unit,
+          suggested_term_length,
+          suggested_term_unit,
+          display_order
+
+        FROM organization_opportunities
+
+        WHERE id = $1
+          AND organization_id = $2
+          AND COALESCE(
+            is_active,
+            true
+          ) = true
+
+        LIMIT 1
+      `, [
+        opportunityId,
+        organizationId
+      ]);
+
+      const source =
+        sourceResult.rows[0];
+
+      if (!source) {
+        return res.status(404).send(
+          "Advertising opportunity not found."
+        );
+      }
+
+      const spaceId = Number(
+        source.space_id
+      );
+
+      if (
+        !scope.allowedLocationIds.includes(
+          spaceId
+        )
+      ) {
+        return res.status(403).send(
+          "You do not have access to this location."
+        );
+      }
+
+      let copyNumber = 1;
+      let copyTitle =
+        `${source.title} - Copy`;
+
+      while (true) {
+        const duplicateResult = await q(`
+          SELECT id
+
+          FROM organization_opportunities
+
+          WHERE organization_id = $1
+            AND space_id = $2
+            AND LOWER(TRIM(title)) =
+                LOWER(TRIM($3))
+            AND COALESCE(
+              is_active,
+              true
+            ) = true
+
+          LIMIT 1
+        `, [
+          organizationId,
+          spaceId,
+          copyTitle
+        ]);
+
+        if (!duplicateResult.rows[0]) {
+          break;
+        }
+
+        copyNumber += 1;
+        copyTitle =
+          `${source.title} - Copy ${copyNumber}`;
+      }
+
+      const createdBy =
+        req.session.orgUser?.id ||
+        req.session.user?.id ||
+        null;
+
+      await q(`
+        INSERT INTO organization_opportunities (
+          organization_id,
+          space_id,
+          qr_id,
+          title,
+          description,
+          category,
+          price,
+          annual_price,
+          pricing_unit,
+          suggested_term_length,
+          suggested_term_unit,
+          status,
+          display_order,
+          is_active,
+          created_by,
+          created_at,
+          updated_at
+        )
+
+        VALUES (
+          $1,
+          $2,
+          NULL,
+          $3,
+          $4,
+          $5,
+          $6,
+          $6,
+          $7,
+          $8,
+          $9,
+          'Available',
+          $10,
+          true,
+          $11,
+          CURRENT_TIMESTAMP,
+          CURRENT_TIMESTAMP
+        )
+      `, [
+        organizationId,
+        spaceId,
+        copyTitle,
+        source.description || null,
+        source.category || null,
+        Number(source.price || 0),
+        source.pricing_unit,
+        Number(
+          source.suggested_term_length || 1
+        ),
+        source.suggested_term_unit,
+        Number(
+          source.display_order || 1
+        ) + 1,
+        createdBy
+      ]);
+
+      return res.redirect(
+        `/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}`
+      );
+
+    } catch (err) {
+      console.error(
+        "DUPLICATE ORG OPPORTUNITY ERROR:",
+        err
+      );
+
+      return res.status(500).send(
+        "DUPLICATE ORG OPPORTUNITY ERROR: " +
+        err.message
+      );
+    }
+  }
+);
+
 app.get(
   "/org-opportunity/edit/:opportunityId",
   async (req, res) => {
