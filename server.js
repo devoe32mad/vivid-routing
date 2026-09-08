@@ -62422,7 +62422,11 @@ app.post(
         );
       }
 const scope =
-  await getOrganizationScope(req);
+  await getOrganizationScope(
+    req,
+    organizationId
+  );
+  
 
 if (
   scope.organizationId !== organizationId
