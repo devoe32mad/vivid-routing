@@ -65107,7 +65107,61 @@ app.get(
           "Advertising portal not found."
         );
       }
+      const programsResult = await q(
+        `
+          SELECT
+            id,
+            name,
+            description,
+            display_order
 
+          FROM organization_programs
+
+          WHERE organization_id = $1
+            AND COALESCE(is_active, true) = true
+
+          ORDER BY
+            display_order,
+            name
+        `,
+        [organization.id]
+      );
+
+      const programs =
+        programsResult.rows;
+              const requestedProgramValue =
+        String(
+          req.query.program_id || ""
+        ).trim();
+
+      const requestedProgramId =
+        Number(requestedProgramValue);
+
+      const selectedProgram =
+        programs.find(
+          program =>
+            Number(program.id) ===
+            requestedProgramId
+        ) || null;
+
+      const selectedProgramId =
+        selectedProgram
+          ? Number(selectedProgram.id)
+          : null;
+
+      const showAllPrograms =
+        requestedProgramValue.toLowerCase() ===
+        "all";
+
+      const showLocations =
+        showAllPrograms ||
+        Boolean(selectedProgram);
+              const selectedProgramQuery =
+        showAllPrograms
+          ? "all"
+          : String(
+              selectedProgramId || ""
+            );
       /*
         Load all active organization locations and count
         opportunities that are publicly available today.
@@ -65145,10 +65199,17 @@ app.get(
 
         FROM spaces s
 
-        LEFT JOIN organization_opportunities oo
+                LEFT JOIN organization_opportunities oo
           ON oo.space_id = s.id
          AND oo.organization_id =
              s.organization_id
+         AND (
+           $2::int IS NULL
+           OR oo.program_id = $2
+         )
+          
+         
+             
 
         WHERE s.organization_id = $1
           AND COALESCE(
@@ -65175,9 +65236,14 @@ HAVING COUNT(
       OR oo.available_until >= CURRENT_DATE
     )
 ) > 0
-        ORDER BY
+                ORDER BY
           s.name
-      `, [organization.id]);
+      `, [
+        organization.id,
+        selectedProgramId
+      ]);
+          
+      
 
       const locations =
         locationsResult.rows;
@@ -65210,6 +65276,86 @@ HAVING COUNT(
             >
           `
           : "";
+      const programCards = [
+        {
+          id: "all",
+          name: "All Opportunities",
+          description:
+            "Explore every currently available opportunity."
+        },
+        ...programs
+      ]
+        .map(program => {
+          const programValue =
+            String(program.id);
+
+          return `
+            <a
+              href="/advertise/${encodeURIComponent(
+                organization.slug
+              )}?program_id=${encodeURIComponent(
+                programValue
+              )}"
+              style="
+                display:flex;
+                flex-direction:column;
+                justify-content:space-between;
+                min-height:190px;
+                padding:22px;
+                background:white;
+                border:1px solid #dbe5dd;
+                border-radius:18px;
+                box-shadow:0 8px 24px rgba(0,0,0,.05);
+                color:#24382c;
+                text-decoration:none;
+              "
+            >
+              <div>
+                <div style="
+                  color:#176b3a;
+                  font-size:12px;
+                  font-weight:bold;
+                  letter-spacing:.06em;
+                  text-transform:uppercase;
+                  margin-bottom:9px;
+                ">
+                  Program
+                </div>
+
+                <h2 style="
+                  margin:0;
+                  color:#17482f;
+                  font-size:21px;
+                  line-height:1.3;
+                ">
+                  ${escapeHtml(program.name)}
+                </h2>
+
+                <p style="
+                  margin:10px 0 0;
+                  color:#65776b;
+                  font-size:14px;
+                  line-height:1.5;
+                ">
+                  ${escapeHtml(
+                    program.description ||
+                    "View available opportunities in this Program."
+                  )}
+                </p>
+              </div>
+
+              <div style="
+                margin-top:18px;
+                color:#176b3a;
+                font-weight:bold;
+                font-size:14px;
+              ">
+                Explore Program →
+              </div>
+            </a>
+          `;
+        })
+        .join("");
 
       const locationCards =
         locations.length > 0
@@ -65243,9 +65389,13 @@ const actionHtml =
   availableCount > 0
     ? `
       <a
-        href="/advertise/${encodeURIComponent(
+                href="/advertise/${encodeURIComponent(
           organization.slug
-        )}/location/${location.id}"
+        )}/location/${location.id}?program_id=${encodeURIComponent(
+          selectedProgramQuery
+        )}"
+          
+        
         style="
           display:inline-flex;
           align-items:center;
@@ -65473,54 +65623,98 @@ margin-top:10px;
 
           </header>
 
-          <main class="public-portal-main">
+               <main class="public-portal-main">
 
-            <div style="
-              margin-bottom:20px;
-            ">
-           <section style="
-    max-width:1400px;
-    margin:0 auto 50px;
-    text-align:center;
-">
+            ${
+              !showLocations
+                ? `
+                  <section style="
+                    max-width:1400px;
+                    margin:0 auto 50px;
+                    text-align:center;
+                  ">
 
-<h2 style="
-    margin:0 0 12px;
-    font-size:48px;
-    color:#163d2d;
-">
-    Choose a Location
-</h2>
+                    <h2 style="
+                      margin:0 0 12px;
+                      font-size:clamp(32px,5vw,48px);
+                      color:#163d2d;
+                    ">
+                      Choose a Program
+                    </h2>
 
-<p style="
-    max-width:760px;
-    margin:0 auto 42px;
-    color:#66786f;
-    font-size:20px;
-    line-height:1.6;
-">
-    Select a location to explore its currently available advertising opportunities.
-</p>
+                    <p style="
+                      max-width:760px;
+                      margin:0 auto 34px;
+                      color:#66786f;
+                      font-size:18px;
+                      line-height:1.6;
+                    ">
+                      Select how you would like to support or connect with
+                      ${escapeHtml(organization.name)}.
+                    </p>
 
-          
-            </div>
+                    <div class="public-location-grid">
+                      ${programCards}
+                    </div>
 
-       <div
-  class="public-location-grid"
-  style="
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(240px, 280px));
-    justify-content:center;
-    gap:20px;
-    width:100%;
-    max-width:1400px;
-    margin:0 auto;
-  "
->
-  ${locationCards}
-</div>
+                  </section>
+                `
+                : `
+                  <section style="
+                    max-width:1400px;
+                    margin:0 auto 50px;
+                    text-align:center;
+                  ">
+
+                    <a
+                      href="/advertise/${encodeURIComponent(
+                        organization.slug
+                      )}"
+                      style="
+                        display:inline-block;
+                        margin-bottom:22px;
+                        color:#176b3a;
+                        font-weight:bold;
+                        text-decoration:none;
+                      "
+                    >
+                      ← View All Programs
+                    </a>
+
+                    <h2 style="
+                      margin:0 0 12px;
+                      font-size:clamp(32px,5vw,48px);
+                      color:#163d2d;
+                    ">
+                      ${
+                        showAllPrograms
+                          ? "All Opportunities"
+                          : escapeHtml(
+                              selectedProgram.name
+                            )
+                      }
+                    </h2>
+
+                    <p style="
+                      max-width:760px;
+                      margin:0 auto 34px;
+                      color:#66786f;
+                      font-size:18px;
+                      line-height:1.6;
+                    ">
+                      Choose a location to view currently available opportunities.
+                    </p>
+
+                    <div class="public-location-grid">
+                      ${locationCards}
+                    </div>
+
+                  </section>
+                `
+            }
 
           </main>
+   
 
         </body>
 
