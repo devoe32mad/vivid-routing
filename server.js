@@ -63534,43 +63534,7 @@ if (
         }
       }
 
-      /*
-        Prevent duplicate active opportunity names
-        within the same location.
-      */
-      const duplicateResult = await q(`
-        SELECT id
-
-        FROM organization_opportunities
-
-        WHERE organization_id = $1
-          AND space_id = $2
-          AND LOWER(TRIM(title)) =
-              LOWER(TRIM($3))
-          AND COALESCE(
-            is_active,
-            true
-          ) = true
-
-        LIMIT 1
-      `, [
-        organizationId,
-        spaceId,
-        title
-      ]);
-
-      if (duplicateResult.rows[0]) {
-        return res.status(409).send(`
-          An active advertising opportunity with this
-          name already exists at ${location.name}.
-          <br><br>
-
-          <a href="/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}">
-            Back to Advertising Inventory
-          </a>
-        `);
-      }
-
+      
       const createdBy =
         req.session.orgUser?.id ||
         req.session.user?.id ||
@@ -64821,41 +64785,7 @@ if (!allowedTermUnits.includes(suggestedTermUnit)) {
         }
       }
 
-      /*
-        Prevent duplicate active titles at the same
-        location, excluding the record being edited.
-      */
-      const duplicateResult = await q(`
-        SELECT id
-
-        FROM organization_opportunities
-
-        WHERE organization_id = $1
-          AND space_id = $2
-          AND id <> $3
-          AND LOWER(TRIM(title)) =
-              LOWER(TRIM($4))
-          AND COALESCE(is_active, true) = true
-
-        LIMIT 1
-      `, [
-        organizationId,
-        spaceId,
-        opportunityId,
-        title
-      ]);
-
-      if (duplicateResult.rows[0]) {
-        return res.status(409).send(`
-          Another active advertising opportunity with
-          this name already exists at
-          ${current.location_name}.
-          <br><br>
-          <a href="/org-opportunity/edit/${opportunityId}?organization_id=${organizationId}">
-            Back to Edit Opportunity
-          </a>
-        `);
-      }
+  
 
         await q(
         `
