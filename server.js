@@ -58818,6 +58818,30 @@ ${opportunity.has_photo ? `
     "
   >
 ` : ""}
+<div class="marketplace-label">
+  Program
+</div>
+
+<div class="marketplace-value">
+  ${
+    opportunity.program_id
+      ? `
+          <a
+            href="/org-marketplace?organization_id=${organizationId}&location_id=${opportunity.space_id}&program_id=${opportunity.program_id}"
+            style="
+              color:#2563eb;
+              text-decoration:none;
+              font-weight:bold;
+            "
+          >
+            ${escapeHtml(
+              opportunity.program_name || "Program"
+            )}
+          </a>
+        `
+      : "Not Assigned"
+  }
+</div>
         <div class="marketplace-label">
           Location
         </div>
@@ -59129,7 +59153,7 @@ onsubmit="return confirm('Duplicate this opportunity?');"
   color:#65776b;
   margin-bottom:18px;
 ">
-  ${selectedLocationName}
+  ${selectedLocationName} · ${selectedProgramName}
 </div>
       
 
@@ -63872,8 +63896,9 @@ app.post(
 
       await q(`
         INSERT INTO organization_opportunities (
-          organization_id,
+                    organization_id,
           space_id,
+          program_id,
           qr_id,
           title,
           description,
@@ -63891,28 +63916,32 @@ app.post(
           updated_at
         )
 
-        VALUES (
+                VALUES (
           $1,
           $2,
-          NULL,
           $3,
+          NULL,
           $4,
           $5,
           $6,
-          $6,
+          $7,
           $7,
           $8,
           $9,
-          'Available',
           $10,
-          true,
+          'Available',
           $11,
+          true,
+          $12,
           CURRENT_TIMESTAMP,
           CURRENT_TIMESTAMP
         )
+          
+        
       `, [
-        organizationId,
+                organizationId,
         spaceId,
+        source.program_id || null,
         copyTitle,
         source.description || null,
         source.category || null,
