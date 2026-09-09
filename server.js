@@ -58849,7 +58849,30 @@ ${opportunity.has_photo ? `
         <div class="marketplace-value">
           ${opportunity.location_name}
         </div>
+        <div class="marketplace-label">
+          Program
+        </div>
 
+        <div class="marketplace-value">
+          ${
+            opportunity.program_id
+              ? `
+                  <a
+                    href="/org-marketplace?organization_id=${organizationId}&location_id=${opportunity.space_id}&program_id=${opportunity.program_id}"
+                    style="
+                      color:#2563eb;
+                      text-decoration:none;
+                    "
+                  >
+                    ${escapeHtml(
+                      opportunity.program_name ||
+                      "Program"
+                    )}
+                  </a>
+                `
+              : "Not Assigned"
+          }
+        </div>
         <div class="marketplace-label">
           Advertising Opportunity
         </div>
