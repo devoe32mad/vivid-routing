@@ -65986,21 +65986,17 @@ app.get(
             OR oo.available_until >= CURRENT_DATE
           )
 
-        ORDER BY
+                ORDER BY
           display_order,
           opportunity_group NULLS LAST,
           placement NULLS LAST,
           opportunity_name,
           oo.id
-              WHERE oo.organization_id = $1
-          AND oo.space_id = $2
-          AND (
-            $3::int IS NULL
-            OR oo.program_id = $3
-          )
-        
-        
-      
+      `, [
+        organization.id,
+        location.id,
+        selectedProgramId
+      ]);
 
       const opportunities =
         opportunitiesResult.rows;
