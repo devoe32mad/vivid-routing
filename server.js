@@ -65784,6 +65784,19 @@ app.get(
       /*
         Load and validate the organization.
       */
+           const requestedProgramValue =
+        String(
+          req.query.program_id || "all"
+        ).trim();
+
+      const requestedProgramId =
+        Number(requestedProgramValue);
+
+      const selectedProgramId =
+        Number.isInteger(requestedProgramId) &&
+        requestedProgramId > 0
+          ? requestedProgramId
+          : null;
       const organizationResult = await q(`
         SELECT
           id,
@@ -65947,8 +65960,13 @@ app.get(
 
         FROM organization_opportunities oo
 
-        WHERE oo.organization_id = $1
+                WHERE oo.organization_id = $1
           AND oo.space_id = $2
+          AND (
+            $3::int IS NULL
+            OR oo.program_id = $3
+          )
+          
 
           AND COALESCE(
             oo.is_active,
@@ -65973,10 +65991,15 @@ app.get(
           placement NULLS LAST,
           opportunity_name,
           oo.id
-      `, [
-        organization.id,
-        location.id
-      ]);
+              WHERE oo.organization_id = $1
+          AND oo.space_id = $2
+          AND (
+            $3::int IS NULL
+            OR oo.program_id = $3
+          )
+        
+        
+      
 
       const opportunities =
         opportunitiesResult.rows;
