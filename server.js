@@ -65870,7 +65870,8 @@ app.get(
         remains compatible with the opportunity naming
         fields already used by the Marketplace builder.
       */
-      const opportunitiesResult = await q(`
+      const opportunitiesResult =
+       await q(`
         SELECT
           oo.id,
 
