@@ -3819,6 +3819,58 @@ await q(`
     UNIQUE (organization_id, user_id)
   )
 `);
+/*
+=========================================================
+ORGANIZATION PROGRAMS
+Separate responsibility for Athletics, Campus,
+Magazine, Giving, and other revenue programs.
+=========================================================
+*/
+
+await q(`
+  CREATE TABLE IF NOT EXISTS organization_programs (
+    id SERIAL PRIMARY KEY,
+
+    organization_id INTEGER NOT NULL
+      REFERENCES organizations(id)
+      ON DELETE CASCADE,
+
+    name TEXT NOT NULL,
+    description TEXT,
+
+    display_order INTEGER NOT NULL DEFAULT 1,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (organization_id, name)
+  )
+`);
+
+await q(`
+  CREATE TABLE IF NOT EXISTS organization_program_users (
+    id SERIAL PRIMARY KEY,
+
+    program_id INTEGER NOT NULL
+      REFERENCES organization_programs(id)
+      ON DELETE CASCADE,
+
+    organization_user_id INTEGER NOT NULL
+      REFERENCES organization_users(id)
+      ON DELETE CASCADE,
+
+    access_level TEXT NOT NULL DEFAULT 'manager',
+
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (
+      program_id,
+      organization_user_id
+    )
+  )
+`);
  await q(`
   CREATE TABLE IF NOT EXISTS location_users (
     id SERIAL PRIMARY KEY,
@@ -4967,6 +5019,18 @@ CREATE TABLE IF NOT EXISTS organization_opportunities (
     updated_at TIMESTAMP
       DEFAULT CURRENT_TIMESTAMP
 )
+`);
+await q(`
+  ALTER TABLE organization_opportunities
+  ADD COLUMN IF NOT EXISTS program_id INTEGER
+    REFERENCES organization_programs(id)
+    ON DELETE SET NULL
+`);
+
+await q(`
+  CREATE INDEX IF NOT EXISTS
+    idx_org_opportunities_program
+  ON organization_opportunities(program_id)
 `);
 /*
 =========================================================
