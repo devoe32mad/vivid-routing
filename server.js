@@ -37267,7 +37267,42 @@ if (!canAccessAdministration) {
             Open Users →
           </div>
         </a>
+<a
+  href="/org-programs?organization_id=${organizationId}"
+  style="
+    background:white;
+    border-radius:18px;
+    padding:24px;
+    box-shadow:0 8px 22px rgba(0,0,0,.08);
+    text-decoration:none;
+    color:#0B1F3A;
+    display:block;
+  "
+>
+  <div style="
+    font-size:21px;
+    font-weight:bold;
+    margin-bottom:8px;
+  ">
+    Programs
+  </div>
 
+  <div style="
+    color:#5F6B7A;
+    line-height:1.5;
+  ">
+    Separate Campus, Athletics, Magazine,
+    and Giving responsibilities.
+  </div>
+
+  <div style="
+    margin-top:18px;
+    color:#2563EB;
+    font-weight:bold;
+  ">
+    Open Programs →
+  </div>
+</a>
         <a
           href="/org-bulk-import?organization_id=${organizationId}"
           style="
@@ -40716,6 +40751,664 @@ app.get("/org-revenue", async (req, res) => {
     </div>
   `));
 });
+/*
+=========================================================
+ORGANIZATION PROGRAMS PAGE
+=========================================================
+*/
+
+app.get(
+  "/org-programs",
+  requireOrganizationPermission(
+    "manage_permissions"
+  ),
+  async (req, res) => {
+    try {
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.query.organization_id
+          )
+        );
+
+      const organizationId =
+        scope.organizationId;
+
+      const organizationResult =
+        await q(
+          `
+            SELECT id, name
+            FROM organizations
+            WHERE id = $1
+              AND COALESCE(
+                is_active,
+                true
+              ) = true
+            LIMIT 1
+          `,
+          [organizationId]
+        );
+
+      const organization =
+        organizationResult.rows[0];
+
+      if (!organization) {
+        return res
+          .status(404)
+          .send(
+            "Organization not found."
+          );
+      }
+
+      const programsResult =
+        await q(
+          `
+            SELECT
+              op.id,
+              op.name,
+              op.description,
+              op.is_active,
+
+              (
+                SELECT COUNT(*)::int
+                FROM organization_opportunities oo
+                WHERE oo.program_id = op.id
+                  AND COALESCE(
+                    oo.is_active,
+                    true
+                  ) = true
+              ) AS opportunity_count,
+
+              (
+                SELECT STRING_AGG(
+                  COALESCE(
+                    NULLIF(
+                      TRIM(u.name),
+                      ''
+                    ),
+                    u.email
+                  ),
+                  ', '
+                )
+
+                FROM organization_program_users opu
+
+                JOIN organization_users ou
+                  ON ou.id =
+                    opu.organization_user_id
+
+                JOIN users u
+                  ON u.id = ou.user_id
+
+                WHERE opu.program_id =
+                      op.id
+
+                  AND COALESCE(
+                    opu.is_active,
+                    true
+                  ) = true
+
+                  AND COALESCE(
+                    ou.is_active,
+                    true
+                  ) = true
+
+              ) AS manager_names
+
+            FROM organization_programs op
+
+            WHERE op.organization_id = $1
+
+            ORDER BY
+              op.display_order,
+              op.name
+          `,
+          [organizationId]
+        );
+
+      const usersResult =
+        await q(
+          `
+            SELECT
+              ou.id AS
+                organization_user_id,
+              u.name,
+              u.email
+
+            FROM organization_users ou
+
+            JOIN users u
+              ON u.id = ou.user_id
+
+            WHERE ou.organization_id = $1
+              AND COALESCE(
+                ou.is_active,
+                true
+              ) = true
+
+            ORDER BY
+              COALESCE(
+                NULLIF(
+                  TRIM(u.name),
+                  ''
+                ),
+                u.email
+              )
+          `,
+          [organizationId]
+        );
+
+      const managerOptions =
+        usersResult.rows
+          .map(user => `
+            <option
+              value="${
+                user.organization_user_id
+              }"
+            >
+              ${escapeHtml(
+                user.name ||
+                user.email
+              )}
+            </option>
+          `)
+          .join("");
+
+      const programCards =
+        programsResult.rows.length
+          ? programsResult.rows
+              .map(program => `
+                <div class="card">
+
+                  <div style="
+                    display:flex;
+                    justify-content:
+                      space-between;
+                    gap:16px;
+                  ">
+
+                    <div>
+                      <h2 style="
+                        margin:0 0 8px;
+                      ">
+                        ${escapeHtml(
+                          program.name
+                        )}
+                      </h2>
+
+                      <p style="
+                        margin:0;
+                        color:#5F6B7A;
+                      ">
+                        ${escapeHtml(
+                          program.description ||
+                          "No description added."
+                        )}
+                      </p>
+                    </div>
+
+                    <strong>
+                      ${
+                        program.is_active
+                          ? "Active"
+                          : "Inactive"
+                      }
+                    </strong>
+
+                  </div>
+
+                  <div style="
+                    margin-top:18px;
+                    display:grid;
+                    grid-template-columns:
+                      repeat(2,1fr);
+                    gap:14px;
+                  ">
+
+                    <div>
+                      <small>
+                        Program Manager
+                      </small>
+                      <br>
+                      <strong>
+                        ${escapeHtml(
+                          program.manager_names ||
+                          "Not assigned"
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <small>
+                        Opportunities
+                      </small>
+                      <br>
+                      <strong>
+                        ${
+                          program.opportunity_count ||
+                          0
+                        }
+                      </strong>
+                    </div>
+
+                  </div>
+
+                </div>
+              `)
+              .join("")
+          : `
+              <div class="card">
+                <h2>
+                  No Programs Yet
+                </h2>
+
+                <p>
+                  Create the first program
+                  for this organization.
+                </p>
+              </div>
+            `;
+
+      return res.send(
+        orgPage(
+          `Programs - ${
+            organization.name
+          }`,
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Programs</h1>
+
+              <p class="subtitle">
+                Separate revenue programs
+                and assign responsibility.
+              </p>
+            </div>
+
+            <div class="wrap">
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  minmax(0,1.5fr)
+                  minmax(300px,.8fr);
+                gap:22px;
+                align-items:start;
+              ">
+
+                <div style="
+                  display:grid;
+                  gap:18px;
+                ">
+                  ${programCards}
+                </div>
+
+                <div class="card">
+
+                  <h2 style="margin-top:0;">
+                    Add Program
+                  </h2>
+
+                  <form
+                    method="POST"
+                    action="/org-programs"
+                  >
+
+                    <input
+                      type="hidden"
+                      name="organization_id"
+                      value="${organizationId}"
+                    >
+
+                    <label>
+                      Program Name
+                    </label>
+
+                    <input
+                      type="text"
+                      name="name"
+                      maxlength="120"
+                      required
+                      placeholder=
+                        "Example: Campus Advertising"
+                    >
+
+                    <label>
+                      Description
+                    </label>
+
+                    <textarea
+                      name="description"
+                      rows="4"
+                      maxlength="500"
+                      placeholder=
+                        "What this program manages"
+                    ></textarea>
+
+                    <label>
+                      Primary Manager
+                    </label>
+
+                    <select
+                      name=
+                        "organization_user_id"
+                    >
+                      <option value="">
+                        Assign later
+                      </option>
+
+                      ${managerOptions}
+                    </select>
+
+                    <button
+                      class="btn"
+                      type="submit"
+                    >
+                      Create Program
+                    </button>
+
+                  </form>
+
+                  <a
+                    class="btn secondary"
+                    href="/org-operations?organization_id=${organizationId}"
+                    style="margin-top:10px;"
+                  >
+                    Back to Administration
+                  </a>
+
+                </div>
+
+              </div>
+
+            </div>
+          `
+        )
+      );
+
+    } catch (err) {
+      console.error(
+        "ORGANIZATION PROGRAMS PAGE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "ORGANIZATION PROGRAMS PAGE ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+/*
+=========================================================
+CREATE ORGANIZATION PROGRAM
+=========================================================
+*/
+
+app.post(
+  "/org-programs",
+  requireOrganizationPermission(
+    "manage_permissions"
+  ),
+  async (req, res) => {
+    const client =
+      await pool.connect();
+
+    try {
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.body.organization_id
+          )
+        );
+
+      const organizationId =
+        scope.organizationId;
+
+      const name = String(
+        req.body.name || ""
+      ).trim();
+
+      const description = String(
+        req.body.description || ""
+      ).trim();
+
+      const submittedUserId =
+        String(
+          req.body
+            .organization_user_id ||
+          ""
+        ).trim();
+
+      const organizationUserId =
+        submittedUserId
+          ? Number(submittedUserId)
+          : null;
+
+      if (!name) {
+        return res
+          .status(400)
+          .send(
+            "Program Name is required."
+          );
+      }
+
+      if (
+        name.length > 120 ||
+        description.length > 500
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Program information is too long."
+          );
+      }
+
+      await client.query("BEGIN");
+
+      const duplicateResult =
+        await client.query(
+          `
+            SELECT id
+
+            FROM organization_programs
+
+            WHERE organization_id = $1
+
+              AND LOWER(
+                TRIM(name)
+              ) = LOWER(
+                TRIM($2)
+              )
+
+            LIMIT 1
+          `,
+          [
+            organizationId,
+            name
+          ]
+        );
+
+      if (
+        duplicateResult.rows[0]
+      ) {
+        await client.query(
+          "ROLLBACK"
+        );
+
+        return res
+          .status(409)
+          .send(
+            "A program with this name already exists."
+          );
+      }
+
+      if (
+        organizationUserId !== null
+      ) {
+        const userResult =
+          await client.query(
+            `
+              SELECT id
+
+              FROM organization_users
+
+              WHERE id = $1
+                AND organization_id = $2
+
+                AND COALESCE(
+                  is_active,
+                  true
+                ) = true
+
+              LIMIT 1
+            `,
+            [
+              organizationUserId,
+              organizationId
+            ]
+          );
+
+        if (!userResult.rows[0]) {
+          await client.query(
+            "ROLLBACK"
+          );
+
+          return res
+            .status(400)
+            .send(
+              "Select a valid program manager."
+            );
+        }
+      }
+
+      const insertResult =
+        await client.query(
+          `
+            INSERT INTO
+              organization_programs
+            (
+              organization_id,
+              name,
+              description,
+              display_order,
+              is_active,
+              created_at,
+              updated_at
+            )
+
+            VALUES
+            (
+              $1,
+              $2,
+              $3,
+
+              (
+                SELECT
+                  COALESCE(
+                    MAX(display_order),
+                    0
+                  ) + 1
+
+                FROM
+                  organization_programs
+
+                WHERE
+                  organization_id = $1
+              ),
+
+              true,
+              CURRENT_TIMESTAMP,
+              CURRENT_TIMESTAMP
+            )
+
+            RETURNING id
+          `,
+          [
+            organizationId,
+            name,
+            description || null
+          ]
+        );
+
+      const programId = Number(
+        insertResult.rows[0].id
+      );
+
+      if (
+        organizationUserId !== null
+      ) {
+        await client.query(
+          `
+            INSERT INTO
+              organization_program_users
+            (
+              program_id,
+              organization_user_id,
+              access_level,
+              is_active,
+              created_at
+            )
+
+            VALUES
+            (
+              $1,
+              $2,
+              'manager',
+              true,
+              CURRENT_TIMESTAMP
+            )
+          `,
+          [
+            programId,
+            organizationUserId
+          ]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      return res.redirect(
+        `/org-programs?organization_id=${organizationId}`
+      );
+
+    } catch (err) {
+      try {
+        await client.query(
+          "ROLLBACK"
+        );
+      } catch (rollbackErr) {
+        console.error(
+          "CREATE PROGRAM ROLLBACK ERROR:",
+          rollbackErr
+        );
+      }
+
+      console.error(
+        "CREATE ORGANIZATION PROGRAM ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "CREATE ORGANIZATION PROGRAM ERROR: " +
+          err.message
+        );
+
+    } finally {
+      client.release();
+    }
+  }
+);
+
 app.get("/org-permissions", async (req, res) => {
   res.send(orgPage("Organization Permissions", `
     <div class="topbar">
