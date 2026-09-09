@@ -63925,7 +63925,8 @@ SELECT
   oo.id,
   oo.organization_id,
   oo.space_id,
-  oo.qr_id,
+  oo.program_id,
+  oo.qr_id,  
 
   oo.title,
   oo.description,
@@ -64007,7 +64008,41 @@ SELECT
           </option>
         `)
         .join("");
+      const programsResult = await q(
+        `
+          SELECT
+            id,
+            name
 
+          FROM organization_programs
+
+          WHERE organization_id = $1
+            AND COALESCE(is_active, true) = true
+
+          ORDER BY
+            display_order,
+            name
+        `,
+        [organizationId]
+      );
+
+      const programOptions = programsResult.rows
+        .map(
+          (program) => `
+            <option
+              value="${program.id}"
+              ${
+                Number(program.id) ===
+                Number(opportunity.program_id)
+                  ? "selected"
+                  : ""
+              }
+            >
+              ${escapeHtml(program.name)}
+            </option>
+          `
+        )
+        .join("");
       return res.send(
         marketplacePage(
           `Edit Opportunity - ${opportunity.location_name}`,
@@ -64128,7 +64163,26 @@ SELECT
                         style="margin:0;"
                       >
                     </div>
+                    <div>
+                      <label style="
+                        display:block;
+                        font-weight:bold;
+                        margin-bottom:7px;
+                      ">
+                        Program
+                      </label>
 
+                      <select
+                        name="program_id"
+                        required
+                        style="margin:0;"
+                      >
+                        <option value="">
+                          Select Program
+                        </option>
+                        ${programOptions}
+                      </select>
+                    </div>
                     <div>
                       <label style="
                         display:block;
@@ -64513,7 +64567,9 @@ app.post(
       const spaceId = Number(
         req.body.space_id
       );
-
+      const programId = Number(
+        req.body.program_id
+      );
       const title = String(
         req.body.title || ""
       ).trim();
@@ -64564,16 +64620,18 @@ const suggestedTermUnit = String(
           ? null
           : Number(req.body.qr_id);
 
-      if (
+          if (
         !Number.isInteger(opportunityId) ||
         opportunityId <= 0 ||
         !Number.isInteger(organizationId) ||
         organizationId <= 0 ||
         !Number.isInteger(spaceId) ||
-        spaceId <= 0
+        spaceId <= 0 ||
+        !Number.isInteger(programId) ||
+        programId <= 0
       ) {
         return res.status(400).send(
-          "Valid opportunity, organization, and location are required."
+          "Valid opportunity, organization, location, and program are required."
         );
       }
 
@@ -64707,7 +64765,35 @@ if (!allowedTermUnits.includes(suggestedTermUnit)) {
           "Active advertising opportunity not found."
         );
       }
+      /*
+        Confirm that the selected active Program belongs
+        to the selected organization.
+      */
+      const programResult = await q(
+        `
+          SELECT
+            id,
+            name
 
+          FROM organization_programs
+
+          WHERE id = $1
+            AND organization_id = $2
+            AND COALESCE(is_active, true) = true
+
+          LIMIT 1
+        `,
+        [
+          programId,
+          organizationId
+        ]
+      );
+
+      if (!programResult.rows[0]) {
+        return res.status(400).send(
+          "The selected Program does not belong to this organization."
+        );
+      }
       /*
         Confirm an optional QR belongs to the same
         Vivid location.
@@ -64771,65 +64857,70 @@ if (!allowedTermUnits.includes(suggestedTermUnit)) {
         `);
       }
 
-    await q(`
-  UPDATE organization_opportunities
+        await q(
+        `
+          UPDATE organization_opportunities
 
-  SET
-    qr_id = $1,
-    title = $2,
-    description = $3,
-    category = $4,
+          SET
+            program_id = $1,
+            qr_id = $2,
+            title = $3,
+            description = $4,
+            category = $5,
 
-    photo_data = COALESCE(
-      $5,
-      photo_data
-    ),
-    photo_mime_type = COALESCE(
-      $6,
-      photo_mime_type
-    ),
-    photo_file_name = COALESCE(
-      $7,
-      photo_file_name
-    ),
+            photo_data = COALESCE(
+              $6,
+              photo_data
+            ),
+            photo_mime_type = COALESCE(
+              $7,
+              photo_mime_type
+            ),
+            photo_file_name = COALESCE(
+              $8,
+              photo_file_name
+            ),
 
-    price = $8,
-    annual_price = $8,
-    pricing_unit = $9,
-    suggested_term_length = $10,
-    suggested_term_unit = $11,
+            price = $9,
+            annual_price = $9,
+            pricing_unit = $10,
+            suggested_term_length = $11,
+            suggested_term_unit = $12,
 
-    status = $12,
-    display_order = $13,
-    updated_at = CURRENT_TIMESTAMP
+            status = $13,
+            display_order = $14,
+            updated_at = CURRENT_TIMESTAMP
 
-  WHERE id = $14
-    AND organization_id = $15
-    AND space_id = $16
-    AND COALESCE(is_active, true) = true
-`, [
-  qrId,
-  title,
-  description || null,
-  category || null,
+          WHERE id = $15
+            AND organization_id = $16
+            AND space_id = $17
+            AND COALESCE(is_active, true) = true
+        `,
+        [
+          programId,               // $1
+          qrId,                    // $2
+          title,                   // $3
+          description || null,     // $4
+          category || null,        // $5
 
-  photoData,
-  photoMimeType,
-  photoFileName,
+          photoData,               // $6
+          photoMimeType,           // $7
+          photoFileName,           // $8
 
-  price,
-  pricingUnit,
-  suggestedTermLength,
-  suggestedTermUnit,
+          price,                   // $9
+          pricingUnit,             // $10
+          suggestedTermLength,     // $11
+          suggestedTermUnit,       // $12
 
-  status,
-  displayOrder,
+          status,                  // $13
+          displayOrder,            // $14
 
-  opportunityId,
-  organizationId,
-  spaceId
-]);
-
+          opportunityId,           // $15
+          organizationId,          // $16
+          spaceId                  // $17
+        ]
+      );
+ 
 
         return res.redirect(
         `/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}`
