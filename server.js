@@ -5039,18 +5039,8 @@ Vivid Core remains authoritative for actual dates,
 contract days, allocation and reporting.
 =========================================================
 */
-await q(`
-  ALTER TABLE organization_opportunities
-  ADD COLUMN IF NOT EXISTS program_id INTEGER
-    REFERENCES organization_programs(id)
-    ON DELETE SET NULL
-`);
 
-await q(`
-  CREATE INDEX IF NOT EXISTS
-    idx_organization_opportunities_program
-  ON organization_opportunities(program_id)
-`);
+
 await q(`
   ALTER TABLE organization_opportunities
   ADD COLUMN IF NOT EXISTS price
