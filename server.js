@@ -62762,7 +62762,33 @@ const spaceId =
           </option>
         `)
         .join("");
+const programsResult = await q(
+  `
+    SELECT
+      id,
+      name
 
+    FROM organization_programs
+
+    WHERE organization_id = $1
+      AND COALESCE(is_active, true) = true
+
+    ORDER BY
+      display_order,
+      name
+  `,
+  [organizationId]
+);
+
+const programOptions = programsResult.rows
+  .map(
+    (program) => `
+      <option value="${program.id}">
+        ${escapeHtml(program.name)}
+      </option>
+    `
+  )
+  .join("");
       return res.send(
         marketplacePage(
           `Add Sponsorship - ${location.name}`,
@@ -62882,7 +62908,24 @@ const spaceId =
         style="margin:0;"
       >
     </div>
+    <div>
+      <label style="
+        display:block;
+        font-weight:bold;
+        margin-bottom:7px;
+      ">
+        Program
+      </label>
 
+      <select
+        name="program_id"
+        required
+        style="margin:0;"
+      >
+        <option value="">Select Program</option>
+        ${programOptions}
+      </select>
+    </div>
     <div>
       <label style="
         display:block;
@@ -63201,7 +63244,9 @@ app.post(
       const spaceId = Number(
         req.body.space_id
       );
-
+      const programId = Number(
+        req.body.program_id
+      );
       const title = String(
         req.body.title || ""
       ).trim();
@@ -63253,14 +63298,16 @@ const photoFileName =
       /*
         Validate organization and location IDs.
       */
-      if (
+            if (
         !Number.isInteger(organizationId) ||
         organizationId <= 0 ||
         !Number.isInteger(spaceId) ||
-        spaceId <= 0
+        spaceId <= 0 ||
+        !Number.isInteger(programId) ||
+        programId <= 0
       ) {
         return res.status(400).send(
-          "Valid organization and location are required."
+          "Valid organization, location, and program are required."
         );
       }
 
@@ -63422,7 +63469,38 @@ if (
           "Active organization location not found."
         );
       }
+      /*
+        Confirm that the selected active Program belongs
+        to the selected organization.
+      */
+      const programResult = await q(
+        `
+          SELECT
+            id,
+            name
 
+          FROM organization_programs
+
+          WHERE id = $1
+            AND organization_id = $2
+            AND COALESCE(is_active, true) = true
+
+          LIMIT 1
+        `,
+        [
+          programId,
+          organizationId
+        ]
+      );
+
+      const program =
+        programResult.rows[0];
+
+      if (!program) {
+        return res.status(400).send(
+          "The selected Program does not belong to this organization."
+        );
+      }
       /*
         When a QR placement is selected, confirm that
         it belongs to this exact Vivid location.
@@ -63502,82 +63580,85 @@ if (
         annual_price temporarily mirrors price so that
         older code remains compatible during conversion.
       */
-     await q(`
-  INSERT INTO organization_opportunities (
-    organization_id,
-    space_id,
-    qr_id,
-    title,
-    description,
-    category,
+       await q(
+        `
+          INSERT INTO organization_opportunities (
+            organization_id,
+            space_id,
+            program_id,
+            qr_id,
+            title,
+            description,
+            category,
 
-    photo_data,
-    photo_mime_type,
-    photo_file_name,
+            photo_data,
+            photo_mime_type,
+            photo_file_name,
 
-    price,
-    annual_price,
-    pricing_unit,
-    suggested_term_length,
-    suggested_term_unit,
+            price,
+            annual_price,
+            pricing_unit,
+            suggested_term_length,
+            suggested_term_unit,
 
-    status,
-    display_order,
-    is_active,
-    created_by,
-    created_at,
-    updated_at
-  )
-  VALUES (
-    $1,
-    $2,
-    $3,
-    $4,
-    $5,
-    $6,
+            status,
+            display_order,
+            is_active,
+            created_by,
+            created_at,
+            updated_at
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6,
+            $7,
 
-    $7,
-    $8,
-    $9,
+            $8,
+            $9,
+            $10,
 
-    $10,
-    $10,
-    $11,
-    $12,
-    $13,
+            $11,
+            $11,
+            $12,
+            $13,
+            $14,
 
-    $14,
-    $15,
-    true,
-    $16,
-    CURRENT_TIMESTAMP,
-    CURRENT_TIMESTAMP
-  )
-`, [
-  organizationId,          // $1
-  spaceId,                 // $2
-  qrId,                    // $3
-  title,                   // $4
-  description || null,     // $5
-  category || null,        // $6
+            $15,
+            $16,
+            true,
+            $17,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+          )
+        `,
+        [
+          organizationId,          // $1
+          spaceId,                 // $2
+          programId,               // $3
+          qrId,                    // $4
+          title,                   // $5
+          description || null,     // $6
+          category || null,        // $7
 
-  photoData,               // $7
-  photoMimeType,           // $8
-  photoFileName,           // $9
+          photoData,               // $8
+          photoMimeType,           // $9
+          photoFileName,           // $10
 
-  price,                   // $10
-  pricingUnit,             // $11
-  suggestedTermLength,     // $12
-  suggestedTermUnit,       // $13
+          price,                   // $11
+          pricingUnit,             // $12
+          suggestedTermLength,     // $13
+          suggestedTermUnit,       // $14
 
-  status,                  // $14
-  displayOrder,            // $15
-  createdBy                // $16
-]);
-
-         
-        
-      
+          status,                  // $15
+          displayOrder,            // $16
+          createdBy                // $17
+        ]
+      );
+    
 
       return res.redirect(
         `/org-marketplace?organization_id=${organizationId}&location_id=${spaceId}`
