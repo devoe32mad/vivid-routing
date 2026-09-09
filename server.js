@@ -58538,7 +58538,81 @@ const {
 );
 
 const locations = locationsResult.rows;
+const programsResult = await q(
+  `
+    SELECT
+      id,
+      name
 
+    FROM organization_programs
+
+    WHERE organization_id = $1
+      AND COALESCE(is_active, true) = true
+
+    ORDER BY
+      display_order,
+      name
+  `,
+  [organizationId]
+);
+
+const programs =
+  programsResult.rows;
+
+const requestedProgramId = Number(
+  req.query.program_id
+);
+
+const selectedProgramId =
+  Number.isInteger(requestedProgramId) &&
+  requestedProgramId > 0 &&
+  programs.some(
+    program =>
+      Number(program.id) === requestedProgramId
+  )
+    ? requestedProgramId
+    : null;
+
+const selectedProgram =
+  programs.find(
+    program =>
+      Number(program.id) ===
+      Number(selectedProgramId)
+  );
+
+const selectedProgramName =
+  selectedProgram?.name ||
+  "All Programs";
+
+const programOptions = [
+  `
+    <option
+      value=""
+      ${
+        !selectedProgramId
+          ? "selected"
+          : ""
+      }
+    >
+      All Programs
+    </option>
+  `,
+  ...programs.map(
+    program => `
+      <option
+        value="${program.id}"
+        ${
+          Number(program.id) ===
+          Number(selectedProgramId)
+            ? "selected"
+            : ""
+        }
+      >
+        ${escapeHtml(program.name)}
+      </option>
+    `
+  )
+].join("");
 /*
   Status filter sent from the Advertising Requests
   dashboard summary cards.
@@ -58623,22 +58697,36 @@ const opportunityParams = [
     : allowedLocationIds
 ];
 
+let opportunityProgramCondition = "";
+
+if (selectedProgramId) {
+  opportunityParams.push(
+    selectedProgramId
+  );
+
+  opportunityProgramCondition = `
+    AND oo.program_id = $${opportunityParams.length}
+  `;
+}
+
 let opportunityStatusCondition = "";
 
 if (selectedStatus !== "All") {
-  opportunityParams.push(selectedStatus);
+  opportunityParams.push(
+    selectedStatus
+  );
 
   opportunityStatusCondition = `
     AND oo.status = $${opportunityParams.length}
   `;
 }
-
 const opportunityResult = await q(
   `
     SELECT
       oo.id,
       oo.organization_id,
       oo.space_id,
+            oo.program_id,
       oo.qr_id,
 
       oo.title,
@@ -58654,15 +58742,22 @@ const opportunityResult = await q(
       oo.status,
       oo.display_order,
       oo.is_active,
-oo.photo_data IS NOT NULL AS has_photo,
+      oo.photo_data IS NOT NULL AS has_photo,
+      p.name AS program_name,
       s.name AS location_name,
       qr.name AS qr_name
+     
+      
 
     FROM organization_opportunities oo
 
-    JOIN spaces s
+        JOIN spaces s
       ON s.id = oo.space_id
      AND s.organization_id = oo.organization_id
+
+    LEFT JOIN organization_programs p
+      ON p.id = oo.program_id
+     AND p.organization_id = oo.organization_id
 
     LEFT JOIN qr_codes qr
       ON qr.id = oo.qr_id
@@ -58672,6 +58767,7 @@ oo.photo_data IS NOT NULL AS has_photo,
       AND COALESCE(oo.is_active, true) = true
       AND COALESCE(s.is_archived, false) = false
 
+      ${opportunityProgramCondition}
       ${opportunityStatusCondition}
 
     ORDER BY
@@ -58933,7 +59029,7 @@ onsubmit="return confirm('Duplicate this opportunity?');"
                       font-weight:bold;
                       margin-bottom:6px;
                     ">
-                      Select School 
+                      Filter Inventory
                     </div>
 
                   <form
@@ -58974,6 +59070,23 @@ onsubmit="return confirm('Duplicate this opportunity?');"
     "
   >
     ${locationOptions}
+  </select>
+    <select
+    name="program_id"
+    aria-label="Program"
+    onchange="this.form.submit()"
+    style="
+      width:100%;
+      padding:12px 14px;
+      border:1px solid #d7dfd8;
+      border-radius:10px;
+      font-size:15px;
+      background:white;
+      box-sizing:border-box;
+      margin:10px 0 0;
+    "
+  >
+    ${programOptions}
   </select>
 </form>
 
