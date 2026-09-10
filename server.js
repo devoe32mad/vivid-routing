@@ -3849,6 +3849,43 @@ await q(`
 `);
 
 await q(`
+  ALTER TABLE organization_programs
+  ADD COLUMN IF NOT EXISTS program_type TEXT
+`);
+
+await q(`
+  UPDATE organization_programs
+  SET program_type = CASE
+    WHEN LOWER(name) ~
+      '(giving|donor|donation|philanthropy)'
+      THEN 'giving'
+    WHEN LOWER(name) ~
+      '(sponsor|athletic)'
+      THEN 'sponsorship'
+    WHEN LOWER(name) ~
+      '(magazine|publication|print|media)'
+      THEN 'publication'
+    WHEN LOWER(name) ~
+      '(advertis)'
+      THEN 'advertising'
+    ELSE 'general'
+  END
+  WHERE program_type IS NULL
+`);
+
+await q(`
+  ALTER TABLE organization_programs
+  ALTER COLUMN program_type
+  SET DEFAULT 'general'
+`);
+
+await q(`
+  ALTER TABLE organization_programs
+  ALTER COLUMN program_type
+  SET NOT NULL
+`);
+
+await q(`
   CREATE TABLE IF NOT EXISTS organization_program_users (
     id SERIAL PRIMARY KEY,
 
@@ -40808,6 +40845,7 @@ app.get(
               op.id,
               op.name,
               op.description,
+              op.program_type,
               op.is_active,
 
               (
@@ -40958,6 +40996,20 @@ app.get(
                           "No description added."
                         )}
                       </p>
+
+                      <div style="
+                        margin-top:10px;
+                        color:#2563EB;
+                        font-size:12px;
+                        font-weight:bold;
+                        letter-spacing:.05em;
+                        text-transform:uppercase;
+                      ">
+                        ${escapeHtml(
+                          program.program_type ||
+                          "general"
+                        )}
+                      </div>
                     </div>
 
                     <strong>
@@ -41102,6 +41154,31 @@ app.get(
                     ></textarea>
 
                     <label>
+                      Program Type
+                    </label>
+
+                    <select
+                      name="program_type"
+                      required
+                    >
+                      <option value="advertising">
+                        Advertising
+                      </option>
+                      <option value="sponsorship">
+                        Sponsorship
+                      </option>
+                      <option value="publication">
+                        Publication / Magazine
+                      </option>
+                      <option value="giving">
+                        Giving / Donations
+                      </option>
+                      <option value="general">
+                        General Opportunity
+                      </option>
+                    </select>
+
+                    <label>
                       Primary Manager
                     </label>
 
@@ -41192,6 +41269,21 @@ app.post(
         req.body.description || ""
       ).trim();
 
+      const programType = String(
+        req.body.program_type ||
+        "general"
+      )
+        .trim()
+        .toLowerCase();
+
+      const allowedProgramTypes = [
+        "advertising",
+        "sponsorship",
+        "publication",
+        "giving",
+        "general"
+      ];
+
       const submittedUserId =
         String(
           req.body
@@ -41209,6 +41301,18 @@ app.post(
           .status(400)
           .send(
             "Program Name is required."
+          );
+      }
+
+      if (
+        !allowedProgramTypes.includes(
+          programType
+        )
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Select a valid Program Type."
           );
       }
 
@@ -41310,6 +41414,7 @@ app.post(
               organization_id,
               name,
               description,
+              program_type,
               display_order,
               is_active,
               created_at,
@@ -41321,6 +41426,7 @@ app.post(
               $1,
               $2,
               $3,
+              $4,
 
               (
                 SELECT
@@ -41346,7 +41452,8 @@ app.post(
           [
             organizationId,
             name,
-            description || null
+            description || null,
+            programType
           ]
         );
 
@@ -65094,9 +65201,128 @@ if (!allowedTermUnits.includes(suggestedTermUnit)) {
     }
   }
 );
+function getMarketplaceProgramExperience(program) {
+  const programName = String(
+    program?.name || program || ""
+  ).toLowerCase();
+
+  const programType = String(
+    program?.program_type || ""
+  ).toLowerCase();
+
+  if (
+    programType === "giving" ||
+    /giving|donor|donation|philanthropy/.test(
+      programName
+    )
+  ) {
+    return {
+      key: "giving",
+      eyebrow: "Ways to Give",
+      singular: "Giving Option",
+      plural: "Giving Options",
+      locationAction: "View Ways to Give",
+      cardAction: "View Giving Option",
+      requestEyebrow: "Giving Information",
+      requestIntro:
+        "Complete the information below to continue your gift.",
+      formHeading: "Continue to Give",
+      detailsHeading: "Gift Details",
+      requestName: "gift",
+      defaultDescription:
+        "Explore ways to support this organization."
+    };
+  }
+
+  if (
+    programType === "sponsorship" ||
+    /sponsor|athletic/.test(programName)
+  ) {
+    return {
+      key: "sponsorship",
+      eyebrow: "Sponsorship Opportunities",
+      singular: "Sponsorship Opportunity",
+      plural: "Sponsorship Opportunities",
+      locationAction: "View Sponsorships",
+      cardAction: "View Sponsorship",
+      requestEyebrow: "Sponsorship Request",
+      requestIntro:
+        "Complete the information below to continue your sponsorship request.",
+      formHeading: "Sponsor This Opportunity",
+      detailsHeading: "Sponsorship Details",
+      requestName: "sponsorship request",
+      defaultDescription:
+        "Explore available sponsorship opportunities."
+    };
+  }
+
+  if (
+    programType === "publication" ||
+    /magazine|publication|print|media/.test(
+      programName
+    )
+  ) {
+    return {
+      key: "publication",
+      eyebrow: "Publication Advertising",
+      singular: "Advertising Opportunity",
+      plural: "Advertising Opportunities",
+      locationAction: "View Advertising",
+      cardAction: "View Advertising",
+      requestEyebrow: "Magazine Advertising Request",
+      requestIntro:
+        "Complete the information below to reserve this advertising opportunity.",
+      formHeading: "Reserve This Opportunity",
+      detailsHeading: "Advertising Details",
+      requestName: "advertising request",
+      defaultDescription:
+        "Explore available publication advertising opportunities."
+    };
+  }
+
+  if (
+    programType === "advertising" ||
+    /advertis/.test(programName)
+  ) {
+    return {
+      key: "advertising",
+      eyebrow: "Advertising Opportunities",
+      singular: "Advertising Opportunity",
+      plural: "Advertising Opportunities",
+      locationAction: "View Opportunities",
+      cardAction: "View Opportunity",
+      requestEyebrow: "Advertising Request",
+      requestIntro:
+        "Complete the information below to continue your advertising request.",
+      formHeading: "Request This Opportunity",
+      detailsHeading: "Advertising Details",
+      requestName: "advertising request",
+      defaultDescription:
+        "Explore available advertising opportunities."
+    };
+  }
+
+  return {
+    key: "general",
+    eyebrow: "Available Opportunities",
+    singular: "Opportunity",
+    plural: "Opportunities",
+    locationAction: "View Opportunities",
+    cardAction: "View Opportunity",
+    requestEyebrow: "Opportunity Request",
+    requestIntro:
+      "Complete the information below to continue your request.",
+    formHeading: "Request This Opportunity",
+    detailsHeading: "Request Details",
+    requestName: "request",
+    defaultDescription:
+      "Explore currently available opportunities."
+  };
+}
+
 /*
 =========================================================
-PUBLIC ADVERTISING PORTAL
+PUBLIC OPPORTUNITIES PORTAL
 Organization-agnostic public landing page.
 
 Examples:
@@ -65167,13 +65393,42 @@ app.get(
           "Advertising portal not found."
         );
       }
+
       const programsResult = await q(
         `
           SELECT
             id,
             name,
             description,
-            display_order
+            program_type,
+            display_order,
+
+            (
+              SELECT oo.id
+              FROM organization_opportunities oo
+              WHERE oo.organization_id =
+                    organization_programs.organization_id
+                AND oo.program_id =
+                    organization_programs.id
+                AND oo.photo_data IS NOT NULL
+                AND COALESCE(
+                  oo.is_active,
+                  true
+                ) = true
+                AND oo.status = 'Available'
+                AND (
+                  oo.available_from IS NULL
+                  OR oo.available_from <= CURRENT_DATE
+                )
+                AND (
+                  oo.available_until IS NULL
+                  OR oo.available_until >= CURRENT_DATE
+                )
+              ORDER BY
+                oo.display_order,
+                oo.id
+              LIMIT 1
+            ) AS image_opportunity_id
 
           FROM organization_programs
 
@@ -65189,6 +65444,7 @@ app.get(
 
       const programs =
         programsResult.rows;
+
               const requestedProgramValue =
         String(
           req.query.program_id || ""
@@ -65216,6 +65472,21 @@ app.get(
       const showLocations =
         showAllPrograms ||
         Boolean(selectedProgram);
+
+      const selectedExperience =
+        selectedProgram
+          ? getMarketplaceProgramExperience(
+              selectedProgram
+            )
+          : {
+              key: "all",
+              eyebrow: "Partnership Opportunities",
+              singular: "Opportunity",
+              plural: "Opportunities",
+              locationAction: "View Opportunities",
+              defaultDescription:
+                "Explore all currently available opportunities."
+            };
               const selectedProgramQuery =
         showAllPrograms
           ? "all"
@@ -65308,13 +65579,25 @@ HAVING COUNT(
       const locations =
         locationsResult.rows;
 
+      const hasMultipleExperienceTypes =
+        new Set(
+          programs.map(
+            program =>
+              getMarketplaceProgramExperience(program).key
+          )
+        ).size > 1;
+
       const heading =
-        organization.public_heading ||
-        `Advertise With ${organization.name}`;
+        hasMultipleExperienceTypes
+          ? `Support & Partner With ${organization.name}`
+          : organization.public_heading ||
+            `Advertise With ${organization.name}`;
 
       const description =
-        organization.public_description ||
-        "Explore available advertising opportunities across this organization.";
+        hasMultipleExperienceTypes
+          ? "Explore advertising, sponsorship, publication, and giving opportunities across this organization."
+          : organization.public_description ||
+            "Explore available advertising opportunities across this organization.";
 
       const logoHtml =
         organization.public_logo_url
@@ -65336,18 +65619,69 @@ HAVING COUNT(
             >
           `
           : "";
+
+      const selectedProgramHeroHtml =
+        selectedProgram?.image_opportunity_id
+          ? `
+            <img
+              src="/org-opportunity/${selectedProgram.image_opportunity_id}/photo"
+              alt="${escapeHtml(
+                selectedProgram.name
+              )}"
+              style="
+                display:block;
+                width:min(760px, 100%);
+                height:clamp(220px, 38vw, 390px);
+                object-fit:cover;
+                border-radius:18px;
+                margin:0 auto 30px;
+                box-shadow:0 12px 30px rgba(0,0,0,.08);
+              "
+            >
+          `
+          : "";
+
       const programCards = [
         {
           id: "all",
           name: "All Opportunities",
           description:
-            "Explore every currently available opportunity."
+            "Explore every currently available opportunity.",
+          image_opportunity_id: null
         },
         ...programs
       ]
         .map(program => {
           const programValue =
             String(program.id);
+
+          const programExperience =
+            program.id === "all"
+              ? {
+                  eyebrow: "All Programs",
+                  locationAction: "Explore Everything"
+                }
+              : getMarketplaceProgramExperience(program);
+
+          const programImageHtml =
+            program.image_opportunity_id
+              ? `
+                <img
+                  src="/org-opportunity/${program.image_opportunity_id}/photo"
+                  alt="${escapeHtml(
+                    program.name
+                  )}"
+                  style="
+                    display:block;
+                    width:100%;
+                    height:150px;
+                    object-fit:cover;
+                    border-radius:12px;
+                    margin-bottom:16px;
+                  "
+                >
+              `
+              : "";
 
           return `
             <a
@@ -65371,6 +65705,8 @@ HAVING COUNT(
               "
             >
               <div>
+                ${programImageHtml}
+
                 <div style="
                   color:#176b3a;
                   font-size:12px;
@@ -65379,7 +65715,7 @@ HAVING COUNT(
                   text-transform:uppercase;
                   margin-bottom:9px;
                 ">
-                  Program
+                  ${programExperience.eyebrow}
                 </div>
 
                 <h2 style="
@@ -65410,7 +65746,7 @@ HAVING COUNT(
                 font-weight:bold;
                 font-size:14px;
               ">
-                Explore Program →
+                ${programExperience.locationAction} →
               </div>
             </a>
           `;
@@ -65428,8 +65764,8 @@ HAVING COUNT(
 
                 const opportunityLabel =
                   availableCount === 1
-                    ? "1 opportunity available"
-                    : `${availableCount} opportunities available`;
+                    ? `1 ${selectedExperience.singular} Available`
+                    : `${availableCount} ${selectedExperience.plural} Available`;
 
                 const locationDetail =
                   location.location
@@ -65472,7 +65808,7 @@ const actionHtml =
           white-space:nowrap;
         "
       >
-        View Opportunities
+        ${selectedExperience.locationAction}
       </a>
     `
                     
@@ -65544,11 +65880,7 @@ line-height:1.3;
 font-weight:600;
 margin-top:10px;
       ">
-        ${
-          availableCount === 1
-            ? "1 Advertising Opportunity Available"
-            : `${availableCount} Advertising Opportunities Available`
-        }
+        ${opportunityLabel}
       </div>
 
     </div>
@@ -65660,7 +65992,11 @@ margin-top:10px;
               text-transform:uppercase;
               margin-bottom:10px;
             ">
-              Advertising Opportunities
+              ${
+                showLocations
+                  ? selectedExperience.eyebrow
+                  : "Partnership & Support Opportunities"
+              }
             </div>
 
             <h1 style="
@@ -65762,8 +66098,17 @@ margin-top:10px;
                       font-size:18px;
                       line-height:1.6;
                     ">
-                      Choose a location to view currently available opportunities.
+                      ${
+                        showAllPrograms
+                          ? "Choose a location to view all currently available opportunities."
+                          : escapeHtml(
+                              selectedProgram.description ||
+                              selectedExperience.defaultDescription
+                            )
+                      }
                     </p>
+
+                    ${selectedProgramHeroHtml}
 
                     <div class="public-location-grid">
                       ${locationCards}
@@ -65893,6 +66238,47 @@ app.get(
         from accessing a location belonging to another
         organization by changing the URL.
       */
+      const selectedProgramResult =
+        selectedProgramId
+          ? await q(
+              `
+                SELECT
+                  id,
+                  name,
+                  description,
+                  program_type
+                FROM organization_programs
+                WHERE id = $1
+                  AND organization_id = $2
+                  AND COALESCE(
+                    is_active,
+                    true
+                  ) = true
+                LIMIT 1
+              `,
+              [
+                selectedProgramId,
+                organization.id
+              ]
+            )
+          : { rows: [] };
+
+      const selectedProgram =
+        selectedProgramResult.rows[0] || null;
+
+      const selectedExperience =
+        selectedProgram
+          ? getMarketplaceProgramExperience(
+              selectedProgram
+            )
+          : {
+              eyebrow: "Available Opportunities",
+              singular: "Opportunity",
+              plural: "Opportunities",
+              cardAction: "View Opportunity",
+              requestName: "request"
+            };
+
       const locationResult = await q(`
         SELECT
           id,
@@ -65937,6 +66323,7 @@ app.get(
           oo.program_id,
           oo.photo_data IS NOT NULL AS has_photo,
           p.name AS program_name,
+          p.program_type,
           COALESCE(
             NULLIF(
               to_jsonb(oo)->>'opportunity_name',
@@ -66455,7 +66842,7 @@ app.get(
                           font-size:14px;
                         "
                       >
-                        View Opportunity
+                        ${selectedExperience.cardAction}
                       </a>
 
                     </div>
@@ -66489,7 +66876,9 @@ app.get(
                 line-height:1.6;
               ">
                 This location does not currently have any
-                publicly available advertising opportunities.
+                publicly available ${escapeHtml(
+                  selectedExperience.plural.toLowerCase()
+                )}.
               </p>
 
             </div>
@@ -66546,7 +66935,9 @@ app.get(
           >
 
           <title>
-            Advertising Opportunities at
+            ${escapeHtml(
+              selectedExperience.eyebrow
+            )} at
             ${escapeHtml(location.name)}
           </title>
 
@@ -66624,6 +67015,8 @@ app.get(
             <a
               href="/advertise/${encodeURIComponent(
                 organization.slug
+              )}?program_id=${encodeURIComponent(
+                selectedProgramId || "all"
               )}"
               style="
                 display:inline-flex;
@@ -66645,7 +67038,9 @@ app.get(
               text-transform:uppercase;
               margin-bottom:10px;
             ">
-              Advertising Opportunities
+              ${escapeHtml(
+                selectedExperience.eyebrow
+              )}
             </div>
 
             <h1 style="
@@ -66673,7 +67068,9 @@ app.get(
               line-height:1.6;
             ">
               Select an opportunity below to begin your
-              advertising request.
+              ${escapeHtml(
+                selectedExperience.requestName
+              )}.
             </p>
 
           </header>
@@ -66688,8 +67085,8 @@ app.get(
             ">
               ${
                 opportunities.length === 1
-                  ? "1 opportunity available"
-                  : `${opportunities.length} opportunities available`
+                  ? `1 ${selectedExperience.singular.toLowerCase()} available`
+                  : `${opportunities.length} ${selectedExperience.plural.toLowerCase()} available`
               }
             </div>
 
@@ -66711,7 +67108,7 @@ app.get(
       );
 
       return res.status(500).send(
-        "Unable to load advertising opportunities."
+        "Unable to load opportunities."
       );
     }
   }
@@ -66848,6 +67245,7 @@ app.get(
           oo.program_id,
           oo.photo_data IS NOT NULL AS has_photo,
           p.name AS program_name,
+          p.program_type,
           COALESCE(
             NULLIF(
               to_jsonb(oo)->>'opportunity_name',
@@ -66964,6 +67362,11 @@ app.get(
           "This advertising opportunity is no longer available."
         );
       }
+
+      const opportunityExperience =
+        getMarketplaceProgramExperience(
+          opportunity
+        );
 
       const formatMoney = value => {
         const amount = Number(value);
@@ -67182,9 +67585,9 @@ app.get(
           >
 
           <title>
-            Advertise With ${escapeHtml(
-              organization.name
-            )}
+            ${escapeHtml(
+              opportunityExperience.formHeading
+            )} | ${escapeHtml(organization.name)}
           </title>
 
           <style>
@@ -67456,7 +67859,9 @@ app.get(
               text-transform:uppercase;
               margin-bottom:9px;
             ">
-              Advertising Request
+              ${escapeHtml(
+                opportunityExperience.requestEyebrow
+              )}
             </div>
 
             <h1 style="
@@ -67481,8 +67886,9 @@ app.get(
               font-size:16px;
               line-height:1.6;
             ">
-              Complete the information below to continue
-              your advertising request.
+              ${escapeHtml(
+                opportunityExperience.requestIntro
+              )}
             </p>
 
           </header>
@@ -67649,7 +68055,9 @@ app.get(
                       margin-top:20px;
                     "
                   >
-                    Sponsor This Opportunity
+                    ${escapeHtml(
+                      opportunityExperience.formHeading
+                    )}
                   </a>
 
                 </aside>
@@ -67670,7 +68078,9 @@ app.get(
                       color:#17482f;
                       font-size:23px;
                     ">
-                                            Sponsor This Opportunity
+                      ${escapeHtml(
+                        opportunityExperience.formHeading
+                      )}
                     </h2>
 
                     <div class="field-grid">
@@ -67826,7 +68236,9 @@ app.get(
                       color:#17482f;
                       font-size:23px;
                     ">
-                      Advertising Details
+                      ${escapeHtml(
+                        opportunityExperience.detailsHeading
+                      )}
                     </h2>
 
                     <p style="
@@ -67906,8 +68318,9 @@ app.get(
                       font-size:14px;
                       line-height:1.55;
                     ">
-                      I understand that this advertising
-                      request is subject to approval by
+                      I understand that this ${escapeHtml(
+                        opportunityExperience.requestName
+                      )} is subject to approval by
                       ${escapeHtml(
                         organization.name
                       )}.
