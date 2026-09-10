@@ -58498,8 +58498,11 @@ const {
       */
       const organizationResult = await q(`
         SELECT
-          id,
-          name
+  id,
+  name,
+  slug
+          
+          
         FROM organizations
         WHERE id = $1
           AND COALESCE(is_active, true) = true
@@ -59144,6 +59147,22 @@ onsubmit="return confirm('Duplicate this opportunity?');"
 >
   Advertising Requests
 </a>
+${
+  organization.slug
+    ? `
+      <a
+        class="marketplace-btn secondary"
+        href="/advertise/${encodeURIComponent(
+          organization.slug
+        )}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        View Public Marketplace
+      </a>
+    `
+    : ""
+}
                   <a
                     class="marketplace-btn"
                 href="/org-opportunity/new?organization_id=${organization.id}&space_id=${selectedLocationId}"
