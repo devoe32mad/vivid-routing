@@ -3885,6 +3885,94 @@ await q(`
   SET NOT NULL
 `);
 
+/*
+  Public program settings are intentionally stored on the
+  program instead of on a physical location. This lets an
+  organization publish magazine, giving, membership, and
+  other organization-wide experiences without inventing a
+  fake location.
+*/
+await q(`
+  ALTER TABLE organization_programs
+  ADD COLUMN IF NOT EXISTS audience_scope TEXT
+`);
+
+await q(`
+  UPDATE organization_programs
+  SET audience_scope = CASE
+    WHEN program_type IN ('publication', 'giving')
+      THEN 'organization'
+    ELSE 'location'
+  END
+  WHERE audience_scope IS NULL
+`);
+
+await q(`
+  ALTER TABLE organization_programs
+  ALTER COLUMN audience_scope
+  SET DEFAULT 'location'
+`);
+
+await q(`
+  ALTER TABLE organization_programs
+  ALTER COLUMN audience_scope
+  SET NOT NULL
+`);
+
+await q(`
+  ALTER TABLE organization_programs
+  ADD COLUMN IF NOT EXISTS public_image_url TEXT
+`);
+
+await q(`
+  ALTER TABLE organization_programs
+  ADD COLUMN IF NOT EXISTS external_action_url TEXT
+`);
+
+await q(`
+  ALTER TABLE organization_programs
+  ADD COLUMN IF NOT EXISTS external_action_label TEXT
+`);
+
+/*
+  SJN pilot presentation defaults. These values live in
+  configurable program fields and can be replaced from the
+  Program Settings screen at any time.
+*/
+await q(`
+  UPDATE organization_programs op
+  SET
+    public_image_url = CASE
+      WHEN op.program_type = 'publication'
+        THEN 'https://sjnceltics.org/wp-content/uploads/2026/04/cover-26.jpg'
+      WHEN op.program_type = 'giving'
+        THEN 'https://sjnceltics.org/wp-content/uploads/2024/07/parents.jpg'
+      ELSE op.public_image_url
+    END,
+    external_action_url = CASE
+      WHEN op.program_type = 'publication'
+        THEN 'https://sjnceltics.org/'
+      WHEN op.program_type = 'giving'
+        THEN 'https://sjnceltics.org/giving/'
+      ELSE op.external_action_url
+    END,
+    external_action_label = CASE
+      WHEN op.program_type = 'publication'
+        THEN 'View Celtic Nation Magazine'
+      WHEN op.program_type = 'giving'
+        THEN 'View Ways to Give'
+      ELSE op.external_action_label
+    END
+  FROM organizations o
+  WHERE o.id = op.organization_id
+    AND (
+      LOWER(COALESCE(o.website, '')) LIKE '%sjnceltics.org%'
+      OR LOWER(COALESCE(o.name, '')) LIKE '%john neumann%'
+    )
+    AND op.program_type IN ('publication', 'giving')
+    AND op.public_image_url IS NULL
+`);
+
 await q(`
   CREATE TABLE IF NOT EXISTS organization_program_users (
     id SERIAL PRIMARY KEY,
@@ -40846,6 +40934,10 @@ app.get(
               op.name,
               op.description,
               op.program_type,
+              op.audience_scope,
+              op.public_image_url,
+              op.external_action_url,
+              op.external_action_label,
               op.is_active,
 
               (
@@ -40957,6 +41049,7 @@ app.get(
         programsResult.rows.length
           ? programsResult.rows
               .map(program => `
+                <div>
                 <a
   class="card"
   href="/org-marketplace?organization_id=${organizationId}&program_id=${program.id}"
@@ -41059,6 +41152,21 @@ app.get(
                   </div>
 
                 </a>
+
+                <a
+                  href="/org-programs/${program.id}/settings?organization_id=${organizationId}"
+                  style="
+                    display:inline-block;
+                    margin:9px 0 0 12px;
+                    color:#2563EB;
+                    font-size:14px;
+                    font-weight:bold;
+                    text-decoration:none;
+                  "
+                >
+                  Configure public program →
+                </a>
+                </div>
               `)
               .join("")
           : `
@@ -41415,6 +41523,7 @@ app.post(
               name,
               description,
               program_type,
+              audience_scope,
               display_order,
               is_active,
               created_at,
@@ -41427,6 +41536,7 @@ app.post(
               $2,
               $3,
               $4,
+              $5,
 
               (
                 SELECT
@@ -41453,7 +41563,12 @@ app.post(
             organizationId,
             name,
             description || null,
-            programType
+            programType,
+            ["publication", "giving"].includes(
+              programType
+            )
+              ? "organization"
+              : "location"
           ]
         );
 
@@ -41524,6 +41639,451 @@ app.post(
 
     } finally {
       client.release();
+    }
+  }
+);
+
+/*
+=========================================================
+PUBLIC PROGRAM SETTINGS
+Allows each organization to control how a program appears
+and where its public call to action sends the visitor.
+=========================================================
+*/
+
+app.get(
+  "/org-programs/:programId/settings",
+  requireOrganizationPermission(
+    "manage_permissions"
+  ),
+  async (req, res) => {
+    try {
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.query.organization_id
+          )
+        );
+
+      const organizationId =
+        scope.organizationId;
+
+      const programId =
+        Number(req.params.programId);
+
+      if (
+        !Number.isInteger(programId) ||
+        programId <= 0
+      ) {
+        return res
+          .status(400)
+          .send("Invalid Program.");
+      }
+
+      const programResult =
+        await q(
+          `
+            SELECT
+              op.id,
+              op.name,
+              op.description,
+              op.program_type,
+              op.audience_scope,
+              op.public_image_url,
+              op.external_action_url,
+              op.external_action_label,
+              o.name AS organization_name
+
+            FROM organization_programs op
+
+            JOIN organizations o
+              ON o.id = op.organization_id
+
+            WHERE op.id = $1
+              AND op.organization_id = $2
+
+            LIMIT 1
+          `,
+          [
+            programId,
+            organizationId
+          ]
+        );
+
+      const program =
+        programResult.rows[0];
+
+      if (!program) {
+        return res
+          .status(404)
+          .send("Program not found.");
+      }
+
+      const selected = (
+        value,
+        expected
+      ) =>
+        value === expected
+          ? " selected"
+          : "";
+
+      return res.send(
+        orgPage(
+          `Program Settings - ${program.name}`,
+          `
+            <div class="topbar">
+              <div class="brand">
+                Vivid Organizations
+              </div>
+
+              <h1>Public Program Settings</h1>
+
+              <p class="subtitle">
+                Control the public image, scope, and
+                destination for ${escapeHtml(
+                  program.name
+                )}.
+              </p>
+            </div>
+
+            <div class="wrap">
+              <div class="card" style="
+                max-width:820px;
+                margin:0 auto;
+              ">
+                <form
+                  method="POST"
+                  action="/org-programs/${program.id}/settings"
+                >
+                  <input
+                    type="hidden"
+                    name="organization_id"
+                    value="${organizationId}"
+                  >
+
+                  <label>Program Name</label>
+                  <input
+                    type="text"
+                    value="${escapeHtml(
+                      program.name
+                    )}"
+                    disabled
+                  >
+
+                  <label>Public Experience</label>
+                  <select
+                    name="program_type"
+                    required
+                  >
+                    <option value="advertising"${selected(
+                      program.program_type,
+                      "advertising"
+                    )}>Advertising</option>
+                    <option value="sponsorship"${selected(
+                      program.program_type,
+                      "sponsorship"
+                    )}>Sponsorship</option>
+                    <option value="publication"${selected(
+                      program.program_type,
+                      "publication"
+                    )}>Publication / Magazine</option>
+                    <option value="giving"${selected(
+                      program.program_type,
+                      "giving"
+                    )}>Giving / Donations</option>
+                    <option value="general"${selected(
+                      program.program_type,
+                      "general"
+                    )}>General Opportunity</option>
+                  </select>
+
+                  <label>Public Scope</label>
+                  <select
+                    name="audience_scope"
+                    required
+                  >
+                    <option value="location"${selected(
+                      program.audience_scope,
+                      "location"
+                    )}>
+                      Location-based
+                    </option>
+                    <option value="organization"${selected(
+                      program.audience_scope,
+                      "organization"
+                    )}>
+                      Organization-wide
+                    </option>
+                  </select>
+
+                  <p style="
+                    margin:-4px 0 18px;
+                    color:#5F6B7A;
+                    font-size:14px;
+                  ">
+                    Use Organization-wide for giving,
+                    publications, memberships, and other
+                    programs that do not require a physical
+                    location.
+                  </p>
+
+                  <label>Public Hero Image URL</label>
+                  <input
+                    type="url"
+                    name="public_image_url"
+                    maxlength="1500"
+                    value="${escapeHtml(
+                      program.public_image_url || ""
+                    )}"
+                    placeholder="https://organization.org/program-photo.jpg"
+                  >
+
+                  <label>Public Action URL</label>
+                  <input
+                    type="url"
+                    name="external_action_url"
+                    maxlength="1500"
+                    value="${escapeHtml(
+                      program.external_action_url || ""
+                    )}"
+                    placeholder="https://organization.org/donate"
+                  >
+
+                  <p style="
+                    margin:-4px 0 18px;
+                    color:#5F6B7A;
+                    font-size:14px;
+                  ">
+                    This may be the organization’s donation
+                    processor, magazine, registration page,
+                    or another approved destination.
+                  </p>
+
+                  <label>Button Label</label>
+                  <input
+                    type="text"
+                    name="external_action_label"
+                    maxlength="80"
+                    value="${escapeHtml(
+                      program.external_action_label || ""
+                    )}"
+                    placeholder="Example: Donate Now"
+                  >
+
+                  <button
+                    class="btn"
+                    type="submit"
+                  >
+                    Save Public Settings
+                  </button>
+
+                  <a
+                    class="btn secondary"
+                    href="/org-programs?organization_id=${organizationId}"
+                    style="margin-left:8px;"
+                  >
+                    Back to Programs
+                  </a>
+                </form>
+              </div>
+            </div>
+          `
+        )
+      );
+    } catch (err) {
+      console.error(
+        "PROGRAM SETTINGS PAGE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "PROGRAM SETTINGS PAGE ERROR: " +
+          err.message
+        );
+    }
+  }
+);
+
+app.post(
+  "/org-programs/:programId/settings",
+  requireOrganizationPermission(
+    "manage_permissions"
+  ),
+  async (req, res) => {
+    try {
+      const scope =
+        await getOrganizationScope(
+          req,
+          Number(
+            req.body.organization_id
+          )
+        );
+
+      const organizationId =
+        scope.organizationId;
+
+      const programId =
+        Number(req.params.programId);
+
+      const programType = String(
+        req.body.program_type || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const audienceScope = String(
+        req.body.audience_scope || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const allowedProgramTypes = [
+        "advertising",
+        "sponsorship",
+        "publication",
+        "giving",
+        "general"
+      ];
+
+      const allowedScopes = [
+        "location",
+        "organization"
+      ];
+
+      if (
+        !Number.isInteger(programId) ||
+        programId <= 0 ||
+        !allowedProgramTypes.includes(
+          programType
+        ) ||
+        !allowedScopes.includes(
+          audienceScope
+        )
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Select valid public program settings."
+          );
+      }
+
+      const normalizeOptionalUrl =
+        rawValue => {
+          const value = String(
+            rawValue || ""
+          ).trim();
+
+          if (!value) {
+            return null;
+          }
+
+          const parsedUrl =
+            new URL(value);
+
+          if (
+            !["http:", "https:"].includes(
+              parsedUrl.protocol
+            )
+          ) {
+            throw new Error(
+              "Only http and https URLs are allowed."
+            );
+          }
+
+          return parsedUrl.toString();
+        };
+
+      let publicImageUrl;
+      let externalActionUrl;
+
+      try {
+        publicImageUrl =
+          normalizeOptionalUrl(
+            req.body.public_image_url
+          );
+
+        externalActionUrl =
+          normalizeOptionalUrl(
+            req.body.external_action_url
+          );
+      } catch (urlError) {
+        return res
+          .status(400)
+          .send(urlError.message);
+      }
+
+      const externalActionLabel =
+        String(
+          req.body.external_action_label ||
+          ""
+        ).trim();
+
+      if (
+        (publicImageUrl &&
+          publicImageUrl.length > 1500) ||
+        (externalActionUrl &&
+          externalActionUrl.length > 1500) ||
+        externalActionLabel.length > 80
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Public program settings are too long."
+          );
+      }
+
+      const updateResult =
+        await q(
+          `
+            UPDATE organization_programs
+            SET
+              program_type = $1,
+              audience_scope = $2,
+              public_image_url = $3,
+              external_action_url = $4,
+              external_action_label = $5,
+              updated_at = CURRENT_TIMESTAMP
+
+            WHERE id = $6
+              AND organization_id = $7
+
+            RETURNING id
+          `,
+          [
+            programType,
+            audienceScope,
+            publicImageUrl,
+            externalActionUrl,
+            externalActionLabel || null,
+            programId,
+            organizationId
+          ]
+        );
+
+      if (!updateResult.rows[0]) {
+        return res
+          .status(404)
+          .send("Program not found.");
+      }
+
+      return res.redirect(
+        `/org-programs?organization_id=${organizationId}`
+      );
+    } catch (err) {
+      console.error(
+        "UPDATE PROGRAM SETTINGS ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .send(
+          "UPDATE PROGRAM SETTINGS ERROR: " +
+          err.message
+        );
     }
   }
 );
@@ -65370,6 +65930,7 @@ app.get(
           id,
           name,
           slug,
+          website,
           public_heading,
           public_description,
           public_logo_url
@@ -65401,6 +65962,10 @@ app.get(
             name,
             description,
             program_type,
+            audience_scope,
+            public_image_url,
+            external_action_url,
+            external_action_label,
             display_order,
 
             (
@@ -65620,11 +66185,20 @@ HAVING COUNT(
           `
           : "";
 
+      const selectedProgramHeroSource =
+        selectedProgram?.public_image_url
+          ? selectedProgram.public_image_url
+          : selectedProgram?.image_opportunity_id
+            ? `/org-opportunity/${selectedProgram.image_opportunity_id}/photo`
+            : null;
+
       const selectedProgramHeroHtml =
-        selectedProgram?.image_opportunity_id
+        selectedProgramHeroSource
           ? `
             <img
-              src="/org-opportunity/${selectedProgram.image_opportunity_id}/photo"
+              src="${escapeHtml(
+                selectedProgramHeroSource
+              )}"
               alt="${escapeHtml(
                 selectedProgram.name
               )}"
@@ -65664,10 +66238,14 @@ HAVING COUNT(
               : getMarketplaceProgramExperience(program);
 
           const programImageHtml =
+            program.public_image_url ||
             program.image_opportunity_id
               ? `
                 <img
-                  src="/org-opportunity/${program.image_opportunity_id}/photo"
+                  src="${escapeHtml(
+                    program.public_image_url ||
+                    `/org-opportunity/${program.image_opportunity_id}/photo`
+                  )}"
                   alt="${escapeHtml(
                     program.name
                   )}"
@@ -65753,8 +66331,141 @@ HAVING COUNT(
         })
         .join("");
 
+      const selectedIsOrganizationWide =
+        selectedProgram?.audience_scope ===
+        "organization";
+
+      const safeOrganizationWebsite =
+        (() => {
+          try {
+            const parsedUrl = new URL(
+              String(
+                organization.website || ""
+              ).trim()
+            );
+
+            return ["http:", "https:"].includes(
+              parsedUrl.protocol
+            )
+              ? parsedUrl.toString()
+              : null;
+          } catch (err) {
+            return null;
+          }
+        })();
+
+      const organizationWideActionUrl =
+        selectedProgram?.external_action_url ||
+        (selectedIsOrganizationWide
+          ? safeOrganizationWebsite
+          : null);
+
+      const organizationWideActionLabel =
+        selectedProgram?.external_action_label ||
+        (selectedExperience.key === "giving"
+          ? "View Ways to Give"
+          : selectedExperience.key ===
+              "publication"
+            ? "View Publication"
+            : "Continue");
+
+      const organizationWideCard = `
+        <article style="
+          width:min(620px, 100%);
+          margin:0 auto;
+          background:white;
+          border:1px solid #dbe5dd;
+          border-radius:18px;
+          padding:28px;
+          box-shadow:0 8px 24px rgba(0,0,0,.05);
+          text-align:center;
+        ">
+          <div style="
+            color:#176b3a;
+            font-size:12px;
+            font-weight:bold;
+            letter-spacing:.06em;
+            text-transform:uppercase;
+            margin-bottom:10px;
+          ">
+            Organization-wide
+          </div>
+
+          <h3 style="
+            margin:0;
+            color:#17482f;
+            font-size:24px;
+          ">
+            ${escapeHtml(
+              selectedExperience.key === "giving"
+                ? "Support the Mission"
+                : selectedExperience.key === "publication"
+                  ? "Connect With the Community"
+                  : selectedProgram?.name ||
+                    "Continue"
+            )}
+          </h3>
+
+          <p style="
+            margin:12px auto 0;
+            max-width:520px;
+            color:#65776b;
+            font-size:16px;
+            line-height:1.6;
+          ">
+            ${escapeHtml(
+              selectedExperience.key === "giving"
+                ? "Review the organization’s giving options and continue through its approved donation experience."
+                : selectedExperience.key === "publication"
+                  ? "Explore the publication and available ways to reach its readers and community."
+                  : "Continue to the organization’s approved program experience."
+            )}
+          </p>
+
+          ${
+            organizationWideActionUrl
+              ? `
+                <a
+                  href="${escapeHtml(
+                    organizationWideActionUrl
+                  )}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style="
+                    display:inline-flex;
+                    align-items:center;
+                    justify-content:center;
+                    margin-top:20px;
+                    background:#176b3a;
+                    color:white;
+                    text-decoration:none;
+                    border-radius:9px;
+                    padding:12px 20px;
+                    font-weight:bold;
+                  "
+                >
+                  ${escapeHtml(
+                    organizationWideActionLabel
+                  )} →
+                </a>
+              `
+              : `
+                <div style="
+                  margin-top:20px;
+                  color:#65776b;
+                  font-weight:bold;
+                ">
+                  Program details are being prepared.
+                </div>
+              `
+          }
+        </article>
+      `;
+
       const locationCards =
-        locations.length > 0
+        selectedIsOrganizationWide
+          ? organizationWideCard
+          : locations.length > 0
           ? locations
               .map(location => {
                 const availableCount =
@@ -68213,6 +68924,10 @@ app.get(
 
                           <option value="Home Services">
                             Home Services
+                          </option>
+
+                          <option value="Roofers">
+                            Roofers
                           </option>
 
                           <option value="Professional Services">
