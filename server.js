@@ -66010,6 +66010,20 @@ app.get(
       const programs =
         programsResult.rows;
 
+      const commercePrograms =
+        programs.filter(
+          program =>
+            getMarketplaceProgramExperience(program).key !==
+            "giving"
+        );
+
+      const givingPrograms =
+        programs.filter(
+          program =>
+            getMarketplaceProgramExperience(program).key ===
+            "giving"
+        );
+
               const requestedProgramValue =
         String(
           req.query.program_id || ""
@@ -66153,16 +66167,16 @@ HAVING COUNT(
         ).size > 1;
 
       const heading =
-        hasMultipleExperienceTypes
-          ? `Support & Partner With ${organization.name}`
-          : organization.public_heading ||
-            `Advertise With ${organization.name}`;
+        organization.public_heading ||
+        (hasMultipleExperienceTypes
+          ? `${organization.name} Partnership Marketplace`
+          : `Advertise With ${organization.name}`);
 
       const description =
-        hasMultipleExperienceTypes
-          ? "Explore advertising, sponsorship, publication, and giving opportunities across this organization."
-          : organization.public_description ||
-            "Explore available advertising opportunities across this organization.";
+        organization.public_description ||
+        (hasMultipleExperienceTypes
+          ? "Explore approved advertising and sponsorship opportunities, then choose the right way to connect with this community."
+          : "Explore available advertising opportunities across this organization.");
 
       const logoHtml =
         organization.public_logo_url
@@ -66215,27 +66229,13 @@ HAVING COUNT(
           `
           : "";
 
-      const programCards = [
-        {
-          id: "all",
-          name: "All Opportunities",
-          description:
-            "Explore every currently available opportunity.",
-          image_opportunity_id: null
-        },
-        ...programs
-      ]
+      const programCards = commercePrograms
         .map(program => {
           const programValue =
             String(program.id);
 
           const programExperience =
-            program.id === "all"
-              ? {
-                  eyebrow: "All Programs",
-                  locationAction: "Explore Everything"
-                }
-              : getMarketplaceProgramExperience(program);
+            getMarketplaceProgramExperience(program);
 
           const programImageHtml =
             program.public_image_url ||
@@ -66326,6 +66326,249 @@ HAVING COUNT(
               ">
                 ${programExperience.locationAction} →
               </div>
+            </a>
+          `;
+        })
+        .join("");
+
+      const marketplaceOpportunitiesResult = await q(
+        `
+          SELECT
+            oo.id,
+            oo.space_id AS location_id,
+            s.name AS location_name,
+            p.name AS program_name,
+            p.program_type,
+            oo.photo_data IS NOT NULL AS has_photo,
+            COALESCE(
+              NULLIF(to_jsonb(oo)->>'opportunity_name', ''),
+              NULLIF(to_jsonb(oo)->>'name', ''),
+              NULLIF(to_jsonb(oo)->>'title', ''),
+              NULLIF(to_jsonb(oo)->>'placement', ''),
+              'Partnership Opportunity'
+            ) AS opportunity_name,
+            NULLIF(to_jsonb(oo)->>'description', '') AS description,
+            NULLIF(to_jsonb(oo)->>'category', '') AS category,
+            NULLIF(to_jsonb(oo)->>'price', '')::numeric AS price,
+            COALESCE(
+              NULLIF(to_jsonb(oo)->>'pricing_unit', ''),
+              'year'
+            ) AS pricing_unit,
+            NULLIF(
+              to_jsonb(oo)->>'suggested_term_length',
+              ''
+            )::numeric AS suggested_term_length,
+            NULLIF(
+              to_jsonb(oo)->>'suggested_term_unit',
+              ''
+            ) AS suggested_term_unit,
+            COALESCE(
+              NULLIF(to_jsonb(oo)->>'display_order', '')::integer,
+              999999
+            ) AS display_order
+
+          FROM organization_opportunities oo
+
+          INNER JOIN spaces s
+            ON s.id = oo.space_id
+           AND s.organization_id = oo.organization_id
+           AND COALESCE(s.is_archived, false) = false
+
+          LEFT JOIN organization_programs p
+            ON p.id = oo.program_id
+           AND p.organization_id = oo.organization_id
+
+          WHERE oo.organization_id = $1
+            AND COALESCE(oo.is_active, true) = true
+            AND oo.status = 'Available'
+            AND (
+              oo.available_from IS NULL
+              OR oo.available_from <= CURRENT_DATE
+            )
+            AND (
+              oo.available_until IS NULL
+              OR oo.available_until >= CURRENT_DATE
+            )
+            AND NOT (
+              LOWER(COALESCE(p.program_type, '')) = 'giving'
+              OR LOWER(COALESCE(p.name, '')) ~
+                '(giving|donor|donation|philanthropy)'
+            )
+
+          ORDER BY
+            display_order,
+            opportunity_name,
+            oo.id
+        `,
+        [organization.id]
+      );
+
+      const marketplaceOpportunities =
+        marketplaceOpportunitiesResult.rows;
+
+      const formatMarketplaceMoney = value => {
+        const amount = Number(value);
+
+        if (!Number.isFinite(amount)) {
+          return "Contact for pricing";
+        }
+
+        return new Intl.NumberFormat(
+          "en-US",
+          {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits:
+              Number.isInteger(amount)
+                ? 0
+                : 2
+          }
+        ).format(amount);
+      };
+
+      const marketplacePricingLabel = value => {
+        const unit = String(value || "")
+          .trim()
+          .toLowerCase();
+
+        const labels = {
+          year: "per year",
+          annual: "per year",
+          month: "per month",
+          monthly: "per month",
+          season: "per season",
+          event: "per event",
+          campaign: "per campaign",
+          placement: "per placement",
+          flat: "total investment",
+          one_time: "one-time investment",
+          "one-time": "one-time investment"
+        };
+
+        return labels[unit] ||
+          (unit ? `per ${unit}` : "");
+      };
+
+      const marketplaceOpportunityCards =
+        marketplaceOpportunities
+          .map(opportunity => {
+            const experience =
+              getMarketplaceProgramExperience({
+                name: opportunity.program_name,
+                program_type:
+                  opportunity.program_type
+              });
+
+            const opportunityHref =
+              `/advertise/${encodeURIComponent(
+                organization.slug
+              )}/location/${opportunity.location_id}/opportunity/${opportunity.id}`;
+
+            const photoHtml = opportunity.has_photo
+              ? `
+                <img
+                  src="/org-opportunity/${opportunity.id}/photo"
+                  alt="${escapeHtml(opportunity.opportunity_name)}"
+                  class="marketplace-card-photo"
+                >
+              `
+              : `
+                <div class="marketplace-card-photo marketplace-card-placeholder" aria-hidden="true">
+                  <span>${escapeHtml(
+                    String(opportunity.program_name || "Vivid").slice(0, 1)
+                  )}</span>
+                </div>
+              `;
+
+            const price = opportunity.price !== null
+              ? formatMarketplaceMoney(opportunity.price)
+              : "Contact for pricing";
+
+            const pricingUnit =
+              opportunity.price !== null
+                ? marketplacePricingLabel(
+                    opportunity.pricing_unit
+                  )
+                : "";
+
+            const term =
+              opportunity.suggested_term_length &&
+              opportunity.suggested_term_unit
+                ? `${opportunity.suggested_term_length} ${opportunity.suggested_term_unit}`
+                : "";
+
+            return `
+              <a class="marketplace-opportunity-card" href="${opportunityHref}">
+                ${photoHtml}
+                <div class="marketplace-card-body">
+                  <div class="marketplace-card-kicker">
+                    ${escapeHtml(
+                      opportunity.program_name ||
+                      experience.eyebrow
+                    )}
+                  </div>
+                  <h3>${escapeHtml(opportunity.opportunity_name)}</h3>
+                  <p class="marketplace-card-location">
+                    ${escapeHtml(opportunity.location_name)}
+                  </p>
+                  ${
+                    opportunity.description
+                      ? `<p class="marketplace-card-description">${escapeHtml(opportunity.description)}</p>`
+                      : ""
+                  }
+                  <div class="marketplace-card-footer">
+                    <div>
+                      <strong>${escapeHtml(price)}</strong>
+                      ${pricingUnit ? `<span>${escapeHtml(pricingUnit)}</span>` : ""}
+                      ${term ? `<small>Suggested term: ${escapeHtml(term)}</small>` : ""}
+                    </div>
+                    <span class="marketplace-card-action">
+                      ${escapeHtml(experience.formHeading || experience.cardAction)} →
+                    </span>
+                  </div>
+                </div>
+              </a>
+            `;
+          })
+          .join("");
+
+      const givingCards = givingPrograms
+        .map(program => {
+          const internalGivingHref =
+            `/advertise/${encodeURIComponent(
+              organization.slug
+            )}?program_id=${encodeURIComponent(program.id)}`;
+
+          let givingHref = internalGivingHref;
+          let givingLinkAttributes = "";
+
+          try {
+            const externalGivingUrl = new URL(
+              String(program.external_action_url || "").trim()
+            );
+
+            if (["http:", "https:"].includes(externalGivingUrl.protocol)) {
+              givingHref = externalGivingUrl.toString();
+              givingLinkAttributes =
+                ' target="_blank" rel="noopener noreferrer"';
+            }
+          } catch (err) {
+            // Fall back to the organization-controlled giving page.
+          }
+
+          return `
+            <a
+              class="marketplace-giving-card"
+              href="${escapeHtml(givingHref)}"
+              ${givingLinkAttributes}
+            >
+              <span>Ways to Give</span>
+              <strong>${escapeHtml(program.name)}</strong>
+              <p>${escapeHtml(
+                program.description ||
+                "Support this organization through its approved giving experience."
+              )}</p>
+              <b>Continue to the organization’s giving page →</b>
             </a>
           `;
         })
@@ -66657,21 +66900,247 @@ margin-top:10px;
             }
 
             .public-portal-main {
-              width: min(1000px, calc(100% - 32px));
+              width: min(1180px, calc(100% - 32px));
               margin: 0 auto;
-              padding: 34px 0 50px;
+              padding: 46px 0 64px;
             }
 
-.public-location-grid {
-  display:grid;
-  grid-template-columns:
-    repeat(auto-fill, minmax(240px, 280px));
-  justify-content:center;
-  gap:20px;
-  width:100%;
-  max-width:1400px;
-  margin:0 auto;
-}
+            .public-location-grid {
+              display:grid;
+              grid-template-columns:
+                repeat(auto-fit, minmax(250px, 1fr));
+              justify-content:center;
+              gap:20px;
+              width:100%;
+              margin:0 auto;
+            }
+
+            .marketplace-section {
+              margin:0 auto 58px;
+            }
+
+            .marketplace-section-heading {
+              display:flex;
+              align-items:end;
+              justify-content:space-between;
+              gap:28px;
+              margin-bottom:24px;
+            }
+
+            .marketplace-section-heading > div {
+              max-width:720px;
+            }
+
+            .marketplace-section-heading span {
+              display:block;
+              margin-bottom:8px;
+              color:#176b3a;
+              font-size:12px;
+              font-weight:bold;
+              letter-spacing:.09em;
+              text-transform:uppercase;
+            }
+
+            .marketplace-section-heading h2 {
+              margin:0;
+              color:#163d2d;
+              font-size:clamp(28px,4vw,40px);
+              line-height:1.1;
+            }
+
+            .marketplace-section-heading p {
+              max-width:520px;
+              margin:0;
+              color:#66786f;
+              font-size:16px;
+              line-height:1.6;
+            }
+
+            .marketplace-opportunity-grid {
+              display:grid;
+              grid-template-columns:repeat(3, minmax(0, 1fr));
+              gap:22px;
+            }
+
+            .marketplace-opportunity-card {
+              display:flex;
+              min-width:0;
+              overflow:hidden;
+              flex-direction:column;
+              border:1px solid #d7e2da;
+              border-radius:20px;
+              color:#24382c;
+              background:white;
+              box-shadow:0 12px 32px rgba(22,61,45,.08);
+              text-decoration:none;
+              transition:transform .18s ease, box-shadow .18s ease;
+            }
+
+            .marketplace-opportunity-card:hover,
+            .marketplace-opportunity-card:focus-visible {
+              transform:translateY(-3px);
+              box-shadow:0 18px 40px rgba(22,61,45,.14);
+              outline:none;
+            }
+
+            .marketplace-card-photo {
+              display:block;
+              width:100%;
+              height:220px;
+              object-fit:cover;
+              background:#dbe8df;
+            }
+
+            .marketplace-card-placeholder {
+              display:grid;
+              place-items:center;
+              color:#e6d190;
+              background:linear-gradient(135deg,#123d2a,#1f6745);
+            }
+
+            .marketplace-card-placeholder span {
+              font-size:64px;
+              font-weight:bold;
+            }
+
+            .marketplace-card-body {
+              display:flex;
+              flex:1;
+              flex-direction:column;
+              padding:22px;
+            }
+
+            .marketplace-card-kicker {
+              margin-bottom:8px;
+              color:#176b3a;
+              font-size:11px;
+              font-weight:bold;
+              letter-spacing:.08em;
+              text-transform:uppercase;
+            }
+
+            .marketplace-card-body h3 {
+              margin:0;
+              color:#173c2c;
+              font-size:22px;
+              line-height:1.2;
+            }
+
+            .marketplace-card-location {
+              margin:9px 0 0;
+              color:#53675c;
+              font-size:14px;
+              font-weight:bold;
+            }
+
+            .marketplace-card-description {
+              display:-webkit-box;
+              overflow:hidden;
+              margin:12px 0 0;
+              color:#6b7b72;
+              font-size:14px;
+              line-height:1.55;
+              -webkit-box-orient:vertical;
+              -webkit-line-clamp:3;
+            }
+
+            .marketplace-card-footer {
+              display:flex;
+              align-items:end;
+              justify-content:space-between;
+              gap:18px;
+              margin-top:auto;
+              padding-top:20px;
+            }
+
+            .marketplace-card-footer > div {
+              display:grid;
+              gap:2px;
+            }
+
+            .marketplace-card-footer strong {
+              color:#173c2c;
+              font-size:23px;
+            }
+
+            .marketplace-card-footer span,
+            .marketplace-card-footer small {
+              color:#6b7b72;
+              font-size:11px;
+            }
+
+            .marketplace-card-footer .marketplace-card-action {
+              flex:0 0 auto;
+              border-radius:9px;
+              padding:11px 13px;
+              color:white;
+              background:#176b3a;
+              font-size:12px;
+              font-weight:bold;
+              text-align:center;
+            }
+
+            .marketplace-giving {
+              padding:30px;
+              border:1px solid #ded5ba;
+              border-radius:20px;
+              background:#f7f2e5;
+            }
+
+            .marketplace-giving-grid {
+              display:grid;
+              grid-template-columns:repeat(2, minmax(0, 1fr));
+              gap:18px;
+              margin-top:20px;
+            }
+
+            .marketplace-giving-card {
+              display:grid;
+              gap:8px;
+              padding:24px;
+              border:1px solid #ded5ba;
+              border-radius:15px;
+              color:#24382c;
+              background:white;
+              text-decoration:none;
+            }
+
+            .marketplace-giving-card > span {
+              color:#8b6d18;
+              font-size:11px;
+              font-weight:bold;
+              letter-spacing:.09em;
+              text-transform:uppercase;
+            }
+
+            .marketplace-giving-card > strong {
+              color:#173c2c;
+              font-size:24px;
+            }
+
+            .marketplace-giving-card > p {
+              margin:0;
+              color:#6b736e;
+              line-height:1.55;
+            }
+
+            .marketplace-giving-card > b {
+              margin-top:8px;
+              color:#176b3a;
+              font-size:14px;
+            }
+
+            @media (max-width: 900px) {
+              .marketplace-opportunity-grid {
+                grid-template-columns:repeat(2, minmax(0, 1fr));
+              }
+
+              .marketplace-section-heading {
+                align-items:start;
+                flex-direction:column;
+                gap:10px;
+              }
+            }
 
             @media (max-width: 640px) {
               .public-portal-header {
@@ -66685,6 +67154,19 @@ margin-top:10px;
 .public-location-grid {
   grid-template-columns:1fr;
 }
+              .marketplace-opportunity-grid,
+              .marketplace-giving-grid {
+                grid-template-columns:1fr;
+              }
+
+              .marketplace-card-footer {
+                align-items:stretch;
+                flex-direction:column;
+              }
+
+              .marketplace-card-footer .marketplace-card-action {
+                width:100%;
+              }
             }
           </style>
         </head>
@@ -66706,7 +67188,7 @@ margin-top:10px;
               ${
                 showLocations
                   ? selectedExperience.eyebrow
-                  : "Partnership & Support Opportunities"
+                  : "Partnership Marketplace"
               }
             </div>
 
@@ -66735,36 +67217,76 @@ margin-top:10px;
             ${
               !showLocations
                 ? `
-                  <section style="
-                    max-width:1400px;
-                    margin:0 auto 50px;
-                    text-align:center;
-                  ">
+                  ${
+                    marketplaceOpportunityCards
+                      ? `
+                        <section class="marketplace-section">
+                          <div class="marketplace-section-heading">
+                            <div>
+                              <span>Available now</span>
+                              <h2>Choose a partnership opportunity.</h2>
+                            </div>
+                            <p>
+                              Review the location, investment and visibility.
+                              Select any opportunity to see the full details and
+                              begin a request.
+                            </p>
+                          </div>
 
-                    <h2 style="
-                      margin:0 0 12px;
-                      font-size:clamp(32px,5vw,48px);
-                      color:#163d2d;
-                    ">
-                      Choose a Program
-                    </h2>
+                          <div class="marketplace-opportunity-grid">
+                            ${marketplaceOpportunityCards}
+                          </div>
+                        </section>
+                      `
+                      : ""
+                  }
 
-                    <p style="
-                      max-width:760px;
-                      margin:0 auto 34px;
-                      color:#66786f;
-                      font-size:18px;
-                      line-height:1.6;
-                    ">
-                      Select how you would like to support or connect with
-                      ${escapeHtml(organization.name)}.
-                    </p>
+                  ${
+                    programCards
+                      ? `
+                        <section class="marketplace-section">
+                          <div class="marketplace-section-heading">
+                            <div>
+                              <span>Explore by program</span>
+                              <h2>Find the right way to reach this community.</h2>
+                            </div>
+                            <p>
+                              Browse advertising and sponsorship inventory by
+                              program, season and location.
+                            </p>
+                          </div>
 
-                    <div class="public-location-grid">
-                      ${programCards}
-                    </div>
+                          <div class="public-location-grid">
+                            ${programCards}
+                          </div>
+                        </section>
+                      `
+                      : ""
+                  }
 
-                  </section>
+                  ${
+                    givingCards
+                      ? `
+                        <section class="marketplace-section marketplace-giving">
+                          <div class="marketplace-section-heading">
+                            <div>
+                              <span>Separate from advertising</span>
+                              <h2>Looking to make a gift?</h2>
+                            </div>
+                            <p>
+                              Giving is handled through the organization’s
+                              approved donation experience—not through its
+                              advertising marketplace.
+                            </p>
+                          </div>
+
+                          <div class="marketplace-giving-grid">
+                            ${givingCards}
+                          </div>
+                        </section>
+                      `
+                      : ""
+                  }
                 `
                 : `
                   <section style="
