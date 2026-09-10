@@ -40919,7 +40919,19 @@ app.get(
         programsResult.rows.length
           ? programsResult.rows
               .map(program => `
-                <div class="card">
+                <a
+  class="card"
+  href="/org-marketplace?organization_id=${organizationId}&program_id=${program.id}"
+  aria-label="Open ${escapeHtml(
+    program.name
+  )} opportunities"
+  style="
+    display:block;
+    color:inherit;
+    text-decoration:none;
+    cursor:pointer;
+  "
+>
 
                   <div style="
                     display:flex;
@@ -40994,7 +41006,7 @@ app.get(
 
                   </div>
 
-                </div>
+                </a>
               `)
               .join("")
           : `
