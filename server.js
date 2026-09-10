@@ -77885,6 +77885,11 @@ app.get(
   requireSuperAdmin,
   async (req, res) => {
     try {
+      // Customer status is security-sensitive and must never be restored from
+      // the browser's back/forward cache after an account is deactivated.
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+      res.set("Pragma", "no-cache");
+      res.set("Expires", "0");
 const customerTypeFilter =
   String(req.query.type || "all")
     .trim()
@@ -78179,6 +78184,32 @@ const showArchivedAdvertisers =
                                   Reactivate
                                 </button>
                               </form>
+                              <form
+                                method="POST"
+                                action="/admin/advertiser-customer/${customer.id}/delete"
+                                style="margin:0;"
+                                onsubmit="
+                                  const confirmation = prompt(
+                                    'Permanently delete this archived Advertiser customer and its linked logins? This cannot be undone. Type DELETE to continue.'
+                                  );
+                                  if (confirmation !== 'DELETE') return false;
+                                  this.elements.confirmation.value = confirmation;
+                                  return true;
+                                "
+                              >
+                                <input
+                                  type="hidden"
+                                  name="confirmation"
+                                  value=""
+                                />
+                                <button
+                                  class="btn secondary"
+                                  type="submit"
+                                  style="margin:0;background:#dc2626;color:#fff;"
+                                >
+                                  Delete Permanently
+                                </button>
+                              </form>
                             `
                             : `
                               <form
@@ -78389,6 +78420,19 @@ const showArchivedAdvertisers =
 
 
             <div class="wrap">
+
+              ${
+                req.query.message
+                  ? `
+                    <div
+                      class="card"
+                      style="padding:14px 18px;margin-bottom:20px;background:#e8f5eb;color:#185b34;font-weight:700;"
+                    >
+                      ${escapeHtml(String(req.query.message))}
+                    </div>
+                  `
+                  : ""
+              }
 
 
               <!-- =======================================
@@ -79298,6 +79342,9 @@ app.get(
     requireAdvertiserCustomerManager,
   async (req, res) => {
     try {
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+      res.set("Pragma", "no-cache");
+      res.set("Expires", "0");
 
       const customerId =
         Number(req.params.customerId);
@@ -79632,12 +79679,13 @@ app.get(
 
                 <a
                   class="btn secondary"
-                  href="/admin/advertiser-customer/${customerId}"
+                  href="/admin/users?type=advertiser&advertiser_status=${
+                    String(customer.account_status || "active").toLowerCase() === "inactive"
+                      ? "archived"
+                      : "active"
+                  }"
                 >
-                  Back to ${escapeHtml(
-                    customer.company_name ||
-                    "Advertiser"
-                  )}
+                  Back to Customers
                 </a>
 
                 <a
@@ -80275,8 +80323,11 @@ app.post(
 
           SET account_status = 'inactive'
 
-          WHERE id = $1
-            AND role = 'customer'
+          WHERE role = 'customer'
+            AND COALESCE(
+              advertiser_customer_id,
+              id
+            ) = $1
 
           RETURNING id
         `,
@@ -80292,7 +80343,7 @@ app.post(
       }
 
       return res.redirect(
-        `/admin/advertiser-customer/${customerId}/users?message=${encodeURIComponent(
+        `/admin/users?type=advertiser&advertiser_status=archived&message=${encodeURIComponent(
           "Advertiser customer deactivated."
         )}`
       );
@@ -80341,8 +80392,11 @@ app.post(
 
           SET account_status = 'active'
 
-          WHERE id = $1
-            AND role = 'customer'
+          WHERE role = 'customer'
+            AND COALESCE(
+              advertiser_customer_id,
+              id
+            ) = $1
 
           RETURNING id
         `,
@@ -80358,7 +80412,7 @@ app.post(
       }
 
       return res.redirect(
-        `/admin/advertiser-customer/${customerId}/users?message=${encodeURIComponent(
+        `/admin/users?type=advertiser&advertiser_status=active&message=${encodeURIComponent(
           "Advertiser customer reactivated."
         )}`
       );
@@ -80376,6 +80430,166 @@ app.post(
           "REACTIVATE ADVERTISER CUSTOMER ERROR: " +
           err.message
         );
+    }
+  }
+);
+
+/*
+=========================================================
+PERMANENTLY DELETE AN ARCHIVED ADVERTISER CUSTOMER
+
+Only empty Advertiser accounts can be deleted. Accounts
+with placements, campaigns, contracts, stores, advertiser
+relationships, or access to another organization remain
+archived so historical reporting is preserved.
+=========================================================
+*/
+
+app.post(
+  "/admin/advertiser-customer/:customerId/delete",
+  requireSuperAdmin,
+  async (req, res) => {
+    const customerId = Number(req.params.customerId);
+    const confirmation = String(req.body.confirmation || "").trim();
+
+    if (!Number.isInteger(customerId) || customerId <= 0) {
+      return res.status(400).send("Invalid Advertiser customer.");
+    }
+
+    if (confirmation !== "DELETE") {
+      return res.status(400).send("Type DELETE to permanently delete this customer.");
+    }
+
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const customerResult = await client.query(
+        `
+          SELECT id, email, company_name, account_status
+          FROM users
+          WHERE id = $1
+            AND role = 'customer'
+            AND COALESCE(advertiser_customer_id, id) = id
+          FOR UPDATE
+        `,
+        [customerId]
+      );
+
+      const customer = customerResult.rows[0];
+
+      if (!customer) {
+        await client.query("ROLLBACK");
+        return res.status(404).send("Advertiser customer not found.");
+      }
+
+      if (String(customer.account_status || "active").toLowerCase() !== "inactive") {
+        await client.query("ROLLBACK");
+        return res.status(400).send("Deactivate this Advertiser customer before permanently deleting it.");
+      }
+
+      const linkedUsersResult = await client.query(
+        `
+          SELECT id
+          FROM users
+          WHERE role = 'customer'
+            AND COALESCE(advertiser_customer_id, id) = $1
+          FOR UPDATE
+        `,
+        [customerId]
+      );
+
+      const linkedUserIds = linkedUsersResult.rows.map(row => Number(row.id));
+
+      const usageResult = await client.query(
+        `
+          WITH owned_organizations AS (
+            SELECT id
+            FROM organizations
+            WHERE customer_id = ANY($1::int[])
+          )
+          SELECT
+            (SELECT COUNT(*) FROM spaces
+              WHERE user_id = ANY($1::int[])
+                 OR organization_id IN (SELECT id FROM owned_organizations))::int AS locations,
+            (SELECT COUNT(*) FROM campaigns
+              WHERE user_id = ANY($1::int[]))::int AS campaigns,
+            (SELECT COUNT(*) FROM stores
+              WHERE user_id = ANY($1::int[]))::int AS stores,
+            (SELECT COUNT(*) FROM contracts
+              WHERE customer_id = ANY($1::int[])
+                 OR organization_id IN (SELECT id FROM owned_organizations))::int AS contracts,
+            (SELECT COUNT(*) FROM advertisers
+              WHERE customer_id = ANY($1::int[])
+                 OR organization_id IN (SELECT id FROM owned_organizations))::int AS advertisers,
+            (SELECT COUNT(*) FROM organization_opportunities
+              WHERE organization_id IN (SELECT id FROM owned_organizations))::int AS opportunities,
+            (SELECT COUNT(*) FROM organization_advertising_requests
+              WHERE organization_id IN (SELECT id FROM owned_organizations))::int AS advertising_requests,
+            (SELECT COUNT(*)
+               FROM organization_users ou
+              WHERE ou.user_id = ANY($1::int[])
+                AND ou.organization_id NOT IN (SELECT id FROM owned_organizations))::int AS external_memberships
+        `,
+        [linkedUserIds]
+      );
+
+      const usage = usageResult.rows[0] || {};
+      const blockers = Object.entries(usage)
+        .filter(([, count]) => Number(count || 0) > 0)
+        .map(([label, count]) => `${label.replaceAll("_", " ")}: ${count}`);
+
+      if (blockers.length) {
+        await client.query("ROLLBACK");
+        return res.status(409).send(`
+          <div style="font-family:Arial,sans-serif;max-width:720px;margin:50px auto;line-height:1.6;">
+            <h2>Advertiser customer cannot be deleted</h2>
+            <p><strong>${escapeHtml(customer.company_name || customer.email || "This account")}</strong> contains Vivid data or access that must be preserved:</p>
+            <ul>${blockers.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+            <p>Leave this customer archived. Remove the listed test data first only if you are certain it is disposable.</p>
+            <a href="/admin/users?type=advertiser&advertiser_status=archived">Back to Archived Customers</a>
+          </div>
+        `);
+      }
+
+      const ownedOrganizationsResult = await client.query(
+        `SELECT id FROM organizations WHERE customer_id = ANY($1::int[])`,
+        [linkedUserIds]
+      );
+      const ownedOrganizationIds = ownedOrganizationsResult.rows.map(row => Number(row.id));
+
+      if (ownedOrganizationIds.length) {
+        await client.query(`DELETE FROM location_users WHERE organization_id = ANY($1::int[])`, [ownedOrganizationIds]);
+        await client.query(`DELETE FROM organization_user_invitations WHERE organization_id = ANY($1::int[])`, [ownedOrganizationIds]);
+        await client.query(`DELETE FROM organization_users WHERE organization_id = ANY($1::int[])`, [ownedOrganizationIds]);
+        await client.query(`DELETE FROM organizations WHERE id = ANY($1::int[])`, [ownedOrganizationIds]);
+      }
+
+      await client.query(`DELETE FROM organization_user_invitations WHERE user_id = ANY($1::int[])`, [linkedUserIds]);
+      await client.query(`DELETE FROM password_reset_tokens WHERE user_id = ANY($1::int[])`, [linkedUserIds]);
+      await client.query(`DELETE FROM users WHERE id = ANY($1::int[])`, [linkedUserIds]);
+
+      await client.query("COMMIT");
+
+      return res.redirect(
+        `/admin/users?type=advertiser&advertiser_status=archived&message=${encodeURIComponent(
+          "Advertiser customer permanently deleted."
+        )}`
+      );
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.error("DELETE ADVERTISER CUSTOMER ERROR:", err);
+
+      if (err.code === "23503") {
+        return res.status(409).send(
+          "This Advertiser customer is still connected to Vivid data and cannot be deleted. Leave it archived."
+        );
+      }
+
+      return res.status(500).send("DELETE ADVERTISER CUSTOMER ERROR: " + err.message);
+    } finally {
+      client.release();
     }
   }
 );
