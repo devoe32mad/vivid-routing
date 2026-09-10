@@ -58517,7 +58517,36 @@ const {
           "Organization not found."
         );
       }
+      if (
+        !String(
+          organization.slug || ""
+        ).trim()
+      ) {
+        const slugBase =
+          String(organization.name || "")
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
 
+        const slugResult = await q(
+          `
+            UPDATE organizations
+            SET
+              slug = $1,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+            RETURNING slug
+          `,
+          [
+            `${slugBase || "organization"}-${organization.id}`,
+            organization.id
+          ]
+        );
+
+        organization.slug =
+          slugResult.rows[0].slug;
+      }
       /*
         Marketplace reads existing location names only.
         No Marketplace data is written in this preview.
