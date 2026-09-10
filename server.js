@@ -65874,7 +65874,9 @@ app.get(
        await q(`
         SELECT
           oo.id,
-
+          oo.program_id,
+          oo.photo_data IS NOT NULL AS has_photo,
+          p.name AS program_name,
           COALESCE(
             NULLIF(
               to_jsonb(oo)->>'opportunity_name',
@@ -65960,7 +65962,9 @@ app.get(
           ) AS display_order
 
         FROM organization_opportunities oo
-
+        LEFT JOIN organization_programs p
+          ON p.id = oo.program_id
+         AND p.organization_id = oo.organization_id
                 WHERE oo.organization_id = $1
           AND oo.space_id = $2
           AND (
@@ -66084,6 +66088,43 @@ app.get(
         opportunities.length > 0
           ? opportunities
               .map(opportunity => {
+                                const photoHtml =
+                  opportunity.has_photo
+                    ? `
+                      <img
+                        src="/org-opportunity/${opportunity.id}/photo"
+                        alt="${escapeHtml(
+                          opportunity.opportunity_name
+                        )}"
+                        style="
+                          display:block;
+                          width:100%;
+                          height:220px;
+                          object-fit:cover;
+                          border-radius:12px;
+                          margin-bottom:18px;
+                        "
+                      >
+                    `
+                    : "";
+
+                const programHtml =
+                  opportunity.program_name
+                    ? `
+                      <div style="
+                        color:#176b3a;
+                        font-size:12px;
+                        font-weight:bold;
+                        letter-spacing:.06em;
+                        text-transform:uppercase;
+                        margin-bottom:8px;
+                      ">
+                        ${escapeHtml(
+                          opportunity.program_name
+                        )}
+                      </div>
+                    `
+                    : "";
                 const groupHtml =
                   opportunity.opportunity_group
                     ? `
@@ -66258,9 +66299,19 @@ app.get(
                     `Available through ${availableUntil}`;
                 }
 
-                return `
-                  <article style="
+                                return `
+                  <article
+                    role="link"
+                    tabindex="0"
+                    onclick="window.location.href='/advertise/${encodeURIComponent(
+                      organization.slug
+                    )}/location/${location.id}/opportunity/${opportunity.id}'"
+                    onkeydown="if(event.key === 'Enter'){this.click();}"
+                    style="
+                    cursor:pointer;
                     background:white;
+                  
+                    
                     border:1px solid #dbe5dd;
                     border-radius:18px;
                     padding:22px;
@@ -66273,9 +66324,13 @@ app.get(
                       rgba(0,0,0,.05);
                   ">
 
-                    <div>
+                                        <div>
 
+                      ${photoHtml}
+                      ${programHtml}
                       ${groupHtml}
+
+                      
 
                       <h2 style="
                         margin:0;
@@ -66340,7 +66395,7 @@ app.get(
                           font-size:14px;
                         "
                       >
-                        Select Opportunity
+                        View Opportunity
                       </a>
 
                     </div>
@@ -66730,7 +66785,9 @@ app.get(
       const opportunityResult = await q(`
         SELECT
           oo.id,
-
+          oo.program_id,
+          oo.photo_data IS NOT NULL AS has_photo,
+          p.name AS program_name,
           COALESCE(
             NULLIF(
               to_jsonb(oo)->>'opportunity_name',
@@ -66808,7 +66865,9 @@ app.get(
           oo.available_until
 
         FROM organization_opportunities oo
-
+        LEFT JOIN organization_programs p
+          ON p.id = oo.program_id
+         AND p.organization_id = oo.organization_id
         WHERE oo.id = $1
           AND oo.organization_id = $2
           AND oo.space_id = $3
@@ -66970,7 +67029,48 @@ app.get(
             </div>
           `
           : "";
+      const programHtml =
+        opportunity.program_name
+          ? `
+            <div class="summary-row">
+              <div class="summary-label">
+                Program
+              </div>
 
+              <div class="summary-value">
+                ${escapeHtml(
+                  opportunity.program_name
+                )}
+              </div>
+            </div>
+          `
+          : "";
+
+      const photoHtml =
+        opportunity.has_photo
+          ? `
+            <img
+              src="/org-opportunity/${opportunity.id}/photo"
+              alt="${escapeHtml(
+                opportunity.opportunity_name
+              )}"
+              style="
+                display:block;
+                width:100%;
+                max-height:320px;
+                object-fit:cover;
+                border-radius:12px;
+                margin-bottom:20px;
+              "
+            >
+          `
+          : "";
+                const backHref =
+        `/advertise/${encodeURIComponent(
+          organization.slug
+        )}/location/${location.id}?program_id=${encodeURIComponent(
+          opportunity.program_id || "all"
+        )}`;
       const locationDetailHtml =
         location.location
           ? `
@@ -67309,7 +67409,9 @@ app.get(
                   42px
                 );
             ">
-              Tell Us About Your Business
+              ${escapeHtml(
+  opportunity.opportunity_name
+)}
             </h1>
 
             <p style="
@@ -67355,7 +67457,7 @@ app.get(
               <div class="form-layout">
 
                 <aside class="panel summary-panel">
-
+                  ${photoHtml}
                   <div style="
                     color:#176b3a;
                     font-size:12px;
@@ -67431,9 +67533,12 @@ app.get(
                       </div>
                     </div>
 
-                    ${opportunityGroupHtml}
+                                        ${opportunityGroupHtml}
                     ${placementHtml}
                     ${categoryHtml}
+                    ${programHtml}
+                    
+                    
 
                     <div class="summary-row">
                       <div class="summary-label">
@@ -67474,11 +67579,29 @@ app.get(
                       </div>
                     </div>
 
-                  </div>
+                                    </div>
+
+                  <a
+                    href="#sponsor-form"
+                    class="continue-button"
+                    style="
+                      width:100%;
+                      margin-top:20px;
+                    "
+                  >
+                    Sponsor This Opportunity
+                  </a>
 
                 </aside>
 
-                <section class="panel">
+                <section
+                  class="panel"
+                  id="sponsor-form"
+                >
+
+                
+
+                
 
                   <div class="form-section">
 
@@ -67487,7 +67610,7 @@ app.get(
                       color:#17482f;
                       font-size:23px;
                     ">
-                      Business Information
+                                            Sponsor This Opportunity
                     </h2>
 
                     <div class="field-grid">
@@ -67570,7 +67693,7 @@ app.get(
   autocomplete="url"
 >
                           
-                        >
+                        
                       </div>
 
                       <div class="field full-width">
@@ -67687,7 +67810,7 @@ app.get(
   placeholder="example.com"
   required
 >
-                        >
+                        
                       </div>
 
 
@@ -67735,9 +67858,9 @@ app.get(
                   <div class="form-actions">
 
                     <a
-                      href="/advertise/${encodeURIComponent(
-                        organization.slug
-                      )}/location/${location.id}"
+                      href="${backHref}"
+                        
+                      
                       class="back-button"
                     >
                       ← Back
