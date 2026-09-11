@@ -58548,7 +58548,10 @@ oo.qr_id AS opportunity_qr_id
   for locations assigned to them.
 */
 const scope =
-  await getOrganizationScope(req);
+  await getOrganizationScope(
+    req,
+    organizationId
+  );
 
 if (
   scope.organizationId !== organizationId ||
