@@ -22634,7 +22634,7 @@ app.post(
       );
 
       return res.redirect(
-        `/org-contract/${contractId}?organization_id=${organizationId}`
+        `/org-contract/${contractId}?organization_id=${organizationId}&document_uploaded=1#contract-next-action`
       );
 
     } catch (err) {
@@ -24461,11 +24461,77 @@ This contract is ready to activate.
 
 </div>
 
-<div class="card">
+<div
+  class="card"
+  id="contract-next-action"
+>
 
   <h2 style="margin-top:0;">
     Documents
   </h2>
+
+  ${
+    String(contract.status || "")
+      .trim()
+      .toLowerCase() === "draft" &&
+    hasExecutedAgreement
+      ? `
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:16px;
+            flex-wrap:wrap;
+            margin:0 0 20px;
+            padding:18px;
+            border:1px solid #86c99b;
+            border-left:6px solid #17733b;
+            border-radius:12px;
+            background:#f1fbf4;
+          ">
+            <div>
+              <strong style="
+                display:block;
+                color:#173f2a;
+                font-size:18px;
+                margin-bottom:4px;
+              ">
+                Signed agreement uploaded
+              </strong>
+
+              <div style="color:#52645a;">
+                Next step: activate this contract to begin
+                tracking the advertising relationship.
+              </div>
+            </div>
+
+            <form
+              method="POST"
+              action="/org-contract/${contractId}/activate"
+              style="margin:0;"
+            >
+              <input
+                type="hidden"
+                name="organization_id"
+                value="${organizationId}"
+              >
+
+              <button
+                class="btn"
+                type="submit"
+                onclick="
+                  return confirm(
+                    'Activate this contract now?'
+                  )
+                "
+              >
+                Activate Contract
+              </button>
+            </form>
+          </div>
+        `
+      : ""
+  }
 
   <div style="
     display:flex;
@@ -26915,7 +26981,10 @@ console.log(
           .send("Contract not found.");
       }
 const scope =
-  await getOrganizationScope(req);
+  await getOrganizationScope(
+    req,
+    organizationId
+  );
 
 if (
   scope.organizationId !== organizationId ||
