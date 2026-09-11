@@ -67120,6 +67120,26 @@ app.get(
         ] || program.name;
       };
 
+      const requestedProgramValue =
+        String(
+          req.query.program_id || ""
+        ).trim();
+
+      const requestedProgramId =
+        Number(requestedProgramValue);
+
+      const selectedProgram =
+        programs.find(
+          program =>
+            Number(program.id) ===
+            requestedProgramId
+        ) || null;
+
+      const selectedProgramId =
+        selectedProgram
+          ? Number(selectedProgram.id)
+          : null;
+
       /*
         The SJN pilot skips the extra public location
         selection step. After choosing Campus, Magazine,
@@ -67351,26 +67371,6 @@ app.get(
             getMarketplaceProgramExperience(program).key ===
             "giving"
         );
-
-              const requestedProgramValue =
-        String(
-          req.query.program_id || ""
-        ).trim();
-
-      const requestedProgramId =
-        Number(requestedProgramValue);
-
-      const selectedProgram =
-        programs.find(
-          program =>
-            Number(program.id) ===
-            requestedProgramId
-        ) || null;
-
-      const selectedProgramId =
-        selectedProgram
-          ? Number(selectedProgram.id)
-          : null;
 
       const showAllPrograms =
         requestedProgramValue.toLowerCase() ===
