@@ -85100,7 +85100,8 @@ const topCampaign = {
 =========================================================
 CAMPAIGN NEEDING ATTENTION
 
-Only consider campaigns with meaningful investment.
+Only consider campaigns with meaningful investment and
+an actual performance problem: no conversions or negative ROI.
 
 Priority:
 
@@ -85114,7 +85115,11 @@ const attentionCandidates =
   campaignPerformance
     .filter(
       campaign =>
-        campaign.allocatedCost > 0
+        campaign.allocatedCost > 0 &&
+        (
+          campaign.conversions === 0 ||
+          campaign.roi < 0
+        )
     )
     .sort((a, b) => {
 
