@@ -66331,207 +66331,6 @@ HAVING COUNT(
         })
         .join("");
 
-      const marketplaceOpportunitiesResult = await q(
-        `
-          SELECT
-            oo.id,
-            oo.space_id AS location_id,
-            s.name AS location_name,
-            p.name AS program_name,
-            p.program_type,
-            oo.photo_data IS NOT NULL AS has_photo,
-            COALESCE(
-              NULLIF(to_jsonb(oo)->>'opportunity_name', ''),
-              NULLIF(to_jsonb(oo)->>'name', ''),
-              NULLIF(to_jsonb(oo)->>'title', ''),
-              NULLIF(to_jsonb(oo)->>'placement', ''),
-              'Partnership Opportunity'
-            ) AS opportunity_name,
-            NULLIF(to_jsonb(oo)->>'description', '') AS description,
-            NULLIF(to_jsonb(oo)->>'category', '') AS category,
-            NULLIF(to_jsonb(oo)->>'price', '')::numeric AS price,
-            COALESCE(
-              NULLIF(to_jsonb(oo)->>'pricing_unit', ''),
-              'year'
-            ) AS pricing_unit,
-            NULLIF(
-              to_jsonb(oo)->>'suggested_term_length',
-              ''
-            )::numeric AS suggested_term_length,
-            NULLIF(
-              to_jsonb(oo)->>'suggested_term_unit',
-              ''
-            ) AS suggested_term_unit,
-            COALESCE(
-              NULLIF(to_jsonb(oo)->>'display_order', '')::integer,
-              999999
-            ) AS display_order
-
-          FROM organization_opportunities oo
-
-          INNER JOIN spaces s
-            ON s.id = oo.space_id
-           AND s.organization_id = oo.organization_id
-           AND COALESCE(s.is_archived, false) = false
-
-          LEFT JOIN organization_programs p
-            ON p.id = oo.program_id
-           AND p.organization_id = oo.organization_id
-
-          WHERE oo.organization_id = $1
-            AND COALESCE(oo.is_active, true) = true
-            AND oo.status = 'Available'
-            AND (
-              oo.available_from IS NULL
-              OR oo.available_from <= CURRENT_DATE
-            )
-            AND (
-              oo.available_until IS NULL
-              OR oo.available_until >= CURRENT_DATE
-            )
-            AND NOT (
-              LOWER(COALESCE(p.program_type, '')) = 'giving'
-              OR LOWER(COALESCE(p.name, '')) ~
-                '(giving|donor|donation|philanthropy)'
-            )
-
-          ORDER BY
-            display_order,
-            opportunity_name,
-            oo.id
-        `,
-        [organization.id]
-      );
-
-      const marketplaceOpportunities =
-        marketplaceOpportunitiesResult.rows;
-
-      const formatMarketplaceMoney = value => {
-        const amount = Number(value);
-
-        if (!Number.isFinite(amount)) {
-          return "Contact for pricing";
-        }
-
-        return new Intl.NumberFormat(
-          "en-US",
-          {
-            style: "currency",
-            currency: "USD",
-            maximumFractionDigits:
-              Number.isInteger(amount)
-                ? 0
-                : 2
-          }
-        ).format(amount);
-      };
-
-      const marketplacePricingLabel = value => {
-        const unit = String(value || "")
-          .trim()
-          .toLowerCase();
-
-        const labels = {
-          year: "per year",
-          annual: "per year",
-          month: "per month",
-          monthly: "per month",
-          season: "per season",
-          event: "per event",
-          campaign: "per campaign",
-          placement: "per placement",
-          flat: "total investment",
-          one_time: "one-time investment",
-          "one-time": "one-time investment"
-        };
-
-        return labels[unit] ||
-          (unit ? `per ${unit}` : "");
-      };
-
-      const marketplaceOpportunityCards =
-        marketplaceOpportunities
-          .map(opportunity => {
-            const experience =
-              getMarketplaceProgramExperience({
-                name: opportunity.program_name,
-                program_type:
-                  opportunity.program_type
-              });
-
-            const opportunityHref =
-              `/advertise/${encodeURIComponent(
-                organization.slug
-              )}/location/${opportunity.location_id}/opportunity/${opportunity.id}`;
-
-            const photoHtml = opportunity.has_photo
-              ? `
-                <img
-                  src="/org-opportunity/${opportunity.id}/photo"
-                  alt="${escapeHtml(opportunity.opportunity_name)}"
-                  class="marketplace-card-photo"
-                >
-              `
-              : `
-                <div class="marketplace-card-photo marketplace-card-placeholder" aria-hidden="true">
-                  <span>${escapeHtml(
-                    String(opportunity.program_name || "Vivid").slice(0, 1)
-                  )}</span>
-                </div>
-              `;
-
-            const price = opportunity.price !== null
-              ? formatMarketplaceMoney(opportunity.price)
-              : "Contact for pricing";
-
-            const pricingUnit =
-              opportunity.price !== null
-                ? marketplacePricingLabel(
-                    opportunity.pricing_unit
-                  )
-                : "";
-
-            const term =
-              opportunity.suggested_term_length &&
-              opportunity.suggested_term_unit
-                ? `${opportunity.suggested_term_length} ${opportunity.suggested_term_unit}`
-                : "";
-
-            return `
-              <a class="marketplace-opportunity-card" href="${opportunityHref}">
-                ${photoHtml}
-                <div class="marketplace-card-body">
-                  <div class="marketplace-card-kicker">
-                    ${escapeHtml(
-                      opportunity.program_name ||
-                      experience.eyebrow
-                    )}
-                  </div>
-                  <h3>${escapeHtml(opportunity.opportunity_name)}</h3>
-                  <p class="marketplace-card-location">
-                    ${escapeHtml(opportunity.location_name)}
-                  </p>
-                  ${
-                    opportunity.description
-                      ? `<p class="marketplace-card-description">${escapeHtml(opportunity.description)}</p>`
-                      : ""
-                  }
-                  <div class="marketplace-card-footer">
-                    <div>
-                      <strong>${escapeHtml(price)}</strong>
-                      ${pricingUnit ? `<span>${escapeHtml(pricingUnit)}</span>` : ""}
-                      ${term ? `<small>Suggested term: ${escapeHtml(term)}</small>` : ""}
-                    </div>
-                    <span class="marketplace-card-action">
-                      ${escapeHtml(experience.formHeading || experience.cardAction)} →
-                    </span>
-                  </div>
-                </div>
-              </a>
-            `;
-          })
-          .join("");
-
       const givingCards = givingPrograms
         .map(program => {
           const internalGivingHref =
@@ -67218,41 +67017,18 @@ margin-top:10px;
               !showLocations
                 ? `
                   ${
-                    marketplaceOpportunityCards
-                      ? `
-                        <section class="marketplace-section">
-                          <div class="marketplace-section-heading">
-                            <div>
-                              <span>Available now</span>
-                              <h2>Choose a partnership opportunity.</h2>
-                            </div>
-                            <p>
-                              Review the location, investment and visibility.
-                              Select any opportunity to see the full details and
-                              begin a request.
-                            </p>
-                          </div>
-
-                          <div class="marketplace-opportunity-grid">
-                            ${marketplaceOpportunityCards}
-                          </div>
-                        </section>
-                      `
-                      : ""
-                  }
-
-                  ${
                     programCards
                       ? `
                         <section class="marketplace-section">
                           <div class="marketplace-section-heading">
                             <div>
-                              <span>Explore by program</span>
+                              <span>Start here</span>
                               <h2>Find the right way to reach this community.</h2>
                             </div>
                             <p>
-                              Browse advertising and sponsorship inventory by
-                              program, season and location.
+                              Choose a program first. Then select a location and
+                              an available opportunity to review the details and
+                              request approval.
                             </p>
                           </div>
 
