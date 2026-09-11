@@ -1712,22 +1712,22 @@ function daysActive(startAt, endAt = null) {
     return 0;
   }
 
-  const startDay = new Date(
-    start.getFullYear(),
-    start.getMonth(),
-    start.getDate()
+  const startDay = Date.UTC(
+    start.getUTCFullYear(),
+    start.getUTCMonth(),
+    start.getUTCDate()
   );
 
-  const todayDay = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate()
+  const todayDay = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate()
   );
 
-  const contractEndDay = new Date(
-    contractEnd.getFullYear(),
-    contractEnd.getMonth(),
-    contractEnd.getDate()
+  const contractEndDay = Date.UTC(
+    contractEnd.getUTCFullYear(),
+    contractEnd.getUTCMonth(),
+    contractEnd.getUTCDate()
   );
 
   if (todayDay < startDay) {
@@ -1753,8 +1753,27 @@ function daysActive(startAt, endAt = null) {
 
 
 
+function normalizeScheduleDays(days) {
+  const values = Array.isArray(days)
+    ? days
+    : String(days ?? "").split(",");
+
+  return [
+    ...new Set(
+      values
+        .map(value => String(value).trim())
+        .filter(value => /^[0-6]$/.test(value))
+    )
+  ]
+    .sort((a, b) => Number(a) - Number(b))
+    .join(",");
+}
+
 function dayLabels(days) {
-  if (!days) return "";
+  const normalizedDays =
+    normalizeScheduleDays(days);
+
+  if (!normalizedDays) return "";
 
   const map = {
     "0": "Sun",
@@ -1766,7 +1785,7 @@ function dayLabels(days) {
     "6": "Sat"
   };
 
-  const arr = days.split(",");
+  const arr = normalizedDays.split(",");
 
   if (arr.length === 7) return "Everyday";
 
@@ -74214,6 +74233,67 @@ const activeScheduleCount =
 const hasSchedules = activeScheduleCount > 0;
     let locationTable = "";
     for (const s of locations.rows) {
+      const locationRelationships =
+        relationships.rows.filter(
+          relationship =>
+            String(relationship.location_id) ===
+            String(s.id)
+        );
+
+      const relationshipStartDates =
+        locationRelationships
+          .map(relationship => {
+            const qr = qrs.rows.find(
+              item =>
+                String(item.id) ===
+                String(relationship.qr_id)
+            );
+
+            const campaign = campaigns.rows.find(
+              item =>
+                String(item.id) ===
+                String(relationship.campaign_id)
+            );
+
+            const candidates = [
+              s.live_date,
+              qr?.live_date,
+              campaign?.start_date ||
+                campaign?.live_date,
+              relationship.created_at
+            ]
+              .filter(Boolean)
+              .map(value => new Date(value))
+              .filter(
+                value =>
+                  !Number.isNaN(value.getTime())
+              );
+
+            if (!candidates.length) {
+              return null;
+            }
+
+            return new Date(
+              Math.max(
+                ...candidates.map(
+                  value => value.getTime()
+                )
+              )
+            );
+          })
+          .filter(Boolean);
+
+      const effectiveLocationStartDate =
+        relationshipStartDates.length
+          ? new Date(
+              Math.min(
+                ...relationshipStartDates.map(
+                  value => value.getTime()
+                )
+              )
+            )
+          : s.live_date;
+
       locationTable += `
         <tr>
          <td>${s.id}</td>
@@ -74240,9 +74320,9 @@ const hasSchedules = activeScheduleCount > 0;
     .filter(Boolean)
 )].join(", ")
 }</td>
-<td>${dateLabel(s.live_date)}</td>
+<td>${dateLabel(effectiveLocationStartDate)}</td>
 
-<td>${daysActive(s.live_date)}</td>
+<td>${daysActive(effectiveLocationStartDate)}</td>
 
 <td>
   <a href="/admin/view-location/${s.id}">View</a>
@@ -90029,7 +90109,7 @@ app.get("/admin/edit-schedule/:id", requireLogin, async (req, res) => {
     </div>
 
     <div class="wrap">
-      <form method="POST">
+      <form id="editScheduleForm" method="POST">
         <label>Campaign</label>
 
         <select name="campaign_id">
@@ -90143,7 +90223,7 @@ app.get("/admin/edit-schedule/:id", requireLogin, async (req, res) => {
     }
   );
 
-  document.querySelector("form")
+  document.getElementById("editScheduleForm")
     .addEventListener("submit", () => {
       document.getElementById(
         "days_of_week_hidden"
@@ -90169,7 +90249,10 @@ app.post("/admin/edit-schedule/:id", requireLogin, async (req, res) => {
 } = req.body;
 
 const selectedDays =
-  String(days_of_week || "").trim();
+  normalizeScheduleDays(
+    req.body.days_of_week_check ||
+    days_of_week
+  );
     
   
   
@@ -90456,7 +90539,7 @@ for (const s of schedules.rows) {
   </label>
 
   <label style="display:flex; align-items:center; gap:6px;">
-    <input type="checkbox" name="days_of_week-check" value="5"> Friday
+    <input type="checkbox" name="days_of_week_check" value="5"> Friday
   </label>
 
   <label style="display:flex; align-items:center; gap:6px;">
@@ -90500,7 +90583,7 @@ if (scheduleForm) {
 <div style="overflow-x:auto;padding-bottom:10px;">
 <table style="min-width:1400px;width:auto;"><tr><th>QR</th><th>Advertiser</th><th>Campaign</th><th>Day</th><th>Start</th><th>End</th><th>Priority</th>
 <th>Status</th>
-<th>Action</th><tr>${schedules.rows.map(s => `<tr><td>${s.qr_name || s.qr_id}</td><td>${s.advertiser || ""}</td><td>${s.campaign_name || ""}</td><td>${dayLabels(s.days) || "Every Day"}</td><td>${s.start_time}</td><td>${s.end_time}</td><td>${s.priority}</td><td>
+<th>Action</th><tr>${schedules.rows.map(s => `<tr><td>${s.qr_name || s.qr_id}</td><td>${s.advertiser || ""}</td><td>${s.campaign_name || ""}</td><td>${dayLabels(s.days_of_week) || "Every Day"}</td><td>${s.start_time}</td><td>${s.end_time}</td><td>${s.priority}</td><td>
   
      
   ${
@@ -90738,9 +90821,11 @@ app.post("/admin/schedule", requireLogin, async (req, res) => {
   try {
 const marketplaceRequestId =
   Number(req.body.marketplace_request_id);
-    const selectedDays = Array.isArray(req.body.days_of_week_check)
-  ? req.body.days_of_week_check.join(",")
-  : (req.body.days_of_week_check || req.body.days_of_week || "");
+    const selectedDays =
+  normalizeScheduleDays(
+    req.body.days_of_week_check ||
+    req.body.days_of_week
+  );
     const overlap = await q(
   `
   SELECT *
