@@ -5320,6 +5320,118 @@ await q(`
   ADD COLUMN IF NOT EXISTS photo_file_name TEXT
 `);
 
+/*
+  Give the SJN Magazine program real public inventory for
+  the pilot. Pricing remains intentionally unassigned until
+  SJN approves its rate card, so the marketplace displays
+  Contact for pricing instead of an invented amount.
+*/
+await q(`
+  WITH sjn_magazine_program AS (
+    SELECT
+      op.id AS program_id,
+      op.organization_id
+    FROM organization_programs op
+    JOIN organizations o
+      ON o.id = op.organization_id
+    WHERE (
+      LOWER(COALESCE(o.website, '')) LIKE '%sjnceltics.org%'
+      OR LOWER(COALESCE(o.name, '')) LIKE '%john neumann%'
+    )
+      AND op.program_type = 'publication'
+      AND COALESCE(op.is_active, true) = true
+    ORDER BY op.display_order, op.id
+    LIMIT 1
+  ),
+  sjn_magazine_space AS (
+    SELECT
+      smp.program_id,
+      smp.organization_id,
+      s.id AS space_id
+    FROM sjn_magazine_program smp
+    JOIN LATERAL (
+      SELECT id
+      FROM spaces
+      WHERE organization_id = smp.organization_id
+        AND COALESCE(is_archived, false) = false
+      ORDER BY id
+      LIMIT 1
+    ) s ON true
+  ),
+  magazine_inventory (
+    title,
+    description,
+    display_order
+  ) AS (
+    VALUES
+      (
+        'Premium Cover Placement',
+        'Premium cover visibility in Celtic Nation Magazine, connecting your business with the Saint John Neumann community.',
+        1
+      ),
+      (
+        'Full-Page Advertisement',
+        'A full-page print and digital advertising presence in Celtic Nation Magazine.',
+        2
+      ),
+      (
+        'Half-Page Advertisement',
+        'A half-page print and digital placement designed for a clear, focused business message.',
+        3
+      ),
+      (
+        'Custom Magazine Placement',
+        'Ask about additional magazine placements and packages tailored to your business goals.',
+        4
+      )
+  )
+  INSERT INTO organization_opportunities (
+    organization_id,
+    space_id,
+    program_id,
+    title,
+    description,
+    category,
+    annual_price,
+    price,
+    pricing_unit,
+    suggested_term_length,
+    suggested_term_unit,
+    status,
+    display_order,
+    is_active,
+    created_at,
+    updated_at
+  )
+  SELECT
+    sms.organization_id,
+    sms.space_id,
+    sms.program_id,
+    mi.title,
+    mi.description,
+    'Magazine',
+    0,
+    NULL,
+    NULL,
+    1,
+    'Issues',
+    'Available',
+    mi.display_order,
+    true,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
+  FROM sjn_magazine_space sms
+  CROSS JOIN magazine_inventory mi
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM organization_opportunities existing
+    WHERE existing.organization_id = sms.organization_id
+      AND existing.program_id = sms.program_id
+      AND LOWER(TRIM(existing.title)) =
+          LOWER(TRIM(mi.title))
+  )
+`);
+
   await q(`
   UPDATE organization_opportunities
   SET
@@ -5342,6 +5454,30 @@ await q(`
     suggested_term_unit = COALESCE(
       NULLIF(TRIM(suggested_term_unit), ''),
       'Months'
+    )
+`);
+
+await q(`
+  UPDATE organization_opportunities oo
+  SET
+    price = NULL,
+    pricing_unit = NULL,
+    updated_at = CURRENT_TIMESTAMP
+  FROM organization_programs op
+  JOIN organizations o
+    ON o.id = op.organization_id
+  WHERE oo.program_id = op.id
+    AND oo.organization_id = o.id
+    AND (
+      LOWER(COALESCE(o.website, '')) LIKE '%sjnceltics.org%'
+      OR LOWER(COALESCE(o.name, '')) LIKE '%john neumann%'
+    )
+    AND op.program_type = 'publication'
+    AND oo.title IN (
+      'Premium Cover Placement',
+      'Full-Page Advertisement',
+      'Half-Page Advertisement',
+      'Custom Magazine Placement'
     )
 `);
 await q(`
@@ -67230,6 +67366,14 @@ app.get(
           : { rows: [] };
 
       const formatMarketplaceMoney = value => {
+        if (
+          value === null ||
+          value === undefined ||
+          String(value).trim() === ""
+        ) {
+          return "Contact for pricing";
+        }
+
         const amount = Number(value);
 
         if (!Number.isFinite(amount)) {
@@ -67300,7 +67444,11 @@ app.get(
 
                         <p class="marketplace-card-location">
                           ${escapeHtml(
-                            opportunity.location_name
+                            getMarketplaceProgramExperience(
+                              selectedProgram
+                            ).key === "publication"
+                              ? "Celtic Nation Magazine"
+                              : opportunity.location_name
                           )}
                         </p>
 
