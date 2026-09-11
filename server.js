@@ -1636,6 +1636,21 @@ async function q(sql, params = []) {
   return pool.query(sql, params);
 }
 
+async function ensureCampaignTestModeSchema() {
+  await q(`
+    ALTER TABLE campaigns
+    ADD COLUMN IF NOT EXISTS is_test BOOLEAN DEFAULT false
+  `);
+
+  await q(`
+    UPDATE campaigns
+    SET is_test = true
+    WHERE COALESCE(is_test, false) = false
+      AND LOWER(TRIM(COALESCE(name, '')))
+        ~ '^(test|demo)(\\s|$)'
+  `);
+}
+
 function money(n) {
   return "$" + Number(n || 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
@@ -54090,6 +54105,7 @@ app.get(
   "/org-performance",
   async (req, res) => {
     try {
+      await ensureCampaignTestModeSchema();
 
       /*
       =====================================================
@@ -88095,6 +88111,7 @@ app.post(
   requireLogin,
   async (req, res) => {
     try {
+      await ensureCampaignTestModeSchema();
       const campaignId = Number(
         req.params.campaignId
       );
@@ -88610,6 +88627,7 @@ app.get(
   requireLogin,
   async (req, res) => {
     try {
+      await ensureCampaignTestModeSchema();
       const campaignId = Number(
         req.params.campaignId
       );
@@ -90538,6 +90556,7 @@ ${
 
 app.post("/admin/new-campaign", requireLogin, async (req, res) => {
   try {
+      await ensureCampaignTestModeSchema();
     await q(`
       ALTER TABLE campaigns
       ADD COLUMN IF NOT EXISTS conversion_url TEXT
