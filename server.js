@@ -4043,6 +4043,33 @@ await q(`
     OR LOWER(COALESCE(name, '')) LIKE '%john neumann%'
 `);
 
+/*
+  Use real, school-owned imagery for the three SJN pilot
+  choices. These public assets come from SJN's website.
+*/
+await q(`
+  UPDATE organization_programs op
+  SET
+    public_image_url = CASE
+      WHEN op.program_type = 'advertising'
+        THEN 'https://sjnceltics.org/wp-content/uploads/2024/07/campus.jpg'
+      WHEN op.program_type = 'sponsorship'
+        THEN 'https://sjnceltics.org/wp-content/uploads/2024/07/sports-booster.jpg'
+      ELSE op.public_image_url
+    END,
+    updated_at = CURRENT_TIMESTAMP
+  FROM organizations o
+  WHERE o.id = op.organization_id
+    AND (
+      LOWER(COALESCE(o.website, '')) LIKE '%sjnceltics.org%'
+      OR LOWER(COALESCE(o.name, '')) LIKE '%john neumann%'
+    )
+    AND op.program_type IN (
+      'advertising',
+      'sponsorship'
+    )
+`);
+
 await q(`
   CREATE TABLE IF NOT EXISTS organization_program_users (
     id SERIAL PRIMARY KEY,
