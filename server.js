@@ -67120,6 +67120,224 @@ app.get(
         ] || program.name;
       };
 
+      /*
+        The SJN pilot skips the extra public location
+        selection step. After choosing Campus, Magazine,
+        or Athletics, advertisers see the available spots
+        immediately. Location remains visible on each card.
+      */
+      const sjnOpportunitiesResult =
+        isSjnOrganization && selectedProgramId
+          ? await q(
+              `
+                SELECT
+                  oo.id,
+                  oo.space_id,
+                  s.name AS location_name,
+                  oo.photo_data IS NOT NULL AS has_photo,
+
+                  COALESCE(
+                    NULLIF(to_jsonb(oo)->>'opportunity_name', ''),
+                    NULLIF(to_jsonb(oo)->>'name', ''),
+                    NULLIF(to_jsonb(oo)->>'title', ''),
+                    NULLIF(to_jsonb(oo)->>'placement', ''),
+                    'Advertising Opportunity'
+                  ) AS opportunity_name,
+
+                  NULLIF(
+                    to_jsonb(oo)->>'description',
+                    ''
+                  ) AS description,
+
+                  NULLIF(
+                    to_jsonb(oo)->>'price',
+                    ''
+                  )::numeric AS price,
+
+                  COALESCE(
+                    NULLIF(
+                      to_jsonb(oo)->>'pricing_unit',
+                      ''
+                    ),
+                    'Per Year'
+                  ) AS pricing_unit,
+
+                  COALESCE(
+                    NULLIF(
+                      to_jsonb(oo)->>'display_order',
+                      ''
+                    )::integer,
+                    999999
+                  ) AS display_order
+
+                FROM organization_opportunities oo
+
+                JOIN spaces s
+                  ON s.id = oo.space_id
+                 AND s.organization_id =
+                     oo.organization_id
+
+                WHERE oo.organization_id = $1
+                  AND oo.program_id = $2
+                  AND COALESCE(
+                    oo.is_active,
+                    true
+                  ) = true
+                  AND oo.status = 'Available'
+                  AND COALESCE(
+                    s.is_archived,
+                    false
+                  ) = false
+                  AND (
+                    oo.available_from IS NULL
+                    OR oo.available_from <= CURRENT_DATE
+                  )
+                  AND (
+                    oo.available_until IS NULL
+                    OR oo.available_until >= CURRENT_DATE
+                  )
+
+                ORDER BY
+                  display_order,
+                  opportunity_name,
+                  oo.id
+              `,
+              [
+                organization.id,
+                selectedProgramId
+              ]
+            )
+          : { rows: [] };
+
+      const formatMarketplaceMoney = value => {
+        const amount = Number(value);
+
+        if (!Number.isFinite(amount)) {
+          return "Contact for pricing";
+        }
+
+        return new Intl.NumberFormat(
+          "en-US",
+          {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits:
+              Number.isInteger(amount)
+                ? 0
+                : 2
+          }
+        ).format(amount);
+      };
+
+      const sjnDirectOpportunityCards =
+        !isSjnOrganization || !selectedProgram
+          ? ""
+          : sjnOpportunitiesResult.rows.length
+            ? `
+              <div class="marketplace-opportunity-grid">
+                ${sjnOpportunitiesResult.rows
+                  .map(opportunity => `
+                    <a
+                      class="marketplace-opportunity-card"
+                      href="/advertise/${encodeURIComponent(
+                        organization.slug
+                      )}/location/${opportunity.space_id}/opportunity/${opportunity.id}"
+                    >
+                      ${
+                        opportunity.has_photo
+                          ? `
+                            <img
+                              class="marketplace-card-photo"
+                              src="/org-opportunity/${opportunity.id}/photo"
+                              alt="${escapeHtml(
+                                opportunity.opportunity_name
+                              )}"
+                            >
+                          `
+                          : `
+                            <div class="marketplace-card-photo marketplace-card-placeholder">
+                              <span>${escapeHtml(
+                                getPublicProgramName(
+                                  selectedProgram
+                                ).charAt(0)
+                              )}</span>
+                            </div>
+                          `
+                      }
+
+                      <div class="marketplace-card-body">
+                        <div class="marketplace-card-kicker">
+                          ${escapeHtml(
+                            getPublicProgramName(
+                              selectedProgram
+                            )
+                          )}
+                        </div>
+
+                        <h3>${escapeHtml(
+                          opportunity.opportunity_name
+                        )}</h3>
+
+                        <p class="marketplace-card-location">
+                          ${escapeHtml(
+                            opportunity.location_name
+                          )}
+                        </p>
+
+                        ${
+                          opportunity.description
+                            ? `
+                              <p class="marketplace-card-description">
+                                ${escapeHtml(
+                                  opportunity.description
+                                )}
+                              </p>
+                            `
+                            : ""
+                        }
+
+                        <div class="marketplace-card-footer">
+                          <div>
+                            <strong>${escapeHtml(
+                              formatMarketplaceMoney(
+                                opportunity.price
+                              )
+                            )}</strong>
+                            <small>${escapeHtml(
+                              opportunity.pricing_unit || ""
+                            )}</small>
+                          </div>
+
+                          <span class="marketplace-card-action">
+                            View Details
+                          </span>
+                        </div>
+                      </div>
+                    </a>
+                  `)
+                  .join("")}
+              </div>
+            `
+            : `
+              <div style="
+                max-width:720px;
+                margin:0 auto;
+                padding:30px;
+                border:1px solid #d9e1da;
+                border-radius:16px;
+                background:white;
+                color:#65776b;
+                font-size:16px;
+                line-height:1.6;
+              ">
+                New ${escapeHtml(
+                  getPublicProgramName(
+                    selectedProgram
+                  ).toLowerCase()
+                )} opportunities are being prepared. Please check back soon.
+              </div>
+            `;
+
       const commercePrograms =
         programs.filter(
           program =>
@@ -68249,9 +68467,15 @@ margin-top:10px;
 
                     ${selectedProgramHeroHtml}
 
-                    <div class="public-location-grid">
-                      ${locationCards}
-                    </div>
+                    ${
+                      isSjnOrganization && selectedProgram
+                        ? sjnDirectOpportunityCards
+                        : `
+                          <div class="public-location-grid">
+                            ${locationCards}
+                          </div>
+                        `
+                    }
 
                   </section>
                 `
