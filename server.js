@@ -4792,6 +4792,24 @@ await q(`
   ALTER TABLE campaigns
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 `);
+await q(`
+  ALTER TABLE campaigns
+  ADD COLUMN IF NOT EXISTS is_test BOOLEAN DEFAULT false
+`);
+
+/*
+  Preserve existing pilot/demo activity without allowing it
+  to inflate executive production results. Campaigns that
+  were explicitly named Test or Demo before the field existed
+  are classified once during startup.
+*/
+await q(`
+  UPDATE campaigns
+  SET is_test = true
+  WHERE COALESCE(is_test, false) = false
+    AND LOWER(TRIM(COALESCE(name, '')))
+      ~ '^(test|demo)(\\s|$)'
+`);
   await q(`
   ALTER TABLE campaigns
   ADD COLUMN IF NOT EXISTS start_date DATE
@@ -23736,7 +23754,22 @@ const filteredContracts =
             ar.campaign_name,
             ar.destination_url,
 
-            ar.created_campaign_id
+            ar.created_campaign_id,
+            ar.created_qr_id,
+
+            EXISTS (
+              SELECT 1
+              FROM qr_campaigns workflow_qc
+              WHERE workflow_qc.campaign_id =
+                    ar.created_campaign_id
+                AND workflow_qc.qr_id =
+                    ar.created_qr_id
+                AND COALESCE(
+                      workflow_qc.is_active,
+                      true
+                    ) = true
+                AND workflow_qc.ended_at IS NULL
+            ) AS campaign_is_assigned
 
           FROM contracts c
 
@@ -23941,6 +23974,55 @@ const contractDocuments =
       .toLowerCase() ===
       "signed agreement"
   );
+
+      const contractIsActive =
+        String(contract.status || "")
+          .trim()
+          .toLowerCase() === "active";
+
+
+      const campaignIsCreated =
+        Number.isInteger(
+          Number(contract.created_campaign_id)
+        ) &&
+        Number(contract.created_campaign_id) > 0;
+
+
+      const campaignIsLive =
+        campaignIsCreated &&
+        contract.campaign_is_assigned === true;
+
+
+      const workflowSteps = [
+        {
+          label: "Request",
+          complete: Boolean(
+            contract.advertising_request_id
+          )
+        },
+        {
+          label: "Approved",
+          complete: true
+        },
+        {
+          label: "Agreement",
+          complete: hasExecutedAgreement
+        },
+        {
+          label: "Contract Active",
+          complete: contractIsActive
+        },
+        {
+          label: "Campaign Live",
+          complete: campaignIsLive
+        }
+      ];
+
+
+      const workflowCompleteCount =
+        workflowSteps.filter(
+          step => step.complete
+        ).length;
       const money = value =>
         "$" +
         Number(value || 0).toLocaleString(
@@ -24025,6 +24107,195 @@ const contractDocuments =
                   ← Back to Contracts
                 </a>
               </div>
+
+
+              <section class="card" style="
+                border-top:5px solid #2563eb;
+                margin-bottom:24px;
+              ">
+
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:flex-start;
+                  gap:16px;
+                  flex-wrap:wrap;
+                ">
+                  <div>
+                    <div class="label">
+                      Request-to-Live Workflow
+                    </div>
+                    <h2 style="margin:5px 0 7px;">
+                      ${workflowCompleteCount}/${workflowSteps.length}
+                      Steps Complete
+                    </h2>
+                    <div style="color:#65776b;">
+                      Follow the advertiser from marketplace
+                      request through measurable placement.
+                    </div>
+                  </div>
+
+                  ${
+                    contract.advertising_request_id
+                      ? `
+                          <a
+                            class="btn secondary"
+                            href="/org-advertising-request/${contract.advertising_request_id}?organization_id=${organizationId}"
+                          >
+                            Open Original Request
+                          </a>
+                        `
+                      : ""
+                  }
+                </div>
+
+                <div style="
+                  display:grid;
+                  grid-template-columns:
+                    repeat(auto-fit,minmax(145px,1fr));
+                  gap:10px;
+                  margin:20px 0;
+                ">
+                  ${workflowSteps
+                    .map((step, index) => `
+                      <div style="
+                        padding:13px;
+                        border-radius:10px;
+                        border:1px solid ${step.complete ? "#b9e3c5" : "#ead7a1"};
+                        background:${step.complete ? "#f2fbf4" : "#fffaf0"};
+                      ">
+                        <div style="
+                          font-size:12px;
+                          color:#65776b;
+                        ">
+                          Step ${index + 1}
+                        </div>
+                        <div style="
+                          margin-top:4px;
+                          font-weight:800;
+                          color:${step.complete ? "#176b3a" : "#8a5a00"};
+                        ">
+                          ${step.complete ? "✓" : "○"}
+                          ${escapeHtml(step.label)}
+                        </div>
+                      </div>
+                    `)
+                    .join("")}
+                </div>
+
+                <div style="
+                  padding:17px;
+                  border-radius:12px;
+                  background:#eef4ff;
+                  border-left:6px solid #2563eb;
+                ">
+                  <div class="label">
+                    Next Action
+                  </div>
+
+                  ${
+                    !hasExecutedAgreement
+                      ? `
+                          <strong>
+                            Upload the signed agreement
+                          </strong>
+                          <div style="
+                            color:#65776b;
+                            margin:6px 0 12px;
+                          ">
+                            The contract cannot be activated
+                            until a Signed Agreement is stored.
+                          </div>
+                          <a
+                            class="btn"
+                            href="/org-contract/${contractId}/documents/upload?organization_id=${organizationId}"
+                          >
+                            Upload Signed Agreement
+                          </a>
+                        `
+                      : !contractIsActive
+                        ? `
+                            <strong>
+                              Activate the contract
+                            </strong>
+                            <div style="
+                              color:#65776b;
+                              margin:6px 0 12px;
+                            ">
+                              The signed agreement is complete.
+                              Activation advances the advertiser
+                              to campaign setup.
+                            </div>
+                            <form
+                              method="POST"
+                              action="/org-contract/${contractId}/activate"
+                              style="margin:0;"
+                            >
+                              <input
+                                type="hidden"
+                                name="organization_id"
+                                value="${organizationId}"
+                              >
+                              <button
+                                class="btn"
+                                type="submit"
+                                onclick="return confirm('Activate this contract now?')"
+                              >
+                                Activate Contract
+                              </button>
+                            </form>
+                          `
+                        : !campaignIsCreated
+                          ? `
+                              <strong>
+                                Advertiser campaign setup pending
+                              </strong>
+                              <div style="
+                                color:#65776b;
+                                margin-top:6px;
+                              ">
+                                The advertiser should use the
+                                secure approval email to finish
+                                account setup, destinations, and
+                                conversion tracking.
+                              </div>
+                            `
+                          : !campaignIsLive
+                            ? `
+                                <strong>
+                                  Complete the placement assignment
+                                </strong>
+                                <div style="
+                                  color:#65776b;
+                                  margin-top:6px;
+                                ">
+                                  The campaign exists but is not
+                                  yet actively assigned to the
+                                  approved QR placement.
+                                </div>
+                              `
+                            : `
+                                <strong>
+                                  Campaign is live and measurable
+                                </strong>
+                                <div style="
+                                  color:#65776b;
+                                  margin:6px 0 12px;
+                                ">
+                                  Review placement performance and
+                                  confirm results for the advertiser.
+                                </div>
+                                <a
+                                  class="btn"
+                                  href="/org-qr/${contract.created_qr_id}?organization_id=${organizationId}"
+                                >
+                                  View Live Placement Results
+                                </a>
+                              `
+                  }
+                </div>
+
+              </section>
 
               <div style="
                 display:grid;
@@ -53902,6 +54173,12 @@ app.get(
         toDate || "";
 
 
+      const includeTest =
+        String(
+          req.query.include_test || ""
+        ) === "1";
+
+
       const performanceMoney = value =>
         "$" +
         Number(value || 0)
@@ -53935,6 +54212,31 @@ app.get(
       ];
 
       let eventDateSql = "";
+
+      const eventTestSql =
+        includeTest
+          ? ""
+          : `
+              AND NOT EXISTS (
+                SELECT 1
+                FROM campaigns event_campaign
+                WHERE event_campaign.id = e.campaign_id
+                  AND COALESCE(
+                        event_campaign.is_test,
+                        false
+                      ) = true
+              )
+            `;
+
+      const campaignTestSql =
+        includeTest
+          ? ""
+          : `
+              AND COALESCE(
+                    c.is_test,
+                    false
+                  ) = false
+            `;
 
 
       if (startDate) {
@@ -54319,6 +54621,8 @@ app.get(
                 false
               ) = false
 
+              ${campaignTestSql}
+
               AND COALESCE(
                 qc.is_active,
                 true
@@ -54343,6 +54647,133 @@ app.get(
             .rows[0]
             ?.active_advertisers || 0
         );
+
+
+      /*
+      -----------------------------------------------------
+      LIVE AND TEST CAMPAIGN SEPARATION
+      -----------------------------------------------------
+      */
+
+      const campaignModeResult =
+        await q(
+          `
+            SELECT DISTINCT
+              c.id,
+              COALESCE(c.is_test, false)
+                AS is_test,
+              c.start_date
+
+            FROM campaigns c
+
+            JOIN qr_campaigns qc
+              ON qc.campaign_id = c.id
+
+            JOIN qr_codes qr
+              ON qr.id = qc.qr_id
+
+            JOIN spaces s
+              ON s.id = qr.space_id
+
+            WHERE
+              s.organization_id = $1
+
+              AND s.id =
+                ANY($2::int[])
+
+              AND (
+                $3::int IS NULL
+                OR s.id = $3::int
+              )
+
+              AND COALESCE(
+                    c.is_archived,
+                    false
+                  ) = false
+
+              AND COALESCE(
+                    qc.is_active,
+                    true
+                  ) = true
+
+              AND qc.ended_at IS NULL
+
+              AND (
+                c.start_date IS NULL
+                OR c.start_date <= CURRENT_DATE
+              )
+
+              AND (
+                c.end_date IS NULL
+                OR c.end_date >= CURRENT_DATE
+              )
+          `,
+          [
+            organizationId,
+            allowedLocationIds,
+            selectedLocationId
+          ]
+        );
+
+
+      const liveCampaigns =
+        campaignModeResult.rows.filter(
+          campaign => !campaign.is_test
+        );
+
+
+      const testCampaigns =
+        campaignModeResult.rows.filter(
+          campaign => campaign.is_test
+        );
+
+
+      const liveCampaignCount =
+        liveCampaigns.length;
+
+
+      const testCampaignCount =
+        testCampaigns.length;
+
+
+      const liveCampaignStartDates =
+        liveCampaigns
+          .map(campaign =>
+            campaign.start_date
+              ? new Date(campaign.start_date)
+              : null
+          )
+          .filter(date =>
+            date &&
+            !Number.isNaN(date.getTime())
+          );
+
+
+      const earliestLiveCampaignDate =
+        liveCampaignStartDates.length
+          ? new Date(
+              Math.min(
+                ...liveCampaignStartDates.map(
+                  date => date.getTime()
+                )
+              )
+            )
+          : null;
+
+
+      const liveDays =
+        earliestLiveCampaignDate
+          ? Math.max(
+              1,
+              Math.floor(
+                (
+                  Date.now() -
+                  earliestLiveCampaignDate.getTime()
+                ) /
+                (1000 * 60 * 60 * 24)
+              ) + 1
+            )
+          : 0;
 
 
       /*
@@ -54395,6 +54826,7 @@ app.get(
             LEFT JOIN events e
               ON e.qr_id = qr.id
               ${eventDateSql}
+              ${eventTestSql}
 
             WHERE
               s.organization_id = $1
@@ -54660,6 +55092,65 @@ app.get(
         );
 
 
+      const launchChecks = [
+        {
+          label: "Marketplace Inventory",
+          complete: availableSpots > 0,
+          detail: `${numberLabel(availableSpots)} available`
+        },
+        {
+          label: "Active Placements",
+          complete: activePlacements > 0,
+          detail: `${numberLabel(activePlacements)} active`
+        },
+        {
+          label: "Advertiser Workflow",
+          complete:
+            pendingSpots > 0 ||
+            activeContracts > 0 ||
+            testCampaignCount > 0 ||
+            liveCampaignCount > 0,
+          detail:
+            pendingSpots > 0
+              ? `${numberLabel(pendingSpots)} pending request${pendingSpots === 1 ? "" : "s"}`
+              : activeContracts > 0
+                ? `${numberLabel(activeContracts)} active contract${activeContracts === 1 ? "" : "s"}`
+                : "No request activity"
+        },
+        {
+          label: "Measurement Test",
+          complete:
+            testCampaignCount > 0 ||
+            liveCampaignCount > 0,
+          detail:
+            testCampaignCount > 0
+              ? `${numberLabel(testCampaignCount)} test campaign${testCampaignCount === 1 ? "" : "s"}`
+              : "No test campaign"
+        },
+        {
+          label: "Live Campaign",
+          complete: liveCampaignCount > 0,
+          detail:
+            liveCampaignCount > 0
+              ? `${numberLabel(liveCampaignCount)} live · Day ${numberLabel(liveDays)}`
+              : "Not launched"
+        }
+      ];
+
+
+      const launchChecksComplete =
+        launchChecks.filter(
+          check => check.complete
+        ).length;
+
+
+      const launchReadinessRate =
+        (
+          launchChecksComplete /
+          launchChecks.length
+        ) * 100;
+
+
       /*
       =====================================================
       ADVERTISER PERFORMANCE
@@ -54718,6 +55209,8 @@ app.get(
                   false
                 ) = false
 
+                ${campaignTestSql}
+
                 AND COALESCE(
                   qr.is_archived,
                   false
@@ -54766,6 +55259,7 @@ app.get(
                  ar.qr_id
 
              ${eventDateSql}
+             ${eventTestSql}
 
             GROUP BY
               ar.advertiser_key
@@ -54877,6 +55371,7 @@ app.get(
             LEFT JOIN events e
               ON e.qr_id = qr.id
               ${eventDateSql}
+              ${eventTestSql}
 
             WHERE
               s.organization_id = $1
@@ -55005,6 +55500,7 @@ app.get(
             LEFT JOIN events e
               ON e.qr_id = qr.id
               ${eventDateSql}
+              ${eventTestSql}
 
             WHERE
               s.organization_id = $1
@@ -55093,7 +55589,7 @@ app.get(
       =====================================================
       PERFORMANCE ATTENTION
 
-      Find advertiser relationships showing intent
+      Find advertiser relationships showing engagement
       without tracked conversions.
       =====================================================
       */
@@ -55149,6 +55645,8 @@ app.get(
                   c.is_archived,
                   false
                 ) = false
+
+                ${campaignTestSql}
             )
 
             SELECT
@@ -55182,6 +55680,7 @@ app.get(
                  ar.qr_id
 
              ${eventDateSql}
+             ${eventTestSql}
 
             GROUP BY
               ar.advertiser_key
@@ -55307,7 +55806,7 @@ app.get(
           text:
             `${advertiser.advertiser_name} generated ${Number(
               advertiser.intent || 0
-            )} intent action${
+            )} engagement action${
               Number(
                 advertiser.intent || 0
               ) === 1
@@ -55419,7 +55918,7 @@ app.get(
             "Conversion Opportunity",
 
           text:
-            `${advertiser.advertiser_name} is generating measurable customer intent without a tracked conversion.`
+            `${advertiser.advertiser_name} is generating measurable engagement without a tracked conversion.`
 
         });
 
@@ -55608,6 +56107,27 @@ app.get(
 
 
                 <div>
+                  <label style="
+                    display:flex;
+                    align-items:center;
+                    gap:8px;
+                    min-height:44px;
+                    padding:0 4px;
+                    cursor:pointer;
+                  ">
+                    <input
+                      type="checkbox"
+                      name="include_test"
+                      value="1"
+                      ${includeTest ? "checked" : ""}
+                      style="width:auto;margin:0;"
+                    >
+                    Include test data
+                  </label>
+                </div>
+
+
+                <div>
                   <button
                     class="btn"
                     type="submit"
@@ -55617,6 +56137,125 @@ app.get(
                 </div>
 
               </form>
+
+
+              <!-- =====================================
+                   LAUNCH SCORECARD
+              ====================================== -->
+
+              <section class="card" style="
+                margin-bottom:30px;
+                border-top:5px solid #2563eb;
+              ">
+
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:flex-start;
+                  gap:18px;
+                  flex-wrap:wrap;
+                ">
+                  <div>
+                    <div class="label">
+                      Launch Readiness
+                    </div>
+                    <h2 style="margin:5px 0 7px;">
+                      ${escapeHtml(organization.name)}
+                      Pilot Scorecard
+                    </h2>
+                    <div style="color:#65776b;">
+                      One view of marketplace, workflow,
+                      measurement testing, and live launch.
+                    </div>
+                  </div>
+
+                  <div style="text-align:right;">
+                    <div style="
+                      color:#2563eb;
+                      font-size:34px;
+                      font-weight:800;
+                      line-height:1;
+                    ">
+                      ${launchChecksComplete}/${launchChecks.length}
+                    </div>
+                    <div style="
+                      color:#65776b;
+                      font-size:13px;
+                      margin-top:5px;
+                    ">
+                      readiness checks complete
+                    </div>
+                  </div>
+                </div>
+
+                <div style="
+                  height:10px;
+                  background:#e8eef8;
+                  border-radius:999px;
+                  overflow:hidden;
+                  margin:20px 0;
+                ">
+                  <div style="
+                    width:${launchReadinessRate.toFixed(0)}%;
+                    height:100%;
+                    background:#2563eb;
+                  "></div>
+                </div>
+
+                <div style="
+                  display:grid;
+                  grid-template-columns:
+                    repeat(auto-fit,minmax(170px,1fr));
+                  gap:12px;
+                ">
+                  ${launchChecks
+                    .map(check => `
+                      <div style="
+                        padding:14px;
+                        border:1px solid ${check.complete ? "#b9e3c5" : "#ead7a1"};
+                        border-radius:11px;
+                        background:${check.complete ? "#f2fbf4" : "#fffaf0"};
+                      ">
+                        <div style="
+                          font-weight:800;
+                          color:${check.complete ? "#176b3a" : "#8a5a00"};
+                        ">
+                          ${check.complete ? "✓" : "○"}
+                          ${escapeHtml(check.label)}
+                        </div>
+                        <div style="
+                          color:#65776b;
+                          font-size:12px;
+                          margin-top:5px;
+                        ">
+                          ${escapeHtml(check.detail)}
+                        </div>
+                      </div>
+                    `)
+                    .join("")}
+                </div>
+
+                <div style="
+                  display:flex;
+                  gap:10px;
+                  flex-wrap:wrap;
+                  margin-top:18px;
+                ">
+                  <a
+                    class="btn"
+                    href="/org-advertising-requests?organization_id=${organizationId}"
+                  >
+                    Continue Advertiser Workflow
+                  </a>
+                  <a
+                    class="btn secondary"
+                    href="/org-marketplace?organization_id=${organizationId}"
+                  >
+                    Review Marketplace
+                  </a>
+                </div>
+
+              </section>
 
 
               <!-- =====================================
@@ -55643,7 +56282,7 @@ app.get(
                     See how physical engagement becomes
                     measurable customer action and revenue.
                     Website, offer, Maps, and Waze clicks
-                    count as intent.
+                    count as engagement.
                   </p>
                 </div>
 
@@ -55655,6 +56294,29 @@ app.get(
                 </a>
 
               </div>
+
+
+              ${
+                testCampaignCount > 0
+                  ? `
+                      <div style="
+                        display:inline-flex;
+                        align-items:center;
+                        gap:8px;
+                        margin-top:14px;
+                        padding:8px 12px;
+                        border-radius:999px;
+                        background:${includeTest ? "#fff3cd" : "#edf4ff"};
+                        color:${includeTest ? "#7a5200" : "#244b86"};
+                        font-size:12px;
+                        font-weight:700;
+                      ">
+                        ${includeTest ? "Test data included" : "Test data excluded"}
+                        · ${numberLabel(testCampaignCount)} test campaign${testCampaignCount === 1 ? "" : "s"}
+                      </div>
+                    `
+                  : ""
+              }
 
 
               <div style="
@@ -55679,7 +56341,7 @@ app.get(
 
                 <div class="card">
                   <div class="label">
-                    Intent Actions
+                    Engagement Actions
                   </div>
                   <div class="num">
                     ${numberLabel(organizationIntent)}
@@ -55699,7 +56361,7 @@ app.get(
                   </div>
                   <div class="small" style="margin-top:6px;">
                     ${organizationConversionRate.toFixed(1)}%
-                    of intent actions
+                    of engagement actions
                   </div>
                 </div>
 
@@ -55950,7 +56612,7 @@ app.get(
                     font-size:13px;
                   ">
                     All active advertisers, ranked by
-                    attributed revenue, conversions, and intent
+                    attributed revenue, conversions, and engagement
                   </p>
 
 
@@ -56008,9 +56670,9 @@ app.get(
                             margin-top:3px;
                           ">
                             ${numberLabel(advertiser.scans)} scans ·
-                            ${numberLabel(advertiser.intent)} intent ·
+                            ${numberLabel(advertiser.intent)} engagement ·
                             ${advertiser.intentRate.toFixed(1)}%
-                            scan-to-intent
+                            scan-to-engagement
                           </div>
                         </div>
 
@@ -56079,7 +56741,7 @@ app.get(
                     font-size:13px;
                   ">
                     All active locations, ranked by
-                    attributed revenue, conversions, and intent
+                    attributed revenue, conversions, and engagement
                   </p>
 
 
@@ -56145,7 +56807,7 @@ app.get(
                             margin-top:3px;
                           ">
                             ${numberLabel(location.scans)} scans ·
-                            ${numberLabel(location.intent)} intent ·
+                            ${numberLabel(location.intent)} engagement ·
                             ${location.intentRate.toFixed(1)}%
                           </div>
                         </div>
@@ -56215,7 +56877,7 @@ app.get(
                     font-size:13px;
                   ">
                     All active placements, ranked by
-                    attributed revenue, conversions, and intent
+                    attributed revenue, conversions, and engagement
                   </p>
 
 
@@ -56281,7 +56943,7 @@ app.get(
                             margin-top:3px;
                           ">
                             ${numberLabel(placement.scans)} scans ·
-                            ${numberLabel(placement.intent)} intent ·
+                            ${numberLabel(placement.intent)} engagement ·
                             ${placement.intentRate.toFixed(1)}%
                           </div>
                         </div>
@@ -87521,6 +88183,9 @@ app.post(
       const endDate =
         req.body.end_date || null;
 
+      const isTest =
+        req.body.is_test === "on";
+
       const defaultValue =
         Number(
           req.body.avg_customer_value ||
@@ -87560,6 +88225,7 @@ app.post(
                 conversion_rate = 8,
                 start_date = $6,
                 end_date = $7,
+                is_test = $8,
                 days = CASE
                   WHEN $6::date IS NOT NULL
                    AND $7::date IS NOT NULL
@@ -87571,7 +88237,7 @@ app.post(
                   ELSE days
                 END
 
-              WHERE id = $8
+              WHERE id = $9
 
               RETURNING id
             `
@@ -87586,10 +88252,11 @@ app.post(
                 avg_customer_value = $5,
                 conversion_rate = 8,
                 start_date = $6,
-                end_date = $7
+                end_date = $7,
+                is_test = $8
 
-              WHERE id = $8
-                AND user_id = $9
+              WHERE id = $9
+                AND user_id = $10
 
               RETURNING id
             `,
@@ -87602,6 +88269,7 @@ app.post(
               defaultValue,
               startDate,
               endDate,
+              isTest,
               campaignId
             ]
           : [
@@ -87612,6 +88280,7 @@ app.post(
               defaultValue,
               startDate,
               endDate,
+              isTest,
               campaignId,
               currentUser.id
             ]
@@ -88309,6 +88978,37 @@ app.get(
                     </div>
 
                   </div>
+
+                  <label style="
+                    display:flex;
+                    align-items:flex-start;
+                    gap:8px;
+                    margin-top:18px;
+                  ">
+                    <input
+                      type="checkbox"
+                      name="is_test"
+                      ${campaign.is_test ? "checked" : ""}
+                      style="
+                        width:auto;
+                        margin:3px 0 0;
+                      "
+                    >
+
+                    <span>
+                      <strong>Test Campaign</strong>
+                      <span style="
+                        display:block;
+                        color:#65776b;
+                        font-size:12px;
+                        margin-top:3px;
+                      ">
+                        Exclude this campaign from live
+                        executive results unless test data is
+                        intentionally included.
+                      </span>
+                    </span>
+                  </label>
                 </div>
 
                 <div class="card">
@@ -89287,6 +89987,35 @@ ${
 
                     Deal of the Day
                   </label>
+
+                  <label style="
+                    display:flex;
+                    align-items:flex-start;
+                    gap:8px;
+                    margin-top:14px;
+                  ">
+                    <input
+                      type="checkbox"
+                      name="is_test"
+                      style="
+                        width:auto;
+                        margin:3px 0 0;
+                      "
+                    >
+
+                    <span>
+                      <strong>Test Campaign</strong>
+                      <span style="
+                        display:block;
+                        color:#65776b;
+                        font-size:12px;
+                        margin-top:3px;
+                      ">
+                        Keep setup and presentation testing
+                        separate from live executive results.
+                      </span>
+                    </span>
+                  </label>
                 </div>
 
                 <div class="card">
@@ -89877,13 +90606,14 @@ function normalizeUrl(value) {
     avg_customer_value,
     conversion_rate,
     is_deal_of_day,
+    is_test,
     user_id,
     start_date,
     end_date
   )
   VALUES (
     $1,$2,$3,$4,$5,
-    $6,$7,$8,$9,$10
+    $6,$7,$8,$9,$10,$11
   )
   RETURNING id
 `, [
@@ -89894,6 +90624,7 @@ function normalizeUrl(value) {
   Number(req.body.avg_customer_value || 50),
   8,
   req.body.is_deal_of_day === "on",
+  req.body.is_test === "on",
   userId,
   startDate,
   endDate
