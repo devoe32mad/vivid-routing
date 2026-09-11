@@ -70890,7 +70890,8 @@ app.post(
         SELECT
           id,
           name,
-          slug
+          slug,
+          contact_email
 
         FROM organizations
 
@@ -71273,6 +71274,215 @@ const requestReference =
   `${organization.slug.toUpperCase()}-${String(
     requestId
   ).padStart(6, "0")}`;
+/*
+=========================================================
+NEW MARKETPLACE REQUEST NOTIFICATION
+
+Notify the platform inbox, the organization's contact,
+and active organization users who have the submitted-
+request notification enabled. Email failure must never
+discard an otherwise valid Marketplace request.
+=========================================================
+*/
+
+const platformNotificationEmail =
+  String(
+    process.env.MARKETPLACE_REQUEST_NOTIFICATION_EMAIL ||
+    "mike@vividspots.com"
+  )
+    .trim()
+    .toLowerCase();
+
+let requestRecipients = [];
+let requestNotificationSent = false;
+
+try {
+  const requestRecipientsResult = await q(
+    `
+    SELECT DISTINCT
+      LOWER(TRIM(recipient_email)) AS email
+
+    FROM (
+      SELECT NULLIF(TRIM($3::text), '') AS recipient_email
+
+      UNION ALL
+
+      SELECT NULLIF(TRIM(o.contact_email), '')
+      FROM organizations o
+      WHERE o.id = $1
+
+      UNION ALL
+
+      SELECT NULLIF(TRIM(u.email), '')
+      FROM organization_users ou
+      JOIN users u
+        ON u.id = ou.user_id
+      LEFT JOIN organization_user_notifications oun
+        ON oun.organization_user_id = ou.id
+       AND oun.notification_key =
+           'advertising_request_submitted'
+      WHERE ou.organization_id = $1
+        AND COALESCE(ou.is_active, true) = true
+        AND COALESCE(oun.is_enabled, true) = true
+        AND (
+          LOWER(TRIM(COALESCE(ou.role, ''))) IN (
+            'owner',
+            'organization_admin',
+            'district_admin'
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM location_users lu
+            WHERE lu.organization_id = ou.organization_id
+              AND lu.user_id = ou.user_id
+              AND lu.space_id = $2
+              AND COALESCE(lu.is_active, true) = true
+          )
+        )
+    ) recipients
+
+    WHERE recipient_email IS NOT NULL
+      AND TRIM(recipient_email) <> ''
+    `,
+    [
+      organization.id,
+      location.id,
+      platformNotificationEmail
+    ]
+  );
+
+  requestRecipients =
+    requestRecipientsResult.rows
+    .map(row => row.email)
+    .filter(Boolean);
+
+const requestReviewUrl =
+  `${BASE_URL}/org-advertising-request/${requestId}` +
+  `?organization_id=${organization.id}`;
+
+const requestPrice =
+  Number(opportunity.price || 0);
+
+const requestPriceText =
+  requestPrice > 0
+    ? new Intl.NumberFormat(
+        "en-US",
+        {
+          style: "currency",
+          currency: "USD",
+          maximumFractionDigits: 2
+        }
+      ).format(requestPrice)
+    : "Contact for pricing";
+
+  requestNotificationSent =
+    requestRecipients.length > 0
+      ? await sendOrganizationNotification({
+        to: requestRecipients,
+        senderName:
+          `${organization.name} via Vivid`,
+        subject:
+          `Pending advertising request: ${businessName}`,
+        html: `
+          <div style="
+            max-width:640px;
+            margin:0 auto;
+            padding:32px;
+            font-family:Arial,sans-serif;
+            color:#172033;
+            line-height:1.6;
+          ">
+            <div style="
+              color:#2563EB;
+              font-size:13px;
+              font-weight:700;
+              letter-spacing:.08em;
+              text-transform:uppercase;
+            ">
+              Pending Advertising Request
+            </div>
+
+            <h1 style="
+              margin:8px 0 18px;
+              color:#0B1F3A;
+              font-size:28px;
+            ">
+              ${escapeHtml(businessName)} submitted a request
+            </h1>
+
+            <p>
+              A new Marketplace request is ready for review.
+            </p>
+
+            <div style="
+              margin:22px 0;
+              padding:18px;
+              border:1px solid #DBE3EF;
+              border-radius:12px;
+              background:#F6F8FC;
+            ">
+              <strong>Reference:</strong>
+              ${escapeHtml(requestReference)}<br>
+              <strong>Organization:</strong>
+              ${escapeHtml(organization.name)}<br>
+              <strong>Location:</strong>
+              ${escapeHtml(location.name)}<br>
+              <strong>Opportunity:</strong>
+              ${escapeHtml(opportunity.opportunity_name)}<br>
+              <strong>Investment:</strong>
+              ${escapeHtml(requestPriceText)}<br>
+              <strong>Contact:</strong>
+              ${escapeHtml(contactName)} —
+              ${escapeHtml(email)} —
+              ${escapeHtml(phone)}
+            </div>
+
+            <p style="margin:28px 0;">
+              <a
+                href="${requestReviewUrl}"
+                style="
+                  display:inline-block;
+                  padding:14px 24px;
+                  border-radius:8px;
+                  background:#2563EB;
+                  color:#ffffff;
+                  text-decoration:none;
+                  font-weight:700;
+                "
+              >
+                Review Pending Request
+              </a>
+            </p>
+
+            <p style="
+              margin-top:30px;
+              color:#5F6B7A;
+              font-size:12px;
+            ">
+              Powered by Vivid
+            </p>
+          </div>
+        `
+        })
+      : false;
+} catch (notificationError) {
+  console.error(
+    "MARKETPLACE REQUEST NOTIFICATION ERROR:",
+    notificationError
+  );
+}
+
+console.log(
+  requestNotificationSent
+    ? "MARKETPLACE REQUEST EMAIL SENT"
+    : "MARKETPLACE REQUEST EMAIL FAILED",
+  {
+    requestId,
+    recipientCount:
+      requestRecipients.length
+  }
+);
+
     return res.redirect(
   303,
   `/advertise/${encodeURIComponent(
