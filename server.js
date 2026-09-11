@@ -54347,9 +54347,10 @@ app.get(
 
       /*
       -----------------------------------------------------
-      ADVERTISER REVENUE GENERATED
+      ADVERTISER OUTCOME FUNNEL
 
-      Existing Vivid conversion attribution.
+      Existing Vivid scan, intent, conversion, and
+      conversion-revenue attribution.
       -----------------------------------------------------
       */
 
@@ -54357,6 +54358,26 @@ app.get(
         await q(
           `
             SELECT
+              COUNT(e.id) FILTER (
+                WHERE e.type = 'scan'
+              )::int
+                AS scans,
+
+              COUNT(e.id) FILTER (
+                WHERE e.type IN (
+                  'offer',
+                  'maps',
+                  'waze',
+                  'destination_click'
+                )
+              )::int
+                AS intent,
+
+              COUNT(e.id) FILTER (
+                WHERE e.type = 'conversion'
+              )::int
+                AS conversions,
+
               COALESCE(
                 SUM(e.value) FILTER (
                   WHERE
@@ -54396,6 +54417,48 @@ app.get(
             .rows[0]
             ?.advertiser_revenue || 0
         );
+
+
+      const organizationScans =
+        Number(
+          advertiserRevenueResult
+            .rows[0]
+            ?.scans || 0
+        );
+
+
+      const organizationIntent =
+        Number(
+          advertiserRevenueResult
+            .rows[0]
+            ?.intent || 0
+        );
+
+
+      const organizationConversions =
+        Number(
+          advertiserRevenueResult
+            .rows[0]
+            ?.conversions || 0
+        );
+
+
+      const organizationIntentRate =
+        organizationScans > 0
+          ? (
+              organizationIntent /
+              organizationScans
+            ) * 100
+          : 0;
+
+
+      const organizationConversionRate =
+        organizationIntent > 0
+          ? (
+              organizationConversions /
+              organizationIntent
+            ) * 100
+          : 0;
 
 
       /*
@@ -54599,7 +54662,7 @@ app.get(
 
       /*
       =====================================================
-      TOP 5 ADVERTISERS
+      ADVERTISER PERFORMANCE
       =====================================================
       */
 
@@ -54713,7 +54776,6 @@ app.get(
               intent DESC,
               advertiser_name
 
-            LIMIT 5
           `,
           eventParams
         );
@@ -54742,6 +54804,14 @@ app.get(
                 row.intent || 0
               ),
 
+            intentRate:
+              Number(row.scans || 0) > 0
+                ? (
+                    Number(row.intent || 0) /
+                    Number(row.scans || 0)
+                  ) * 100
+                : 0,
+
             conversions:
               Number(
                 row.conversions || 0
@@ -54758,7 +54828,7 @@ app.get(
 
       /*
       =====================================================
-      TOP 5 LOCATIONS
+      LOCATION PERFORMANCE
       =====================================================
       */
 
@@ -54835,7 +54905,6 @@ app.get(
               intent DESC,
               s.name
 
-            LIMIT 5
           `,
           eventParams
         );
@@ -54865,6 +54934,14 @@ app.get(
                 row.intent || 0
               ),
 
+            intentRate:
+              Number(row.scans || 0) > 0
+                ? (
+                    Number(row.intent || 0) /
+                    Number(row.scans || 0)
+                  ) * 100
+                : 0,
+
             conversions:
               Number(
                 row.conversions || 0
@@ -54881,7 +54958,7 @@ app.get(
 
       /*
       =====================================================
-      TOP 5 ADVERTISING PLACEMENTS
+      PLACEMENT PERFORMANCE
       =====================================================
       */
 
@@ -54961,7 +55038,6 @@ app.get(
               intent DESC,
               qr.name
 
-            LIMIT 5
           `,
           eventParams
         );
@@ -54990,6 +55066,14 @@ app.get(
               Number(
                 row.intent || 0
               ),
+
+            intentRate:
+              Number(row.scans || 0) > 0
+                ? (
+                    Number(row.intent || 0) /
+                    Number(row.scans || 0)
+                  ) * 100
+                : 0,
 
             conversions:
               Number(
@@ -55122,7 +55206,6 @@ app.get(
               intent DESC,
               advertiser_name
 
-            LIMIT 3
           `,
           eventParams
         );
@@ -55243,7 +55326,7 @@ app.get(
 
 
       const topNeedsAttention =
-        needsAttention.slice(0, 5);
+        needsAttention;
 
 
       /*
@@ -55385,7 +55468,7 @@ app.get(
 
 
       const executiveInsights =
-        vividInsights.slice(0, 4);
+        vividInsights;
 
 
       /*
@@ -55537,21 +55620,122 @@ app.get(
 
 
               <!-- =====================================
+                   ADVERTISER OUTCOME FUNNEL
+              ====================================== -->
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:end;
+                gap:16px;
+                flex-wrap:wrap;
+              ">
+
+                <div>
+                  <h2 style="margin-bottom:6px;">
+                    Advertiser Outcome Funnel
+                  </h2>
+
+                  <p style="
+                    margin:0;
+                    color:#65776b;
+                  ">
+                    See how physical engagement becomes
+                    measurable customer action and revenue.
+                    Website, offer, Maps, and Waze clicks
+                    count as intent.
+                  </p>
+                </div>
+
+                <a
+                  class="btn secondary"
+                  href="/org-advertisers?organization_id=${organizationId}${dateQueryString ? `&${dateQueryString}` : ""}"
+                >
+                  Open Advertiser Results →
+                </a>
+
+              </div>
+
+
+              <div style="
+                display:grid;
+                grid-template-columns:
+                  repeat(auto-fit,minmax(180px,1fr));
+                gap:16px;
+                margin:20px 0 34px;
+              ">
+
+                <div class="card">
+                  <div class="label">
+                    QR Scans
+                  </div>
+                  <div class="num">
+                    ${numberLabel(organizationScans)}
+                  </div>
+                  <div class="small" style="margin-top:6px;">
+                    Physical engagements
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Intent Actions
+                  </div>
+                  <div class="num">
+                    ${numberLabel(organizationIntent)}
+                  </div>
+                  <div class="small" style="margin-top:6px;">
+                    ${organizationIntentRate.toFixed(1)}%
+                    of scans
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Conversions
+                  </div>
+                  <div class="num">
+                    ${numberLabel(organizationConversions)}
+                  </div>
+                  <div class="small" style="margin-top:6px;">
+                    ${organizationConversionRate.toFixed(1)}%
+                    of intent actions
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="label">
+                    Attributed Revenue
+                  </div>
+                  <div class="num">
+                    ${performanceMoney(
+                      advertiserRevenueGenerated
+                    )}
+                  </div>
+                  <div class="small" style="margin-top:6px;">
+                    Confirmed through Vivid
+                  </div>
+                </div>
+
+              </div>
+
+
+              <!-- =====================================
                    EXECUTIVE PERFORMANCE
               ====================================== -->
 
               <h2 style="
                 margin-bottom:6px;
               ">
-                Executive Performance
+                Enterprise Portfolio
               </h2>
 
               <p style="
                 margin-top:0;
                 color:#65776b;
               ">
-                Organization-wide advertising performance
-                for the selected reporting period.
+                Revenue, relationships, locations, and
+                inventory across the selected scope.
               </p>
 
 
@@ -55744,7 +55928,8 @@ app.get(
                   ">
 
                     <h3 style="margin:0;">
-                      🏆 Top Advertisers
+                      🏆 Advertiser Performance
+                      (${numberLabel(topAdvertisers.length)})
                     </h3>
 
                     <a
@@ -55764,7 +55949,8 @@ app.get(
                     color:#65776b;
                     font-size:13px;
                   ">
-                    Ranked by measurable customer results
+                    All active advertisers, ranked by
+                    attributed revenue, conversions, and intent
                   </p>
 
 
@@ -55821,10 +56007,10 @@ app.get(
                             font-size:12px;
                             margin-top:3px;
                           ">
-                            ${numberLabel(
-                              advertiser.intent
-                            )}
-                            Intent
+                            ${numberLabel(advertiser.scans)} scans ·
+                            ${numberLabel(advertiser.intent)} intent ·
+                            ${advertiser.intentRate.toFixed(1)}%
+                            scan-to-intent
                           </div>
                         </div>
 
@@ -55871,7 +56057,8 @@ app.get(
                   ">
 
                     <h3 style="margin:0;">
-                      📍 Top Locations
+                      📍 Location Performance
+                      (${numberLabel(topLocations.length)})
                     </h3>
 
                     <a
@@ -55891,7 +56078,8 @@ app.get(
                     color:#65776b;
                     font-size:13px;
                   ">
-                    Ranked by measurable customer results
+                    All active locations, ranked by
+                    attributed revenue, conversions, and intent
                   </p>
 
 
@@ -55950,6 +56138,16 @@ app.get(
                               location.market
                             )}
                           </div>
+
+                          <div style="
+                            color:#65776b;
+                            font-size:12px;
+                            margin-top:3px;
+                          ">
+                            ${numberLabel(location.scans)} scans ·
+                            ${numberLabel(location.intent)} intent ·
+                            ${location.intentRate.toFixed(1)}%
+                          </div>
                         </div>
 
                         <div style="
@@ -55995,7 +56193,8 @@ app.get(
                   ">
 
                     <h3 style="margin:0;">
-                      ⭐ Top Advertising Placements
+                      ⭐ Placement Performance
+                      (${numberLabel(topPlacements.length)})
                     </h3>
 
                     <a
@@ -56015,7 +56214,8 @@ app.get(
                     color:#65776b;
                     font-size:13px;
                   ">
-                    Ranked by measurable customer results
+                    All active placements, ranked by
+                    attributed revenue, conversions, and intent
                   </p>
 
 
@@ -56073,6 +56273,16 @@ app.get(
                             ${escapeHtml(
                               placement.locationName
                             )}
+                          </div>
+
+                          <div style="
+                            color:#65776b;
+                            font-size:12px;
+                            margin-top:3px;
+                          ">
+                            ${numberLabel(placement.scans)} scans ·
+                            ${numberLabel(placement.intent)} intent ·
+                            ${placement.intentRate.toFixed(1)}%
                           </div>
                         </div>
 
