@@ -4007,6 +4007,42 @@ await q(`
     AND op.public_image_url IS NULL
 `);
 
+/*
+  Keep the SJN pilot deliberately focused on advertising
+  and sponsorship. Giving remains available as a platform
+  capability, but it is not part of this pilot experience.
+*/
+await q(`
+  UPDATE organization_programs op
+  SET
+    is_active = false,
+    updated_at = CURRENT_TIMESTAMP
+  FROM organizations o
+  WHERE o.id = op.organization_id
+    AND (
+      LOWER(COALESCE(o.website, '')) LIKE '%sjnceltics.org%'
+      OR LOWER(COALESCE(o.name, '')) LIKE '%john neumann%'
+    )
+    AND (
+      op.program_type = 'giving'
+      OR LOWER(op.name) ~
+        '(giving|donor|donation|philanthropy)'
+    )
+    AND COALESCE(op.is_active, true) = true
+`);
+
+await q(`
+  UPDATE organizations
+  SET
+    public_heading = 'Advertise or Sponsor at Saint John Neumann',
+    public_description =
+      'Choose a campus, magazine, or athletics opportunity to reach the Saint John Neumann community. Review available placements, investment, and timing, then submit your request.',
+    updated_at = CURRENT_TIMESTAMP
+  WHERE
+    LOWER(COALESCE(website, '')) LIKE '%sjnceltics.org%'
+    OR LOWER(COALESCE(name, '')) LIKE '%john neumann%'
+`);
+
 await q(`
   CREATE TABLE IF NOT EXISTS organization_program_users (
     id SERIAL PRIMARY KEY,
@@ -12569,7 +12605,6 @@ app.post(
             "Organization not found."
           );
       }
-
 
       /*
       Only archived Organizations can be
@@ -66945,6 +66980,14 @@ app.get(
         );
       }
 
+      const isSjnOrganization =
+        /sjnceltics\.org/i.test(
+          String(organization.website || "")
+        ) ||
+        /john neumann/i.test(
+          String(organization.name || "")
+        );
+
       const programsResult = await q(
         `
           SELECT
@@ -66997,8 +67040,58 @@ app.get(
         [organization.id]
       );
 
+      const sjnProgramOrder = {
+        advertising: 1,
+        publication: 2,
+        sponsorship: 3
+      };
+
       const programs =
-        programsResult.rows;
+        programsResult.rows
+          .filter(program => {
+            if (!isSjnOrganization) {
+              return true;
+            }
+
+            return [
+              "advertising",
+              "publication",
+              "sponsorship"
+            ].includes(
+              getMarketplaceProgramExperience(program).key
+            );
+          })
+          .sort((a, b) => {
+            if (!isSjnOrganization) {
+              return 0;
+            }
+
+            return (
+              sjnProgramOrder[
+                getMarketplaceProgramExperience(a).key
+              ] || 99
+            ) - (
+              sjnProgramOrder[
+                getMarketplaceProgramExperience(b).key
+              ] || 99
+            );
+          });
+
+      const getPublicProgramName = program => {
+        if (!isSjnOrganization) {
+          return program.name;
+        }
+
+        const labels = {
+          advertising: "Campus",
+          publication: "Magazine",
+          sponsorship: "Athletics"
+        };
+
+        return labels[
+          getMarketplaceProgramExperience(program).key
+        ] || program.name;
+      };
 
       const commercePrograms =
         programs.filter(
@@ -67157,13 +67250,17 @@ HAVING COUNT(
         ).size > 1;
 
       const heading =
-        organization.public_heading ||
+        (isSjnOrganization
+          ? "Advertise or Sponsor at Saint John Neumann"
+          : organization.public_heading) ||
         (hasMultipleExperienceTypes
           ? `${organization.name} Partnership Marketplace`
           : `Advertise With ${organization.name}`);
 
       const description =
-        organization.public_description ||
+        (isSjnOrganization
+          ? "Choose a campus, magazine, or athletics opportunity to reach the Saint John Neumann community. Review available placements, investment, and timing, then submit your request."
+          : organization.public_description) ||
         (hasMultipleExperienceTypes
           ? "Explore approved advertising and sponsorship opportunities, then choose the right way to connect with this community."
           : "Explore available advertising opportunities across this organization.");
@@ -67237,7 +67334,7 @@ HAVING COUNT(
                     `/org-opportunity/${program.image_opportunity_id}/photo`
                   )}"
                   alt="${escapeHtml(
-                    program.name
+                    getPublicProgramName(program)
                   )}"
                   style="
                     display:block;
@@ -67292,7 +67389,9 @@ HAVING COUNT(
                   font-size:21px;
                   line-height:1.3;
                 ">
-                  ${escapeHtml(program.name)}
+                  ${escapeHtml(
+                    getPublicProgramName(program)
+                  )}
                 </h2>
 
                 <p style="
@@ -67977,7 +68076,9 @@ margin-top:10px;
               ${
                 showLocations
                   ? selectedExperience.eyebrow
-                  : "Partnership Marketplace"
+                  : isSjnOrganization
+                    ? "Advertise or Sponsor"
+                    : "Partnership Marketplace"
               }
             </div>
 
@@ -68013,12 +68114,18 @@ margin-top:10px;
                           <div class="marketplace-section-heading">
                             <div>
                               <span>Start here</span>
-                              <h2>Find the right way to reach this community.</h2>
+                              <h2>${
+                                isSjnOrganization
+                                  ? "Choose where you want to be seen."
+                                  : "Find the right way to reach this community."
+                              }</h2>
                             </div>
                             <p>
-                              Choose a program first. Then select a location and
-                              an available opportunity to review the details and
-                              request approval.
+                              ${
+                                isSjnOrganization
+                                  ? "Explore campus, magazine, and athletics opportunities, then select the placement that fits your audience and goals."
+                                  : "Choose a program first. Then select a location and an available opportunity to review the details and request approval."
+                              }
                             </p>
                           </div>
 
@@ -68073,7 +68180,11 @@ margin-top:10px;
                         text-decoration:none;
                       "
                     >
-                      ← View All Programs
+                      ← ${
+                        isSjnOrganization
+                          ? "Advertise or Sponsor"
+                          : "View All Programs"
+                      }
                     </a>
 
                     <h2 style="
@@ -68085,7 +68196,9 @@ margin-top:10px;
                         showAllPrograms
                           ? "All Opportunities"
                           : escapeHtml(
-                              selectedProgram.name
+                              getPublicProgramName(
+                                selectedProgram
+                              )
                             )
                       }
                     </h2>
