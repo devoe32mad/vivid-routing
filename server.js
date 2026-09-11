@@ -6082,7 +6082,7 @@ async function pickBestStoreForCampaign(campaign) {
 
   let bestStore = null;
   for (const s of stores.rows) {
-    const metrics = await q(`SELECT COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent FROM events WHERE store_id = $1 AND campaign_id = $2`, [s.id, campaign.id]);
+    const metrics = await q(`SELECT COUNT(*) FILTER (WHERE type IN ('offer','maps','waze','destination_click')) AS intent FROM events WHERE store_id = $1 AND campaign_id = $2`, [s.id, campaign.id]);
     const intent = Number(metrics.rows[0].intent || 0);
     const customers = Math.round(intent * (Number(campaign.conversion_rate || 10) / 100));
     const revenue = customers * Number(campaign.avg_customer_value || 50);
@@ -13075,7 +13075,8 @@ SELECT
             WHERE e.type IN (
                 'offer',
                 'maps',
-                'waze'
+                'waze',
+                'destination_click'
             )
         )::int AS intent,
 
@@ -13261,7 +13262,8 @@ SELECT
             WHERE e.type IN(
                 'offer',
                 'maps',
-                'waze'
+                'waze',
+                'destination_click'
             )
         )::int AS intent,
 
@@ -13471,7 +13473,8 @@ const campaignsResult = await q(
         WHERE e.type IN (
           'offer',
           'maps',
-          'waze'
+          'waze',
+          'destination_click'
         )
       )::int AS intent,
 
@@ -19502,7 +19505,7 @@ WHERE s.organization_id = $1
       )::int AS scans,
 
       COUNT(e.id) FILTER (
-        WHERE e.type IN ('offer', 'maps', 'waze')
+        WHERE e.type IN ('offer', 'maps', 'waze', 'destination_click')
       )::int AS intent,
 
       COUNT(e.id) FILTER (
@@ -20574,7 +20577,8 @@ if (metric === "advertiser-revenue") {
           WHERE e.type IN (
             'offer',
             'maps',
-            'waze'
+            'waze',
+            'destination_click'
           )
         )::int AS intent,
 
@@ -21650,7 +21654,8 @@ const latestRequests =
           WHERE e.type IN (
             'offer',
             'maps',
-            'waze'
+            'waze',
+            'destination_click'
           )
         )::int AS intent,
 
@@ -27363,7 +27368,8 @@ LEFT JOIN LATERAL (
       WHERE e.type IN (
         'offer',
         'maps',
-        'waze'
+        'waze',
+        'destination_click'
       )
     )::int AS clicks,
 
@@ -29292,7 +29298,7 @@ const qrResult = await q(`
       FROM events e
 
       WHERE e.qr_id = qr.id
-        AND e.type IN ('offer', 'maps', 'waze')
+        AND e.type IN ('offer', 'maps', 'waze', 'destination_click')
 
         AND (
           NULLIF($2, '') IS NULL
@@ -29939,7 +29945,7 @@ if (
           )::int AS waze_clicks,
 
           COUNT(*) FILTER (
-            WHERE type IN ('offer', 'maps', 'waze')
+            WHERE type IN ('offer', 'maps', 'waze', 'destination_click')
           )::int AS intent,
 
           COUNT(*) FILTER (
@@ -30717,7 +30723,7 @@ const campaignInSelectedRange =
           )::int AS waze_clicks,
 
           COUNT(e.id) FILTER (
-            WHERE e.type IN ('offer', 'maps', 'waze')
+            WHERE e.type IN ('offer', 'maps', 'waze', 'destination_click')
           )::int AS intent,
 
           COUNT(e.id) FILTER (
@@ -42902,7 +42908,7 @@ const advertiserTasks =
           )::int AS waze_clicks,
 
           COUNT(e.id) FILTER (
-            WHERE e.type IN ('offer', 'maps', 'waze')
+            WHERE e.type IN ('offer', 'maps', 'waze', 'destination_click')
           )::int AS intent,
 
           COUNT(e.id) FILTER (
@@ -54671,7 +54677,8 @@ app.get(
                 WHERE e.type IN (
                   'offer',
                   'maps',
-                  'waze'
+                  'waze',
+                  'destination_click'
                 )
               )::int AS intent,
 
@@ -54772,7 +54779,8 @@ app.get(
                 WHERE e.type IN (
                   'offer',
                   'maps',
-                  'waze'
+                  'waze',
+                  'destination_click'
                 )
               )::int AS intent,
 
@@ -54896,7 +54904,8 @@ app.get(
                 WHERE e.type IN (
                   'offer',
                   'maps',
-                  'waze'
+                  'waze',
+                  'destination_click'
                 )
               )::int AS intent,
 
@@ -55070,7 +55079,8 @@ app.get(
                 WHERE e.type IN (
                   'offer',
                   'maps',
-                  'waze'
+                  'waze',
+                  'destination_click'
                 )
               )::int AS intent,
 
@@ -55097,7 +55107,8 @@ app.get(
                 WHERE e.type IN (
                   'offer',
                   'maps',
-                  'waze'
+                  'waze',
+                  'destination_click'
                 )
               ) > 0
 
@@ -71941,7 +71952,7 @@ const userParams = isSuperAdmin ? [] : [currentUser.id];
     COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
   COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
     COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
-   COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+   COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze','destination_click')) AS intent_clicks
   FROM events e
   JOIN campaigns c ON c.id = e.campaign_id
   WHERE 1=1
@@ -71951,7 +71962,7 @@ const userParams = isSuperAdmin ? [] : [currentUser.id];
 const trendResult = await q(`
   SELECT DATE(e.created_at) AS day,
     COUNT(*) FILTER (WHERE e.type='scan') AS scans,
-    COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+    COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze','destination_click')) AS intent_clicks
   FROM events e
   JOIN campaigns c ON c.id = e.campaign_id
   WHERE 1=1 ${userFilterSql} ${dateSql}
@@ -72010,7 +72021,7 @@ const locationRows = await q(
         COUNT(*) FILTER (WHERE e.type='scan') AS scans,
         COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
-        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze','destination_click')) AS intent_clicks
       FROM events e
       JOIN campaigns c ON c.id = e.campaign_id
       JOIN qr_codes qr ON qr.id = e.qr_id
@@ -72035,7 +72046,7 @@ const locationRows = await q(
         COUNT(*) FILTER (WHERE e.type='scan') AS scans,
         COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
-        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze','destination_click')) AS intent_clicks
       FROM events e
       JOIN campaigns c ON c.id = e.campaign_id
       JOIN qr_codes qr ON qr.id = e.qr_id
@@ -72067,7 +72078,7 @@ const locationRows = await q(
         c.conversion_rate,
         COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
-        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze','destination_click')) AS intent_clicks
       FROM stores st
       LEFT JOIN events e
         ON e.store_id = st.id
@@ -72093,7 +72104,7 @@ const locationRows = await q(
         c.conversion_rate,
         COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
         COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
-        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+        COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze','destination_click')) AS intent_clicks
       FROM stores st
       LEFT JOIN events e
         ON e.store_id = st.id
@@ -72150,7 +72161,7 @@ let bestQr = null;
           COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
           COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
           COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
-          COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+          COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze','destination_click')) AS intent_clicks
         FROM events e WHERE e.qr_id = $1 ${hasDate ? "AND e.created_at BETWEEN $2::date AND ($3::date + interval '1 day')" : ""}
       `, hasDate ? [qr.qr_id, start, end] : [qr.qr_id]);
       const row = m.rows[0];
@@ -72186,7 +72197,7 @@ const cost =
           COUNT(*) FILTER (WHERE e.type='offer') AS offer_clicks,
           COUNT(*) FILTER (WHERE e.type='maps') AS maps_clicks,
           COUNT(*) FILTER (WHERE e.type='waze') AS waze_clicks,
-          COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze')) AS intent_clicks
+          COUNT(*) FILTER (WHERE e.type IN ('offer','maps','waze','destination_click')) AS intent_clicks
         FROM events e WHERE e.campaign_id = $1 ${hasDate ? "AND e.created_at BETWEEN $2::date AND ($3::date + interval '1 day')" : ""}
       `, hasDate ? [c.id, start, end] : [c.id]);
       const row = m.rows[0];
@@ -77753,7 +77764,7 @@ app.get("/reports-campaign", requireLogin, async (req, res) => {
         COUNT(e.id) FILTER (WHERE e.type='offer') AS offers,
         COUNT(e.id) FILTER (WHERE e.type='maps') AS maps,
         COUNT(e.id) FILTER (WHERE e.type='waze') AS waze,
-        COUNT(e.id) FILTER (WHERE e.type IN ('offer','maps','waze')) AS total_intent,
+        COUNT(e.id) FILTER (WHERE e.type IN ('offer','maps','waze','destination_click')) AS total_intent,
         COUNT(e.id) FILTER (WHERE e.type='conversion') AS conversions,
         COALESCE(SUM(e.value) FILTER (WHERE e.type='conversion'),0) AS conversion_value,
 
@@ -84594,7 +84605,8 @@ const endDate =
             WHERE e.type IN (
               'offer',
               'maps',
-              'waze'
+              'waze',
+              'destination_click'
             )
           )::int AS intent,
 
@@ -84877,7 +84889,8 @@ for (const campaign of campaignsResult.rows) {
           WHERE e.type IN (
             'offer',
             'maps',
-            'waze'
+            'waze',
+            'destination_click'
           )
         )::int AS intent,
 
@@ -85343,7 +85356,8 @@ for (
           WHERE e.type IN (
             'offer',
             'maps',
-            'waze'
+            'waze',
+            'destination_click'
           )
         )::int AS intent,
 
@@ -85656,7 +85670,8 @@ for (
             WHERE e.type IN (
               'offer',
               'maps',
-              'waze'
+              'waze',
+              'destination_click'
             )
           )::int AS intent,
 
@@ -95462,7 +95477,7 @@ app.get(
  
 
 app.get("/analytics", async (req, res) => {
-  const result = await q(`SELECT COUNT(*) FILTER (WHERE type='scan') AS scans, COUNT(*) FILTER (WHERE type='offer') AS offer_clicks, COUNT(*) FILTER (WHERE type='maps') AS maps_clicks, COUNT(*) FILTER (WHERE type='waze') AS waze_clicks, COUNT(*) FILTER (WHERE type IN ('offer','maps','waze')) AS intent_clicks FROM events`);
+  const result = await q(`SELECT COUNT(*) FILTER (WHERE type='scan') AS scans, COUNT(*) FILTER (WHERE type='offer') AS offer_clicks, COUNT(*) FILTER (WHERE type='maps') AS maps_clicks, COUNT(*) FILTER (WHERE type='waze') AS waze_clicks, COUNT(*) FILTER (WHERE type IN ('offer','maps','waze','destination_click')) AS intent_clicks FROM events`);
   res.json(result.rows[0]);
 });
 app.get("/admin/stores", requireLogin, async (req, res) => {
