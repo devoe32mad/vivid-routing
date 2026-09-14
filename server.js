@@ -6439,7 +6439,7 @@ const loginUserId = Number(
 
 const orgResult = await q(
   `
-    SELECT
+    SELECT DISTINCT ON (o.id)
       u.id AS user_id,
       u.email,
       o.id AS organization_id,
@@ -6469,28 +6469,112 @@ const orgResult = await q(
     'active'
   ) = 'active'
 
-ORDER BY o.id
+ORDER BY o.id, ou.id DESC
   `,
   [loginUserId]
 );
 
-if (orgResult.rows.length > 1) {
-  return res
-    .status(409)
-    .send(
-      "This user is connected to more than one active organization."
-    );
-}
+const requestedOrganizationId = Number(
+  req.query.organization_id || 0
+);
 
 const orgUser =
-  orgResult.rows[0] || null;
+  orgResult.rows.find(
+    row =>
+      Number(row.organization_id) ===
+      requestedOrganizationId
+  ) ||
+  (
+    orgResult.rows.length === 1
+      ? orgResult.rows[0]
+      : null
+  );
 
 const hasAdvertiserAccess =
   role === "customer" ||
   role === "advertiser";
 
 const hasEnterpriseAccess =
-  Boolean(orgUser);
+  orgResult.rows.length > 0;
+
+const renderOrganizationChoice = () =>
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1"
+        >
+        <title>Choose Enterprise | Vivid</title>
+        <style>
+          * { box-sizing: border-box; }
+          body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #F6F8FC;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #172033;
+          }
+          .card {
+            width: 92%;
+            max-width: 560px;
+            background: #FFFFFF;
+            border: 1px solid #DBE3EF;
+            border-radius: 16px;
+            padding: 36px;
+            box-shadow: 0 12px 30px rgba(11,31,58,.08);
+          }
+          h1 { margin: 0 0 10px; color: #0B1F3A; }
+          p { margin: 0 0 24px; color: #5F6B7A; line-height: 1.5; }
+          .enterprise {
+            display: block;
+            width: 100%;
+            padding: 16px 18px;
+            margin-top: 12px;
+            border-radius: 10px;
+            background: #2563EB;
+            color: #FFFFFF;
+            text-decoration: none;
+            font-weight: 700;
+            text-align: center;
+          }
+          .back {
+            display: block;
+            margin-top: 22px;
+            color: #2563EB;
+            text-align: center;
+            text-decoration: none;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>Choose an Enterprise</h1>
+          <p>Select the Enterprise Portal you want to open.</p>
+          ${orgResult.rows.map(organization => `
+            <a
+              class="enterprise"
+              href="/platform-login?portal=enterprise&amp;organization_id=${
+                Number(organization.organization_id)
+              }"
+            >
+              ${escapeHtml(organization.organization_name || "Enterprise")}
+            </a>
+          `).join("")}
+          ${hasAdvertiserAccess ? `
+            <a class="back" href="/platform-login">
+              Back to portal choices
+            </a>
+          ` : ""}
+        </div>
+      </body>
+    </html>
+  `);
 
 
 // --------------------------------------------------
@@ -6628,6 +6712,10 @@ if (
   // Enterprise selected.
   if (portal === "enterprise") {
 
+    if (!orgUser) {
+      return renderOrganizationChoice();
+    }
+
     req.session.platformUser = {
       ...sessionUser
     };
@@ -6692,12 +6780,16 @@ if (
   role === "organization_user"
 ) {
 
-  if (!orgUser) {
+  if (!hasEnterpriseAccess) {
     return res
       .status(403)
       .send(
         "No active Organization membership was found."
       );
+  }
+
+  if (!orgUser) {
+    return renderOrganizationChoice();
   }
 
   req.session.orgUser = {
