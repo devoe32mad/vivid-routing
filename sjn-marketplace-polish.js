@@ -48,20 +48,17 @@ async function run() {
       WITH sjn_athletics_space AS (
         SELECT
           o.id AS organization_id,
-          existing.space_id,
-          existing.program_id
+          s.id AS space_id,
+          op.id AS program_id
         FROM organizations o
-        JOIN organization_opportunities existing
-          ON existing.organization_id = o.id
-         AND existing.program_id IS NOT NULL
-         AND LOWER(COALESCE(existing.category, '')) = 'athletics'
-         AND COALESCE(existing.is_active, true) = true
-        WHERE (
-          LOWER(COALESCE(o.website, '')) LIKE '%sjnceltics.org%'
-          OR LOWER(COALESCE(o.name, '')) LIKE '%john neumann%'
-        )
-        ORDER BY existing.space_id, existing.program_id, existing.id
-        LIMIT 1
+        JOIN spaces s
+          ON s.id = 44
+         AND s.organization_id = o.id
+        JOIN organization_programs op
+          ON op.id = 2
+         AND op.organization_id = o.id
+        WHERE o.id = 23
+          AND LOWER(COALESCE(o.name, '')) LIKE '%john neumann%'
       )
       INSERT INTO organization_opportunities (
         organization_id,
