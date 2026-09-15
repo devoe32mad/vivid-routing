@@ -4,7 +4,7 @@
   "description": "Vivid Spots routing and analytics platform",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node asset-bootstrap.js"
   },
 "dependencies": {
 "connect-pg-simple": "^10.0.0",
