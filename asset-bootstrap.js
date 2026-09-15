@@ -42,6 +42,10 @@ function createAppWithAssets(...args) {
           "Saint John Neumann High School – Main Campus"
         )
         .replace(
+          /Website to Promote/g,
+          "Website or Social Page to Promote"
+        )
+        .replace(
           /\/org-opportunity\/24\/photo/g,
           "/assets/sjn-marketplace/car-line-opportunity.jpg"
         )
