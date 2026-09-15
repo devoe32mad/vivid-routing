@@ -20,6 +20,7 @@ function createAppWithAssets(...args) {
     const normalizeMarketplaceWording = body =>
       body
         .replace(/\bper\s+per\s+year\b/gi, "per year")
+        .replace(/\bper\s+per\s+event\b/gi, "per event")
         .replace(/>\s*year\s*</gi, match =>
           match.replace(/year/i, "Per Year")
         )
@@ -35,6 +36,18 @@ function createAppWithAssets(...args) {
               font-size:14px;
               line-height:1.55;
             }`
+        )
+        .replace(
+          /Saint John Neumann High School-Main Campus/g,
+          "Saint John Neumann High School – Main Campus"
+        )
+        .replace(
+          /\/org-opportunity\/24\/photo/g,
+          "/assets/sjn-marketplace/car-line-opportunity.jpg"
+        )
+        .replace(
+          /\/org-opportunity\/20\/photo/g,
+          "/assets/sjn-marketplace/football-stadium-opportunity.jpg"
         );
 
     const escapeHtml = value =>
@@ -189,6 +202,28 @@ async function polishSjnMarketplace() {
           LOWER(COALESCE(o.website, '')) LIKE '%sjnceltics.org%'
           OR LOWER(COALESCE(o.name, '')) LIKE '%john neumann%'
         )
+    `);
+
+    await pool.query(`
+      UPDATE organization_opportunities
+      SET
+        title = CASE
+          WHEN id = 21
+            THEN 'Gymnasium Partnership – Placement A'
+          WHEN id = 23
+            THEN 'Gymnasium Partnership – Placement B'
+          ELSE title
+        END,
+        description = CASE
+          WHEN id = 22
+            THEN 'Reach Saint John Neumann families, students, alumni, and visiting teams throughout the baseball season, including games and other baseball events, with measurable engagement and performance reporting.'
+          WHEN id = 24
+            THEN 'Prominent fence signage visible to families, students, faculty, visitors, and daily car-line traffic at Saint John Neumann Catholic High School. Estimated audience: 300 cars daily and 700 students and faculty. Approximately 150,000 impressions annually, plus an estimated 30,000 impressions during football and soccer games.'
+          ELSE description
+        END,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE organization_id = 23
+        AND id IN (21, 22, 23, 24)
     `);
 
     await pool.query(`
