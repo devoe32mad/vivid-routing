@@ -77,21 +77,19 @@ async function polishSjnMarketplace() {
       WITH sjn_athletics_space AS (
         SELECT
           o.id AS organization_id,
-          s.id AS space_id,
-          op.id AS program_id
+          existing.space_id,
+          existing.program_id
         FROM organizations o
-        JOIN spaces s
-          ON s.organization_id = o.id
-         AND COALESCE(s.is_archived, false) = false
-        JOIN organization_programs op
-          ON op.organization_id = o.id
-         AND LOWER(COALESCE(op.name, '')) LIKE '%athletic%'
-         AND COALESCE(op.is_active, true) = true
+        JOIN organization_opportunities existing
+          ON existing.organization_id = o.id
+         AND existing.program_id IS NOT NULL
+         AND LOWER(COALESCE(existing.category, '')) = 'athletics'
+         AND COALESCE(existing.is_active, true) = true
         WHERE (
           LOWER(COALESCE(o.website, '')) LIKE '%sjnceltics.org%'
           OR LOWER(COALESCE(o.name, '')) LIKE '%john neumann%'
         )
-        ORDER BY s.id, op.display_order, op.id
+        ORDER BY existing.space_id, existing.program_id, existing.id
         LIMIT 1
       )
       INSERT INTO organization_opportunities (
