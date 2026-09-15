@@ -14,6 +14,32 @@ function createAppWithAssets(...args) {
     )
   );
 
+  app.use((req, res, next) => {
+    const originalSend = res.send.bind(res);
+
+    res.send = body => {
+      if (
+        typeof body === "string" &&
+        (
+          req.path === "/org-marketplace" ||
+          req.path.startsWith("/advertise/")
+        )
+      ) {
+        body = body
+          .replace(/\bper\s+per\s+year\b/gi, "per year")
+          .replace(/>\s*year\s*</gi, match =>
+            match.replace(/year/i, "Per Year")
+          )
+          .replace(/\b1\s+Years\b/g, "1 Year")
+          .replace(/\b1\s+Issues\b/g, "1 Issue");
+      }
+
+      return originalSend(body);
+    };
+
+    next();
+  });
+
   return app;
 }
 
