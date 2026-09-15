@@ -24,7 +24,18 @@ function createAppWithAssets(...args) {
           match.replace(/year/i, "Per Year")
         )
         .replace(/\b1\s+Years\b/g, "1 Year")
-        .replace(/\b1\s+Issues\b/g, "1 Issue");
+        .replace(/\b1\s+Issues\b/g, "1 Issue")
+        .replace(
+          /\.marketplace-card-description\s*\{[\s\S]*?\}/g,
+          `.marketplace-card-description {
+              display:block;
+              overflow:visible;
+              margin:12px 0 0;
+              color:#6b7b72;
+              font-size:14px;
+              line-height:1.55;
+            }`
+        );
 
     const escapeHtml = value =>
       String(value || "")
