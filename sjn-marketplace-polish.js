@@ -47,18 +47,15 @@ async function run() {
     await pool.query(`
       WITH sjn_athletics_space AS (
         SELECT
-          o.id AS organization_id,
-          s.id AS space_id,
-          op.id AS program_id
-        FROM organizations o
-        JOIN spaces s
-          ON s.id = 44
-         AND s.organization_id = o.id
-        JOIN organization_programs op
-          ON op.id = 2
-         AND op.organization_id = o.id
-        WHERE o.id = 23
-          AND LOWER(COALESCE(o.name, '')) LIKE '%john neumann%'
+          existing.organization_id,
+          existing.space_id,
+          existing.program_id
+        FROM organization_opportunities existing
+        WHERE existing.id = 22
+          AND existing.organization_id = 23
+          AND existing.space_id = 44
+          AND existing.program_id = 2
+          AND existing.title = 'Baseball Stadium Partnership'
       )
       INSERT INTO organization_opportunities (
         organization_id,
