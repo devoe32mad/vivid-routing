@@ -74,18 +74,6 @@ async function polishSjnMarketplace() {
     `);
 
     await pool.query(`
-      WITH sjn_athletics_space AS (
-        SELECT
-          existing.organization_id,
-          existing.space_id,
-          existing.program_id
-        FROM organization_opportunities existing
-        WHERE existing.id = 22
-          AND existing.organization_id = 23
-          AND existing.space_id = 44
-          AND existing.program_id = 2
-          AND existing.title = 'Baseball Stadium Partnership'
-      )
       INSERT INTO organization_opportunities (
         organization_id,
         space_id,
@@ -105,9 +93,9 @@ async function polishSjnMarketplace() {
         updated_at
       )
       SELECT
-        sas.organization_id,
-        sas.space_id,
-        sas.program_id,
+        23,
+        44,
+        2,
         'Football Stadium Partnership',
         'Build year-round visibility with SJN families, fans, alumni, and community supporters through a prominent football stadium sponsorship measured through Vivid.',
         'Athletics',
@@ -121,12 +109,11 @@ async function polishSjnMarketplace() {
         true,
         CURRENT_TIMESTAMP,
         CURRENT_TIMESTAMP
-      FROM sjn_athletics_space sas
       WHERE NOT EXISTS (
         SELECT 1
         FROM organization_opportunities existing
-        WHERE existing.organization_id = sas.organization_id
-          AND existing.program_id = sas.program_id
+        WHERE existing.organization_id = 23
+          AND existing.program_id = 2
           AND LOWER(TRIM(existing.title)) =
               LOWER('Football Stadium Partnership')
       )
