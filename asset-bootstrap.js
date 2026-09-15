@@ -85,7 +85,7 @@ async function polishSjnMarketplace() {
          AND COALESCE(s.is_archived, false) = false
         JOIN organization_programs op
           ON op.organization_id = o.id
-         AND op.program_type = 'sponsorship'
+         AND LOWER(COALESCE(op.name, '')) LIKE '%athletic%'
          AND COALESCE(op.is_active, true) = true
         WHERE (
           LOWER(COALESCE(o.website, '')) LIKE '%sjnceltics.org%'
