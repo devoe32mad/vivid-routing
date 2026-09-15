@@ -72,6 +72,16 @@ function createAppWithAssets(...args) {
       ) {
         body = normalizeMarketplaceWording(body);
 
+        if (
+          req.path.startsWith("/advertise/") &&
+          String(req.query.program_id || "") === "3"
+        ) {
+          body = body.replace(
+            /<small>Per Year<\/small>/g,
+            "<small>1 Issue</small>"
+          );
+        }
+
         const opportunityMatch = req.path.match(
           /^\/advertise\/[^/]+\/location\/\d+\/opportunity\/(\d+)$/
         );
