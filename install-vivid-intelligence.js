@@ -145,6 +145,14 @@ const campaignBuilderBlock = `const testCampaignCount =
           { organizationId }
         );
 
+
+      const liveCampaignStartDates =`;
+
+const organizationAskBuilderAnchor = `const executiveInsights =
+        vividInsights;`;
+const organizationAskBuilderBlock = `const executiveInsights =
+        vividInsights;
+
       const organizationAskVivid =
         answerAskVivid({
           role: "enterprise",
@@ -165,10 +173,7 @@ const campaignBuilderBlock = `const testCampaignCount =
             fromDate || toDate
               ? \`Reporting period: \${fromDate || "Beginning"} through \${toDate || "Today"}\`
               : "All measured activity"
-        });
-
-
-      const liveCampaignStartDates =`;
+        });`;
 
 const campaignRenderAnchor = `              <!-- =====================================
                    LAUNCH SCORECARD
@@ -303,6 +308,12 @@ const patches = [
     anchor: campaignRenderAnchor,
     replacement: campaignRenderBlock,
     label: "campaign intelligence panel"
+  },
+  {
+    marker: "const organizationAskVivid =",
+    anchor: organizationAskBuilderAnchor,
+    replacement: organizationAskBuilderBlock,
+    label: "enterprise Ask Vivid builder"
   },
   {
     marker: "const accessError =",

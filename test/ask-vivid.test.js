@@ -2,6 +2,10 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 const {
   answerAskVivid,
   renderAskVivid
@@ -127,4 +131,56 @@ test("Ask Vivid renderer escapes questions, data, links, and hidden fields", () 
   assert.doesNotMatch(html, /javascript:/);
   assert.match(html, /&lt;script&gt;/);
   assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+});
+
+test("enterprise assistant is initialized after its revenue data", () => {
+  const tempDirectory = fs.mkdtempSync(
+    path.join(os.tmpdir(), "ask-vivid-install-")
+  );
+  const projectRoot = path.join(__dirname, "..");
+
+  for (const filename of [
+    "server.js",
+    "vivid-intelligence.js",
+    "ask-vivid.js",
+    "install-vivid-intelligence.js"
+  ]) {
+    fs.copyFileSync(
+      path.join(projectRoot, filename),
+      path.join(tempDirectory, filename)
+    );
+  }
+
+  const installation = spawnSync(
+    process.execPath,
+    [path.join(tempDirectory, "install-vivid-intelligence.js")],
+    { encoding: "utf8" }
+  );
+
+  assert.equal(installation.status, 0, installation.stderr);
+
+  const generatedServer = fs.readFileSync(
+    path.join(tempDirectory, "server.js"),
+    "utf8"
+  );
+  const assistantIndex = generatedServer.indexOf(
+    "const organizationAskVivid ="
+  );
+  const revenueIndex = generatedServer.lastIndexOf(
+    "const advertiserRevenueGenerated =",
+    assistantIndex
+  );
+
+  assert.ok(revenueIndex >= 0, "enterprise revenue initializer was not found");
+  assert.ok(
+    assistantIndex > revenueIndex,
+    "enterprise assistant must be initialized after advertiser revenue"
+  );
+
+  const syntax = spawnSync(
+    process.execPath,
+    ["--check", path.join(tempDirectory, "server.js")],
+    { encoding: "utf8" }
+  );
+  assert.equal(syntax.status, 0, syntax.stderr);
 });
