@@ -6,7 +6,9 @@ const {
   buildOrganizationIntelligence,
   renderOrganizationIntelligence,
   buildCampaignIntelligence,
-  renderCampaignIntelligence
+  renderCampaignIntelligence,
+  buildAdvertiserIntelligence,
+  renderAdvertiserIntelligence
 } = require("../vivid-intelligence");
 
 test("profitable measured activity is not labeled as needing performance attention", () => {
@@ -169,4 +171,74 @@ test("campaign intelligence renderer escapes campaign content", () => {
 
   assert.doesNotMatch(html, /<script>/);
   assert.match(html, /&lt;script&gt;/);
+});
+
+test("advertiser intelligence uses investment and results for campaign status", () => {
+  const result = buildAdvertiserIntelligence([
+    {
+      id: 58,
+      name: "Test SJN",
+      scans: 6,
+      intent: 1,
+      conversions: 1,
+      revenue: 35,
+      allocatedCost: 2.73
+    },
+    {
+      id: 59,
+      name: "Interest Only",
+      scans: 12,
+      intent: 4,
+      conversions: 0,
+      revenue: 0,
+      allocatedCost: 10
+    }
+  ]);
+
+  const profitable = result.campaigns.find(campaign => campaign.id === 58);
+  const conversionGap = result.campaigns.find(campaign => campaign.id === 59);
+
+  assert.equal(profitable.status, "Performing Well");
+  assert.ok(profitable.roi > 1100);
+  assert.equal(profitable.confidence, "Medium");
+  assert.equal(conversionGap.status, "Needs Attention");
+  assert.match(conversionGap.recommendation, /conversion confirmation path/i);
+  assert.match(result.summary, /tracked conversion/);
+  assert.match(result.answers[2].answer, /renewal candidate/i);
+});
+
+test("advertiser intelligence flags negative return despite conversions", () => {
+  const result = buildAdvertiserIntelligence([
+    {
+      id: 4,
+      name: "Early Results",
+      scans: 30,
+      intent: 5,
+      conversions: 2,
+      revenue: 25,
+      allocatedCost: 100
+    }
+  ]);
+
+  assert.equal(result.campaigns[0].status, "Needs Attention");
+  assert.equal(result.campaigns[0].confidence, "High");
+  assert.equal(result.campaigns[0].costPerConversion, 50);
+});
+
+test("advertiser intelligence renderer escapes campaign and answer content", () => {
+  const result = buildAdvertiserIntelligence([
+    {
+      id: 3,
+      name: "<script>alert(1)</script>",
+      scans: 1
+    }
+  ]);
+  result.answers[0].answer = "<img src=x onerror=alert(1)>";
+
+  const html = renderAdvertiserIntelligence(result);
+
+  assert.doesNotMatch(html, /<script>/);
+  assert.doesNotMatch(html, /<img src=x/);
+  assert.match(html, /&lt;script&gt;/);
+  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
 });
