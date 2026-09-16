@@ -12,7 +12,9 @@ const {
   buildOrganizationIntelligence,
   renderOrganizationIntelligence,
   buildCampaignIntelligence,
-  renderCampaignIntelligence
+  renderCampaignIntelligence,
+  buildAdvertiserIntelligence,
+  renderAdvertiserIntelligence
 } = require("./vivid-intelligence");`;
 
 const builderAnchor = `const pendingRevenue =
@@ -170,6 +172,33 @@ const performanceCatchBlock = `      const accessError =
               err.message
         );`;
 
+const advertiserBuilderAnchor = `const executiveInsights =
+  vividInsights.slice(0, 4);`;
+const advertiserBuilderBlock = `const executiveInsights =
+  vividInsights.slice(0, 4);
+
+const advertiserIntelligence =
+  buildAdvertiserIntelligence(
+    campaignPerformance,
+    {
+      periodLabel:
+        startDate || endDate
+          ? \`Reporting period: \${startDate || "Beginning"} through \${endDate || "Today"}\`
+          : "All measured activity"
+    }
+  );`;
+
+const advertiserRenderAnchor = `  <!-- =========================================
+       TOP CAMPAIGN
+  ========================================== -->`;
+const advertiserRenderBlock = `  \${renderAdvertiserIntelligence(
+    advertiserIntelligence
+  )}
+
+  <!-- =========================================
+       TOP CAMPAIGN
+  ========================================== -->`;
+
 const patches = [
   {
     marker: 'require("./vivid-intelligence")',
@@ -206,6 +235,18 @@ const patches = [
     anchor: performanceCatchAnchor,
     replacement: performanceCatchBlock,
     label: "performance access response"
+  },
+  {
+    marker: "const advertiserIntelligence =",
+    anchor: advertiserBuilderAnchor,
+    replacement: advertiserBuilderBlock,
+    label: "advertiser intelligence builder"
+  },
+  {
+    marker: "${renderAdvertiserIntelligence(",
+    anchor: advertiserRenderAnchor,
+    replacement: advertiserRenderBlock,
+    label: "advertiser intelligence panel"
   }
 ];
 
