@@ -4,18 +4,18 @@
   "description": "Vivid Spots routing and analytics platform",
   "main": "server.js",
   "scripts": {
-    "start": "node sjn-marketplace-polish.js && node mca-marketplace-images.js && node mca-marketplace-concept.js"
+    "start": "node install-vivid-intelligence.js && node sjn-marketplace-polish.js && node mca-marketplace-images.js && node mca-marketplace-concept.js"
   },
-"dependencies": {
-"connect-pg-simple": "^10.0.0",
-  "exceljs": "^4.4.0",
-  "express": "^4.18.2",
-  "express-session": "^1.18.1",
-  "multer": "^1.4.5-lts.2",
-  "pdfkit": "^0.15.0",
-  "pg": "^8.11.3",
-  "resend": "^6.0.2"
-},
+  "dependencies": {
+    "connect-pg-simple": "^10.0.0",
+    "exceljs": "^4.4.0",
+    "express": "^4.18.2",
+    "express-session": "^1.18.1",
+    "multer": "^1.4.5-lts.2",
+    "pdfkit": "^0.15.0",
+    "pg": "^8.11.3",
+    "resend": "^6.0.2"
+  },
   "engines": {
     "node": ">=18"
   }
