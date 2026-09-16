@@ -17,6 +17,13 @@ const {
   renderAdvertiserIntelligence
 } = require("./vivid-intelligence");`;
 
+const askImportAnchor = '} = require("./vivid-intelligence");';
+const askImportBlock = `${askImportAnchor}
+const {
+  answerAskVivid,
+  renderAskVivid
+} = require("./ask-vivid");`;
+
 const builderAnchor = `const pendingRevenue =
   Number(pendingMetricsResult.rows[0]?.pending_revenue || 0);
 const locationCards = locations.map(location => \``;
@@ -138,13 +145,48 @@ const campaignBuilderBlock = `const testCampaignCount =
           { organizationId }
         );
 
+      const organizationAskVivid =
+        answerAskVivid({
+          role: "enterprise",
+          organizationName: organization.name,
+          question: req.query.ask,
+          campaigns: campaignIntelligence,
+          metrics: {
+            revenue: advertiserRevenueGenerated
+          },
+          inventory: {
+            availableSpots,
+            pendingSpots,
+            pendingRevenue
+          },
+          inventoryHref:
+            \`/org-marketplace?organization_id=\${organizationId}\`,
+          periodLabel:
+            fromDate || toDate
+              ? \`Reporting period: \${fromDate || "Beginning"} through \${toDate || "Today"}\`
+              : "All measured activity"
+        });
+
 
       const liveCampaignStartDates =`;
 
 const campaignRenderAnchor = `              <!-- =====================================
                    LAUNCH SCORECARD
               ====================================== -->`;
-const campaignRenderBlock = `              \${renderCampaignIntelligence(
+const campaignRenderBlock = `              \${renderAskVivid(
+                organizationAskVivid,
+                {
+                  action: "/org-performance",
+                  hiddenFields: {
+                    organization_id: organizationId,
+                    from: fromDate,
+                    to: toDate,
+                    location_id: selectedLocationId
+                  }
+                }
+              )}
+
+              \${renderCampaignIntelligence(
                 campaignIntelligence
               )}
 
@@ -186,12 +228,38 @@ const advertiserIntelligence =
           ? \`Reporting period: \${startDate || "Beginning"} through \${endDate || "Today"}\`
           : "All measured activity"
     }
-  );`;
+  );
+
+const advertiserAskVivid =
+  answerAskVivid({
+    role: "advertiser",
+    question: req.query.ask,
+    campaigns: campaignPerformance,
+    metrics: {
+      investment: advertisingInvestment,
+      revenue: conversionRevenue
+    },
+    periodLabel:
+      startDate || endDate
+        ? \`Reporting period: \${startDate || "Beginning"} through \${endDate || "Today"}\`
+        : "All measured activity"
+  });`;
 
 const advertiserRenderAnchor = `  <!-- =========================================
        TOP CAMPAIGN
   ========================================== -->`;
-const advertiserRenderBlock = `  \${renderAdvertiserIntelligence(
+const advertiserRenderBlock = `  \${renderAskVivid(
+    advertiserAskVivid,
+    {
+      action: "/admin/ai-insights",
+      hiddenFields: {
+        startDate,
+        endDate
+      }
+    }
+  )}
+
+  \${renderAdvertiserIntelligence(
     advertiserIntelligence
   )}
 
@@ -205,6 +273,12 @@ const patches = [
     anchor: importAnchor,
     replacement: importBlock,
     label: "module import"
+  },
+  {
+    marker: 'require("./ask-vivid")',
+    anchor: askImportAnchor,
+    replacement: askImportBlock,
+    label: "Ask Vivid module import"
   },
   {
     marker: "const organizationIntelligence =",
