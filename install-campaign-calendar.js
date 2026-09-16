@@ -54,7 +54,9 @@ if (!source.includes("selected.source_rank ASC")) {
 }
 
 if (!source.includes("registerCampaignCalendarRoutes({")) {
-  const routeAnchor = 'app.get("/admin/schedule", async (req, res) => {';
+  const routeAnchor = source.includes('app.get("/admin/schedule", requireLogin, async (req, res) => {')
+    ? 'app.get("/admin/schedule", requireLogin, async (req, res) => {'
+    : 'app.get("/admin/schedule", async (req, res) => {';
   source = source.replace(routeAnchor, `registerCampaignCalendarRoutes({ app, q, requireLogin, page, escapeHtml });\n${routeAnchor}`);
 }
 
