@@ -31,6 +31,13 @@ const {
   renderRenewalPricingRecommendations
 } = require("./comparative-intelligence");`;
 
+const benchmarkImportAnchor = '} = require("./comparative-intelligence");';
+const benchmarkImportBlock = `${benchmarkImportAnchor}
+const {
+  loadVividBenchmark,
+  renderVividBenchmark
+} = require("./vivid-benchmarks");`;
+
 const builderAnchor = `const pendingRevenue =
   Number(pendingMetricsResult.rows[0]?.pending_revenue || 0);
 const locationCards = locations.map(location => \``;
@@ -234,6 +241,22 @@ const campaignBuilderBlock = `const testCampaignCount =
             previousOrganizationCampaigns
         });
 
+      const organizationBenchmark =
+        await loadVividBenchmark(q, {
+          startDate: fromDate,
+          endDate: toDate,
+          subject: campaignIntelligence.reduce(
+            (summary, campaign) => ({
+              campaigns: summary.campaigns + 1,
+              scans: summary.scans + Number(campaign.scans || 0),
+              engagement: summary.engagement + Number(campaign.intent || 0),
+              conversions: summary.conversions + Number(campaign.conversions || 0),
+              revenue: summary.revenue + Number(campaign.revenue || 0)
+            }),
+            { campaigns: 0, scans: 0, engagement: 0, conversions: 0, revenue: 0 }
+          )
+        });
+
 
       const liveCampaignStartDates =`;
 
@@ -345,6 +368,11 @@ const campaignRenderBlock = `              \${renderComparativeIntelligence(
                   fallbackHref:
                     \`/org-performance?organization_id=\${organizationId}\`
                 }
+              )}
+
+              \${renderVividBenchmark(
+                organizationBenchmark,
+                { role: "enterprise" }
               )}
 
               \${renderRenewalPricingRecommendations(
@@ -485,6 +513,22 @@ const advertiserComparison =
       previousCampaignPerformance
   });
 
+const advertiserBenchmark =
+  await loadVividBenchmark(q, {
+    startDate,
+    endDate,
+    subject: campaignPerformance.reduce(
+      (summary, campaign) => ({
+        campaigns: summary.campaigns + 1,
+        scans: summary.scans + Number(campaign.scans || 0),
+        engagement: summary.engagement + Number(campaign.intent || 0),
+        conversions: summary.conversions + Number(campaign.conversions || 0),
+        revenue: summary.revenue + Number(campaign.revenue || 0)
+      }),
+      { campaigns: 0, scans: 0, engagement: 0, conversions: 0, revenue: 0 }
+    )
+  });
+
 const advertiserIntelligence =
   buildAdvertiserIntelligence(
     campaignPerformance,
@@ -522,6 +566,11 @@ const advertiserRenderBlock = `  \${renderComparativeIntelligence(
     }
   )}
 
+  \${renderVividBenchmark(
+    advertiserBenchmark,
+    { role: "advertiser" }
+  )}
+
   \${renderAskVivid(
     advertiserAskVivid,
     {
@@ -553,6 +602,12 @@ const patches = [
     anchor: askImportAnchor,
     replacement: askImportBlock,
     label: "Ask Vivid module import"
+  },
+  {
+    marker: 'require("./vivid-benchmarks")',
+    anchor: benchmarkImportAnchor,
+    replacement: benchmarkImportBlock,
+    label: "Vivid benchmark module import"
   },
   {
     marker: "const organizationIntelligence =",
