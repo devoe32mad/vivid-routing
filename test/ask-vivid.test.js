@@ -93,6 +93,31 @@ test("comparison question refuses to invent prior-period results", () => {
   assert.match(result.answer, /prior period/i);
 });
 
+test("comparison question uses supplied equal-period evidence", () => {
+  const result = answerAskVivid({
+    role: "advertiser",
+    question: "Why did performance decline?",
+    campaigns: advertiserCampaigns,
+    comparison: {
+      available: true,
+      summary: "Attributed value decreased by $25.00.",
+      confidence: "Medium",
+      period: { days: 15 },
+      metrics: {
+        conversions: { delta: -1 },
+        revenue: { delta: -25 }
+      },
+      drivers: [
+        { name: "Test SJN", href: "/admin/edit-campaign/58" }
+      ]
+    }
+  });
+
+  assert.equal(result.intent, "comparison");
+  assert.match(result.answer, /decreased by \$25\.00/);
+  assert.equal(result.links[0].href, "/admin/edit-campaign/58");
+});
+
 test("unsupported question returns a grounded summary", () => {
   const result = answerAskVivid({
     role: "advertiser",
