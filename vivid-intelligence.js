@@ -318,7 +318,148 @@ function renderOrganizationIntelligence(intelligence) {
     </section>`;
 }
 
+function buildCampaignIntelligence(campaigns = [], options = {}) {
+  const organizationId = count(options.organizationId);
+
+  return campaigns.map(campaign => {
+    const scans = count(campaign.scans);
+    const engagement = count(campaign.intent);
+    const conversions = count(campaign.conversions);
+    const revenue = number(campaign.revenue);
+    const endDate = campaign.endDate ? new Date(campaign.endDate) : null;
+    const daysToEnd =
+      endDate && !Number.isNaN(endDate.getTime())
+        ? Math.ceil((endDate.getTime() - Date.now()) / 86400000)
+        : null;
+
+    let classification = "Monitoring";
+    let recommendation =
+      "Continue collecting measured activity before making a material campaign change.";
+    let priority = 5;
+
+    if (conversions > 0 || revenue > 0) {
+      classification =
+        daysToEnd !== null && daysToEnd >= 0 && daysToEnd <= 90
+          ? "Renewal Candidate"
+          : "Performing Well";
+      recommendation =
+        classification === "Renewal Candidate"
+          ? "Prepare the measured results for the advertiser and begin the renewal conversation."
+          : "Preserve the working placement and offer; use these results as the benchmark for similar campaigns.";
+      priority = classification === "Renewal Candidate" ? 1 : 4;
+    } else if (engagement > 0) {
+      classification = "Conversion Path Review";
+      recommendation =
+        "Interest is being measured. Review the destination, offer, and conversion confirmation path.";
+      priority = 1;
+    } else if (scans > 0) {
+      classification = "Call-to-Action Opportunity";
+      recommendation =
+        "Scans are occurring without a measurable next action. Test a clearer offer and more direct call to action.";
+      priority = 2;
+    } else {
+      classification = "Insufficient Activity";
+      recommendation =
+        "Confirm that the QR code is visible, working, and connected to the intended campaign before judging performance.";
+      priority = 3;
+    }
+
+    const confidence =
+      conversions >= 2 || scans >= 20
+        ? "High"
+        : scans >= 5 || engagement >= 2 || conversions === 1
+          ? "Medium"
+          : "Low";
+
+    const advertiser = String(campaign.advertiser || "").trim();
+    const href = advertiser
+      ? `/org-advertiser/${encodeURIComponent(
+          advertiser.toLowerCase()
+        )}?organization_id=${organizationId}`
+      : `/org-performance?organization_id=${organizationId}`;
+
+    return {
+      id: count(campaign.id),
+      name: String(campaign.name || "Unnamed Campaign"),
+      advertiser: advertiser || "Advertiser not set",
+      scans,
+      engagement,
+      conversions,
+      revenue,
+      classification,
+      recommendation,
+      confidence,
+      priority,
+      href
+    };
+  }).sort(
+    (a, b) =>
+      a.priority - b.priority ||
+      b.revenue - a.revenue ||
+      b.conversions - a.conversions ||
+      b.engagement - a.engagement ||
+      b.scans - a.scans
+  );
+}
+
+function renderCampaignIntelligence(campaigns) {
+  const items = Array.isArray(campaigns) ? campaigns : [];
+
+  return `
+    <section class="card" style="margin:0 0 30px;border-top:5px solid #176b3a;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+        <div>
+          <div class="label">Vivid Intelligence</div>
+          <h2 style="margin:5px 0 7px;">Campaign Intelligence</h2>
+          <div style="color:#65776b;">Measured campaign status, supporting evidence, and the recommended next action.</div>
+        </div>
+        <span style="padding:7px 10px;border-radius:999px;background:#e5f4e8;color:#176b3a;font-size:12px;font-weight:800;">Read only</span>
+      </div>
+
+      <div style="display:grid;gap:12px;margin-top:20px;">
+        ${
+          items.length
+            ? items
+                .slice(0, 8)
+                .map(
+                  campaign => `
+                    <a href="${escapeHtml(campaign.href)}" style="display:grid;grid-template-columns:minmax(180px,1.1fr) minmax(170px,.8fr) minmax(260px,1.7fr);gap:16px;align-items:center;padding:16px;border:1px solid #dce6de;border-radius:12px;text-decoration:none;color:inherit;background:#fff;">
+                      <div>
+                        <div style="font-weight:850;color:#073b22;">${escapeHtml(
+                          campaign.name
+                        )}</div>
+                        <div style="font-size:13px;color:#65776b;margin-top:4px;">${escapeHtml(
+                          campaign.advertiser
+                        )}</div>
+                      </div>
+                      <div>
+                        <div style="font-weight:800;color:#176b3a;">${escapeHtml(
+                          campaign.classification
+                        )}</div>
+                        <div style="font-size:12px;color:#65776b;margin-top:4px;">${escapeHtml(
+                          campaign.confidence
+                        )} confidence</div>
+                      </div>
+                      <div>
+                        <div style="font-size:13px;color:#315b4c;line-height:1.45;">${escapeHtml(
+                          campaign.recommendation
+                        )}</div>
+                        <div style="font-size:12px;color:#65776b;margin-top:7px;">${campaign.scans.toLocaleString()} scans · ${campaign.engagement.toLocaleString()} engagement · ${campaign.conversions.toLocaleString()} conversions · ${money(
+                          campaign.revenue
+                        )}</div>
+                      </div>
+                    </a>`
+                )
+                .join("")
+            : `<div style="padding:18px;background:#f3f7f3;border-radius:12px;color:#315b4c;">No campaigns are available for intelligence in the selected period.</div>`
+        }
+      </div>
+    </section>`;
+}
+
 module.exports = {
   buildOrganizationIntelligence,
-  renderOrganizationIntelligence
+  renderOrganizationIntelligence,
+  buildCampaignIntelligence,
+  renderCampaignIntelligence
 };
