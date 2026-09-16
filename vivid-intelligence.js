@@ -229,6 +229,9 @@ function buildOrganizationIntelligence(input = {}) {
     evidence,
     attention: attention.slice(0, 3),
     recommendations: recommendations.slice(0, 3),
+    performanceHref: organizationId
+      ? `/org-performance?organization_id=${organizationId}${suffix}`
+      : "/org-performance",
     disclaimer:
       "Based only on Vivid data for the selected period. Recommendations do not change campaigns, pricing, or account data."
   };
@@ -263,7 +266,12 @@ function renderOrganizationIntelligence(intelligence) {
           <div style="font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#176b3a;">Vivid Intelligence · Read-only preview</div>
           <h2 style="margin:7px 0 0;color:#073b22;">Ask Vivid: What needs attention?</h2>
         </div>
-        <span style="padding:7px 10px;border-radius:999px;background:#e5f4e8;color:#176b3a;font-size:12px;font-weight:800;">Measured data only</span>
+        <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;">
+          <span style="padding:7px 10px;border-radius:999px;background:#e5f4e8;color:#176b3a;font-size:12px;font-weight:800;">Measured data only</span>
+          <a href="${escapeHtml(
+            intelligence.performanceHref
+          )}" style="display:inline-block;padding:9px 12px;border-radius:9px;background:#176b3a;color:#fff;text-decoration:none;font-size:13px;font-weight:800;">View Full Performance Insights →</a>
+        </div>
       </div>
 
       <div style="margin-top:18px;padding:18px;border-radius:12px;background:#073b22;color:#fff;line-height:1.55;font-size:17px;font-weight:650;">
