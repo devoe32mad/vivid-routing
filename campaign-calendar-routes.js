@@ -7,7 +7,21 @@ const { EVENT_TYPES, EVENT_TIMEZONES, validateEventSchedule, renderCampaignCalen
 const eventUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 function registerCampaignCalendarRoutes({ app, q, requireLogin, page, escapeHtml }) {
+  let schemaReady = false;
+  async function ensureCalendarSchema() {
+    if (schemaReady) return;
+    await q(`ALTER TABLE campaign_schedules ADD COLUMN IF NOT EXISTS schedule_kind TEXT DEFAULT 'weekly'`);
+    await q(`ALTER TABLE campaign_schedules ADD COLUMN IF NOT EXISTS event_name TEXT`);
+    await q(`ALTER TABLE campaign_schedules ADD COLUMN IF NOT EXISTS event_type TEXT`);
+    await q(`ALTER TABLE campaign_schedules ADD COLUMN IF NOT EXISTS event_start_at TIMESTAMPTZ`);
+    await q(`ALTER TABLE campaign_schedules ADD COLUMN IF NOT EXISTS event_end_at TIMESTAMPTZ`);
+    await q(`ALTER TABLE campaign_schedules ADD COLUMN IF NOT EXISTS event_notes TEXT`);
+    await q(`ALTER TABLE campaign_schedules ADD COLUMN IF NOT EXISTS event_timezone TEXT DEFAULT 'America/New_York'`);
+    await q(`CREATE INDEX IF NOT EXISTS idx_campaign_schedules_event_window ON campaign_schedules (qr_id,event_start_at,event_end_at) WHERE schedule_kind='event' AND is_active=true`);
+    schemaReady = true;
+  }
   async function loadCalendarData(user) {
+    await ensureCalendarSchema();
     const superAdmin = user.role === "super_admin";
     const qrs = await q(superAdmin ? `SELECT id,name FROM qr_codes ORDER BY id` : `SELECT qr.id,qr.name FROM qr_codes qr LEFT JOIN spaces s ON s.id=qr.space_id WHERE s.user_id=$1 ORDER BY qr.id`, superAdmin ? [] : [user.id]);
     const campaigns = await q(superAdmin ? `SELECT id,name,advertiser FROM campaigns ORDER BY id` : `SELECT id,name,advertiser FROM campaigns WHERE user_id=$1 ORDER BY id`, superAdmin ? [] : [user.id]);
@@ -25,7 +39,10 @@ function registerCampaignCalendarRoutes({ app, q, requireLogin, page, escapeHtml
     try {
       const { qrs, campaigns, events } = await loadCalendarData(req.session.user);
       const content = `<div class="wrap"><div class="card"><h2>Event Calendar <span title="Import or add games and events, then assign campaigns to run automatically on selected QR placements before, during, or after each event." style="cursor:help;font-size:.7em;">ⓘ</span></h2><form method="POST" action="/admin/event-calendar"><div class="formgrid"><div><label>Event Name</label><input name="event_name" required placeholder="Home Football vs. Barron Collier"></div><div><label>Event Type</label><select name="event_type">${EVENT_TYPES.map(type => `<option value="${type}">${type}</option>`).join("")}</select></div><div><label>QR Placement</label><select name="qr_id" required>${qrs.rows.map(row => `<option value="${row.id}">${escapeHtml(row.name || `QR ${row.id}`)}</option>`).join("")}</select></div><div><label>Campaign</label><select name="campaign_id" required>${campaigns.rows.map(row => `<option value="${row.id}">${escapeHtml(row.advertiser || "")} — ${escapeHtml(row.name || "Campaign")}</option>`).join("")}</select></div><div><label>Starts</label><input type="datetime-local" name="event_start_at" required></div><div><label>Ends</label><input type="datetime-local" name="event_end_at" required></div><div><label>Timezone</label><select name="event_timezone">${EVENT_TIMEZONES.map(zone => `<option value="${zone}" ${zone === "America/New_York" ? "selected" : ""}>${zone.replace("America/", "")}</option>`).join("")}</select></div><div><label>Priority</label><input type="number" name="priority" value="100"></div><div style="grid-column:1/-1"><label>Notes</label><input name="event_notes" placeholder="Opponent, audience, promotion, or instructions"></div></div><button class="btn" type="submit">Add Event</button></form></div><div class="card"><h2>Import CSV or Excel <span title="Apply one QR placement and campaign to every valid event row in the uploaded schedule." style="cursor:help;font-size:.7em;">ⓘ</span></h2><form method="POST" action="/admin/event-calendar/import" enctype="multipart/form-data"><div class="formgrid"><div><label>QR Placement</label><select name="qr_id" required>${qrs.rows.map(row => `<option value="${row.id}">${escapeHtml(row.name || `QR ${row.id}`)}</option>`).join("")}</select></div><div><label>Campaign</label><select name="campaign_id" required>${campaigns.rows.map(row => `<option value="${row.id}">${escapeHtml(row.advertiser || "")} — ${escapeHtml(row.name || "Campaign")}</option>`).join("")}</select></div><div><label>Schedule File</label><input type="file" name="event_schedule" accept=".csv,.xlsx" required></div></div><p>Required columns: Event Name, Starts, Ends. Optional: Event Type, Timezone, Notes.</p><button class="btn" type="submit">Import Schedule</button></form></div>${renderCampaignCalendar(events.rows, { action: "/admin/event-calendar" })}</div>`;
-      res.send(req.query.embed === "1" ? page("Event Calendar", content) : page("Campaign Event Calendar", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Campaign Event Calendar</h1></div>${content}`));
+      if (req.query.embed === "1") {
+        return res.send(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:#f4f7fb;color:#17243a;font-family:Arial,sans-serif}.wrap{padding:18px}.card{background:#fff;border-radius:14px;padding:22px;margin-bottom:18px;box-shadow:0 6px 24px rgba(16,43,80,.08)}.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}label{display:block;font-weight:700;margin-bottom:6px}input,select{width:100%;box-sizing:border-box;padding:11px;border:1px solid #d5ddea;border-radius:8px;font-size:16px}.btn{display:inline-block;background:#2868e8;color:#fff;border:0;border-radius:9px;padding:11px 18px;font-weight:700;text-decoration:none;cursor:pointer}h2{color:#102b50}@media(max-width:700px){.formgrid{grid-template-columns:1fr}.wrap{padding:10px}.card{padding:16px}}</style></head><body>${content}</body></html>`);
+      }
+      res.send(page("Campaign Event Calendar", `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Campaign Event Calendar</h1></div>${content}`));
     } catch (error) {
       console.error("EVENT CALENDAR ERROR:", error);
       res.status(500).send(page("Event Calendar", `<div class="wrap"><div class="card"><h1>Unable to load Event Calendar</h1><p>${escapeHtml(error.message)}</p><a class="btn" href="/admin/schedule">Back to Campaign Schedules</a></div></div>`));
@@ -33,6 +50,7 @@ function registerCampaignCalendarRoutes({ app, q, requireLogin, page, escapeHtml
   });
 
   app.post("/admin/event-calendar", requireLogin, async (req, res) => {
+    await ensureCalendarSchema();
     const checked = validateEventSchedule({ eventName:req.body.event_name,eventType:req.body.event_type,startAt:req.body.event_start_at,endAt:req.body.event_end_at,timezone:req.body.event_timezone,qrId:req.body.qr_id,campaignId:req.body.campaign_id,notes:req.body.event_notes });
     if (!checked.valid) return res.status(400).send(page("Event Error", `<div class="wrap"><div class="card"><h1>Check the event</h1><ul>${checked.errors.map(error => `<li>${escapeHtml(error)}</li>`).join("")}</ul><a class="btn" href="/admin/event-calendar">Back</a></div></div>`));
     const value = checked.value;
@@ -45,6 +63,7 @@ function registerCampaignCalendarRoutes({ app, q, requireLogin, page, escapeHtml
 
   app.post("/admin/event-calendar/import", requireLogin, eventUpload.single("event_schedule"), async (req, res) => {
     try {
+      await ensureCalendarSchema();
       if (!req.file) return res.status(400).send("Choose a CSV or Excel schedule.");
       const qrId=Number(req.body.qr_id), campaignId=Number(req.body.campaign_id), workbook=new ExcelJS.Workbook(), filename=String(req.file.originalname||"").toLowerCase();
       if (!await selectionAllowed(req.session.user,qrId,campaignId)) return res.status(403).send("You do not have access to that QR placement or campaign.");
