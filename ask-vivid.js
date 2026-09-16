@@ -151,6 +151,7 @@ function answerAskVivid(input = {}) {
   );
   const metrics = input.metrics || {};
   const inventory = input.inventory || {};
+  const comparison = input.comparison || null;
   const organizationName =
     String(input.organizationName || "This organization").trim() ||
     "This organization";
@@ -198,10 +199,28 @@ function answerAskVivid(input = {}) {
 
   if (asksDecline) {
     intent = "comparison";
-    headline = "A comparison period is required";
-    answer =
-      "The current view contains one selected reporting period. Vivid will not claim that performance increased or declined without a comparable prior period. Select the period you want to review; period-over-period comparison is the next analysis capability to add.";
-    evidence.push("No prior-period dataset is included in this answer");
+    if (comparison?.available) {
+      headline = "Period-over-period performance change";
+      answer = comparison.summary;
+      evidence.push(
+        `${comparison.period.days}-day equal-period comparison`,
+        `${comparison.confidence} confidence`,
+        `${comparison.metrics.conversions.delta >= 0 ? "+" : ""}${comparison.metrics.conversions.delta} conversions`,
+        `${money(comparison.metrics.revenue.delta)} attributed-value change`
+      );
+      const driver = comparison.drivers?.[0];
+      if (driver?.href) {
+        links.push({
+          label: `Open ${driver.name}`,
+          href: driver.href
+        });
+      }
+    } else {
+      headline = "A comparison period is required";
+      answer =
+        "The current view contains one selected reporting period. Vivid will not claim that performance increased or declined without a comparable prior period. Select both a start and end date to compare equal-length periods.";
+      evidence.push("No prior-period dataset is included in this answer");
+    }
   } else if (role === "enterprise" && asksInventory) {
     intent = "inventory";
     const availableSpots = count(inventory.availableSpots);

@@ -22,7 +22,14 @@ const askImportBlock = `${askImportAnchor}
 const {
   answerAskVivid,
   renderAskVivid
-} = require("./ask-vivid");`;
+} = require("./ask-vivid");
+const {
+  calculatePreviousPeriod,
+  buildComparativeIntelligence,
+  buildRenewalPricingRecommendation,
+  renderComparativeIntelligence,
+  renderRenewalPricingRecommendations
+} = require("./comparative-intelligence");`;
 
 const builderAnchor = `const pendingRevenue =
   Number(pendingMetricsResult.rows[0]?.pending_revenue || 0);
@@ -145,6 +152,88 @@ const campaignBuilderBlock = `const testCampaignCount =
           { organizationId }
         );
 
+      const organizationComparisonPeriod =
+        calculatePreviousPeriod(
+          fromDate,
+          toDate
+        );
+
+      let previousOrganizationCampaigns = [];
+
+      if (organizationComparisonPeriod) {
+        const previousCampaignResult =
+          await q(
+            \`
+              SELECT
+                c.id,
+                c.name,
+                c.advertiser,
+                COUNT(e.id) FILTER (
+                  WHERE e.type = 'scan'
+                )::int AS scans,
+                COUNT(e.id) FILTER (
+                  WHERE e.type IN (
+                    'offer',
+                    'maps',
+                    'waze',
+                    'destination_click'
+                  )
+                )::int AS intent,
+                COUNT(e.id) FILTER (
+                  WHERE e.type = 'conversion'
+                )::int AS conversions,
+                COALESCE(
+                  SUM(e.value) FILTER (
+                    WHERE e.type = 'conversion'
+                  ),
+                  0
+                )::numeric AS revenue
+              FROM campaigns c
+              JOIN qr_campaigns qc
+                ON qc.campaign_id = c.id
+              JOIN qr_codes qr
+                ON qr.id = qc.qr_id
+              JOIN spaces s
+                ON s.id = qr.space_id
+              LEFT JOIN events e
+                ON e.campaign_id = c.id
+               AND e.qr_id = qr.id
+               AND e.created_at::date >= $4::date
+               AND e.created_at::date <= $5::date
+               \${eventTestSql}
+              WHERE s.organization_id = $1
+                AND s.id = ANY($2::int[])
+                AND (
+                  $3::int IS NULL
+                  OR s.id = $3::int
+                )
+                AND COALESCE(c.is_archived, false) = false
+                \${campaignTestSql}
+                AND COALESCE(qr.is_archived, false) = false
+              GROUP BY c.id, c.name, c.advertiser
+            \`,
+            [
+              organizationId,
+              allowedLocationIds,
+              selectedLocationId,
+              organizationComparisonPeriod.previousStartDate,
+              organizationComparisonPeriod.previousEndDate
+            ]
+          );
+
+        previousOrganizationCampaigns =
+          previousCampaignResult.rows;
+      }
+
+      const organizationComparison =
+        buildComparativeIntelligence({
+          role: "enterprise",
+          period: organizationComparisonPeriod,
+          currentCampaigns: campaignIntelligence,
+          previousCampaigns:
+            previousOrganizationCampaigns
+        });
+
 
       const liveCampaignStartDates =`;
 
@@ -159,6 +248,7 @@ const organizationAskBuilderBlock = `const executiveInsights =
           organizationName: organization.name,
           question: req.query.ask,
           campaigns: campaignIntelligence,
+          comparison: organizationComparison,
           metrics: {
             revenue: advertiserRevenueGenerated
           },
@@ -173,12 +263,95 @@ const organizationAskBuilderBlock = `const executiveInsights =
             fromDate || toDate
               ? \`Reporting period: \${fromDate || "Beginning"} through \${toDate || "Today"}\`
               : "All measured activity"
-        });`;
+        });
+
+      const renewalPricingResult =
+        await q(
+          \`
+            SELECT
+              c.id,
+              c.contract_name,
+              c.total_contract_value,
+              c.qr_id,
+              qr.name AS placement_name,
+              COUNT(e.id) FILTER (
+                WHERE e.type = 'scan'
+              )::int AS scans,
+              COUNT(e.id) FILTER (
+                WHERE e.type = 'conversion'
+              )::int AS conversions,
+              COALESCE(
+                SUM(e.value) FILTER (
+                  WHERE e.type = 'conversion'
+                ),
+                0
+              )::numeric AS revenue
+            FROM contracts c
+            LEFT JOIN qr_codes qr
+              ON qr.id = c.qr_id
+            LEFT JOIN events e
+              ON e.qr_id = c.qr_id
+              \${eventDateSql}
+              \${eventTestSql}
+            WHERE c.organization_id = $1
+              AND c.location_id = ANY($2::int[])
+              AND (
+                $3::int IS NULL
+                OR c.location_id = $3::int
+              )
+              AND LOWER(COALESCE(c.status, '')) = 'active'
+              AND COALESCE(c.end_date, c.expiration_date)
+                BETWEEN CURRENT_DATE AND CURRENT_DATE + 90
+              AND c.renewed_from_contract_id IS NULL
+            GROUP BY
+              c.id,
+              c.contract_name,
+              c.total_contract_value,
+              c.qr_id,
+              qr.name
+            ORDER BY COALESCE(c.end_date, c.expiration_date)
+            LIMIT 6
+          \`,
+          eventParams
+        );
+
+      const renewalPricingRecommendations =
+        renewalPricingResult.rows.map(contract => ({
+          name:
+            contract.contract_name ||
+            contract.placement_name ||
+            "Advertising renewal",
+          currentPrice:
+            Number(contract.total_contract_value || 0),
+          href:
+            \`/org-renewals?organization_id=\${organizationId}\`,
+          recommendation:
+            buildRenewalPricingRecommendation({
+              currentPrice:
+                contract.total_contract_value,
+              revenue: contract.revenue,
+              conversions: contract.conversions,
+              scans: contract.scans,
+              expiringSoon: true
+            })
+        }));`;
 
 const campaignRenderAnchor = `              <!-- =====================================
                    LAUNCH SCORECARD
               ====================================== -->`;
-const campaignRenderBlock = `              \${renderAskVivid(
+const campaignRenderBlock = `              \${renderComparativeIntelligence(
+                organizationComparison,
+                {
+                  fallbackHref:
+                    \`/org-performance?organization_id=\${organizationId}\`
+                }
+              )}
+
+              \${renderRenewalPricingRecommendations(
+                renewalPricingRecommendations
+              )}
+
+              \${renderAskVivid(
                 organizationAskVivid,
                 {
                   action: "/org-performance",
@@ -224,6 +397,94 @@ const advertiserBuilderAnchor = `const executiveInsights =
 const advertiserBuilderBlock = `const executiveInsights =
   vividInsights.slice(0, 4);
 
+const advertiserComparisonPeriod =
+  calculatePreviousPeriod(
+    startDate,
+    endDate
+  );
+
+const previousCampaignPerformance = [];
+
+if (advertiserComparisonPeriod) {
+  for (const campaign of campaignsResult.rows) {
+    if (campaign.is_archived) {
+      continue;
+    }
+
+    const previousMetricsResult =
+      await q(
+        \`
+          SELECT
+            COUNT(e.id) FILTER (
+              WHERE e.type = 'scan'
+            )::int AS scans,
+            COUNT(e.id) FILTER (
+              WHERE e.type IN (
+                'offer',
+                'maps',
+                'waze',
+                'destination_click'
+              )
+            )::int AS intent,
+            COUNT(e.id) FILTER (
+              WHERE e.type = 'conversion'
+            )::int AS conversions,
+            COALESCE(
+              SUM(e.value) FILTER (
+                WHERE e.type = 'conversion'
+              ),
+              0
+            )::numeric AS revenue
+          FROM events e
+          WHERE e.campaign_id = $1
+            AND e.created_at::date >= $2::date
+            AND e.created_at::date <= $3::date
+        \`,
+        [
+          Number(campaign.id),
+          advertiserComparisonPeriod.previousStartDate,
+          advertiserComparisonPeriod.previousEndDate
+        ]
+      );
+
+    const previousMetrics =
+      previousMetricsResult.rows[0] || {};
+    const previousCost =
+      await allocatedSpotCostForCampaign(
+        Number(campaign.id),
+        advertiserComparisonPeriod.previousStartDate,
+        advertiserComparisonPeriod.previousEndDate
+      );
+
+    previousCampaignPerformance.push({
+      id: Number(campaign.id),
+      name: campaign.name || "",
+      scans: Number(previousMetrics.scans || 0),
+      intent: Number(previousMetrics.intent || 0),
+      conversions:
+        Number(previousMetrics.conversions || 0),
+      revenue: Number(previousMetrics.revenue || 0),
+      allocatedCost: Number(previousCost || 0),
+      href:
+        \`/admin/edit-campaign/\${Number(campaign.id)}\`
+    });
+  }
+}
+
+const advertiserComparison =
+  buildComparativeIntelligence({
+    role: "advertiser",
+    period: advertiserComparisonPeriod,
+    currentCampaigns:
+      campaignPerformance.map(campaign => ({
+        ...campaign,
+        href:
+          \`/admin/edit-campaign/\${campaign.id}\`
+      })),
+    previousCampaigns:
+      previousCampaignPerformance
+  });
+
 const advertiserIntelligence =
   buildAdvertiserIntelligence(
     campaignPerformance,
@@ -240,6 +501,7 @@ const advertiserAskVivid =
     role: "advertiser",
     question: req.query.ask,
     campaigns: campaignPerformance,
+    comparison: advertiserComparison,
     metrics: {
       investment: advertisingInvestment,
       revenue: conversionRevenue
@@ -253,7 +515,14 @@ const advertiserAskVivid =
 const advertiserRenderAnchor = `  <!-- =========================================
        TOP CAMPAIGN
   ========================================== -->`;
-const advertiserRenderBlock = `  \${renderAskVivid(
+const advertiserRenderBlock = `  \${renderComparativeIntelligence(
+    advertiserComparison,
+    {
+      fallbackHref: "/admin/ai-insights"
+    }
+  )}
+
+  \${renderAskVivid(
     advertiserAskVivid,
     {
       action: "/admin/ai-insights",
