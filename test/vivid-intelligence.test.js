@@ -4,7 +4,9 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   buildOrganizationIntelligence,
-  renderOrganizationIntelligence
+  renderOrganizationIntelligence,
+  buildCampaignIntelligence,
+  renderCampaignIntelligence
 } = require("../vivid-intelligence");
 
 test("profitable measured activity is not labeled as needing performance attention", () => {
@@ -110,6 +112,60 @@ test("rendered intelligence escapes organization-controlled content", () => {
     locations: []
   });
   const html = renderOrganizationIntelligence(result);
+
+  assert.doesNotMatch(html, /<script>/);
+  assert.match(html, /&lt;script&gt;/);
+});
+
+test("campaign with conversions is performing, never needs attention", () => {
+  const [campaign] = buildCampaignIntelligence(
+    [
+      {
+        id: 58,
+        name: "Test SJN",
+        advertiser: "SJN Advertiser",
+        scans: 6,
+        intent: 1,
+        conversions: 1,
+        revenue: 35
+      }
+    ],
+    { organizationId: 23 }
+  );
+
+  assert.equal(campaign.classification, "Performing Well");
+  assert.equal(campaign.confidence, "Medium");
+  assert.match(campaign.href, /organization_id=23/);
+});
+
+test("campaign intelligence distinguishes conversion and CTA opportunities", () => {
+  const campaigns = buildCampaignIntelligence(
+    [
+      { id: 1, name: "Intent", scans: 10, intent: 3 },
+      { id: 2, name: "Scans", scans: 8, intent: 0 }
+    ],
+    { organizationId: 23 }
+  );
+
+  assert.equal(campaigns[0].classification, "Conversion Path Review");
+  assert.equal(campaigns[1].classification, "Call-to-Action Opportunity");
+});
+
+test("campaign intelligence renderer escapes campaign content", () => {
+  const html = renderCampaignIntelligence([
+    {
+      name: "<script>alert(1)</script>",
+      advertiser: "Test",
+      classification: "Monitoring",
+      confidence: "Low",
+      recommendation: "Observe",
+      scans: 0,
+      engagement: 0,
+      conversions: 0,
+      revenue: 0,
+      href: "/org-performance"
+    }
+  ]);
 
   assert.doesNotMatch(html, /<script>/);
   assert.match(html, /&lt;script&gt;/);
