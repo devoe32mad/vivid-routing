@@ -56,8 +56,17 @@ if (!source.includes("registerCampaignCalendarRoutes({")) {
   source = source.replace(routeAnchor, `registerCampaignCalendarRoutes({ app, q, requireLogin, page, escapeHtml });\n${routeAnchor}`);
 }
 
-if (!source.includes('href="/admin/event-calendar"')) {
-  source = source.replace("<h1>Master QR Campaign Schedule</h1>", '<h1>Master QR Campaign Schedule</h1><p><a class="btn" href="/admin/event-calendar">Open Event Calendar</a></p>');
+source = source.replace('<h1>Master QR Campaign Schedule</h1><p><a class="btn" href="/admin/event-calendar">Open Event Calendar</a></p>', '<h1>Master QR Campaign Schedule</h1>');
+if (!source.includes('title="Import or add games and events')) {
+  source = source.replace("<h1>Master QR Campaign Schedule</h1>", '<h1>Master QR Campaign Schedule <span title="Import or add games and events, then assign campaigns to run automatically on selected QR placements before, during, or after each event." style="cursor:help;font-size:.55em;vertical-align:middle;">ⓘ</span></h1>');
+  source = source.replace("Add multiple campaigns to one QR and rotate by day/time.</p>", 'Add multiple campaigns to one QR and rotate by day/time.</p><iframe title="Campaign Event Calendar" src="/admin/event-calendar?embed=1" style="width:100%;min-height:1050px;border:0;border-radius:12px;background:#fff;margin-top:20px;"></iframe>');
+}
+if (!source.includes("Import a CSV or Excel event schedule")) {
+  source = source.replace("<li>Rotate multiple campaigns.</li>", `<li>Rotate multiple campaigns.</li>
+        <li>Add football, basketball, school, community, and other dated events.</li>
+        <li>Import a CSV or Excel event schedule with Event Name, Starts, Ends, Event Type, Timezone, and Notes columns.</li>
+        <li>Event campaigns start and stop automatically; the QR returns to its normal eligible campaign afterward.</li>
+        <li>Vivid blocks overlapping active events on the same QR placement.</li>`);
 }
 
 fs.writeFileSync(serverPath, source);
