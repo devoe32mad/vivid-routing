@@ -4,7 +4,7 @@
   "description": "Vivid Spots routing and analytics platform",
   "main": "server.js",
   "scripts": {
-    "start": "node install-vivid-intelligence.js && node sjn-marketplace-polish.js && node mca-marketplace-images.js && node mca-marketplace-concept.js"
+    "start": "node install-vivid-intelligence.js && node install-vivid-public-content.js && node install-campaign-calendar.js && node sjn-marketplace-polish.js && node mca-marketplace-images.js && node mca-marketplace-concept.js"
   },
   "dependencies": {
     "connect-pg-simple": "^10.0.0",
