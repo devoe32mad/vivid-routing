@@ -4,6 +4,8 @@ const path = require("path");
 const serverPath = path.join(__dirname, "server.js");
 let source = fs.readFileSync(serverPath, "utf8");
 
+source = source.replace('app.get("/admin/schedule", async (req, res) => {', 'app.get("/admin/schedule", requireLogin, async (req, res) => {');
+
 const importAnchor = 'const crypto = require("crypto");';
 if (!source.includes('require("./campaign-calendar-routes")')) {
   source = source.replace(importAnchor, `${importAnchor}\nconst { registerCampaignCalendarRoutes } = require("./campaign-calendar-routes");`);
