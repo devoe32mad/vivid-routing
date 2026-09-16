@@ -42,6 +42,24 @@ test("profitable measured activity is not labeled as needing performance attenti
       item.title.includes("Main Campus")
     )
   );
+  assert.equal(
+    result.performanceHref,
+    "/org-performance?organization_id=23"
+  );
+});
+
+test("performance insights link preserves the selected reporting period", () => {
+  const result = buildOrganizationIntelligence({
+    organizationId: 23,
+    totals: {},
+    locations: [],
+    queryString: "from=2026-09-01&to=2026-09-15"
+  });
+
+  assert.equal(
+    result.performanceHref,
+    "/org-performance?organization_id=23&from=2026-09-01&to=2026-09-15"
+  );
 });
 
 test("intent without conversion produces a conversion-path warning", () => {
