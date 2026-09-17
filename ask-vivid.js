@@ -397,6 +397,10 @@ function answerAskVivid(input = {}) {
 
 function renderAskVivid(assistant, options = {}) {
   const role = assistant.role === "enterprise" ? "enterprise" : "advertiser";
+  const viewLabel = String(
+    options.viewLabel ||
+      (role === "enterprise" ? "Enterprise" : "Advertiser")
+  );
   const action = String(options.action || "");
   const hiddenFields = options.hiddenFields || {};
   const presets = role === "enterprise"
@@ -421,7 +425,7 @@ function renderAskVivid(assistant, options = {}) {
     <section class="card" style="margin:0 0 28px;border:1px solid #dce8df;border-top:5px solid #176b3a;background:linear-gradient(145deg,#fff 0%,#f4f8f5 100%);">
       <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;">
         <div>
-          <div style="font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#176b3a;">Ask Vivid · ${role === "enterprise" ? "Enterprise" : "Advertiser"}</div>
+          <div style="font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#176b3a;">Ask Vivid · ${escapeHtml(viewLabel)}</div>
           <h2 style="margin:7px 0 5px;color:#073b22;">Ask a question about measured performance</h2>
           <div style="color:#65776b;">${escapeHtml(assistant.periodLabel)} · Permission-scoped data only</div>
         </div>
