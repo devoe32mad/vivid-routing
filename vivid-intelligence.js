@@ -173,7 +173,7 @@ function buildOrganizationIntelligence(input = {}) {
               strongestLocation.conversions,
               "conversion"
             )} worth ${money(strongestLocation.conversionValue)}.`
-          : `This location currently has the strongest engagement signal. Compare its placement, message, and offer with lower-activity locations.`,
+          : `This location currently has the strongest click activity. Compare its placement, message, and offer with lower-activity locations.`,
       href: `/org-location/${strongestLocation.id}?organization_id=${organizationId}`,
       linkLabel: "Open location"
     });
@@ -197,7 +197,7 @@ function buildOrganizationIntelligence(input = {}) {
       text: `${scans.toLocaleString()} ${plural(
         scans,
         "scan"
-      )} produced no measured intent actions. Test a clearer offer or more direct next step.`,
+      )} produced no measured clicks. Test a clearer offer or more direct next step.`,
       href: `/org-business-breakdown?organization_id=${organizationId}&metric=active${suffix}`,
       linkLabel: "Review campaigns"
     });
@@ -444,7 +444,7 @@ function renderCampaignIntelligence(campaigns) {
                         <div style="font-size:13px;color:#315b4c;line-height:1.45;">${escapeHtml(
                           campaign.recommendation
                         )}</div>
-                        <div style="font-size:12px;color:#65776b;margin-top:7px;">${campaign.scans.toLocaleString()} scans · ${campaign.engagement.toLocaleString()} engagement · ${campaign.conversions.toLocaleString()} conversions · ${money(
+                        <div style="font-size:12px;color:#65776b;margin-top:7px;">${campaign.scans.toLocaleString()} scans · ${campaign.engagement.toLocaleString()} clicks · ${campaign.conversions.toLocaleString()} conversions · ${money(
                           campaign.revenue
                         )}</div>
                       </div>
@@ -495,7 +495,7 @@ function buildAdvertiserIntelligence(campaigns = [], options = {}) {
     } else if (scans > 0) {
       status = "Needs Attention";
       recommendation =
-        "Scans are occurring without measurable engagement. Test a clearer offer and a more direct call to action.";
+        "Scans are occurring without measurable clicks. Test a clearer offer and a more direct call to action.";
       priority = 1;
     } else if (investment > 0) {
       status = "Needs Attention";
@@ -673,7 +673,7 @@ function renderAdvertiserIntelligence(intelligence, options = {}) {
         ).toLocaleString()} scans</span>
         <span style="padding:6px 9px;border-radius:999px;background:#edf3ee;color:#315b4c;font-size:12px;font-weight:750;">${count(
           totals.engagement
-        ).toLocaleString()} engagement</span>
+        ).toLocaleString()} clicks</span>
         <span style="padding:6px 9px;border-radius:999px;background:#edf3ee;color:#315b4c;font-size:12px;font-weight:750;">${count(
           totals.conversions
         ).toLocaleString()} conversions</span>
@@ -695,7 +695,7 @@ function renderAdvertiserIntelligence(intelligence, options = {}) {
                 <a href="${escapeHtml(campaign.href)}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;align-items:center;padding:16px;border:1px solid #dce6de;border-radius:12px;text-decoration:none;color:inherit;background:#fff;">
                   <div>
                     <div style="font-weight:850;color:#073b22;">${escapeHtml(campaign.name)}</div>
-                    <div style="font-size:12px;color:#65776b;margin-top:6px;">${campaign.scans.toLocaleString()} scans · ${campaign.engagement.toLocaleString()} engagement · ${campaign.conversions.toLocaleString()} conversions</div>
+                    <div style="font-size:12px;color:#65776b;margin-top:6px;">${campaign.scans.toLocaleString()} scans · ${campaign.engagement.toLocaleString()} clicks · ${campaign.conversions.toLocaleString()} conversions</div>
                   </div>
                   <div>
                     <div style="font-weight:850;color:${statusColor(campaign.status)};">${escapeHtml(campaign.status)}</div>
