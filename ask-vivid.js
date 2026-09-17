@@ -282,7 +282,7 @@ function answerAskVivid(input = {}) {
       }`;
       evidence.push(
         `${campaign.scans.toLocaleString()} scans`,
-        `${campaign.engagement.toLocaleString()} engagement actions`,
+        `${campaign.engagement.toLocaleString()} clicks`,
         `${campaign.conversions.toLocaleString()} conversions`,
         `${money(campaign.revenue)} attributed value`,
         `${campaign.confidence} confidence`
@@ -306,7 +306,7 @@ function answerAskVivid(input = {}) {
         : `${campaign.name} generated ${campaign.scans.toLocaleString()} scans without a measurable next action. The first test should be a clearer offer and more direct call to action.`;
       evidence.push(
         `${campaign.scans.toLocaleString()} scans`,
-        `${campaign.engagement.toLocaleString()} engagement actions`,
+        `${campaign.engagement.toLocaleString()} clicks`,
         "0 tracked conversions"
       );
       links.push({ label: `Open ${campaign.name}`, href: campaign.href });
@@ -315,8 +315,8 @@ function answerAskVivid(input = {}) {
         ? `The selected campaigns produced ${totals.conversions.toLocaleString()} tracked ${plural(
             totals.conversions,
             "conversion"
-          )}. No campaign currently shows a clear engagement-without-conversion gap.`
-        : "There is not enough measured scan and engagement activity to diagnose the conversion path yet.";
+          )}. No campaign currently shows a clear click-without-conversion gap.`
+        : "There is not enough measured scan and click activity to diagnose the conversion path yet.";
     }
   } else if (asksStrongest) {
     intent = "strongest";
