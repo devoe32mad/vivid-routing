@@ -348,7 +348,7 @@ function renderComparativeIntelligence(comparison, options = {}) {
   const external = externalRecommendations(comparison.current);
   const metricCards = [
     ["Scans", comparison.metrics.scans, value => Math.round(value).toLocaleString()],
-    ["Engagement", comparison.metrics.engagement, value => Math.round(value).toLocaleString()],
+    ["Clicks", comparison.metrics.engagement, value => Math.round(value).toLocaleString()],
     ["Conversions", comparison.metrics.conversions, value => Math.round(value).toLocaleString()],
     ["Attributed Value", comparison.metrics.revenue, money]
   ];
@@ -411,9 +411,9 @@ function renderRenewalPricingRecommendations(items = []) {
     <section class="card" style="margin:0 0 28px;border-top:5px solid #8a6400;">
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
         <div>
-          <div style="font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#8a6400;">Renewal Pricing Intelligence</div>
-          <h2 style="margin:7px 0 5px;">Evidence-based renewal pricing</h2>
-          <div style="color:#65776b;">Recommendations only · No prices are changed automatically</div>
+          <div style="font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#8a6400;">Renewal Action Center</div>
+          <h2 style="margin:7px 0 5px;">Renewals requiring a decision in the next 90 days</h2>
+          <div style="color:#65776b;">AI-supported guidance · Recommendations only · Nothing changes automatically</div>
         </div>
         <span style="padding:7px 10px;border-radius:999px;background:#fff6d8;color:#745300;font-size:12px;font-weight:800;">Enterprise only</span>
       </div>
@@ -424,10 +424,10 @@ function renderRenewalPricingRecommendations(items = []) {
             <a href="${escapeHtml(item.href || "/org-renewals")}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;align-items:center;padding:15px;border:1px solid #eadfb8;border-radius:11px;text-decoration:none;color:inherit;background:#fffdf6;">
               <div>
                 <div style="font-weight:850;color:#473600;">${escapeHtml(item.name || "Renewal")}</div>
-                <div style="font-size:12px;color:#65776b;margin-top:5px;">Current price ${money(item.currentPrice)}</div>
+                <div style="font-size:12px;color:#65776b;margin-top:5px;">Current price ${money(item.currentPrice)}${item.endDate ? ` · Expires ${escapeHtml(item.endDate)}` : ""}</div>\n                <div style="font-size:12px;color:#65776b;margin-top:5px;">${count(item.scans).toLocaleString()} scans · ${count(item.clicks).toLocaleString()} clicks · ${count(item.conversions).toLocaleString()} conversions · ${money(item.revenue)} value</div>
               </div>
               <div>
-                <div style="font-weight:850;color:#8a6400;">${escapeHtml(recommendation.status || "Review")}</div>
+                <div style="font-size:11px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;color:#65776b;">Recommended action</div>\n                <div style="font-weight:850;color:#8a6400;">${escapeHtml(recommendation.status || "Review")}</div>
                 <div style="font-size:12px;color:#65776b;margin-top:5px;">${escapeHtml(recommendation.confidence || "Low")} confidence</div>
               </div>
               <div>
@@ -438,7 +438,7 @@ function renderRenewalPricingRecommendations(items = []) {
             </a>`;
         }).join("")}
       </div>
-      <div style="font-size:12px;color:#65776b;margin-top:14px;">Pricing guidance uses measured performance and the current price as its baseline. It does not estimate market demand until sufficient comparable Vivid benchmark data exists.</div>
+      <div style="font-size:12px;color:#65776b;margin-top:14px;">Open any recommendation to review the renewal record. Pricing guidance uses measured performance and the current price as its baseline. It does not estimate market demand until sufficient comparable Vivid benchmark data exists.</div>
     </section>`;
 }
 

@@ -295,11 +295,15 @@ const organizationAskBuilderBlock = `const executiveInsights =
               c.id,
               c.contract_name,
               c.total_contract_value,
+              COALESCE(c.end_date, c.expiration_date)::date AS end_date,
               c.qr_id,
               qr.name AS placement_name,
               COUNT(e.id) FILTER (
                 WHERE e.type = 'scan'
               )::int AS scans,
+              COUNT(e.id) FILTER (
+                WHERE e.type IN ('offer', 'maps', 'waze', 'destination_click')
+              )::int AS clicks,
               COUNT(e.id) FILTER (
                 WHERE e.type = 'conversion'
               )::int AS conversions,
@@ -346,6 +350,16 @@ const organizationAskBuilderBlock = `const executiveInsights =
             "Advertising renewal",
           currentPrice:
             Number(contract.total_contract_value || 0),
+          endDate:
+            contract.end_date,
+          scans:
+            Number(contract.scans || 0),
+          clicks:
+            Number(contract.clicks || 0),
+          conversions:
+            Number(contract.conversions || 0),
+          revenue:
+            Number(contract.revenue || 0),
           href:
             \`/org-renewals?organization_id=\${organizationId}\`,
           recommendation:
