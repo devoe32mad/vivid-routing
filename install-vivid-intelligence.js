@@ -393,7 +393,11 @@ const campaignRenderAnchor = `              <!-- ===============================
                    LAUNCH SCORECARD
               ====================================== -->`;
 const campaignRenderBlock = `              \${renderPriorityCenter(
-                enterprisePriorityCenter
+                enterprisePriorityCenter,
+                {
+                  returnTo: req.originalUrl,
+                  organizationId
+                }
               )}
 
               \${renderComparativeIntelligence(
@@ -600,7 +604,8 @@ const advertiserRenderAnchor = `  <!-- =========================================
        TOP CAMPAIGN
   ========================================== -->`;
 const advertiserRenderBlock = `  \${renderPriorityCenter(
-    advertiserPriorityCenter
+    advertiserPriorityCenter,
+    { returnTo: req.originalUrl }
   )}
 
   \${renderComparativeIntelligence(
@@ -721,6 +726,104 @@ for (const patch of patches) {
   }
 
   source = source.replace(patch.anchor, patch.replacement);
+}
+
+const feedbackRouteMarker = 'app.post("/ai-priority-feedback"';
+const feedbackRouteAnchor = `app.listen(port, () => {`;
+const feedbackRouteBlock = `app.post("/ai-priority-feedback", async (req, res) => {
+  try {
+    const actor = req.session.orgUser || req.session.user;
+    if (!actor) return res.redirect("/login");
+
+    const actorId = Number(actor.user_id || actor.login_user_id || actor.id || 0);
+    if (!actorId) return res.status(403).send("Access denied");
+
+    const allowedFeedback = new Set([
+      "helpful",
+      "not_helpful",
+      "action_taken",
+      "dismissed"
+    ]);
+    const feedback = String(req.body.feedback || "");
+    if (!allowedFeedback.has(feedback)) {
+      return res.status(400).send("Invalid feedback");
+    }
+
+    const requestedRole = String(req.body.role || "");
+    const role = requestedRole === "enterprise" ? "enterprise" : "advertiser";
+    const isSuperAdmin = req.session.user?.role === "super_admin";
+    if (role === "enterprise" && !req.session.orgUser && !isSuperAdmin) {
+      return res.status(403).send("Access denied");
+    }
+
+    const priorityKey = String(req.body.priority_key || "").trim().slice(0, 180);
+    if (!priorityKey) return res.status(400).send("Priority is required");
+
+    const sessionOrganizationId = Number(
+      req.session.orgUser?.organization_id ||
+      req.session.orgUser?.organizationId ||
+      0
+    );
+    const requestedOrganizationId = Number(req.body.organization_id || 0);
+    const scopeId = role === "enterprise"
+      ? (sessionOrganizationId || (isSuperAdmin ? requestedOrganizationId : 0))
+      : 0;
+    if (role === "enterprise" && !scopeId) {
+      return res.status(403).send("Valid organization is required");
+    }
+
+    await q(\`
+      CREATE TABLE IF NOT EXISTS ai_priority_feedback (
+        id BIGSERIAL PRIMARY KEY,
+        actor_id BIGINT NOT NULL,
+        scope_id INTEGER NOT NULL DEFAULT 0,
+        role TEXT NOT NULL,
+        priority_key TEXT NOT NULL,
+        feedback TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (actor_id, scope_id, role, priority_key)
+      )
+    \`);
+
+    await q(
+      \`
+        INSERT INTO ai_priority_feedback
+          (actor_id, scope_id, role, priority_key, feedback)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (actor_id, scope_id, role, priority_key)
+        DO UPDATE SET
+          feedback = EXCLUDED.feedback,
+          updated_at = CURRENT_TIMESTAMP
+      \`,
+      [actorId, scopeId, role, priorityKey, feedback]
+    );
+
+    const requestedReturnTo = String(req.body.return_to || "");
+    const returnTo = /^\\/(?:admin\\/ai-insights|org-performance)(?:\\?|$)/.test(requestedReturnTo)
+      ? requestedReturnTo
+      : role === "enterprise"
+        ? \`/org-performance?organization_id=\${scopeId}\`
+        : "/admin/ai-insights";
+    return res.redirect(
+      returnTo + (returnTo.includes("?") ? "&" : "?") + "ai_feedback=saved"
+    );
+  } catch (error) {
+    console.error("AI PRIORITY FEEDBACK ERROR", error);
+    return res.status(500).send("Unable to save feedback");
+  }
+});
+
+${feedbackRouteAnchor}`;
+
+if (!source.includes(feedbackRouteMarker)) {
+  const matches = source.split(feedbackRouteAnchor).length - 1;
+  if (matches !== 1) {
+    throw new Error(
+      `Unable to install AI priority feedback route: expected one anchor, found ${matches}.`
+    );
+  }
+  source = source.replace(feedbackRouteAnchor, feedbackRouteBlock);
 }
 
 const clicksPerScanAnchor = `    const intentRate =
