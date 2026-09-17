@@ -53,8 +53,8 @@ function registerCampaignCalendarRoutes({ app, q, requireLogin, page, escapeHtml
   });
 
   const tabs = active => `<nav class="schedule-tabs" aria-label="Campaign scheduling">
-    <a class="${active === "calendar" ? "active" : ""}" href="/admin/event-calendar">Event Calendar</a>
     <a class="${active === "recurring" ? "active" : ""}" href="/admin/schedule">Recurring Schedules</a>
+    <a class="${active === "calendar" ? "active" : ""}" href="/admin/event-calendar">Event Calendar</a>
     <a class="${active === "import" ? "active" : ""}" href="/admin/event-calendar?view=import">Import Events</a>
   </nav>`;
 

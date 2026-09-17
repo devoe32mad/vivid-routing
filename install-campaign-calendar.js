@@ -68,8 +68,8 @@ source = source.replace('Add multiple campaigns to one QR and rotate by day/time
 
 if (!source.includes('data-vivid-schedule-nav="true"')) {
   const scheduleNav = `<div data-vivid-schedule-nav="true" style="display:flex;gap:8px;flex-wrap:wrap;margin:20px 0;padding:6px;background:#eaf0f8;border-radius:12px;">
-    <a href="/admin/event-calendar" style="padding:11px 16px;border-radius:8px;color:#24415f;text-decoration:none;font-weight:800;">Event Calendar</a>
     <a href="/admin/schedule" style="padding:11px 16px;border-radius:8px;background:#fff;color:#1559c7;text-decoration:none;font-weight:800;box-shadow:0 2px 8px rgba(16,43,80,.12);">Recurring Schedules</a>
+    <a href="/admin/event-calendar" style="padding:11px 16px;border-radius:8px;color:#24415f;text-decoration:none;font-weight:800;">Event Calendar</a>
     <a href="/admin/event-calendar?view=import" style="padding:11px 16px;border-radius:8px;color:#24415f;text-decoration:none;font-weight:800;">Import Events</a>
   </div>`;
   source = source.replace('Create recurring campaign rotations by day and time.</p>', `Create recurring campaign rotations by day and time.</p>${scheduleNav}`);
