@@ -730,8 +730,12 @@ if (!source.includes(clicksPerScanCard)) {
 }
 
 source = source.replace(
-  "                intent actions from\\n                \${scans.toLocaleString()}\\n                scans",
-  "                clicks from\\n                \${scans.toLocaleString()}\\n                scans"
+  `                intent actions from
+                \${scans.toLocaleString()}
+                scans`,
+  `                clicks from
+                \${scans.toLocaleString()}
+                scans`
 );
 
 fs.writeFileSync(serverPath, source, "utf8");
