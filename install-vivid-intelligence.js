@@ -36,7 +36,11 @@ const benchmarkImportBlock = `${benchmarkImportAnchor}
 const {
   loadVividBenchmark,
   renderVividBenchmark
-} = require("./vivid-benchmarks");`;
+} = require("./vivid-benchmarks");
+const {
+  buildPriorityCenter,
+  renderPriorityCenter
+} = require("./ai-priority-center");`;
 
 const builderAnchor = `const pendingRevenue =
   Number(pendingMetricsResult.rows[0]?.pending_revenue || 0);
@@ -371,12 +375,28 @@ const organizationAskBuilderBlock = `const executiveInsights =
               scans: contract.scans,
               expiringSoon: true
             })
-        }));`;
+        }));
+
+      const enterprisePriorityCenter =
+        buildPriorityCenter({
+          role: "enterprise",
+          campaigns: campaignIntelligence,
+          renewals: renewalPricingRecommendations,
+          availableSpots,
+          pendingSpots,
+          pendingRevenue,
+          inventoryHref:
+            \`/org-marketplace?organization_id=\${organizationId}\`
+        });`;
 
 const campaignRenderAnchor = `              <!-- =====================================
                    LAUNCH SCORECARD
               ====================================== -->`;
-const campaignRenderBlock = `              \${renderComparativeIntelligence(
+const campaignRenderBlock = `              \${renderPriorityCenter(
+                enterprisePriorityCenter
+              )}
+
+              \${renderComparativeIntelligence(
                 organizationComparison,
                 {
                   fallbackHref:
@@ -568,12 +588,22 @@ const advertiserAskVivid =
       startDate || endDate
         ? \`Reporting period: \${startDate || "Beginning"} through \${endDate || "Today"}\`
         : "All measured activity"
+  });
+
+const advertiserPriorityCenter =
+  buildPriorityCenter({
+    role: "advertiser",
+    campaigns: advertiserIntelligence.campaigns
   });`;
 
 const advertiserRenderAnchor = `  <!-- =========================================
        TOP CAMPAIGN
   ========================================== -->`;
-const advertiserRenderBlock = `  \${renderComparativeIntelligence(
+const advertiserRenderBlock = `  \${renderPriorityCenter(
+    advertiserPriorityCenter
+  )}
+
+  \${renderComparativeIntelligence(
     advertiserComparison,
     {
       fallbackHref: "/admin/ai-insights"
