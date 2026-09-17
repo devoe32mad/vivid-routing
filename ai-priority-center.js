@@ -40,6 +40,9 @@ function campaignPriority(campaign, role) {
 
   if (clicks > 0 && conversions === 0) {
     return {
+      type: "conversion",
+      key: `campaign:${count(campaign.id)}:conversion`,
+      subject: String(campaign.name || "this campaign").trim().toLowerCase(),
       rank: 1,
       title: `Fix the conversion path for ${campaign.name || "this campaign"}`,
       reason: "People are taking a measurable next step, but no tracked conversion is being completed.",
@@ -52,6 +55,9 @@ function campaignPriority(campaign, role) {
   }
   if (scans > 0 && clicks === 0) {
     return {
+      type: "cta",
+      key: `campaign:${count(campaign.id)}:cta`,
+      subject: String(campaign.name || "this campaign").trim().toLowerCase(),
       rank: 2,
       title: `Improve the call to action for ${campaign.name || "this campaign"}`,
       reason: "Scans are occurring without a measurable click. Test a clearer offer and more direct next step.",
@@ -64,6 +70,9 @@ function campaignPriority(campaign, role) {
   }
   if (conversions > 0 || revenue > 0) {
     return {
+      type: "winner",
+      key: `campaign:${count(campaign.id)}:winner`,
+      subject: String(campaign.name || "this campaign").trim().toLowerCase(),
       rank: 4,
       title: `Replicate what is working in ${campaign.name || "this campaign"}`,
       reason: "This campaign has produced measurable business outcomes. Preserve the working placement and offer.",
@@ -85,6 +94,9 @@ function buildPriorityCenter(input = {}) {
     for (const item of input.renewals || []) {
       const recommendation = item.recommendation || {};
       priorities.push({
+        type: "renewal",
+        key: `renewal:${String(item.name || "placement").trim().toLowerCase()}`,
+        subject: String(item.name || "an expiring placement").trim().toLowerCase(),
         rank: 0,
         title: `Review renewal pricing for ${item.name || "an expiring placement"}`,
         reason: recommendation.reason || "A renewal decision is approaching and measured performance is available for review.",
@@ -104,6 +116,9 @@ function buildPriorityCenter(input = {}) {
 
   if (role === "enterprise" && count(input.availableSpots) > 0) {
     priorities.push({
+      type: "inventory",
+      key: "inventory:available",
+      subject: "available inventory",
       rank: 3,
       title: `Promote ${count(input.availableSpots)} available advertising ${count(input.availableSpots) === 1 ? "spot" : "spots"}`,
       reason: "Available inventory represents a direct revenue-growth opportunity.",
@@ -115,15 +130,40 @@ function buildPriorityCenter(input = {}) {
     });
   }
 
-  return {
-    role,
-    priorities: priorities.sort((a, b) => a.rank - b.rank).slice(0, 3)
-  };
+  const sorted = priorities.sort((a, b) => a.rank - b.rank);
+  const selected = [];
+  const usedTypes = new Set();
+  const usedSubjects = new Set();
+
+  for (const priority of sorted) {
+    if (usedTypes.has(priority.type) || usedSubjects.has(priority.subject)) continue;
+    selected.push(priority);
+    usedTypes.add(priority.type);
+    usedSubjects.add(priority.subject);
+    if (selected.length === 3) break;
+  }
+
+  for (const priority of sorted) {
+    if (selected.length >= 3) break;
+    if (selected.includes(priority) || usedSubjects.has(priority.subject)) continue;
+    selected.push(priority);
+    usedSubjects.add(priority.subject);
+  }
+
+  return { role, priorities: selected };
 }
 
-function renderPriorityCenter(center = {}) {
+function renderPriorityCenter(center = {}, options = {}) {
   const items = Array.isArray(center.priorities) ? center.priorities : [];
   const roleLabel = center.role === "enterprise" ? "Enterprise" : "Advertiser";
+  const returnTo = String(options.returnTo || (center.role === "enterprise" ? "/org-performance" : "/admin/ai-insights"));
+  const organizationId = count(options.organizationId);
+  const feedbackButtons = [
+    ["helpful", "Helpful"],
+    ["not_helpful", "Not helpful"],
+    ["action_taken", "Action taken"],
+    ["dismissed", "Dismiss"]
+  ];
   return `
     <section class="card" style="margin:0 0 28px;border:1px solid #cfdced;border-top:6px solid #173b6b;background:linear-gradient(145deg,#fff 0%,#f3f7fc 100%);">
       <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;">
@@ -136,12 +176,16 @@ function renderPriorityCenter(center = {}) {
       </div>
       <div style="display:grid;gap:11px;margin-top:18px;">
         ${items.length ? items.map((item, index) => `
-          <a href="${escapeHtml(item.href)}" style="display:grid;grid-template-columns:auto minmax(220px,1.25fr) minmax(190px,.9fr) minmax(160px,.7fr);gap:14px;align-items:center;padding:16px;border:1px solid #dce4ee;border-radius:12px;background:#fff;text-decoration:none;color:inherit;">
-            <div style="width:34px;height:34px;border-radius:50%;background:#173b6b;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;">${index + 1}</div>
-            <div><div style="font-weight:850;color:#102b50;">${escapeHtml(item.title)}</div><div style="font-size:13px;color:#53675c;line-height:1.45;margin-top:5px;">${escapeHtml(item.reason)}</div></div>
-            <div><div style="font-size:12px;color:#65776b;">${escapeHtml(item.evidence)}</div><div style="font-size:12px;color:#173b6b;font-weight:800;margin-top:6px;">${escapeHtml(item.confidence)} confidence</div></div>
-            <div><div style="font-weight:850;color:#176b3a;">${escapeHtml(item.impact)}</div><div style="font-size:12px;color:#173b6b;font-weight:800;margin-top:7px;">${escapeHtml(item.action)} →</div></div>
-          </a>`).join("") : `<div style="padding:18px;border-radius:12px;background:#fff;color:#53675c;">No urgent action is supported by the measured data yet. Continue collecting scans, clicks, and conversions.</div>`}
+          <div style="padding:16px;border:1px solid #dce4ee;border-radius:12px;background:#fff;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;align-items:center;">
+              <div style="display:flex;gap:12px;align-items:flex-start;"><div style="flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:#173b6b;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;">${index + 1}</div><div><div style="font-weight:850;color:#102b50;">${escapeHtml(item.title)}</div><div style="font-size:13px;color:#53675c;line-height:1.45;margin-top:5px;">${escapeHtml(item.reason)}</div></div></div>
+              <div><div style="font-size:12px;color:#65776b;">${escapeHtml(item.evidence)}</div><div style="font-size:12px;color:#173b6b;font-weight:800;margin-top:6px;">${escapeHtml(item.confidence)} confidence</div></div>
+              <div><div style="font-weight:850;color:#176b3a;">${escapeHtml(item.impact)}</div><a href="${escapeHtml(item.href)}" style="display:inline-block;font-size:12px;color:#173b6b;font-weight:800;margin-top:7px;">${escapeHtml(item.action)} →</a></div>
+            </div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:13px;padding-top:11px;border-top:1px solid #edf1f5;">
+              ${feedbackButtons.map(([value, label]) => `<form method="POST" action="/ai-priority-feedback" style="margin:0;"><input type="hidden" name="role" value="${escapeHtml(center.role)}"><input type="hidden" name="priority_key" value="${escapeHtml(item.key)}"><input type="hidden" name="feedback" value="${value}"><input type="hidden" name="organization_id" value="${organizationId}"><input type="hidden" name="return_to" value="${escapeHtml(returnTo)}"><button type="submit" style="border:1px solid #cfdced;border-radius:999px;background:#fff;color:#173b6b;padding:6px 9px;font-size:11px;font-weight:800;cursor:pointer;">${label}</button></form>`).join("")}
+            </div>
+          </div>`).join("") : `<div style="padding:18px;border-radius:12px;background:#fff;color:#53675c;">No urgent action is supported by the measured data yet. Continue collecting scans, clicks, and conversions.</div>`}
       </div>
       <div style="font-size:12px;color:#65776b;margin-top:14px;">Recommendations are evidence-based and do not change campaigns, pricing, contracts, or inventory automatically.</div>
     </section>`;
