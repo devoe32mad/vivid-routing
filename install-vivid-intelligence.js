@@ -679,5 +679,22 @@ for (const patch of patches) {
   source = source.replace(patch.anchor, patch.replacement);
 }
 
+const intentMetricLabel = "Intent Actions per 100 Scans";
+if (!source.includes(intentMetricLabel)) {
+  const intentRateLabelMatches =
+    source.split("Intent Rate").length - 1;
+
+  if (intentRateLabelMatches !== 1) {
+    throw new Error(
+      `Unable to clarify intent metric: expected one label, found ${intentRateLabelMatches}.`
+    );
+  }
+
+  source = source.replace(
+    "Intent Rate",
+    intentMetricLabel
+  );
+}
+
 fs.writeFileSync(serverPath, source, "utf8");
 console.log("Vivid intelligence preview installed.");
