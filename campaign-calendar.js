@@ -1,22 +1,12 @@
 "use strict";
 
 const EVENT_TYPES = Object.freeze([
-  "Football",
-  "Basketball",
-  "Baseball",
-  "Volleyball",
-  "Wrestling",
-  "School Event",
-  "Trade Show",
-  "Community Event",
-  "Other"
+  "Football", "Basketball", "Baseball", "Volleyball", "Wrestling",
+  "School Event", "Trade Show", "Community Event", "Other"
 ]);
 const EVENT_TIMEZONES = Object.freeze([
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Los_Angeles",
-  "America/Phoenix"
+  "America/New_York", "America/Chicago", "America/Denver",
+  "America/Los_Angeles", "America/Phoenix"
 ]);
 
 function escapeHtml(value) {
@@ -35,16 +25,12 @@ function validDate(value) {
 
 function validateEventSchedule(input = {}) {
   const eventName = String(input.eventName || "").trim();
-  const eventType = EVENT_TYPES.includes(input.eventType)
-    ? input.eventType
-    : "Other";
+  const eventType = EVENT_TYPES.includes(input.eventType) ? input.eventType : "Other";
   const start = validDate(input.startAt);
   const end = validDate(input.endAt);
   const qrId = Number(input.qrId);
   const campaignId = Number(input.campaignId);
-  const timezone = EVENT_TIMEZONES.includes(input.timezone)
-    ? input.timezone
-    : "America/New_York";
+  const timezone = EVENT_TIMEZONES.includes(input.timezone) ? input.timezone : "America/New_York";
   const errors = [];
 
   if (!eventName) errors.push("Event name is required.");
@@ -58,13 +44,10 @@ function validateEventSchedule(input = {}) {
     valid: errors.length === 0,
     errors,
     value: {
-      eventName,
-      eventType,
+      eventName, eventType,
       startAt: start ? String(input.startAt) : null,
       endAt: end ? String(input.endAt) : null,
-      timezone,
-      qrId,
-      campaignId,
+      timezone, qrId, campaignId,
       notes: String(input.notes || "").trim()
     }
   };
@@ -79,10 +62,23 @@ function eventStatus(event, now = new Date()) {
   return "Live now";
 }
 
+function eventCard(event) {
+  const start = new Date(event.event_start_at);
+  const end = new Date(event.event_end_at);
+  const status = eventStatus(event);
+  const timezone = EVENT_TIMEZONES.includes(event.event_timezone) ? event.event_timezone : "America/New_York";
+  return `<article style="border:1px solid #dbe3ef;border-left:5px solid ${status === "Live now" ? "#16803b" : "#2459a9"};border-radius:11px;padding:14px;background:#fff;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;gap:10px"><strong>${escapeHtml(event.event_name || "Scheduled event")}</strong><span style="font-size:12px;font-weight:800;color:#2459a9">${escapeHtml(status)}</span></div>
+    <div style="margin-top:5px;color:#46556b">${escapeHtml(start.toLocaleString("en-US", {dateStyle:"medium",timeStyle:"short",timeZone:timezone}))} – ${escapeHtml(end.toLocaleTimeString("en-US", {hour:"numeric",minute:"2-digit",timeZone:timezone}))}</div>
+    <div style="margin-top:5px;color:#657184">${escapeHtml(event.event_type || "Event")} · ${escapeHtml(event.qr_name || "Placement")}</div>
+    <div style="margin-top:4px;color:#657184">${escapeHtml(event.advertiser || "Advertiser")} — ${escapeHtml(event.campaign_name || "Campaign")}</div>
+  </article>`;
+}
+
 function renderCampaignCalendar(events = [], options = {}) {
-  const action = options.action || "/admin/schedule";
+  const action = options.action || "/admin/event-calendar?view=add";
   if (!events.length) {
-    return `<section class="card" style="margin-top:24px;"><h2>Event Calendar</h2><p>No event-based campaigns are scheduled yet. Add football games, basketball games, school events, trade shows, or other dated events above.</p></section>`;
+    return `<section class="schedule-card schedule-empty"><h2>Your event calendar is ready</h2><p class="schedule-help">Add an event or import a schedule to begin.</p><a class="schedule-btn" href="${escapeHtml(action)}">Add First Event</a></section>`;
   }
 
   const grouped = new Map();
@@ -95,42 +91,33 @@ function renderCampaignCalendar(events = [], options = {}) {
   }
 
   return [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, monthEvents]) => {
-    const label = new Date(`${month}-01T12:00:00Z`).toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-      timeZone: "UTC"
-    });
+    const label = new Date(`${month}-01T12:00:00Z`).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
     const [year, monthNumber] = month.split("-").map(Number);
     const firstWeekday = new Date(Date.UTC(year, monthNumber - 1, 1)).getUTCDay();
     const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
     const eventsByDay = new Map();
-    monthEvents.sort((a, b) => new Date(a.event_start_at) - new Date(b.event_start_at)).forEach(event => {
+    const sortedEvents = monthEvents.sort((a, b) => new Date(a.event_start_at) - new Date(b.event_start_at));
+    sortedEvents.forEach(event => {
       const timezone = EVENT_TIMEZONES.includes(event.event_timezone) ? event.event_timezone : "America/New_York";
       const day = Number(new Intl.DateTimeFormat("en-US", { day: "numeric", timeZone: timezone }).format(new Date(event.event_start_at)));
       if (!eventsByDay.has(day)) eventsByDay.set(day, []);
       eventsByDay.get(day).push(event);
     });
     const cells = [];
-    for (let blank = 0; blank < firstWeekday; blank += 1) cells.push('<div style="min-height:108px;background:#f7f9fc;border:1px solid #e3e8f0;"></div>');
+    for (let blank = 0; blank < firstWeekday; blank += 1) cells.push('<div style="min-height:112px;background:#f7f9fc;border:1px solid #e3e8f0"></div>');
     for (let day = 1; day <= daysInMonth; day += 1) {
       const dayEvents = (eventsByDay.get(day) || []).map(event => {
         const start = new Date(event.event_start_at);
         const status = eventStatus(event);
         const timezone = EVENT_TIMEZONES.includes(event.event_timezone) ? event.event_timezone : "America/New_York";
         const detail = `${event.event_type || "Event"} · ${event.qr_name || "Placement"} · ${event.campaign_name || "Campaign"}`;
-        return `<div title="${escapeHtml(detail)}" style="margin-top:5px;padding:6px;border-radius:7px;background:${status === "Live now" ? "#dcfce7" : "#e8f0ff"};border-left:3px solid ${status === "Live now" ? "#16803b" : "#2459a9"};font-size:12px;line-height:1.3;"><strong>${escapeHtml(start.toLocaleTimeString("en-US", {hour:"numeric",minute:"2-digit",timeZone:timezone}))}</strong> ${escapeHtml(event.event_name || "Scheduled event")}</div>`;
+        return `<div title="${escapeHtml(detail)}" style="margin-top:5px;padding:7px;border-radius:7px;background:${status === "Live now" ? "#dcfce7" : "#e8f0ff"};border-left:3px solid ${status === "Live now" ? "#16803b" : "#2459a9"};font-size:12px;line-height:1.3"><strong>${escapeHtml(start.toLocaleTimeString("en-US", {hour:"numeric",minute:"2-digit",timeZone:timezone}))}</strong> ${escapeHtml(event.event_name || "Scheduled event")}</div>`;
       }).join("");
-      cells.push(`<div style="min-height:108px;padding:8px;background:#fff;border:1px solid #e3e8f0;"><strong style="color:#173b6b;">${day}</strong>${dayEvents}</div>`);
+      cells.push(`<div style="min-height:112px;padding:8px;background:#fff;border:1px solid #e3e8f0"><strong style="color:#173b6b">${day}</strong>${dayEvents}</div>`);
     }
-    const weekdays = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(day => `<div style="padding:7px;">${day}</div>`).join("");
-    return `<section class="card" style="margin-top:24px;"><h2 style="margin-top:0;">${escapeHtml(label)}</h2><div style="overflow-x:auto;"><div style="min-width:760px;"><div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:13px;font-weight:800;color:#657184;">${weekdays}</div><div style="display:grid;grid-template-columns:repeat(7,1fr);">${cells.join("")}</div></div></div><div style="margin-top:12px;"><a href="${escapeHtml(action)}">Add another event</a></div></section>`;
+    const weekdays = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(day => `<div style="padding:8px">${day}</div>`).join("");
+    return `<section class="schedule-card"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><h2 style="margin:0">${escapeHtml(label)}</h2><a class="schedule-btn secondary" href="${escapeHtml(action)}">Add Event</a></div><div class="desktop-calendar" style="overflow-x:auto;margin-top:18px"><div style="min-width:760px"><div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:13px;font-weight:800;color:#657184">${weekdays}</div><div style="display:grid;grid-template-columns:repeat(7,1fr)">${cells.join("")}</div></div></div><div class="mobile-event-list" style="margin-top:16px">${sortedEvents.map(eventCard).join("")}</div></section>`;
   }).join("");
 }
 
-module.exports = {
-  EVENT_TYPES,
-  EVENT_TIMEZONES,
-  validateEventSchedule,
-  eventStatus,
-  renderCampaignCalendar
-};
+module.exports = { EVENT_TYPES, EVENT_TIMEZONES, validateEventSchedule, eventStatus, renderCampaignCalendar };
