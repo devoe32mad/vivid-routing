@@ -415,11 +415,13 @@ function renderAskVivid(assistant, options = {}) {
     : [
         "What needs attention first?",
         "Which campaign is strongest?",
-        "Should I renew?",
         "Why are scans not converting?",
         "What is my advertising return?",
         "What should I do next?"
       ];
+  const placeholder = role === "enterprise"
+    ? "Example: Which campaigns should we renew?"
+    : "Example: What should I do next?";
 
   return `
     <section class="card" style="margin:0 0 28px;border:1px solid #dce8df;border-top:5px solid #176b3a;background:linear-gradient(145deg,#fff 0%,#f4f8f5 100%);">
@@ -440,7 +442,7 @@ function renderAskVivid(assistant, options = {}) {
         <div style="display:flex;gap:9px;align-items:stretch;flex-wrap:wrap;">
           <input name="ask" maxlength="300" value="${escapeHtml(
             assistant.question
-          )}" placeholder="Example: Which campaigns should we renew?" aria-label="Ask Vivid a question" style="flex:1 1 360px;margin:0;min-height:46px;">
+          )}" placeholder="${escapeHtml(placeholder)}" aria-label="Ask Vivid a question" style="flex:1 1 360px;margin:0;min-height:46px;">
           <button class="btn" type="submit" style="min-height:46px;">Ask Vivid</button>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;">

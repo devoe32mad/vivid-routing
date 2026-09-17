@@ -562,13 +562,6 @@ function buildAdvertiserIntelligence(campaigns = [], options = {}) {
   const conversionGap = items.find(
     campaign => campaign.engagement > 0 && campaign.conversions === 0
   ) || null;
-  const renewalCandidate = items.find(
-    campaign =>
-      campaign.conversions > 0 &&
-      campaign.revenue > 0 &&
-      (campaign.roi === null || campaign.roi >= 0)
-  ) || null;
-
   let summary =
     "There is not enough measured campaign activity yet to evaluate advertiser performance.";
   if (totals.conversions > 0 || totals.revenue > 0) {
@@ -612,15 +605,6 @@ function buildAdvertiserIntelligence(campaigns = [], options = {}) {
             "action"
           )} without a tracked conversion. The destination, offer, and conversion confirmation path should be reviewed.`
         : "No campaign currently shows measurable engagement without a tracked conversion."
-    },
-    {
-      question: "Should I renew?",
-      answer: renewalCandidate
-        ? `${renewalCandidate.name} is a renewal candidate because it has produced ${renewalCandidate.conversions.toLocaleString()} tracked ${plural(
-            renewalCandidate.conversions,
-            "conversion"
-          )} and ${money(renewalCandidate.revenue)} in attributed value.`
-        : "Vivid does not yet have enough positive measured outcome data to support a renewal recommendation."
     }
   ];
 
