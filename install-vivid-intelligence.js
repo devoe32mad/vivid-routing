@@ -679,16 +679,5 @@ for (const patch of patches) {
   source = source.replace(patch.anchor, patch.replacement);
 }
 
-const intentMetricLabel = "Intent Actions per 100 Scans";
-if (
-  !source.includes(intentMetricLabel) &&
-  source.includes("Intent Rate")
-) {
-  source = source.replace(
-    "Intent Rate",
-    intentMetricLabel
-  );
-}
-
 fs.writeFileSync(serverPath, source, "utf8");
 console.log("Vivid intelligence preview installed.");
