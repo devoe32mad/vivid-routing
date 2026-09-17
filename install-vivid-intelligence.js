@@ -679,5 +679,60 @@ for (const patch of patches) {
   source = source.replace(patch.anchor, patch.replacement);
 }
 
+const clicksPerScanAnchor = `    const intentRate =
+      scans > 0
+        ? (intent / scans) * 100
+        : 0;`;
+const clicksPerScanCalculation = `    const clicksPerScan =
+      scans > 0
+        ? intent / scans
+        : 0;`;
+
+if (!source.includes(clicksPerScanCalculation)) {
+  if (source.includes(clicksPerScanAnchor)) {
+    source = source.replace(
+      clicksPerScanAnchor,
+      clicksPerScanCalculation
+    );
+  } else {
+    console.warn(
+      "Clicks-per-scan calculation was not changed because its exact source block was not found."
+    );
+  }
+}
+
+const clicksPerScanCardAnchor = `              <div class="label">
+                Intent Rate
+              </div>
+
+              <div class="num">
+                \${pct(intentRate)}
+              </div>`;
+const clicksPerScanCard = `              <div class="label">
+                Clicks per Scan
+              </div>
+
+              <div class="num">
+                \${clicksPerScan.toFixed(2)}
+              </div>`;
+
+if (!source.includes(clicksPerScanCard)) {
+  if (source.includes(clicksPerScanCardAnchor)) {
+    source = source.replace(
+      clicksPerScanCardAnchor,
+      clicksPerScanCard
+    );
+  } else {
+    console.warn(
+      "Clicks-per-scan card was not changed because its exact source block was not found."
+    );
+  }
+}
+
+source = source.replace(
+  "                intent actions from\\n                \${scans.toLocaleString()}\\n                scans",
+  "                clicks from\\n                \${scans.toLocaleString()}\\n                scans"
+);
+
 fs.writeFileSync(serverPath, source, "utf8");
 console.log("Vivid intelligence preview installed.");
