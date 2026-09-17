@@ -60,11 +60,21 @@ if (!source.includes("registerCampaignCalendarRoutes({")) {
   source = source.replace(routeAnchor, `registerCampaignCalendarRoutes({ app, q, requireLogin, page, escapeHtml });\n${routeAnchor}`);
 }
 
-source = source.replace('<h1>Master QR Campaign Schedule</h1><p><a class="btn" href="/admin/event-calendar">Open Event Calendar</a></p>', '<h1>Master QR Campaign Schedule</h1>');
-if (!source.includes('title="Import or add games and events')) {
-  source = source.replace("<h1>Master QR Campaign Schedule</h1>", '<h1>Master QR Campaign Schedule <span title="Import or add games and events, then assign campaigns to run automatically on selected QR placements before, during, or after each event." style="cursor:help;font-size:.55em;vertical-align:middle;">ⓘ</span></h1>');
-  source = source.replace("Add multiple campaigns to one QR and rotate by day/time.</p>", 'Add multiple campaigns to one QR and rotate by day/time.</p><iframe title="Campaign Event Calendar" src="/admin/event-calendar?embed=1" style="width:100%;min-height:1050px;border:0;border-radius:12px;background:#fff;margin-top:20px;"></iframe>');
+const legacyIframe = '<iframe title="Campaign Event Calendar" src="/admin/event-calendar?embed=1" style="width:100%;min-height:1050px;border:0;border-radius:12px;background:#fff;margin-top:20px;"></iframe>';
+source = source.split(legacyIframe).join("");
+source = source.replace('<h1>Master QR Campaign Schedule <span title="Import or add games and events, then assign campaigns to run automatically on selected QR placements before, during, or after each event." style="cursor:help;font-size:.55em;vertical-align:middle;">ⓘ</span></h1>', '<h1>Campaign Scheduling</h1>');
+source = source.replace('<h1>Master QR Campaign Schedule</h1>', '<h1>Campaign Scheduling</h1>');
+source = source.replace('Add multiple campaigns to one QR and rotate by day/time.</p>', 'Create recurring campaign rotations by day and time.</p>');
+
+if (!source.includes('data-vivid-schedule-nav="true"')) {
+  const scheduleNav = `<div data-vivid-schedule-nav="true" style="display:flex;gap:8px;flex-wrap:wrap;margin:20px 0;padding:6px;background:#eaf0f8;border-radius:12px;">
+    <a href="/admin/event-calendar" style="padding:11px 16px;border-radius:8px;color:#24415f;text-decoration:none;font-weight:800;">Event Calendar</a>
+    <a href="/admin/schedule" style="padding:11px 16px;border-radius:8px;background:#fff;color:#1559c7;text-decoration:none;font-weight:800;box-shadow:0 2px 8px rgba(16,43,80,.12);">Recurring Schedules</a>
+    <a href="/admin/event-calendar?view=import" style="padding:11px 16px;border-radius:8px;color:#24415f;text-decoration:none;font-weight:800;">Import Events</a>
+  </div>`;
+  source = source.replace('Create recurring campaign rotations by day and time.</p>', `Create recurring campaign rotations by day and time.</p>${scheduleNav}`);
 }
+
 if (!source.includes("Import a CSV or Excel event schedule")) {
   source = source.replace("<li>Rotate multiple campaigns.</li>", `<li>Rotate multiple campaigns.</li>
         <li>Add football, basketball, school, community, and other dated events.</li>
@@ -74,4 +84,4 @@ if (!source.includes("Import a CSV or Excel event schedule")) {
 }
 
 fs.writeFileSync(serverPath, source);
-console.log("Campaign event calendar installed.");
+console.log("Campaign scheduling experience installed.");
