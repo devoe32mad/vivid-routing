@@ -204,7 +204,11 @@ test("advertiser intelligence uses investment and results for campaign status", 
   assert.equal(conversionGap.status, "Needs Attention");
   assert.match(conversionGap.recommendation, /conversion confirmation path/i);
   assert.match(result.summary, /tracked conversion/);
-  assert.match(result.answers[2].answer, /renewal candidate/i);
+  assert.equal(result.answers.length, 2);
+  assert.doesNotMatch(
+    result.answers.map(item => item.question).join(" "),
+    /renew/i
+  );
 });
 
 test("advertiser intelligence flags negative return despite conversions", () => {
