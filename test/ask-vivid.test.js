@@ -158,6 +158,18 @@ test("Ask Vivid renderer escapes questions, data, links, and hidden fields", () 
   assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
 });
 
+test("advertiser prompts optimize performance without questioning renewal", () => {
+  const result = answerAskVivid({
+    role: "advertiser",
+    campaigns: advertiserCampaigns
+  });
+  const html = renderAskVivid(result, { action: "/admin/ai-insights" });
+
+  assert.doesNotMatch(html, /Should I renew\?/);
+  assert.doesNotMatch(html, /Which campaigns should we renew\?/);
+  assert.match(html, /What should I do next\?/);
+});
+
 test("enterprise assistant is initialized after its revenue data", () => {
   const tempDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), "ask-vivid-install-")
