@@ -65,3 +65,24 @@ test("priority center escapes customer-controlled content", () => {
   assert.match(html, /&lt;script&gt;/);
   assert.match(html, /Read only/);
 });
+
+test("priority center deduplicates names and persists four feedback choices", () => {
+  const center = buildPriorityCenter({
+    role: "advertiser",
+    campaigns: [
+      { id: 1, name: "Same Campaign", scans: 30, engagement: 12, conversions: 0 },
+      { id: 2, name: "Same Campaign", scans: 20, engagement: 8, conversions: 0 },
+      { id: 3, name: "CTA Gap", scans: 10, engagement: 0, conversions: 0 },
+      { id: 4, name: "Winner", scans: 40, engagement: 15, conversions: 4, revenue: 900 }
+    ]
+  });
+  const html = renderPriorityCenter(center, {
+    returnTo: "/admin/ai-insights?startDate=2026-09-01"
+  });
+
+  assert.equal(center.priorities.length, 3);
+  assert.equal(center.priorities.filter(item => /Same Campaign/i.test(item.title)).length, 1);
+  assert.equal((html.match(/action="\/ai-priority-feedback"/g) || []).length, 12);
+  assert.match(html, /Action taken/);
+  assert.match(html, /Not helpful/);
+});
