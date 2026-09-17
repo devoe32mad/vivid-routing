@@ -40,7 +40,10 @@ const {
 const {
   buildPriorityCenter,
   renderPriorityCenter
-} = require("./ai-priority-center");`;
+} = require("./ai-priority-center");
+const {
+  registerWeeklyAiReportRoutes
+} = require("./weekly-ai-report-routes");`;
 
 const builderAnchor = `const pendingRevenue =
   Number(pendingMetricsResult.rows[0]?.pending_revenue || 0);
@@ -824,6 +827,75 @@ if (!source.includes(feedbackRouteMarker)) {
     );
   }
   source = source.replace(feedbackRouteAnchor, feedbackRouteBlock);
+}
+
+const weeklyReportRouteMarker = `registerWeeklyAiReportRoutes({`;
+const weeklyReportRouteAnchor = `app.listen(port, () => {`;
+const weeklyReportRouteBlock = `registerWeeklyAiReportRoutes({
+  app,
+  q,
+  page,
+  orgPage,
+  organizationNav,
+  requireLogin,
+  getOrganizationScope,
+  buildPriorityCenter,
+  sendOrganizationNotification,
+  baseUrl: process.env.PUBLIC_BASE_URL || process.env.BASE_URL || "https://vivid-routing-production.up.railway.app"
+});
+
+${weeklyReportRouteAnchor}`;
+
+if (!source.includes(weeklyReportRouteMarker)) {
+  const matches = source.split(weeklyReportRouteAnchor).length - 1;
+  if (matches !== 1) {
+    throw new Error(
+      `Unable to install weekly AI report routes: expected one anchor, found ${matches}.`
+    );
+  }
+  source = source.replace(weeklyReportRouteAnchor, weeklyReportRouteBlock);
+}
+
+const advertiserWeeklyNavMarker = `href="/admin/weekly-ai-report"`;
+const advertiserWeeklyNavAnchor = `<a href="/admin/ai-insights" style="color:white;text-decoration:none;">
+ Performance Insights </a>`;
+const advertiserWeeklyNavBlock = `${advertiserWeeklyNavAnchor}
+
+  <a href="/admin/weekly-ai-report" style="color:white;text-decoration:none;">
+    Weekly AI Report
+  </a>`;
+
+if (!source.includes(advertiserWeeklyNavMarker)) {
+  const matches = source.split(advertiserWeeklyNavAnchor).length - 1;
+  if (matches !== 1) {
+    throw new Error(
+      `Unable to install advertiser weekly report navigation: expected one anchor, found ${matches}.`
+    );
+  }
+  source = source.replace(advertiserWeeklyNavAnchor, advertiserWeeklyNavBlock);
+}
+
+const enterpriseWeeklyNavMarker = `"Weekly AI Report",\n  \`/org-weekly-ai-report?organization_id=\${organizationId}\``;
+const enterpriseWeeklyNavAnchor = `\${navItem(
+  "Performance Insights",
+  \`/org-performance?organization_id=\${organizationId}\`,
+  "performance"
+)}`;
+const enterpriseWeeklyNavBlock = `${enterpriseWeeklyNavAnchor}
+\${navItem(
+  "Weekly AI Report",
+  \`/org-weekly-ai-report?organization_id=\${organizationId}\`,
+  "weekly-ai-report"
+)}`;
+
+if (!source.includes(enterpriseWeeklyNavMarker)) {
+  const matches = source.split(enterpriseWeeklyNavAnchor).length - 1;
+  if (matches !== 1) {
+    throw new Error(
+      `Unable to install enterprise weekly report navigation: expected one anchor, found ${matches}.`
+    );
+  }
+  source = source.replace(enterpriseWeeklyNavAnchor, enterpriseWeeklyNavBlock);
 }
 
 const clicksPerScanAnchor = `    const intentRate =
