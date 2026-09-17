@@ -172,6 +172,7 @@ async function loadVividBenchmark(q, input = {}) {
         AND COALESCE(c.is_archived, false) = false
         AND COALESCE(qr.is_archived, false) = false
       GROUP BY s.organization_id, c.id
+      HAVING COUNT(e.id) > 0
     `,
     [startDate, endDate]
   );
@@ -201,7 +202,12 @@ function formatMetric(key, value) {
 
 function renderVividBenchmark(benchmark, options = {}) {
   if (!benchmark) return "";
-  const role = options.role === "enterprise" ? "enterprise" : "advertiser";
+  const role =
+    options.role === "enterprise"
+      ? "enterprise"
+      : options.role === "platform"
+        ? "platform"
+        : "advertiser";
   if (!benchmark.available) {
     const gaps = [];
     if (benchmark.requiredOrganizations) gaps.push(`${benchmark.requiredOrganizations} more organizations`);
@@ -227,7 +233,7 @@ function renderVividBenchmark(benchmark, options = {}) {
   return `
     <section class="card" style="margin:18px 0;padding:20px;border:1px solid #cfdcf2;border-radius:16px;background:#fbfdff;">
       <div style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#3155a6;text-transform:uppercase;">Vivid AI Benchmark · ${escapeHtml(benchmark.confidence)} confidence</div>
-      <h2 style="margin:7px 0 8px;">How ${role === "enterprise" ? "your portfolio" : "your campaigns"} compares</h2>
+      <h2 style="margin:7px 0 8px;">How ${role === "platform" ? "the platform portfolio" : role === "enterprise" ? "your portfolio" : "your campaigns"} compares</h2>
       <p style="margin:0 0 14px;color:#46556b;">Anonymous cohort: ${benchmark.organizationCount} organizations and ${benchmark.campaignCount} campaigns.</p>
       <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr><th style="padding:9px;text-align:left;">Metric</th><th style="padding:9px;text-align:right;">You</th><th style="padding:9px;text-align:right;">Cohort median</th><th style="padding:9px;text-align:right;">Percentile</th></tr></thead><tbody>${rows}</tbody></table></div>
       <div style="margin-top:14px;padding:14px;border-radius:12px;background:#eef5ff;"><strong>AI interpretation:</strong> Strongest relative result: ${escapeHtml(LABELS[insight.strongestMetric])} (${insight.strongestPercentile}th percentile). Biggest opportunity: ${escapeHtml(LABELS[insight.opportunityMetric])} (${insight.opportunityPercentile}th percentile). ${escapeHtml(insight.recommendation)}</div>

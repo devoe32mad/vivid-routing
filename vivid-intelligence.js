@@ -635,8 +635,10 @@ function buildAdvertiserIntelligence(campaigns = [], options = {}) {
   };
 }
 
-function renderAdvertiserIntelligence(intelligence) {
+function renderAdvertiserIntelligence(intelligence, options = {}) {
   const totals = intelligence.totals || {};
+  const viewLabel = String(options.viewLabel || "Advertiser");
+  const scopeLabel = String(options.scopeLabel || "Active campaigns only");
   const campaigns = Array.isArray(intelligence.campaigns)
     ? intelligence.campaigns
     : [];
@@ -651,9 +653,9 @@ function renderAdvertiserIntelligence(intelligence) {
     <section class="card" style="margin:0 0 28px;border:1px solid #dce8df;border-top:5px solid #176b3a;background:linear-gradient(145deg,#fff 0%,#f4f8f5 100%);">
       <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;">
         <div>
-          <div style="font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#176b3a;">Vivid Intelligence · Advertiser view</div>
+          <div style="font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#176b3a;">Vivid Intelligence · ${escapeHtml(viewLabel)} view</div>
           <h2 style="margin:7px 0 5px;color:#073b22;">What the results mean—and what to do next</h2>
-          <div style="color:#65776b;">${escapeHtml(intelligence.periodLabel)}</div>
+          <div style="color:#65776b;">${escapeHtml(intelligence.periodLabel)} · ${escapeHtml(scopeLabel)}</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <span style="padding:7px 10px;border-radius:999px;background:#e5f4e8;color:#176b3a;font-size:12px;font-weight:800;">Measured data only · Read only</span>
