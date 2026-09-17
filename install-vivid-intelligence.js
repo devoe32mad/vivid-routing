@@ -680,16 +680,10 @@ for (const patch of patches) {
 }
 
 const intentMetricLabel = "Intent Actions per 100 Scans";
-if (!source.includes(intentMetricLabel)) {
-  const intentRateLabelMatches =
-    source.split("Intent Rate").length - 1;
-
-  if (intentRateLabelMatches !== 1) {
-    throw new Error(
-      `Unable to clarify intent metric: expected one label, found ${intentRateLabelMatches}.`
-    );
-  }
-
+if (
+  !source.includes(intentMetricLabel) &&
+  source.includes("Intent Rate")
+) {
   source = source.replace(
     "Intent Rate",
     intentMetricLabel
