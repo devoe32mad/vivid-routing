@@ -568,13 +568,14 @@ const advertiserRenderBlock = `  \${renderComparativeIntelligence(
 
   \${renderVividBenchmark(
     advertiserBenchmark,
-    { role: "advertiser" }
+    { role: "platform" }
   )}
 
   \${renderAskVivid(
     advertiserAskVivid,
     {
       action: "/admin/ai-insights",
+      viewLabel: "Platform",
       hiddenFields: {
         startDate,
         endDate
@@ -583,7 +584,11 @@ const advertiserRenderBlock = `  \${renderComparativeIntelligence(
   )}
 
   \${renderAdvertiserIntelligence(
-    advertiserIntelligence
+    advertiserIntelligence,
+    {
+      viewLabel: "Platform",
+      scopeLabel: "Active campaigns only"
+    }
   )}
 
   <!-- =========================================
