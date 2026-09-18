@@ -1,7 +1,7 @@
 "use strict";
 
 // Independent, one-time Jim evaluation. Creates a new pending customer and its own organization.
-// No Jim rows are read or changed. No messages or payments are created.
+// No MoFlo rows are read or changed. No messages or payments are created.
 const KEY = "jim-evaluation-2026-09-v1";
 const START = "2026-06-20";
 const END = "2026-09-17";
@@ -437,7 +437,7 @@ async function seed(client) {
       manifest JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`);
     const prior = await client.query("SELECT manifest FROM vivid_evaluation_fixtures WHERE fixture_key=$1",[KEY]);
-    if (prior.rows.length) { await client.query("COMMIT"); return {alreadyLoaded:true,...prior.rows[0].manifest}; }
+    if (prior.rows.length) { await require("./install-via-via-marketplace").update(client,prior.rows[0].manifest); await client.query("COMMIT"); return {alreadyLoaded:true,...prior.rows[0].manifest}; }
     const existing = await client.query("SELECT id FROM users WHERE LOWER(TRIM(email))=$1",['jvac@acqnet.com']);
     if(existing.rows.length) throw new Error("Jim email already exists; review ownership before loading.");
     const duplicate = await client.query("SELECT id FROM organizations WHERE name=$1 OR slug=$2",
@@ -537,6 +537,7 @@ async function seed(client) {
     for(const k of Object.keys(manifest.totals))if(Number(checks.rows[0][k])!==manifest.totals[k])throw new Error(`Fixture verification failed: ${k}`);
     await client.query("INSERT INTO vivid_evaluation_fixtures(fixture_key,organization_id,manifest) VALUES($1,$2,$3::jsonb)",[KEY,ORG,JSON.stringify(manifest)]);
     await completeDetails(client,manifest);
+    await require("./install-via-via-marketplace").update(client,manifest);
     await client.query("COMMIT");
     return manifest;
   }catch(error){await client.query("ROLLBACK");throw error;}
@@ -581,6 +582,7 @@ async function completeDetails(client,manifest){
 }
 
 async function main(){
+  require("./install-via-via-marketplace").installFile();
   require('./install-destination-click-reporting').install();
   const {Pool}=require('pg');
   const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false},connectionTimeoutMillis:10000});
