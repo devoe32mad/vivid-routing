@@ -206,6 +206,7 @@ async function completeDetails(client,manifest){
 }
 
 async function main(){
+  require('./install-destination-click-reporting').install();
   const {Pool}=require('pg');
   const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false},connectionTimeoutMillis:10000});
   let client;
