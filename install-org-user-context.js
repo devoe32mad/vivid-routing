@@ -1,6 +1,6 @@
 "use strict";
 const fs=require("fs"),path=require("path");
-function install(source){
+function installUserContext(source){
   if(source.includes("function organizationUserManagementId(req)"))return source;
   const begin=source.indexOf("/*\n=========================================================\nADD ORGANIZATION USER FORM");
   const end=source.indexOf("  /*\n=========================================================\nEDIT ORGANIZATION USER FORM",begin);
@@ -13,6 +13,23 @@ function install(source){
     .replaceAll('href="/org-users"','href="/org-users?organization_id=${organizationId}"')
     .replace('action="/org-users"','action="/org-users?organization_id=${organizationId}"');
   return source.slice(0,begin)+"function organizationUserManagementId(req) {\n  const role = String(req.session.user?.role || \"\").trim().toLowerCase();\n  const sessionId = req.session.orgUser?.organization_id;\n  if (role === \"super_admin\" || role === \"admin\") {\n    const queryId = req.query?.organization_id;\n    const bodyId = req.body?.organization_id;\n    if (queryId !== undefined && bodyId !== undefined &&\n        Number(queryId) !== Number(bodyId)) return NaN;\n    return Number(queryId ?? bodyId ?? sessionId);\n  }\n  // Organization users cannot select another tenant through a query or form.\n  return Number(sessionId);\n}\n"+part+source.slice(end);
+}
+// Preserve date filters without duplicating the tenant parameter in overview links.
+function install(source) {
+  source = installUserContext(source);
+  const marker = "// Organization overview links keep a single organization_id.";
+  if (source.includes(marker)) return source;
+  const start = source.indexOf('  "/org-organization/:id",');
+  const end = source.indexOf('  "/org-business-breakdown",', start);
+  if (start < 0 || end < 0) throw new Error("Organization overview markers changed");
+  let part = source.slice(start, end);
+  const old = 'const {\n  fromDate,\n  toDate,\n  queryString: dateQueryString,';
+  if (!part.includes(old)) throw new Error("Overview date query declaration changed");
+  part = part.replace(old, 'const {\n  fromDate,\n  toDate,\n  queryString: scopeQueryString,');
+  const anchor = '      const orgResult = await q(`';
+  if (!part.includes(anchor)) throw new Error("Overview organization lookup changed");
+  part = part.replace(anchor, marker + '\nconst overviewDateParams = new URLSearchParams(scopeQueryString);\noverviewDateParams.delete("organization_id");\nconst dateQueryString = overviewDateParams.toString();\n\n' + anchor);
+  return source.slice(0,start) + part + source.slice(end);
 }
 if(require.main===module){
   const file=path.join(__dirname,"server.js");
