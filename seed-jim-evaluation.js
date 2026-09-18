@@ -6,33 +6,401 @@ const KEY = "jim-evaluation-2026-09-v1";
 const START = "2026-06-20";
 const END = "2026-09-17";
 let ORG, OWNER, PROGRAM;
-const NOTICE = "DEMONSTRATION ONLY — fictional venue and simulated results; example pricing, no purchase or physical inventory offered.";
+const NOTICE = "DEMONSTRATION ONLY — illustrative college-campus scenarios (no university affiliation or endorsement) and simulated referral-acquisition outcomes. Prices and conversion values are illustrative, not VIA VIA fees, referral rewards or actual earned revenue. No purchase or physical inventory offered.";
 const locations = [
-  {key:"naples-school", name:"Demo — Naples Community School", market:"Naples, FL", kind:"School"},
-  {key:"fortmyers-school", name:"Demo — Fort Myers Community School", market:"Fort Myers, FL", kind:"School"},
-  {key:"naples-retail", name:"Demo — Naples Retail Center", market:"Naples, FL", kind:"Retail"},
-  {key:"fortmyers-retail", name:"Demo — Fort Myers Retail Center", market:"Fort Myers, FL", kind:"Retail"}
+  {
+    "key": "alabama",
+    "name": "Demo — University of Alabama",
+    "market": "Tuscaloosa, AL",
+    "kind": "College Campus"
+  },
+  {
+    "key": "auburn",
+    "name": "Demo — Auburn University",
+    "market": "Auburn, AL",
+    "kind": "College Campus"
+  },
+  {
+    "key": "uab",
+    "name": "Demo — University of Alabama at Birmingham",
+    "market": "Birmingham, AL",
+    "kind": "College Campus"
+  },
+  {
+    "key": "uah",
+    "name": "Demo — University of Alabama in Huntsville",
+    "market": "Huntsville, AL",
+    "kind": "College Campus"
+  },
+  {
+    "key": "georgia",
+    "name": "Demo — University of Georgia",
+    "market": "Athens, GA",
+    "kind": "College Campus"
+  },
+  {
+    "key": "gatech",
+    "name": "Demo — Georgia Tech",
+    "market": "Atlanta, GA",
+    "kind": "College Campus"
+  },
+  {
+    "key": "gastate",
+    "name": "Demo — Georgia State University",
+    "market": "Atlanta, GA",
+    "kind": "College Campus"
+  },
+  {
+    "key": "gasouthern",
+    "name": "Demo — Georgia Southern University",
+    "market": "Statesboro, GA",
+    "kind": "College Campus"
+  }
 ];
 const campaigns = [
-  {key:"home", name:"Demo — Harbor Home Services | Home Care Consultation", advertiser:"Demo — Harbor Home Services", value:250, end:"2026-09-30"},
-  {key:"fitness", name:"Demo — Gulf Coast Fitness | Introductory Membership", advertiser:"Demo — Gulf Coast Fitness", value:120, end:"2026-10-31"},
-  {key:"cafe", name:"Demo — Coastal Cafe | Family Meal Offer", advertiser:"Demo — Coastal Cafe", value:35, end:"2026-11-30"}
+  {key:"home", name:"Demo — VIA VIA | Talent Referrals", advertiser:"Demo — Talent Partner", value:250, end:"2026-09-30"},
+  {key:"fitness", name:"Demo — VIA VIA | Service Provider Introductions", advertiser:"Demo — Service Partner", value:120, end:"2026-10-31"},
+  {key:"cafe", name:"Demo — VIA VIA | Customer Introductions", advertiser:"Demo — Customer Growth Partner", value:35, end:"2026-11-30"}
 ];
 const placements = [
-  {key:"naples-carline",location:0,campaign:0,name:"Car Line Fence",cost:1200,scans:8,clickEvery:3,convertEvery:8,end:"2026-09-30"},
-  {key:"fortmyers-carline",location:1,campaign:0,name:"Car Line Fence",cost:1000,scans:7,clickEvery:4,convertEvery:12,end:"2026-09-30"},
-  {key:"naples-fitness",location:2,campaign:1,name:"Retail Entrance Display",cost:900,scans:6,clickEvery:3,convertEvery:10,end:"2026-10-31"},
-  {key:"fortmyers-fitness",location:3,campaign:1,name:"Retail Entrance Display",cost:750,scans:5,clickEvery:4,convertEvery:15,end:"2026-10-31"},
-  {key:"naples-cafe",location:0,campaign:2,name:"Athletics Concession Display",cost:600,scans:9,clickEvery:2,convertEvery:6,end:"2026-11-30"},
-  {key:"fortmyers-cafe",location:1,campaign:2,name:"Athletics Concession Display",cost:500,scans:8,clickEvery:3,convertEvery:9,end:"2026-11-30"}
+  {
+    "key": "alabama-talent",
+    "location": 0,
+    "campaign": 0,
+    "name": "Career Fair Welcome Display",
+    "cost": 600,
+    "scans": 8,
+    "clickEvery": 3,
+    "convertEvery": 8,
+    "end": "2026-09-30"
+  },
+  {
+    "key": "alabama-services",
+    "location": 0,
+    "campaign": 1,
+    "name": "Student Services Partner Display",
+    "cost": 450,
+    "scans": 6,
+    "clickEvery": 4,
+    "convertEvery": 10,
+    "end": "2026-10-31"
+  },
+  {
+    "key": "alabama-customers",
+    "location": 0,
+    "campaign": 2,
+    "name": "Campus Referral Invitation Cards",
+    "cost": 300,
+    "scans": 9,
+    "clickEvery": 2,
+    "convertEvery": 12,
+    "end": "2026-11-30"
+  },
+  {
+    "key": "auburn-talent",
+    "location": 1,
+    "campaign": 0,
+    "name": "Career Fair Welcome Display",
+    "cost": 625,
+    "scans": 9,
+    "clickEvery": 4,
+    "convertEvery": 10,
+    "end": "2026-09-30"
+  },
+  {
+    "key": "auburn-services",
+    "location": 1,
+    "campaign": 1,
+    "name": "Student Services Partner Display",
+    "cost": 475,
+    "scans": 7,
+    "clickEvery": 2,
+    "convertEvery": 12,
+    "end": "2026-10-31"
+  },
+  {
+    "key": "auburn-customers",
+    "location": 1,
+    "campaign": 2,
+    "name": "Campus Referral Invitation Cards",
+    "cost": 325,
+    "scans": 10,
+    "clickEvery": 3,
+    "convertEvery": 8,
+    "end": "2026-11-30"
+  },
+  {
+    "key": "uab-talent",
+    "location": 2,
+    "campaign": 0,
+    "name": "Career Fair Welcome Display",
+    "cost": 650,
+    "scans": 10,
+    "clickEvery": 2,
+    "convertEvery": 12,
+    "end": "2026-09-30"
+  },
+  {
+    "key": "uab-services",
+    "location": 2,
+    "campaign": 1,
+    "name": "Student Services Partner Display",
+    "cost": 500,
+    "scans": 8,
+    "clickEvery": 3,
+    "convertEvery": 8,
+    "end": "2026-10-31"
+  },
+  {
+    "key": "uab-customers",
+    "location": 2,
+    "campaign": 2,
+    "name": "Campus Referral Invitation Cards",
+    "cost": 350,
+    "scans": 11,
+    "clickEvery": 4,
+    "convertEvery": 10,
+    "end": "2026-11-30"
+  },
+  {
+    "key": "uah-talent",
+    "location": 3,
+    "campaign": 0,
+    "name": "Career Fair Welcome Display",
+    "cost": 675,
+    "scans": 8,
+    "clickEvery": 3,
+    "convertEvery": 8,
+    "end": "2026-09-30"
+  },
+  {
+    "key": "uah-services",
+    "location": 3,
+    "campaign": 1,
+    "name": "Student Services Partner Display",
+    "cost": 525,
+    "scans": 6,
+    "clickEvery": 4,
+    "convertEvery": 10,
+    "end": "2026-10-31"
+  },
+  {
+    "key": "uah-customers",
+    "location": 3,
+    "campaign": 2,
+    "name": "Campus Referral Invitation Cards",
+    "cost": 375,
+    "scans": 9,
+    "clickEvery": 2,
+    "convertEvery": 12,
+    "end": "2026-11-30"
+  },
+  {
+    "key": "georgia-talent",
+    "location": 4,
+    "campaign": 0,
+    "name": "Career Fair Welcome Display",
+    "cost": 700,
+    "scans": 9,
+    "clickEvery": 4,
+    "convertEvery": 10,
+    "end": "2026-09-30"
+  },
+  {
+    "key": "georgia-services",
+    "location": 4,
+    "campaign": 1,
+    "name": "Student Services Partner Display",
+    "cost": 550,
+    "scans": 7,
+    "clickEvery": 2,
+    "convertEvery": 12,
+    "end": "2026-10-31"
+  },
+  {
+    "key": "georgia-customers",
+    "location": 4,
+    "campaign": 2,
+    "name": "Campus Referral Invitation Cards",
+    "cost": 400,
+    "scans": 10,
+    "clickEvery": 3,
+    "convertEvery": 8,
+    "end": "2026-11-30"
+  },
+  {
+    "key": "gatech-talent",
+    "location": 5,
+    "campaign": 0,
+    "name": "Career Fair Welcome Display",
+    "cost": 725,
+    "scans": 10,
+    "clickEvery": 2,
+    "convertEvery": 12,
+    "end": "2026-09-30"
+  },
+  {
+    "key": "gatech-services",
+    "location": 5,
+    "campaign": 1,
+    "name": "Student Services Partner Display",
+    "cost": 575,
+    "scans": 8,
+    "clickEvery": 3,
+    "convertEvery": 8,
+    "end": "2026-10-31"
+  },
+  {
+    "key": "gatech-customers",
+    "location": 5,
+    "campaign": 2,
+    "name": "Campus Referral Invitation Cards",
+    "cost": 425,
+    "scans": 11,
+    "clickEvery": 4,
+    "convertEvery": 10,
+    "end": "2026-11-30"
+  },
+  {
+    "key": "gastate-talent",
+    "location": 6,
+    "campaign": 0,
+    "name": "Career Fair Welcome Display",
+    "cost": 750,
+    "scans": 8,
+    "clickEvery": 3,
+    "convertEvery": 8,
+    "end": "2026-09-30"
+  },
+  {
+    "key": "gastate-services",
+    "location": 6,
+    "campaign": 1,
+    "name": "Student Services Partner Display",
+    "cost": 600,
+    "scans": 6,
+    "clickEvery": 4,
+    "convertEvery": 10,
+    "end": "2026-10-31"
+  },
+  {
+    "key": "gastate-customers",
+    "location": 6,
+    "campaign": 2,
+    "name": "Campus Referral Invitation Cards",
+    "cost": 450,
+    "scans": 9,
+    "clickEvery": 2,
+    "convertEvery": 12,
+    "end": "2026-11-30"
+  },
+  {
+    "key": "gasouthern-talent",
+    "location": 7,
+    "campaign": 0,
+    "name": "Career Fair Welcome Display",
+    "cost": 775,
+    "scans": 9,
+    "clickEvery": 4,
+    "convertEvery": 10,
+    "end": "2026-09-30"
+  },
+  {
+    "key": "gasouthern-services",
+    "location": 7,
+    "campaign": 1,
+    "name": "Student Services Partner Display",
+    "cost": 625,
+    "scans": 7,
+    "clickEvery": 2,
+    "convertEvery": 12,
+    "end": "2026-10-31"
+  },
+  {
+    "key": "gasouthern-customers",
+    "location": 7,
+    "campaign": 2,
+    "name": "Campus Referral Invitation Cards",
+    "cost": 475,
+    "scans": 10,
+    "clickEvery": 3,
+    "convertEvery": 8,
+    "end": "2026-11-30"
+  }
 ];
 const available = [
-  {location:0,name:"Gymnasium Community Sponsor",cost:1500,unit:"Per Year",term:1,termUnit:"Years",description:"Gymnasium sponsor display for school and community events. Start the Jim onboarding exercise here."},
-  {location:1,name:"Football Stadium Sponsor",cost:1800,unit:"Per Year",term:1,termUnit:"Years",description:"Stadium display with a dedicated QR destination for a local business."},
-  {location:0,name:"School Magazine Full Page",cost:450,unit:"Per Campaign",term:1,termUnit:"Issues",description:"One full-page magazine placement with a trackable QR code."},
-  {location:1,name:"School Event Welcome Display",cost:300,unit:"Per Event",term:1,termUnit:"Events",description:"Entrance display for one school community event."},
-  {location:2,name:"Retail Checkout Counter Display",cost:225,unit:"Per Month",term:1,termUnit:"Months",description:"One month of checkout counter visibility with a dedicated trackable QR code."},
-  {location:3,name:"Retail Window Community Sponsor",cost:300,unit:"Per Month",term:1,termUnit:"Months",description:"One month of retail window visibility with a dedicated trackable QR code."}
+  {
+    "location": 0,
+    "name": "Career Fair Referral Booth",
+    "cost": 450,
+    "unit": "Per Event",
+    "term": 1,
+    "termUnit": "Events",
+    "description": "Illustrative campus referral-acquisition placement. No university affiliation, endorsement or actual inventory is implied. Start the VIA VIA onboarding exercise here."
+  },
+  {
+    "location": 1,
+    "name": "Student Organization Sponsor",
+    "cost": 600,
+    "unit": "Per Campaign",
+    "term": 1,
+    "termUnit": "Semesters",
+    "description": "Illustrative campus referral-acquisition placement. No university affiliation, endorsement or actual inventory is implied. "
+  },
+  {
+    "location": 2,
+    "name": "Campus Newsletter Referral Feature",
+    "cost": 250,
+    "unit": "Per Campaign",
+    "term": 1,
+    "termUnit": "Issues",
+    "description": "Illustrative campus referral-acquisition placement. No university affiliation, endorsement or actual inventory is implied. "
+  },
+  {
+    "location": 3,
+    "name": "Campus Networking Event Sponsor",
+    "cost": 350,
+    "unit": "Per Event",
+    "term": 1,
+    "termUnit": "Events",
+    "description": "Illustrative campus referral-acquisition placement. No university affiliation, endorsement or actual inventory is implied. "
+  },
+  {
+    "location": 4,
+    "name": "Career Fair Referral Booth",
+    "cost": 450,
+    "unit": "Per Event",
+    "term": 1,
+    "termUnit": "Events",
+    "description": "Illustrative campus referral-acquisition placement. No university affiliation, endorsement or actual inventory is implied. "
+  },
+  {
+    "location": 5,
+    "name": "Student Organization Sponsor",
+    "cost": 600,
+    "unit": "Per Campaign",
+    "term": 1,
+    "termUnit": "Semesters",
+    "description": "Illustrative campus referral-acquisition placement. No university affiliation, endorsement or actual inventory is implied. "
+  },
+  {
+    "location": 6,
+    "name": "Campus Newsletter Referral Feature",
+    "cost": 250,
+    "unit": "Per Campaign",
+    "term": 1,
+    "termUnit": "Issues",
+    "description": "Illustrative campus referral-acquisition placement. No university affiliation, endorsement or actual inventory is implied. "
+  },
+  {
+    "location": 7,
+    "name": "Campus Networking Event Sponsor",
+    "cost": 350,
+    "unit": "Per Event",
+    "term": 1,
+    "termUnit": "Events",
+    "description": "Illustrative campus referral-acquisition placement. No university affiliation, endorsement or actual inventory is implied. "
+  }
 ];
 
 function buildEvents(p, index, campaignId, qrId, destinationId) {
@@ -107,10 +475,10 @@ async function seed(client) {
         VALUES($1,$2,$3,$4,'Active',true) RETURNING id`,[OWNER,ORG,c.advertiser,NOTICE]);
       const r = await client.query(`INSERT INTO campaigns(name,advertiser,advertiser_id,user_id,organization_id,campaign_url,
         avg_customer_value,is_test,start_date,live_date,end_date,created_at,is_archived)
-        VALUES($1,$2,$3,$4,$5,'https://vividspots.com/',$6,true,$7::date,$7::date,$8::date,$7::date,false) RETURNING id`,
+        VALUES($1,$2,$3,$4,$5,'https://justviavia.com/',$6,true,$7::date,$7::date,$8::date,$7::date,false) RETURNING id`,
         [c.name,c.advertiser,a.rows[0].id,OWNER,ORG,c.value,START,c.end]);
       const dest = await client.query(`INSERT INTO campaign_destinations(campaign_id,name,destination_type,destination_url,estimated_value,display_order,is_active)
-        VALUES($1,'Demo destination — replace with your landing page','website','https://vividspots.com/',$2,1,true) RETURNING id`,[r.rows[0].id,c.value]);
+        VALUES($1,'VIA VIA — add an instrumented campaign landing page','website','https://justviavia.com/',$2,1,true) RETURNING id`,[r.rows[0].id,c.value]);
       manifest.campaigns.push({id:r.rows[0].id,advertiserId:a.rows[0].id,destinationId:dest.rows[0].id,name:c.name});
     }
     for (let i=0;i<placements.length;i++) {
@@ -145,8 +513,8 @@ async function seed(client) {
     }
     // An upcoming dated event makes the calendar and weekly report actionable.
     await client.query(`INSERT INTO campaign_schedules(qr_id,campaign_id,schedule_kind,event_name,event_type,event_start_at,event_end_at,event_timezone,event_notes,priority,is_active)
-      VALUES($1,$2,'event','Demo — Family Community Evening','community','2026-09-25T21:00:00Z','2026-09-26T01:00:00Z','America/New_York',$3,90,true)`,
-      [manifest.placements[4].id,manifest.campaigns[2].id,NOTICE]);
+      VALUES($1,$2,'event','Demo — VIA VIA Campus Referral Evening','community','2026-09-25T21:00:00Z','2026-09-26T01:00:00Z','America/New_York',$3,90,true)`,
+      [manifest.placements[2].id,manifest.campaigns[2].id,NOTICE]);
     for(let i=0;i<available.length;i++){
       const o=available[i], locationId=manifest.locations[o.location].id;
       const params=[ORG,locationId,`Demo — ${o.name}`,`${NOTICE} ${o.description}`,locations[o.location].kind,o.cost,o.unit,o.term,o.termUnit,20+i];
@@ -199,7 +567,7 @@ async function completeDetails(client,manifest){
        suggested_term_length,suggested_term_unit,status,setup_status,created_vivid_user_id,
        created_contract_id,created_qr_id,created_campaign_id,approved_at,submitted_at,created_at,updated_at)
       VALUES($1,$2,$3,$4,'Demo historical customer','jim-evaluation@example.invalid','DEMO — no telephone',$5,
-       'https://vividspots.com/',$6,$7,$8,'Per Campaign',$9,'Days','Approved','Campaign Created',
+       'https://justviavia.com/',$6,$7,$8,'Per Campaign',$9,'Days','Approved','Campaign Created',
        $10,$11,$12,$13,$14::date,$14::date,$14::date,$14::date) RETURNING id`,
       [ORG,row.location_id,row.opportunity_id,campaigns[p.campaign].advertiser,campaign.name,
        NOTICE,row.title,p.cost,manifest.placements[i].days,OWNER,ct.id,ct.qrId,campaign.id,START]);
