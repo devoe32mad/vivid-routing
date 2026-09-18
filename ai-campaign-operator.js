@@ -9,6 +9,29 @@ function money(value) {
   return Number.isFinite(amount) ? amount.toLocaleString("en-US",{style:"currency",currency:"USD"}) : "$0.00";
 }
 
+function rate(numerator, denominator) {
+  const top = Number(numerator || 0), bottom = Number(denominator || 0);
+  return bottom > 0 ? (top / bottom) * 100 : 0;
+}
+
+function placementAudienceWarning(audience, placement) {
+  const a = String(audience || "").toLowerCase(), p = String(placement || "").toLowerCase();
+  const contexts = [
+    { audience: ["car line","pickup","drop-off","drop off"], placement: ["car line","roadside","entrance","pickup","drop-off"] },
+    { audience: ["game","athletic","fan","concession","football","basketball","baseball"], placement: ["stadium","gym","athletic","concession","football","basketball","baseball"] },
+    { audience: ["student","campus"], placement: ["campus","hall","student","cafeteria","classroom"] }
+  ];
+  const expected = contexts.find(group => group.audience.some(word => a.includes(word)));
+  if (!expected || expected.placement.some(word => p.includes(word))) return "";
+  return `Audience and placement may not align: “${audience}” does not clearly match “${placement}.” Confirm the audience or choose a more relevant placement before approval.`;
+}
+
+function comparableSummary(item) {
+  const scans = Number(item.scans || 0), clicks = Number(item.clicks || 0), conversions = Number(item.conversions || 0);
+  return { name:item.name || "Comparable campaign", placement:item.placement || "", scans, clicks, conversions,
+    clickRate:rate(clicks,scans), conversionRate:rate(conversions,clicks || scans), source:item.source || "account" };
+}
+
 function validateCampaignBrief(input = {}) {
   const value = {
     name: String(input.name || "").trim().slice(0,120),
@@ -42,17 +65,32 @@ function prepareCampaignPlan(brief, context = {}) {
   const measurement = brief.objective === "conversion"
     ? ["Scans","Clicks","Conversions","Attributed value","Cost per conversion"]
     : ["Scans","Clicks","Clicks per scan","Conversions"];
+  const placement = context.placementName || `Placement ${brief.placementId}`;
+  const comparables = (context.comparables || []).map(comparableSummary);
+  const best = comparables[0] || null;
+  const current = comparableSummary({name:"Selected placement — last 90 days",...(context.metrics || {}),source:"placement"});
+  const benchmark = context.benchmark ? comparableSummary({...context.benchmark,name:"Anonymous Vivid benchmark",source:"benchmark"}) : null;
   return {
     headline: brief.offer,
     callToAction: objectiveActions[brief.objective],
     audience: brief.audience,
-    placement: context.placementName || `Placement ${brief.placementId}`,
+    placement,
     schedule: `${brief.startDate} through ${brief.endDate}`,
     budget: brief.budget,
     measurement,
-    rationale: `Prepared from the ${brief.objective} objective, selected Vivid placement and supplied audience.`,
+    rationale: best ? `Prepared from the ${brief.objective} objective and compared with successful measured campaigns. The strongest relevant example was “${best.name}”${best.placement ? ` at ${best.placement}` : ""}.` : `Prepared from the ${brief.objective} objective, selected Vivid placement and supplied audience.`,
     evidence: context.evidence || "No prior measured activity was available for this placement; start with a controlled test.",
-    eventNotes: brief.eventNotes
+    eventNotes: brief.eventNotes,
+    warning: placementAudienceWarning(brief.audience,placement),
+    currentPerformance: current,
+    comparables,
+    benchmark,
+    targets: {
+      clickRate: best ? Math.max(current.clickRate,best.clickRate) : current.clickRate,
+      conversionRate: best ? Math.max(current.conversionRate,best.conversionRate) : current.conversionRate,
+      guidance: best ? "Use the comparable campaign as a performance target, not a guarantee. Review results weekly and adjust message or timing when performance trails the target." : "Treat this as a controlled test. Establish a baseline before increasing budget or expanding the schedule."
+    },
+    scheduleRecommendation: brief.eventNotes ? `Prioritize the supplied timing constraint: ${brief.eventNotes}. Use the event calendar or recurring schedule after approval.` : "Match delivery to the placement’s highest-traffic events or recurring time windows, then review performance by event and time period."
   };
 }
 
@@ -60,10 +98,17 @@ function renderPlanCard(plan, options = {}) {
   const data = typeof plan.plan_json === "string" ? JSON.parse(plan.plan_json) : (plan.plan_json || {});
   const action = options.action || "/admin/ai-approval-center/action";
   const scopeInput = options.organizationId ? `<input type="hidden" name="organization_id" value="${Number(options.organizationId)}">` : "";
+  const comparisons = Array.isArray(data.comparables) ? data.comparables : [];
+  const performance = data.currentPerformance || {}, targets = data.targets || {};
   return `<article style="border:1px solid #dbe4f0;border-radius:15px;padding:18px;background:#fff;box-shadow:0 5px 16px rgba(16,43,80,.06);">
     <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:11px;font-weight:900;color:#1559c7;text-transform:uppercase;">AI-prepared campaign</div><h3 style="margin:6px 0;color:#102b50;">${escapeHtml(plan.name)}</h3></div><span style="height:max-content;border-radius:999px;background:#eaf2ff;color:#173b6b;padding:7px 10px;font-size:12px;font-weight:900;">${escapeHtml(plan.status || "pending")}</span></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:12px;"><div><small>Audience</small><div>${escapeHtml(data.audience)}</div></div><div><small>Placement</small><div>${escapeHtml(data.placement)}</div></div><div><small>Schedule</small><div>${escapeHtml(data.schedule)}</div></div><div><small>Budget</small><div>${money(data.budget)}</div></div></div>
     <div style="margin-top:13px;padding:13px;border-radius:10px;background:#f6f8fc;"><strong>Recommended message</strong><div style="margin-top:5px;">${escapeHtml(data.headline)}</div><div style="font-size:13px;color:#52667e;margin-top:5px;">${escapeHtml(data.callToAction)}</div></div>
+    ${data.warning ? `<div style="margin-top:12px;padding:12px;border-radius:10px;background:#fff7e6;color:#7a4b00;"><strong>Review before approval:</strong> ${escapeHtml(data.warning)}</div>` : ""}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px;"><div style="padding:12px;border-radius:10px;background:#f6f8fc;"><small>Current clicks / scans</small><div style="font-weight:900;font-size:18px;">${Number(performance.clickRate||0).toFixed(1)}%</div></div><div style="padding:12px;border-radius:10px;background:#f6f8fc;"><small>Current conversion rate</small><div style="font-weight:900;font-size:18px;">${Number(performance.conversionRate||0).toFixed(1)}%</div></div><div style="padding:12px;border-radius:10px;background:#eaf2ff;"><small>Recommended click-rate target</small><div style="font-weight:900;font-size:18px;">${Number(targets.clickRate||0).toFixed(1)}%</div></div><div style="padding:12px;border-radius:10px;background:#eaf2ff;"><small>Recommended conversion target</small><div style="font-weight:900;font-size:18px;">${Number(targets.conversionRate||0).toFixed(1)}%</div></div></div>
+    <div style="margin-top:12px;"><strong>Recommended timing</strong><div style="font-size:13px;color:#52667e;margin-top:4px;">${escapeHtml(data.scheduleRecommendation||"")}</div></div>
+    ${comparisons.length ? `<div style="margin-top:12px;"><strong>Successful campaigns used as evidence</strong><div style="display:grid;gap:7px;margin-top:7px;">${comparisons.slice(0,3).map(item=>`<div style="padding:10px;border:1px solid #dbe4f0;border-radius:9px;"><strong>${escapeHtml(item.name)}</strong>${item.placement?` · ${escapeHtml(item.placement)}`:""}<div style="font-size:12px;color:#52667e;">${Number(item.scans||0)} scans · ${Number(item.clicks||0)} clicks · ${Number(item.conversions||0)} conversions · ${Number(item.clickRate||0).toFixed(1)}% clicks/scans</div></div>`).join("")}</div></div>` : `<div style="font-size:13px;color:#52667e;margin-top:12px;">No qualified prior campaign was available. This recommendation is marked as a controlled test.</div>`}
+    ${data.benchmark ? `<div style="font-size:13px;color:#52667e;margin-top:10px;"><strong>Anonymous Vivid benchmark:</strong> ${Number(data.benchmark.clickRate||0).toFixed(1)}% clicks/scans and ${Number(data.benchmark.conversionRate||0).toFixed(1)}% conversion rate. No organization or advertiser identity is disclosed.</div>` : ""}
     <div style="font-size:13px;color:#52667e;line-height:1.5;margin-top:12px;"><strong>Why Vivid prepared this:</strong> ${escapeHtml(data.rationale)} ${escapeHtml(data.evidence)}</div>
     ${plan.status === "pending" ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:15px;"><form method="POST" action="${escapeHtml(action)}"><input type="hidden" name="plan_id" value="${Number(plan.id)}"><input type="hidden" name="decision" value="approved">${scopeInput}<button type="submit" style="border:0;border-radius:9px;background:#2563eb;color:#fff;padding:10px 13px;font-weight:900;cursor:pointer;">Approve Plan</button></form><form method="POST" action="${escapeHtml(action)}"><input type="hidden" name="plan_id" value="${Number(plan.id)}"><input type="hidden" name="decision" value="dismissed">${scopeInput}<button type="submit" style="border:1px solid #cbd7e8;border-radius:9px;background:#fff;color:#173b6b;padding:9px 13px;font-weight:900;cursor:pointer;">Dismiss</button></form></div>` : ""}
   </article>`;

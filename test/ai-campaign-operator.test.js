@@ -25,6 +25,21 @@ test("prepares an explainable conversion plan with measured evidence", () => {
   assert.match(plan.evidence,/12 scans/);
 });
 
+test("uses successful comparable campaigns to set targets", () => {
+  const brief = validateCampaignBrief({name:"Game Night",objective:"conversion",audience:"Families at games",offer:"Family offer",placementId:4,startDate:"2026-10-01",endDate:"2026-10-31",budget:500}).value;
+  const plan = prepareCampaignPlan(brief,{placementName:"Stadium",metrics:{scans:100,clicks:20,conversions:2},comparables:[{name:"Winning Friday Offer",placement:"Stadium",scans:200,clicks:80,conversions:16,source:"same_placement"}]});
+  assert.equal(plan.comparables[0].name,"Winning Friday Offer");
+  assert.equal(plan.targets.clickRate,40);
+  assert.equal(plan.targets.conversionRate,20);
+  assert.match(plan.rationale,/Winning Friday Offer/);
+});
+
+test("flags an audience and placement mismatch", () => {
+  const brief = validateCampaignBrief({name:"Car Line",objective:"engagement",audience:"Students and family in car line",offer:"Offer",placementId:4,startDate:"2026-10-01",endDate:"2026-10-31",budget:500}).value;
+  const plan = prepareCampaignPlan(brief,{placementName:"Athletics Concession Display",metrics:{}});
+  assert.match(plan.warning,/may not align/);
+});
+
 test("renders approval controls without claiming automatic execution", () => {
   const plan={id:7,name:"<script>bad</script>",status:"pending",plan_json:{audience:"Families",placement:"Stadium",schedule:"October",budget:500,headline:"Offer",callToAction:"Act",rationale:"Measured",evidence:"Evidence"}};
   const html=renderPlanCard(plan);
