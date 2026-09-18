@@ -73,20 +73,20 @@ async function seed(client) {
     const existing = await client.query("SELECT id FROM users WHERE LOWER(TRIM(email))=$1",['jvac@acqnet.com']);
     if(existing.rows.length) throw new Error("Jim email already exists; review ownership before loading.");
     const duplicate = await client.query("SELECT id FROM organizations WHERE name=$1 OR slug=$2",
-      ['Jim Vaccarino Demo','jim-vaccarino-demo']);
+      ['VIA VIA','via-via-demo']);
     if(duplicate.rows.length) throw new Error("Jim demo organization already exists without fixture marker.");
     const user=await client.query(`INSERT INTO users(name,email,password,role,account_status,company_name)
-      VALUES('James Vaccarino','jvac@acqnet.com',NULL,'customer','pending','Jim Vaccarino Demo') RETURNING id`);
+      VALUES('James Vaccarino','jvac@acqnet.com',NULL,'customer','pending','VIA VIA') RETURNING id`);
     OWNER=Number(user.rows[0].id);
     const org=await client.query(`INSERT INTO organizations(customer_id,name,organization_type,contact_name,contact_email,
       notes,is_active,slug,public_heading,public_description)
-      VALUES($1,'Jim Vaccarino Demo','Evaluation','James Vaccarino','jvac@acqnet.com',$2,true,
-      'jim-vaccarino-demo','Explore Jim’s Vivid demonstration',$2) RETURNING id`,[OWNER,NOTICE]);
+      VALUES($1,'VIA VIA','Evaluation','James Vaccarino','jvac@acqnet.com',$2,true,
+      'via-via-demo','Explore VIA VIA’s Vivid demonstration',$2) RETURNING id`,[OWNER,NOTICE]);
     ORG=Number(org.rows[0].id);
     const membership=await client.query(`INSERT INTO organization_users(organization_id,user_id,role,is_active)
       VALUES($1,$2,'organization_admin',true) RETURNING id`,[ORG,OWNER]);
     const program=await client.query(`INSERT INTO organization_programs(organization_id,name,description,program_type)
-      VALUES($1,'Jim Evaluation (TEST)',$2,'advertising') RETURNING id`,[ORG,NOTICE]);
+      VALUES($1,'VIA VIA Evaluation (TEST)',$2,'advertising') RETURNING id`,[ORG,NOTICE]);
     PROGRAM=Number(program.rows[0].id);
     if(![ORG,OWNER,PROGRAM].every(x=>Number.isSafeInteger(x)&&x>0))throw new Error("Invalid new account identifiers");
     await client.query(`INSERT INTO organization_user_invitations(organization_id,user_id,organization_user_id,email,token_hash,expires_at)
