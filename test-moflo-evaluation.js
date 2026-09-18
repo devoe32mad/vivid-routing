@@ -21,6 +21,7 @@ async function run(){
     const nums=[...sql.matchAll(/\$(\d+)/g)].map(x=>+x[1]);
     assert.equal(nums.length?Math.max(...nums):0,args.length,'SQL parameter count: '+sql);
     if(sql.includes('SELECT manifest'))return {rows:[]};
+    if(sql.includes('SELECT id FROM campaigns'))return {rows:[{id:1},{id:2},{id:3}]};
     if(sql.includes('FILTER(WHERE'))return {rows:[totals]};
     return {rows:[{id:id++}]};
   }};
