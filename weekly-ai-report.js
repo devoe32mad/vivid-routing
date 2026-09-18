@@ -101,9 +101,10 @@ function renderWeeklyAiReport(report = {}) {
     ? `/org-performance?organization_id=${count(report.organizationId)}`
     : "/admin/ai-insights";
   const calendarHref = report.role === "enterprise" ? baseHref : "/admin/event-calendar";
-  const operatorLabel = report.role === "enterprise"
-    ? "Review Recommended Actions"
-    : "Prepare in Campaign Scheduling";
+  const operatorLabel = "Prepare Campaign Plan";
+  const operatorHref = report.role === "enterprise"
+    ? `/org-ai-campaign-operator?organization_id=${count(report.organizationId)}`
+    : "/admin/ai-campaign-operator";
   const metrics = report.metrics || {};
   const previous = report.previousMetrics || {};
   const priorities = Array.isArray(report.priorities) ? report.priorities : [];
@@ -147,13 +148,14 @@ function renderWeeklyAiReport(report = {}) {
 
     <section style="margin-top:22px;border-radius:16px;background:#eef4ff;border:1px solid #c8d9f3;padding:18px;display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap;">
       <div><div style="font-size:12px;font-weight:900;color:#1559c7;text-transform:uppercase;">Vivid AI Campaign Operator</div><h2 style="margin:6px 0;color:#102b50;">Prepare campaigns and schedules for approval</h2><div style="font-size:13px;color:#52667e;max-width:720px;line-height:1.5;">Vivid can use measured performance, upcoming events and available placements to prepare a campaign plan. Nothing is published or changed until an authorized user approves it.</div></div>
-      <a href="${escapeHtml(calendarHref)}" style="background:#2563eb;color:#fff!important;border-radius:10px;padding:12px 15px;text-decoration:none;font-weight:900;">${operatorLabel}</a>
+      <a href="${escapeHtml(operatorHref)}" style="background:#2563eb;color:#fff!important;border-radius:10px;padding:12px 15px;text-decoration:none;font-weight:900;">${operatorLabel}</a>
     </section>
   </main>`;
 }
 
 function renderWeeklyAiPreferences(preferences = {}, options = {}) {
   const action = safeHref(options.action, "/weekly-ai-report/preferences");
+  const testAction = safeHref(options.testAction, "#");
   return `<section style="max-width:760px;margin:22px auto;padding:20px;border:1px solid #dbe4f0;border-radius:16px;background:#fff;">
     <div style="font-size:12px;font-weight:900;color:#1559c7;text-transform:uppercase;">Weekly delivery</div><h2 style="margin:6px 0;color:#102b50;">Email my interactive Vivid AI report</h2><p style="color:#52667e;line-height:1.5;">The email contains a secure link. The report itself stays interactive so every event, recommendation and metric can open the relevant Vivid workflow.</p>
     <form method="POST" action="${escapeHtml(action)}">
@@ -166,6 +168,7 @@ function renderWeeklyAiPreferences(preferences = {}, options = {}) {
       <label style="display:flex;gap:9px;align-items:center;font-weight:800;margin-top:12px;"><input type="checkbox" name="include_external" value="1" ${preferences.includeExternal !== false ? "checked" : ""} style="width:auto;margin:0;"> Include verified external intelligence when relevant</label>
       <button type="submit" style="margin-top:17px;background:#2563eb;color:#fff;border:0;border-radius:10px;padding:12px 16px;font-weight:900;cursor:pointer;">Save weekly report settings</button>
     </form>
+    ${testAction !== "#" ? `<form method="POST" action="${escapeHtml(testAction)}" style="margin-top:10px;"><button type="submit" style="background:#fff;color:#173b6b;border:1px solid #b8cae6;border-radius:10px;padding:11px 15px;font-weight:900;cursor:pointer;">Send Test Report to Me</button></form>` : ""}
   </section>`;
 }
 

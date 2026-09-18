@@ -101,6 +101,20 @@ function registerWeeklyAiReportRoutes({
     }
   }
 
+  async function sendTestReport(res, actor, reportPath, returnTo) {
+    const email = String(actor?.email || "").trim();
+    if (!email) return res.status(400).send("Your Vivid account does not have an email address.");
+    const reportUrl = `${String(baseUrl).replace(/\/$/, "")}${reportPath}`;
+    const sent = await sendOrganizationNotification({
+      to: email,
+      subject: "Test: Your Vivid AI weekly report",
+      senderName: "Vivid AI",
+      html: `<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#172033;"><div style="background:linear-gradient(135deg,#0b1f3a,#2563eb);padding:24px;border-radius:16px 16px 0 0;color:#fff;"><div style="font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#dbeafe;">Vivid AI Weekly Report</div><h1 style="margin:8px 0 5px;font-size:27px;">Your test report is ready</h1></div><div style="border:1px solid #dbe4f0;border-top:0;border-radius:0 0 16px 16px;padding:24px;background:#fff;"><p>This is a test of your clickable weekly report. Sign-in is required to protect account data.</p><p style="margin:22px 0;"><a href="${reportUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;border-radius:10px;padding:13px 18px;font-weight:800;">Open My Weekly Report</a></p></div></div>`
+    });
+    if (!sent) return res.status(502).send("The test report email could not be sent.");
+    return res.redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}test_email=sent`);
+  }
+
   function normalizeTimezone(value) {
     const allowed = new Set([
       "America/New_York",
@@ -273,7 +287,7 @@ function registerWeeklyAiReportRoutes({
         events,
         priorities: center.priorities,
         externalSignals
-      }) + renderWeeklyAiPreferences(preferences, { action: "/admin/weekly-ai-report/preferences" });
+      }) + renderWeeklyAiPreferences(preferences, { action: "/admin/weekly-ai-report/preferences", testAction: "/admin/weekly-ai-report/send-test" });
       res.send(page("Vivid AI Weekly Report", body));
     } catch (error) {
       console.error("WEEKLY AI REPORT ERROR", error);
@@ -288,6 +302,11 @@ function registerWeeklyAiReportRoutes({
       console.error("WEEKLY AI SETTINGS ERROR", error);
       res.status(500).send("Unable to save weekly report settings");
     }
+  });
+
+  app.post("/admin/weekly-ai-report/send-test", requireLogin, async (req, res) => {
+    try { await sendTestReport(res, req.session.user, "/admin/weekly-ai-report", "/admin/weekly-ai-report"); }
+    catch (error) { console.error("WEEKLY AI TEST EMAIL ERROR", error); res.status(500).send("Unable to send test report"); }
   });
 
   app.get("/org-weekly-ai-report", async (req, res) => {
@@ -326,7 +345,7 @@ function registerWeeklyAiReportRoutes({
         events,
         priorities: center.priorities,
         externalSignals
-      }) + renderWeeklyAiPreferences(preferences, { action: `/org-weekly-ai-report/preferences?organization_id=${organizationId}` });
+      }) + renderWeeklyAiPreferences(preferences, { action: `/org-weekly-ai-report/preferences?organization_id=${organizationId}`, testAction: `/org-weekly-ai-report/send-test?organization_id=${organizationId}` });
       res.send(orgPage("Vivid AI Weekly Report", body));
     } catch (error) {
       console.error("ORGANIZATION WEEKLY AI REPORT ERROR", error);
@@ -346,6 +365,15 @@ function registerWeeklyAiReportRoutes({
       console.error("ORGANIZATION WEEKLY AI SETTINGS ERROR", error);
       res.status(500).send("Unable to save weekly report settings");
     }
+  });
+
+  app.post("/org-weekly-ai-report/send-test", async (req, res) => {
+    try {
+      const scope = await getOrganizationScope(req), organizationId = Number(scope.organizationId);
+      const actor = req.session.orgUser || req.session.user;
+      if (!actor || !organizationId) return res.status(403).send("Access denied");
+      await sendTestReport(res, actor, `/org-weekly-ai-report?organization_id=${organizationId}`, `/org-weekly-ai-report?organization_id=${organizationId}`);
+    } catch (error) { console.error("ORGANIZATION WEEKLY AI TEST EMAIL ERROR", error); res.status(500).send("Unable to send test report"); }
   });
 
   const scheduler = setInterval(sendDueReports, 15 * 60 * 1000);

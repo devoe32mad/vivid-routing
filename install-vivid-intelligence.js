@@ -43,7 +43,10 @@ const {
 } = require("./ai-priority-center");
 const {
   registerWeeklyAiReportRoutes
-} = require("./weekly-ai-report-routes");`;
+} = require("./weekly-ai-report-routes");
+const {
+  registerAiCampaignOperatorRoutes
+} = require("./ai-campaign-operator-routes");`;
 
 const builderAnchor = `const pendingRevenue =
   Number(pendingMetricsResult.rows[0]?.pending_revenue || 0);
@@ -844,6 +847,17 @@ const weeklyReportRouteBlock = `registerWeeklyAiReportRoutes({
   baseUrl: process.env.PUBLIC_BASE_URL || process.env.BASE_URL || "https://vivid-routing-production.up.railway.app"
 });
 
+registerAiCampaignOperatorRoutes({
+  app,
+  q,
+  page,
+  orgPage,
+  organizationNav,
+  requireLogin,
+  requireOrganizationPermission,
+  getOrganizationScope
+});
+
 ${weeklyReportRouteAnchor}`;
 
 if (!source.includes(weeklyReportRouteMarker)) {
@@ -875,6 +889,20 @@ if (!source.includes(advertiserWeeklyNavMarker)) {
   source = source.replace(advertiserWeeklyNavAnchor, advertiserWeeklyNavBlock);
 }
 
+const advertiserApprovalNavMarker = `href="/admin/ai-approval-center"`;
+const advertiserApprovalNavAnchor = `  <a href="/admin/weekly-ai-report" style="color:white;text-decoration:none;">
+    Weekly AI Report
+  </a>`;
+const advertiserApprovalNavBlock = `${advertiserApprovalNavAnchor}
+  <a href="/admin/ai-approval-center" style="color:white;text-decoration:none;">
+    AI Approval Center
+  </a>`;
+if (!source.includes(advertiserApprovalNavMarker)) {
+  const matches = source.split(advertiserApprovalNavAnchor).length - 1;
+  if (matches !== 1) throw new Error(`Unable to install AI Approval Center navigation: expected one anchor, found ${matches}.`);
+  source = source.replace(advertiserApprovalNavAnchor, advertiserApprovalNavBlock);
+}
+
 const enterpriseWeeklyNavMarker = `"Weekly AI Report",\n  \`/org-weekly-ai-report?organization_id=\${organizationId}\``;
 const enterpriseWeeklyNavAnchor = `\${navItem(
   "Performance Insights",
@@ -896,6 +924,24 @@ if (!source.includes(enterpriseWeeklyNavMarker)) {
     );
   }
   source = source.replace(enterpriseWeeklyNavAnchor, enterpriseWeeklyNavBlock);
+}
+
+const enterpriseApprovalNavMarker = `"AI Approval Center",\n  \`/org-ai-approval-center?organization_id=\${organizationId}\``;
+const enterpriseApprovalNavAnchor = `\${navItem(
+  "Weekly AI Report",
+  \`/org-weekly-ai-report?organization_id=\${organizationId}\`,
+  "weekly-ai-report"
+)}`;
+const enterpriseApprovalNavBlock = `${enterpriseApprovalNavAnchor}
+\${navItem(
+  "AI Approval Center",
+  \`/org-ai-approval-center?organization_id=\${organizationId}\`,
+  "ai-approval-center"
+)}`;
+if (!source.includes(enterpriseApprovalNavMarker)) {
+  const matches = source.split(enterpriseApprovalNavAnchor).length - 1;
+  if (matches !== 1) throw new Error(`Unable to install enterprise AI Approval Center navigation: expected one anchor, found ${matches}.`);
+  source = source.replace(enterpriseApprovalNavAnchor, enterpriseApprovalNavBlock);
 }
 
 const clicksPerScanAnchor = `    const intentRate =
