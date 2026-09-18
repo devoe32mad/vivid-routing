@@ -55,14 +55,19 @@ function registerAiCampaignOperatorRoutes({ app, q, page, orgPage, organizationN
     const ownership = role === 'enterprise' ? `s.organization_id=$2` : (superAdmin ? `TRUE` : `c.user_id=$2`);
     const ownerValue = role === 'enterprise' ? scopeId : actorId;
     const comparableResult = await q(`
-      SELECT c.id,c.name,COALESCE(NULLIF(qr.name,''),s.name,'Placement '||qr.id) placement,
+      SELECT c.id,qr.id qr_id,c.name,c.name offer,COALESCE(NULLIF(qr.name,''),s.name,'Placement '||qr.id) placement,
+        COALESCE(c.start_date,MIN(e.created_at)::date) start_date,COALESCE(c.end_date,MAX(e.created_at)::date) end_date,
         COUNT(*) FILTER(WHERE e.type='scan')::int scans,
         COUNT(*) FILTER(WHERE e.type IN('offer','maps','waze','destination_click'))::int clicks,
         COUNT(*) FILTER(WHERE e.type='conversion')::int conversions,
         CASE WHEN e.qr_id=$1 THEN 'same_placement' ELSE 'account' END source
       FROM events e JOIN campaigns c ON c.id=e.campaign_id JOIN qr_codes qr ON qr.id=e.qr_id LEFT JOIN spaces s ON s.id=qr.space_id
       WHERE ${ownership} AND e.created_at>=CURRENT_TIMESTAMP-INTERVAL '365 days'
-      GROUP BY c.id,c.name,qr.id,qr.name,s.name,e.qr_id
+        AND COALESCE(c.is_test,false)=false
+        AND LOWER(COALESCE(c.name,'')) NOT LIKE '%test%' AND LOWER(COALESCE(c.name,'')) NOT LIKE '%demo%'
+        AND LOWER(COALESCE(qr.name,'')) NOT LIKE '%test%' AND LOWER(COALESCE(qr.name,'')) NOT LIKE '%demo%'
+        AND LOWER(COALESCE(s.name,'')) NOT LIKE '%test%' AND LOWER(COALESCE(s.name,'')) NOT LIKE '%demo%'
+      GROUP BY c.id,c.name,c.start_date,c.end_date,qr.id,qr.name,s.name,e.qr_id
       HAVING COUNT(*) FILTER(WHERE e.type='scan')>=10
       ORDER BY CASE WHEN e.qr_id=$1 THEN 0 ELSE 1 END,
         (COUNT(*) FILTER(WHERE e.type IN('offer','maps','waze','destination_click')))::numeric/NULLIF(COUNT(*) FILTER(WHERE e.type='scan'),0) DESC,
