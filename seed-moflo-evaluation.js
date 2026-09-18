@@ -70,7 +70,7 @@ async function seed(client) {
       manifest JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`);
     const prior = await client.query("SELECT manifest FROM vivid_evaluation_fixtures WHERE fixture_key=$1",[KEY]);
-    if (prior.rows.length) { await client.query("COMMIT"); return {alreadyLoaded:true,...prior.rows[0].manifest}; }
+    if (prior.rows.length) { const manifest=prior.rows[0].manifest; await completeDetails(client,manifest); await client.query("COMMIT"); return {alreadyLoaded:true,...manifest}; }
     const target = await client.query(`SELECT o.id FROM organizations o JOIN users u ON u.id=$2
       WHERE o.id=$1 AND o.name='MoFlo' AND LOWER(u.email)='nathan@moflo.ai'
       AND u.role='customer' AND COALESCE(o.is_active,true)=true`,[ORG,OWNER]);
@@ -161,9 +161,48 @@ async function seed(client) {
       COALESCE(SUM(value) FILTER(WHERE type='conversion'),0)::numeric revenue FROM events WHERE campaign_id=ANY($1::int[])`,[manifest.campaigns.map(c=>c.id)]);
     for(const k of Object.keys(manifest.totals))if(Number(checks.rows[0][k])!==manifest.totals[k])throw new Error(`Fixture verification failed: ${k}`);
     await client.query("INSERT INTO vivid_evaluation_fixtures(fixture_key,organization_id,manifest) VALUES($1,$2,$3::jsonb)",[KEY,ORG,JSON.stringify(manifest)]);
+    await completeDetails(client,manifest);
     await client.query("COMMIT");
     return manifest;
   }catch(error){await client.query("ROLLBACK");throw error;}
+}
+
+async function completeDetails(client,manifest){
+  if(manifest.detailVersion===2)return;
+  // Repair only this fixture's legacy click representation, preserving event IDs,
+  // timestamps and attribution. Native destination panels count destination_click.
+  const ids=manifest.campaigns.map(c=>c.id);
+  const check=await client.query(`SELECT id FROM campaigns WHERE id=ANY($1::int[]) AND user_id=$2
+    AND organization_id=$3 AND is_test=true`,[ids,OWNER,ORG]);
+  if(check.rows.length!==3)throw new Error('Fixture ownership changed; detail repair cancelled.');
+  await client.query(`UPDATE events SET type='destination_click'
+    WHERE campaign_id=ANY($1::int[]) AND vivid_click_id LIKE $2 AND type='offer'`,[ids,KEY+':%']);
+  manifest.requests=[];
+  for(let i=0;i<manifest.contracts.length;i++){
+    const ct=manifest.contracts[i], p=placements[i], campaign=manifest.campaigns[p.campaign];
+    const linked=await client.query(`SELECT ct.id,ct.opportunity_id,ct.location_id,ct.qr_id,oo.title
+      FROM contracts ct JOIN organization_opportunities oo ON oo.id=ct.opportunity_id
+      WHERE ct.id=$1 AND ct.organization_id=$2 AND ct.customer_id=$3 AND ct.qr_id=$4
+      AND ct.notes=$5 AND oo.organization_id=$2`,[ct.id,ORG,OWNER,ct.qrId,NOTICE]);
+    if(linked.rows.length!==1)throw new Error('Fixture contract identity changed.');
+    const row=linked.rows[0];
+    const request=await client.query(`INSERT INTO organization_advertising_requests
+      (organization_id,location_id,opportunity_id,business_name,contact_name,email,
+       campaign_name,destination_url,campaign_notes,opportunity_name,price,pricing_unit,
+       suggested_term_length,suggested_term_unit,status,setup_status,created_vivid_user_id,
+       created_contract_id,created_qr_id,created_campaign_id,approved_at,created_at,updated_at)
+      VALUES($1,$2,$3,$4,'Demo historical customer','moflo-evaluation@example.invalid',$5,
+       'https://vividspots.com/',$6,$7,$8,'Per Campaign',$9,'Days','Approved','Campaign Created',
+       $10,$11,$12,$13,$14::date,$14::date,$14::date) RETURNING id`,
+      [ORG,row.location_id,row.opportunity_id,campaigns[p.campaign].advertiser,campaign.name,
+       NOTICE,row.title,p.cost,manifest.placements[i].days,OWNER,ct.id,ct.qrId,campaign.id,START]);
+    await client.query('UPDATE contracts SET advertising_request_id=$1 WHERE id=$2 AND organization_id=$3',
+      [request.rows[0].id,ct.id,ORG]);
+    manifest.requests.push(request.rows[0].id);
+  }
+  manifest.detailVersion=2;
+  await client.query('UPDATE vivid_evaluation_fixtures SET manifest=$1::jsonb WHERE fixture_key=$2',
+    [JSON.stringify(manifest),KEY]);
 }
 
 async function main(){
