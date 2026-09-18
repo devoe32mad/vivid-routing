@@ -52,7 +52,36 @@ function registerAiCampaignOperatorRoutes({ app, q, page, orgPage, organizationN
     if (!placement) return res.status(403).send("You do not have access to that placement.");
     const evidenceResult = await q(`SELECT COUNT(*) FILTER(WHERE type='scan')::int scans,COUNT(*) FILTER(WHERE type IN('offer','maps','waze','destination_click'))::int clicks,COUNT(*) FILTER(WHERE type='conversion')::int conversions FROM events WHERE qr_id=$1 AND created_at>=CURRENT_TIMESTAMP-INTERVAL '90 days'`,[checked.value.placementId]);
     const evidence = evidenceResult.rows[0] || {};
-    const plan = prepareCampaignPlan(checked.value,{placementName:placement.name,evidence:`The selected placement recorded ${Number(evidence.scans||0)} scans, ${Number(evidence.clicks||0)} clicks and ${Number(evidence.conversions||0)} conversions in the last 90 days.`});
+    const ownership = role === 'enterprise' ? `s.organization_id=$2` : (superAdmin ? `TRUE` : `c.user_id=$2`);
+    const ownerValue = role === 'enterprise' ? scopeId : actorId;
+    const comparableResult = await q(`
+      SELECT c.id,c.name,COALESCE(NULLIF(qr.name,''),s.name,'Placement '||qr.id) placement,
+        COUNT(*) FILTER(WHERE e.type='scan')::int scans,
+        COUNT(*) FILTER(WHERE e.type IN('offer','maps','waze','destination_click'))::int clicks,
+        COUNT(*) FILTER(WHERE e.type='conversion')::int conversions,
+        CASE WHEN e.qr_id=$1 THEN 'same_placement' ELSE 'account' END source
+      FROM events e JOIN campaigns c ON c.id=e.campaign_id JOIN qr_codes qr ON qr.id=e.qr_id LEFT JOIN spaces s ON s.id=qr.space_id
+      WHERE ${ownership} AND e.created_at>=CURRENT_TIMESTAMP-INTERVAL '365 days'
+      GROUP BY c.id,c.name,qr.id,qr.name,s.name,e.qr_id
+      HAVING COUNT(*) FILTER(WHERE e.type='scan')>=10
+      ORDER BY CASE WHEN e.qr_id=$1 THEN 0 ELSE 1 END,
+        (COUNT(*) FILTER(WHERE e.type IN('offer','maps','waze','destination_click')))::numeric/NULLIF(COUNT(*) FILTER(WHERE e.type='scan'),0) DESC,
+        COUNT(*) FILTER(WHERE e.type='conversion') DESC LIMIT 3`, superAdmin?[checked.value.placementId]:[checked.value.placementId,ownerValue]);
+    const cohortResult = await q(`
+      WITH campaign_metrics AS (
+        SELECT s.organization_id,c.id,
+          COUNT(*) FILTER(WHERE e.type='scan')::int scans,
+          COUNT(*) FILTER(WHERE e.type IN('offer','maps','waze','destination_click'))::int clicks,
+          COUNT(*) FILTER(WHERE e.type='conversion')::int conversions
+        FROM events e JOIN campaigns c ON c.id=e.campaign_id JOIN qr_codes qr ON qr.id=e.qr_id JOIN spaces s ON s.id=qr.space_id
+        WHERE e.created_at>=CURRENT_TIMESTAMP-INTERVAL '365 days'
+        GROUP BY s.organization_id,c.id HAVING COUNT(*) FILTER(WHERE e.type='scan')>=10
+      ) SELECT COUNT(DISTINCT organization_id)::int organizations,COUNT(*)::int campaigns,
+          SUM(scans)::int scans,SUM(clicks)::int clicks,SUM(conversions)::int conversions
+        FROM campaign_metrics`);
+    const cohort = cohortResult.rows[0] || {};
+    const benchmark = Number(cohort.organizations||0)>=10 && Number(cohort.campaigns||0)>=30 ? cohort : null;
+    const plan = prepareCampaignPlan(checked.value,{placementName:placement.name,metrics:evidence,comparables:comparableResult.rows,benchmark,evidence:`The selected placement recorded ${Number(evidence.scans||0)} scans, ${Number(evidence.clicks||0)} clicks and ${Number(evidence.conversions||0)} conversions in the last 90 days.`});
     await q(`INSERT INTO ai_campaign_plans(actor_type,actor_id,scope_id,name,objective,placement_id,brief_json,plan_json,status) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,'pending')`,[role,actorId,scopeId,checked.value.name,checked.value.objective,checked.value.placementId,JSON.stringify(checked.value),JSON.stringify(plan)]);
     res.redirect(`${redirectBase}${redirectBase.includes("?")?"&":"?"}prepared=1`);
   }
