@@ -187,13 +187,13 @@ async function completeDetails(client,manifest){
     if(linked.rows.length!==1)throw new Error('Fixture contract identity changed.');
     const row=linked.rows[0];
     const request=await client.query(`INSERT INTO organization_advertising_requests
-      (organization_id,location_id,opportunity_id,business_name,contact_name,email,
+      (organization_id,location_id,opportunity_id,business_name,contact_name,email,phone,
        campaign_name,destination_url,campaign_notes,opportunity_name,price,pricing_unit,
        suggested_term_length,suggested_term_unit,status,setup_status,created_vivid_user_id,
-       created_contract_id,created_qr_id,created_campaign_id,approved_at,created_at,updated_at)
-      VALUES($1,$2,$3,$4,'Demo historical customer','moflo-evaluation@example.invalid',$5,
+       created_contract_id,created_qr_id,created_campaign_id,approved_at,submitted_at,created_at,updated_at)
+      VALUES($1,$2,$3,$4,'Demo historical customer','moflo-evaluation@example.invalid','DEMO — no telephone',$5,
        'https://vividspots.com/',$6,$7,$8,'Per Campaign',$9,'Days','Approved','Campaign Created',
-       $10,$11,$12,$13,$14::date,$14::date,$14::date) RETURNING id`,
+       $10,$11,$12,$13,$14::date,$14::date,$14::date,$14::date) RETURNING id`,
       [ORG,row.location_id,row.opportunity_id,campaigns[p.campaign].advertiser,campaign.name,
        NOTICE,row.title,p.cost,manifest.placements[i].days,OWNER,ct.id,ct.qrId,campaign.id,START]);
     await client.query('UPDATE contracts SET advertising_request_id=$1 WHERE id=$2 AND organization_id=$3',
