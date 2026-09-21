@@ -1,7 +1,8 @@
 "use strict";
 const crypto = require('node:crypto');
 const BASE = 'https://connect.squareupsandbox.com';
-const SCOPES = 'MERCHANT_PROFILE_READ';
+const {installSales, SALES_SCOPES} = require('./square-sandbox-sales');
+const SCOPES = SALES_SCOPES;
 const PATH = '/integrations/square/sandbox';
 function equal(a, b) {
   return typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) &&
@@ -89,7 +90,7 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
     const result = await q('SELECT merchant_id, updated_at FROM square_sandbox_connections WHERE customer_id=$1', [id]);
     const row = result.rows[0];
     const form = (action, label) => `<form method="post" action="${root(id)}/${action}"><input type="hidden" name="csrf" value="${req.session.squareSandboxCsrf}"><button>${label}</button></form>`;
-    res.type('html').send(`<!doctype html><html><head><title>Square Sandbox | Vivid Spots</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><main><h1>Square Sandbox</h1><p>Test connection for advertiser ${id}. Test sales do not change campaign revenue or ROI.</p><p>${row ? 'Connected merchant: ' + escape(row.merchant_id) : 'Not connected'}</p>${form('connect', row ? 'Reconnect Square test account' : 'Connect Square test account')}${row ? `<p><a href="${root(id)}/locations">View Square test locations</a></p>` + form('disconnect', 'Disconnect Square test account') : ''}</main></body></html>`);
+    res.type('html').send(`<!doctype html><html><head><title>Square Sandbox | Vivid Spots</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><main><h1>Square Sandbox</h1><p>Test connection for advertiser ${id}. Test sales do not change campaign revenue or ROI.</p><p>${row ? 'Connected merchant: ' + escape(row.merchant_id) : 'Not connected'}</p>${form('connect', row ? 'Reconnect Square test account' : 'Connect Square test account')}${row ? `<p><a href="${root(id)}/locations">View Square test locations</a></p><p><a href="${root(id)}/sales">View Square test sales</a></p>` + form('disconnect', 'Disconnect Square test account') : ''}</main></body></html>`);
   }));
   app.post(PATH + '/customers/:customerId/connect', owner, wrap(async (req, res) => {
     if (!csrf(req)) return res.status(403).send('Reload the Square connection page and retry.');
@@ -127,23 +128,31 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
     await q(`INSERT INTO square_sandbox_connections(customer_id,merchant_id,token_ciphertext,expires_at)
       VALUES($1,$2,$3,$4) ON CONFLICT(customer_id) DO UPDATE SET merchant_id=EXCLUDED.merchant_id,
       token_ciphertext=EXCLUDED.token_ciphertext,expires_at=EXCLUDED.expires_at,updated_at=NOW()`,
-    [pending.customerId, token.merchant_id, seal(token, config.key, String(pending.customerId)), token.expires_at]);
+    [pending.customerId, token.merchant_id, seal({...token,vivid_scopes:SCOPES}, config.key, String(pending.customerId)), token.expires_at]);
     res.redirect(root(pending.customerId));
   }));
-  app.get(PATH + '/customers/:customerId/locations', owner, wrap(async (req, res) => {
-    const id = Number(req.params.customerId);
+  const getConnection = async id => {
     const result = await q('SELECT * FROM square_sandbox_connections WHERE customer_id=$1', [id]);
     const row = result.rows[0];
-    if (!row) return res.status(409).send('Connect a Square test account first.');
+    if (!row) return null;
     let token = unseal(row.token_ciphertext, config.key, String(id));
     if (Date.parse(row.expires_at) < Date.now()+86400000) {
       const refreshed = await api('/oauth2/token', {client_id:config.id,client_secret:config.secret,
         grant_type:'refresh_token',refresh_token:token.refresh_token});
       if (!refreshed.access_token || !Number.isFinite(Date.parse(refreshed.expires_at))) throw new Error('Invalid refresh');
       token = {...token,...refreshed};
+      const ciphertext = seal(token,config.key,String(id));
       await q('UPDATE square_sandbox_connections SET token_ciphertext=$1,expires_at=$2,updated_at=NOW() WHERE customer_id=$3 AND token_ciphertext=$4',
-        [seal(token,config.key,String(id)),token.expires_at,id,row.token_ciphertext]);
+        [ciphertext,token.expires_at,id,row.token_ciphertext]);
+      row.token_ciphertext = ciphertext;
     }
+    return {row,token};
+  };
+  installSales({app,q,owner,wrap,api,getConnection,csrf,root});
+  app.get(PATH + '/customers/:customerId/locations', owner, wrap(async (req, res) => {
+    const id = Number(req.params.customerId), connection = await getConnection(id);
+    if (!connection) return res.status(409).send('Connect a Square test account first.');
+    const {token} = connection;
     const data = await api('/v2/locations', null, token.access_token);
     res.type('html').send(`<!doctype html><title>Square test locations</title><h1>Square test locations</h1><ul>${(data.locations || []).map(l => `<li>${escape(l.name)} — ${escape(l.id)}</li>`).join('')}</ul><a href="${root(id)}">Back to connection</a>`);
   }));
