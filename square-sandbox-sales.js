@@ -25,6 +25,17 @@ function amounts(p, refunds) {
   if (refunded > gross) throw Error('Refund exceeds completed payment');
   return {gross,refunded,net:gross-refunded};
 }
+function campaignTotals(snapshot) {
+  const groups=new Map();
+  for(const p of snapshot.payments){
+    if(!p.match || p.status!=='COMPLETED')continue;
+    const key=JSON.stringify([p.match.campaign_id,p.total.currency]);
+    if(!groups.has(key))groups.set(key,{campaign_id:p.match.campaign_id,name:p.match.name,currency:p.total.currency,count:0,gross:0,refunded:0,net:0});
+    const row=groups.get(key),a=amounts(p,snapshot.refunds);
+    row.count++;for(const k of ['gross','refunded','net'])row[k]+=a[k];
+  }
+  return [...groups.values()];
+}
 const format = (amount,currency) => new Intl.NumberFormat('en-US',{style:'currency',currency}).format(amount / (currency==='JPY' ? 1 : 100));
 function page(title,body) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} | Vivid Spots</title><style>body{margin:0;background:#f3f6fa;color:#14243c;font:16px/1.5 system-ui,sans-serif}main{max-width:1120px;margin:40px auto;padding:24px}h1{margin:8px 0}a{color:#165ca8}section,.notice{background:white;border:1px solid #d9e2ed;border-radius:12px;padding:20px;margin:18px 0}button{background:#153659;color:white;border:0;border-radius:7px;padding:12px 20px;font:inherit;cursor:pointer}.badge{font-size:13px;font-weight:700;letter-spacing:.08em;color:#6a4914}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:12px;border-bottom:1px solid #e2e8ef;vertical-align:top}.scroll{overflow:auto}summary{cursor:pointer;font-weight:600}dl{display:grid;grid-template-columns:minmax(100px,180px) 1fr;gap:8px}dd{margin:0;overflow-wrap:anywhere}small{color:#4c6077}code{overflow-wrap:anywhere}@media(max-width:600px){main{margin:0;padding:16px}dl{display:block}dd{margin-bottom:12px}}</style></head><body><main><div class="badge">VIVID SPOTS · SQUARE SANDBOX</div><h1>${esc(title)}</h1>${body}</main></body></html>`;
@@ -41,7 +52,7 @@ async function collect(api,path,key,token,params) {
   }
   throw Error('Sandbox import too large');
 }
-function installSales({app,q,owner,wrap,api,getConnection,csrf,root}) {
+function installSales({app,q,owner,wrap,api,getConnection,csrf,root,sync}) {
   let schema;
   const ready=()=>schema || (schema=q(`CREATE TABLE IF NOT EXISTS square_sandbox_sales (
     customer_id BIGINT NOT NULL REFERENCES users(id), merchant_id TEXT NOT NULL,
@@ -60,15 +71,19 @@ function installSales({app,q,owner,wrap,api,getConnection,csrf,root}) {
     const id=Number(req.params.customerId), connection=await getConnection(id);
     if(!connection)return res.status(409).send(page('Connect Square first',`<a href="${root(id)}">Back to connection</a>`));
     const intro=`<p>Test transactions only. These amounts do not change live campaign revenue or ROI.</p><a href="${root(id)}">Back to connection</a>`;
-    if(!permitted(connection.token))return res.type('html').send(page('Enable test sales',intro+`<section><h2>One more authorization</h2><p>Reconnect your Square test account and allow read access to payments and orders. This also lets Vivid read refunds. Vivid cannot charge customers or issue refunds.</p><a href="${root(id)}">Reconnect Square test account</a></section>`));
+    if(!permitted(connection.token))return res.type('html').send(page('Enable test sales',intro+`<section><h2>One more authorization</h2><p>Reconnect your Square test account and allow read access to payments and orders. This also lets Vivid read refunds. This page imports Sandbox transactions only.</p><a href="${root(id)}">Reconnect Square test account</a></section>`));
     const row=await load(id), snap=row?.snapshot;
     const action=`<section><form method="post" action="${root(id)}/sales/import"><input type="hidden" name="csrf" value="${esc(req.session.squareSandboxCsrf)}"><button>Import latest 90 days</button></form><p><small>Re-importing replaces this snapshot without duplicating sales. Includes refunds for the imported payments, even if issued later.</small></p></section>`;
-    let body=intro+action;
+    const state=await sync.status(id);
+    const syncMessage=!sync.enabled ? 'Automatic syncing is disabled.' : state?.status==='retry' ? 'The last sync failed. Vivid will retry automatically; reconnect Square if this persists.' : state?.status==='syncing' ? 'Sync in progress.' : 'Automatic sync checks for sales and refunds every five minutes.';
+    let body=intro+`<section><h2>Sync status</h2><p>${esc(syncMessage)}</p><p>Last successful sync: ${state?.last_success ? esc(new Date(state.last_success).toISOString()) : 'Not yet'}</p><small>Refresh this page to see updated results. Manual import is also available.</small></section>`+action;
     if(!snap)body+='<section>No transactions imported yet. Import your Square Sandbox activity to begin.</section>';
     else {
       const totals={};
       for(const p of snap.payments){const a=amounts(p,snap.refunds);const t=totals[p.total.currency] ||= {gross:0,refunded:0,net:0,matched:0};for(const k of ['gross','refunded','net'])t[k]+=a[k];if(p.match)t.matched+=a.net;}
       body+=`<p>Imported ${esc(new Date(row.imported_at).toISOString())} · Payments created ${esc(snap.begin)} to ${esc(snap.end)} (UTC)</p><section><h2>Payment totals</h2><p>Collected amounts include any tax and tips. Pending and failed payments are excluded; only completed refunds reduce net amounts.</p><div class="scroll"><table><thead><tr><th>Currency</th><th>Collected</th><th>Refunded</th><th>Net collected</th><th>Matched net</th></tr></thead><tbody>${Object.entries(totals).map(([c,t])=>`<tr><td>${esc(c)}</td>${['gross','refunded','net','matched'].map(k=>`<td>${esc(format(t[k],c))}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
+      const campaigns=campaignTotals(snap);
+      body+=`<section><h2>Matched campaign results</h2><p>Sandbox results only. These totals are separate from live campaign revenue and ROI.</p>${campaigns.length ? `<div class="scroll"><table><thead><tr><th>Campaign</th><th>Currency</th><th>Payments</th><th>Collected</th><th>Refunded</th><th>Net collected</th></tr></thead><tbody>${campaigns.map(c=>`<tr><td>${esc(c.name)} (ID ${esc(c.campaign_id)})</td><td>${esc(c.currency)}</td><td>${c.count}</td>${['gross','refunded','net'].map(k=>`<td>${esc(format(c[k],c.currency))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p>No completed payments have matched a campaign yet.</p>'}</section>`;
       body+=`<section><h2>Transactions (${snap.payments.length})</h2><p>Matching requires a payment or order reference equal to an existing Vivid click ID for this advertiser, from a scan within 30 days before the payment. Conflicting references remain unmatched.</p>${snap.payments.length ? snap.payments.map(p=>{
         const a=amounts(p,snap.refunds),refunds=snap.refunds.filter(r=>r.payment_id===p.id);
         return `<details><summary>${esc(p.created_at.slice(0,10))} · ${esc(format(a.net,p.total.currency))} · ${esc(p.status)} · ${p.match ? 'Matched: '+esc(p.match.name) : 'Unmatched'}</summary><dl><dt>Square payment</dt><dd>${esc(p.id)}</dd><dt>Square location</dt><dd>${esc(p.location_id)}</dd><dt>Square order</dt><dd>${esc(p.order_id || 'None')}</dd><dt>Payment reference</dt><dd>${esc(p.reference || 'None')}</dd><dt>Order reference</dt><dd>${esc(p.order_reference || 'None')}</dd><dt>Collected / refunded / net</dt><dd>${esc(format(a.gross,p.total.currency))} / ${esc(format(a.refunded,p.total.currency))} / ${esc(format(a.net,p.total.currency))}</dd><dt>Attribution evidence</dt><dd>${p.match ? 'Exact reference: '+esc(p.match.click_id)+' · Campaign '+esc(p.match.campaign_id)+' · QR '+esc(p.match.qr_id)+' · Scan '+esc(p.match.scan_id) : 'No unique eligible Vivid scan reference found.'}</dd></dl><h3>Refunds</h3>${refunds.length ? '<ul>'+refunds.map(r=>`<li>${esc(r.id)} · ${esc(r.status)} · ${esc(format(r.amount.amount,r.amount.currency))}</li>`).join('')+'</ul>' : '<p>No refunds.</p>'}</details>`;
@@ -76,10 +91,9 @@ function installSales({app,q,owner,wrap,api,getConnection,csrf,root}) {
     }
     res.type('html').send(page('Square test sales',body));
   }));
-  app.post(route+'/import',owner,wrap(async(req,res)=>{
-    if(!csrf(req))return res.status(403).send('Reload the connection page and retry.');
-    const id=Number(req.params.customerId),connection=await getConnection(id);
-    if(!connection || !permitted(connection.token))return res.status(409).send('Reconnect Square and allow payment and order read permissions first.');
+  const syncSales=async(id,lease)=>{
+    const connection=await getConnection(id);
+    if(!connection || !permitted(connection.token))throw Error('Reconnect required');
     await ready();
     const end=new Date().toISOString(),begin=new Date(Date.now()-90*86400000).toISOString();
     const deadline=Date.now()+45000;
@@ -119,10 +133,19 @@ function installSales({app,q,owner,wrap,api,getConnection,csrf,root}) {
     const saved=await q(`INSERT INTO square_sandbox_sales(customer_id,merchant_id,snapshot)
       SELECT customer_id,merchant_id,$3::jsonb FROM square_sandbox_connections
       WHERE customer_id=$1 AND merchant_id=$2 AND token_ciphertext=$4
+        AND EXISTS(SELECT 1 FROM square_sandbox_sync WHERE customer_id=$1 AND lease=$5 AND lease_until>NOW())
       ON CONFLICT(customer_id,merchant_id) DO UPDATE SET snapshot=EXCLUDED.snapshot,imported_at=NOW() RETURNING customer_id`,
-      [id,connection.row.merchant_id,JSON.stringify(snapshot),connection.row.token_ciphertext]);
+      [id,connection.row.merchant_id,JSON.stringify(snapshot),connection.row.token_ciphertext,lease]);
     if(!saved.rows.length)throw Error('Connection changed during import');
+  };
+  app.post(route+'/import',owner,wrap(async(req,res)=>{
+    if(!csrf(req))return res.status(403).send('Reload the connection page and retry.');
+    const id=Number(req.params.customerId),connection=await getConnection(id);
+    if(!connection || !permitted(connection.token))return res.status(409).send('Reconnect Square and allow payment and order read permissions first.');
+    const done=await sync.run(id,lease=>syncSales(id,lease));
+    if(!done)return res.status(409).send(page('Sync in progress',`<p>A sync is already running. Please return to sales shortly.</p><a href="${root(id)}/sales">View test sales</a>`));
     res.redirect(root(id)+'/sales');
   }));
+  return {syncSales};
 }
-module.exports={installSales,SALES_SCOPES,normalizePayment,normalizeRefund,amounts,collect,page};
+module.exports={installSales,SALES_SCOPES,normalizePayment,normalizeRefund,amounts,collect,page,campaignTotals};
