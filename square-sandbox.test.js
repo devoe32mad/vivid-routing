@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const {install,configuration,seal,unseal,equal} = require('./square-sandbox');
-const env = {SQUARE_SANDBOX_ENABLED:'true',SQUARE_SANDBOX_APPLICATION_ID:'sandbox-example',
+const env = {SQUARE_SANDBOX_AUTO_SYNC:'false',SQUARE_SANDBOX_ENABLED:'true',SQUARE_SANDBOX_APPLICATION_ID:'sandbox-example',
   SQUARE_SANDBOX_APPLICATION_SECRET:'test-only',SQUARE_SANDBOX_TOKEN_KEY:Buffer.alloc(32,7).toString('base64'),
   SQUARE_SANDBOX_REDIRECT_URL:'https://example.com/integrations/square/sandbox/callback'};
 const checkoutRoute='/integrations/square/sandbox/customers/:customerId/checkout';
@@ -221,6 +221,7 @@ function salesHarness({scopes=SALES_SCOPES,fail=false,conflict=false,matches=tru
       assert.equal(args[0],17);assert.deepEqual(args[1],['click-1']);assert.ok(sql.includes('c.user_id=$1'));
       return {rows:matches ? [{scan_id:10,qr_id:20,campaign_id:30,click_id:'click-1',name:'Test campaign'}] : []};
     }
+    if(sql.includes("status='syncing'"))return {rows:[{customer_id:17}]};
     if(sql.startsWith('INSERT INTO square_sandbox_sales')){imports++;snapshot=JSON.parse(args[2]);return {rows:[{customer_id:17}]};}
     if(sql.startsWith('SELECT s.snapshot'))return {rows:snapshot ? [{snapshot,imported_at:'2026-09-21T12:00:00Z'}] : []};
     return {rows:[]};
@@ -261,4 +262,58 @@ test('failed Square import does not replace last successful snapshot',async()=>{
 });
 test('sales routes deny cross-account access before database or Square calls',async()=>{
   const h=salesHarness();for(const route of [salesRoute,importRoute]){const req=h.req();req.session.user.id=18;assert.equal((await h.run(route,req)).code,403);}assert.equal(h.queries.length,0);
+});
+
+const {createSync}=require('./square-sandbox-sync');
+function syncHarness(){
+  let state={lease:null,due:true,status:'waiting'}, pending=true;
+  const queries=[];
+  const q=async(sql,args=[])=>{
+    queries.push(sql);
+    if(sql.startsWith('SELECT c.customer_id'))return {rows:pending ? [{customer_id:17}] : []};
+    if(sql.includes("status='syncing'")){
+      if(state.lease || (args[2] && !state.due))return {rows:[]};
+      state={...state,lease:args[1],status:'syncing'};return {rows:[{customer_id:17}]};
+    }
+    if(sql.includes("status='ok'")){if(state.lease===args[1])state={lease:null,due:false,status:'ok'};}
+    if(sql.includes("status='retry'")){if(state.lease===args[1])state={lease:null,due:true,status:'retry'};}
+    return {rows:[]};
+  };
+  return {q,queries,state:()=>state,stop:()=>{pending=false;}};
+}
+test('sync leases prevent concurrent imports and permit later manual refresh',async()=>{
+  const h=syncHarness(), a=createSync({q:h.q,ready:async()=>{}}),b=createSync({q:h.q,ready:async()=>{}});
+  let release,entered;
+  const started=new Promise(r=>{entered=r;});
+  const first=a.run(17,async lease=>{assert.ok(lease);entered();await new Promise(r=>{release=r;});});
+  await started;
+  assert.equal(await b.run(17,()=>assert.fail('duplicate import')),false);
+  release();assert.equal(await first,true);
+  assert.equal(await b.run(17,()=>assert.fail('not due'),true),false);
+  assert.equal(await b.run(17,async()=>{}),true);
+  assert.equal(h.state().status,'ok');
+});
+test('background failures are retried and concurrent ticks do not overlap',async()=>{
+  const h=syncHarness(),worker=createSync({q:h.q,ready:async()=>{}});
+  await worker.tick(async()=>{throw Error('Square unavailable');});
+  assert.equal(h.state().status,'retry');assert.equal(h.state().lease,null);
+  let calls=0;
+  await Promise.all([worker.tick(async()=>{calls++;}),worker.tick(async()=>{calls++;})]);
+  assert.equal(calls,1);assert.equal(h.state().status,'ok');
+  const disabled=createSync({q:()=>assert.fail('disabled worker touched database'),ready:async()=>{},enabled:false});
+  await disabled.tick(()=>assert.fail('disabled worker ran'));
+});
+test('snapshot replacement requires unexpired lease and unchanged merchant credentials',async()=>{
+  const h=salesHarness();await h.run(importRoute,h.req());
+  const saved=h.queries.find(x=>x.sql.startsWith('INSERT INTO square_sandbox_sales'));
+  assert.match(saved.sql,/merchant_id=\$2 AND token_ciphertext=\$4/);
+  assert.match(saved.sql,/lease=\$5 AND lease_until>NOW\(\)/);
+  assert.equal(typeof saved.args[4],'string');
+});
+test('campaign report keeps currencies separate and subtracts refunds only from matched completed sales',()=>{
+  const {campaignTotals}=require('./square-sandbox-sales');
+  const match={campaign_id:56,name:'Test'};
+  const p={...normalizePayment(payment()),match};
+  const totals=campaignTotals({payments:[p,{...p,id:'pending',status:'PENDING'},{...p,id:'unmatched',match:null},{...p,id:'eur',total:{amount:500,currency:'EUR'}}],refunds:[refund('r','COMPLETED',300)]});
+  assert.deepEqual(totals,[{campaign_id:56,name:'Test',currency:'USD',count:1,gross:1200,refunded:300,net:900},{campaign_id:56,name:'Test',currency:'EUR',count:1,gross:500,refunded:0,net:500}]);
 });

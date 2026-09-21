@@ -1,5 +1,6 @@
 "use strict";
 const crypto = require('node:crypto');
+const {createSync} = require('./square-sandbox-sync');
 const BASE = 'https://connect.squareupsandbox.com';
 const {installSales, SALES_SCOPES} = require('./square-sandbox-sales');
 const {installCheckout, CHECKOUT_SCOPES} = require('./square-sandbox-checkout');
@@ -149,7 +150,9 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
     }
     return {row,token};
   };
-  installSales({app,q,owner,wrap,api,getConnection,csrf,root});
+  const sync=createSync({q,ready,enabled:env.SQUARE_SANDBOX_AUTO_SYNC !== 'false'});
+  const {syncSales}=installSales({app,q,owner,wrap,api,getConnection,csrf,root,sync});
+  sync.start(syncSales);
   installCheckout({app,q,owner,wrap,api,getConnection,csrf,root,origin:new URL(config.redirect).origin});
   app.get(PATH + '/customers/:customerId/locations', owner, wrap(async (req, res) => {
     const id = Number(req.params.customerId), connection = await getConnection(id);
@@ -175,3 +178,4 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
   }));
 }
 module.exports = {install, configuration, seal, unseal, equal};
+
