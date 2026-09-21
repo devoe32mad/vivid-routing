@@ -37,9 +37,25 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
   const config = configuration(env);
   let schema;
   const ready = () => schema || (schema = q(`CREATE TABLE IF NOT EXISTS square_sandbox_connections (
-    customer_id BIGINT PRIMARY KEY REFERENCES customers(id), merchant_id TEXT NOT NULL UNIQUE,
+    customer_id BIGINT PRIMARY KEY REFERENCES users(id), merchant_id TEXT NOT NULL UNIQUE,
     token_ciphertext TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+    DO $square_migration$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM pg_constraint
+        WHERE conrelid='square_sandbox_connections'::regclass
+          AND confrelid='customers'::regclass AND contype='f') THEN
+        -- Never reinterpret existing customer IDs as user IDs.
+        IF EXISTS (SELECT 1 FROM square_sandbox_connections) THEN
+          RAISE EXCEPTION 'Legacy Square connections require explicit account mapping';
+        END IF;
+        ALTER TABLE square_sandbox_connections
+          DROP CONSTRAINT square_sandbox_connections_customer_id_fkey;
+        ALTER TABLE square_sandbox_connections
+          ADD CONSTRAINT square_sandbox_connections_customer_id_fkey
+          FOREIGN KEY (customer_id) REFERENCES users(id);
+      END IF;
+    END $square_migration$;
     CREATE TABLE IF NOT EXISTS square_sandbox_states (
       state_hash TEXT PRIMARY KEY, customer_id BIGINT NOT NULL, expires_at TIMESTAMPTZ NOT NULL)`).catch(e => {schema = null; throw e;}));
   const save = req => new Promise((resolve, reject) => req.session.save(e => e ? reject(e) : resolve()));
@@ -78,7 +94,7 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
   app.post(PATH + '/customers/:customerId/connect', owner, wrap(async (req, res) => {
     if (!csrf(req)) return res.status(403).send('Reload the Square connection page and retry.');
     const id = Number(req.params.customerId);
-    const customer = await q('SELECT id FROM customers WHERE id=$1', [id]);
+    const customer = await q("SELECT id FROM users WHERE id=$1 AND role=\'customer\'", [id]);
     if (!customer.rows.length) return res.status(404).send('Advertiser not found.');
     const state = crypto.randomBytes(32).toString('hex');
     req.session.squareSandboxPending = {state, customerId:id, userId:req.session.user.id, until:Date.now()+600000};
