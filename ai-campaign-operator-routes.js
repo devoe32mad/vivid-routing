@@ -24,6 +24,11 @@ function registerAiCampaignOperatorRoutes({ app, q, page, orgPage, organizationN
       created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`);
     await q(`CREATE INDEX IF NOT EXISTS idx_ai_campaign_drafts_scope ON ai_campaign_drafts(actor_type,actor_id,scope_id,status,created_at DESC)`);
+    await q(`INSERT INTO campaign_destinations(campaign_id,name,destination_type,destination_url,conversion_url,estimated_value,display_order,is_active,created_at,updated_at)
+      SELECT c.id,COALESCE(NULLIF(c.advertiser,''),c.name,'Campaign destination'),'website',c.campaign_url,c.conversion_url,COALESCE(c.avg_customer_value,0),1,true,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+      FROM ai_campaign_drafts d JOIN campaigns c ON c.id=d.campaign_id
+      WHERE d.status='published' AND NULLIF(TRIM(c.campaign_url),'') IS NOT NULL
+        AND NOT EXISTS(SELECT 1 FROM campaign_destinations cd WHERE cd.campaign_id=c.id)`);
     schemaReady = true;
   }
 
@@ -138,6 +143,12 @@ function registerAiCampaignOperatorRoutes({ app, q, page, orgPage, organizationN
     return result.rows[0]||null;
   }
 
+  async function advertiserNameFor(role,actorId){
+    if(role!=="advertiser")return "";
+    const result=await q(`SELECT COALESCE(NULLIF(TRIM(company_name),''),'') advertiser_name FROM users WHERE id=$1 LIMIT 1`,[actorId]);
+    return String(result.rows[0]?.advertiser_name||"");
+  }
+
   async function publishDraft(req,res,role,actorId,scopeId,draftId,render){
     const draft=await loadDraft(role,actorId,scopeId,draftId);if(!draft)return res.status(404).send("Draft not found.");
     if(draft.status==='published')return res.redirect(role==='enterprise'?`/org-ai-campaign-draft/${draftId}?organization_id=${scopeId}`:`/admin/ai-campaign-draft/${draftId}`);
@@ -152,9 +163,12 @@ function registerAiCampaignOperatorRoutes({ app, q, page, orgPage, organizationN
     try{published=await q(`WITH new_campaign AS (
         INSERT INTO campaigns(name,advertiser,campaign_url,conversion_url,avg_customer_value,campaign_cost,conversion_rate,is_deal_of_day,is_test,user_id,start_date,end_date)
         VALUES($1,$2,$3,$4,$5,$6,8,false,false,$7,$8,$9) RETURNING id
+      ), destination AS (
+        INSERT INTO campaign_destinations(campaign_id,name,destination_type,destination_url,conversion_url,estimated_value,display_order,is_active,created_at,updated_at)
+        SELECT id,$2,'website',$3,$4,$5,1,true,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP FROM new_campaign RETURNING campaign_id
       ), assignment AS (
         INSERT INTO qr_campaigns(qr_id,campaign_id,contract_days,is_active,started_at,assigned_at)
-        SELECT $10,id,GREATEST(1,($9::date-$8::date)+1),true,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP FROM new_campaign RETURNING campaign_id
+        SELECT $10,nc.id,GREATEST(1,($9::date-$8::date)+1),true,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP FROM new_campaign nc JOIN destination d ON d.campaign_id=nc.id RETURNING campaign_id
       ) SELECT campaign_id id FROM assignment`,[checked.value.name,checked.value.advertiser,checked.value.campaignUrl,checked.value.conversionUrl||null,checked.value.averageCustomerValue,Number(brief.budget||0),ownerId,brief.startDate,brief.endDate,draft.placement_id]);
     }catch(error){await q(`UPDATE ai_campaign_drafts SET status='draft',updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND status='publishing'`,[draftId]);throw error;}
     const campaignId=Number(published.rows[0]?.id||0);if(!campaignId)return res.status(500).send("Unable to publish campaign.");
@@ -166,7 +180,7 @@ function registerAiCampaignOperatorRoutes({ app, q, page, orgPage, organizationN
   app.post("/admin/ai-campaign-operator",requireLogin,async(req,res)=>{try{const actor=req.session.user;await prepare(req,res,'advertiser',Number(actor.id),0,actor.role==='super_admin','/admin/ai-approval-center');}catch(error){console.error("AI CAMPAIGN PREPARE ERROR",error);res.status(500).send("Unable to prepare campaign");}});
   app.get("/admin/ai-approval-center",requireLogin,async(req,res)=>{try{const actor=req.session.user,plans=await loadPlans('advertiser',Number(actor.id),0,actor.role==='super_admin');res.send(page("AI Approval Center",`<main class="wrap"><div class="topbar"><div class="brand">Vivid AI</div><h1>Approval Center</h1><p class="subtitle">Review AI-prepared work before anything changes.</p></div><a class="btn" href="/admin/ai-campaign-operator">Prepare Campaign</a><div style="display:grid;gap:13px;margin-top:18px;">${plans.length?plans.map(p=>renderPlanCard(p)).join(''):'<div class="card">No campaign plans are waiting for review.</div>'}</div></main>`));}catch(error){res.status(500).send("Unable to load approval center");}});
   app.post("/admin/ai-approval-center/action",requireLogin,async(req,res)=>{try{const actor=req.session.user;await decide(req,res,'advertiser',Number(actor.id),0,'/admin/ai-approval-center',actor.role==='super_admin');}catch(error){res.status(500).send("Unable to review plan");}});
-  app.get("/admin/ai-campaign-draft/:id",requireLogin,async(req,res)=>{try{const draft=await loadDraft('advertiser',Number(req.session.user.id),0,Number(req.params.id));if(!draft)return res.status(404).send("Draft not found.");res.send(page("Review AI Campaign Draft",renderDraftReview(draft)));}catch(error){res.status(500).send("Unable to load campaign draft");}});
+  app.get("/admin/ai-campaign-draft/:id",requireLogin,async(req,res)=>{try{const actorId=Number(req.session.user.id);const [draft,advertiserName]=await Promise.all([loadDraft('advertiser',actorId,0,Number(req.params.id)),advertiserNameFor('advertiser',actorId)]);if(!draft)return res.status(404).send("Draft not found.");res.send(page("Review AI Campaign Draft",renderDraftReview(draft,{advertiserName})));}catch(error){res.status(500).send("Unable to load campaign draft");}});
   app.post("/admin/ai-campaign-draft/:id",requireLogin,async(req,res)=>{try{await publishDraft(req,res,'advertiser',Number(req.session.user.id),0,Number(req.params.id),page);}catch(error){console.error("AI DRAFT PUBLISH ERROR",error);res.status(500).send("Unable to publish campaign draft");}});
 
   const requireOrgAiManager = requireOrganizationPermission("manage_advertisers");
