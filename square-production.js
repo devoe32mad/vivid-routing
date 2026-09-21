@@ -2,8 +2,9 @@
 const crypto = require('node:crypto');
 const {createSync} = require('./square-production-sync');
 const BASE = 'https://connect.squareup.com';
-const {installSales, SALES_SCOPES} = require('./square-production-sales');
+const {installSales, SALES_SCOPES, page} = require('./square-production-sales');
 const SCOPES = SALES_SCOPES;
+const {installCheckout,CHECKOUT_SCOPES}=require('./square-production-checkout');
 const PATH = '/integrations/square/production';
 function equal(a, b) {
   return typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) &&
@@ -48,7 +49,7 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
   const api = async (path, body, token) => {
     const response = await fetcher(BASE + path, {
       method: body ? 'POST' : 'GET', signal: AbortSignal.timeout(15000),
-      headers: {'Content-Type':'application/json', 'Square-Version':'2025-01-23',
+      headers: {'Content-Type':'application/json', 'Square-Version':'2026-09-16',
         ...(token ? {Authorization: 'Bearer ' + token} : {})},
       ...(body ? {body: JSON.stringify(body)} : {})
     });
@@ -75,21 +76,22 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
     const result = await q('SELECT merchant_id, updated_at FROM square_production_connections WHERE customer_id=$1', [id]);
     const row = result.rows[0];
     const form = (action, label) => `<form method="post" action="${root(id)}/${action}"><input type="hidden" name="csrf" value="${req.session.squareProductionCsrf}"><button>${label}</button></form>`;
-    res.type('html').send(`<!doctype html><html><head><title>Square live connection | Vivid Spots</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><main><h1>Square live connection</h1><p>Live connection for advertiser ${id}. Vivid reads payments, orders and refunds. Verified Square totals appear in a separate report; existing campaign ROI is unchanged.</p><p>${row ? 'Connected merchant: ' + escape(row.merchant_id) : 'Not connected'}</p>${form('connect', row ? 'Reconnect Square live account' : 'Connect Square live account')}${row ? `<p><a href="${root(id)}/locations">View Square live locations</a></p><p><a href="${root(id)}/sales">View Square live sales</a></p>` + form('disconnect', 'Disconnect Square live account') : ''}</main></body></html>`);
+    res.type('html').send(page('Square live connection',`<section><p>Live connection for advertiser ${id}. Vivid reads payments, orders and refunds. Verified Square totals appear in a separate report. Optional tracked checkout requires additional Square authorization and a configured offer.</p><p>${row ? 'Connected merchant: ' + escape(row.merchant_id) : 'Not connected'}</p>${form('connect', row ? 'Reconnect Square live account' : 'Connect Square live account')}${row ? `<p><a href="${root(id)}/locations">View Square live locations</a></p><p><a href="${root(id)}/sales">View Square live sales</a></p><p><a href="${root(id)}/checkout">Configure tracked live checkout</a></p>` + form('disconnect', 'Disconnect Square live account') : ''}</section>`));
   }));
   app.post(PATH + '/customers/:customerId/connect', owner, wrap(async (req, res) => {
     if (!csrf(req)) return res.status(403).send('Reload the Square connection page and retry.');
     const id = Number(req.params.customerId);
     const customer = await q("SELECT id FROM users WHERE id=$1 AND role=\'customer\'", [id]);
     if (!customer.rows.length) return res.status(404).send('Advertiser not found.');
+    const requestedScopes=req.body.checkout==='true' ? SCOPES+' '+CHECKOUT_SCOPES : SCOPES;
     const state = crypto.randomBytes(32).toString('hex');
-    req.session.squareProductionPending = {state, customerId:id, userId:req.session.user.id, until:Date.now()+600000};
+    req.session.squareProductionPending = {state, customerId:id, userId:req.session.user.id, scopes:requestedScopes, until:Date.now()+600000};
     await q('DELETE FROM square_production_states WHERE expires_at < NOW()');
     await q('INSERT INTO square_production_states(state_hash,customer_id,expires_at) VALUES($1,$2,$3)',
       [crypto.createHash('sha256').update(state).digest('hex'),id,new Date(Date.now()+600000)]);
     await save(req);
     const url = new URL(BASE + '/oauth2/authorize');
-    url.search = new URLSearchParams({client_id:config.id, scope:SCOPES, state, redirect_uri:config.redirect, session:'false'}).toString();
+    url.search = new URLSearchParams({client_id:config.id, scope:requestedScopes, state, redirect_uri:config.redirect, session:'false'}).toString();
     res.redirect(url.toString());
   }));
   app.get(PATH + '/callback', (req, res, next) => {
@@ -113,8 +115,8 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
     await q(`INSERT INTO square_production_connections(customer_id,merchant_id,token_ciphertext,expires_at)
       VALUES($1,$2,$3,$4) ON CONFLICT(customer_id) DO UPDATE SET merchant_id=EXCLUDED.merchant_id,
       token_ciphertext=EXCLUDED.token_ciphertext,expires_at=EXCLUDED.expires_at,updated_at=NOW()`,
-    [pending.customerId, token.merchant_id, seal({...token,vivid_scopes:SCOPES}, config.key, String(pending.customerId)), token.expires_at]);
-    res.redirect(root(pending.customerId));
+    [pending.customerId, token.merchant_id, seal({...token,vivid_scopes:pending.scopes || SCOPES}, config.key, String(pending.customerId)), token.expires_at]);
+    res.redirect(root(pending.customerId)+(pending.scopes?.includes('ORDERS_WRITE') ? '/checkout' : ''));
   }));
   const getConnection = async id => {
     const result = await q('SELECT * FROM square_production_connections WHERE customer_id=$1', [id]);
@@ -141,6 +143,7 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
   const sync=createSync({q,ready,enabled:env.SQUARE_PRODUCTION_AUTO_SYNC !== 'false'});
   const {syncSales}=installSales({app,q,owner,wrap,api,getConnection,csrf,root,sync});
   sync.start(syncSales);
+  installCheckout({app,q,owner,wrap,api,getConnection,csrf,root,origin:new URL(config.redirect).origin});
   app.get(PATH + '/customers/:customerId/locations', owner, wrap(async (req, res) => {
     const id = Number(req.params.customerId), connection = await getConnection(id);
     if (!connection) return res.status(409).send('Connect a Square live account first.');
@@ -165,5 +168,6 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
   }));
 }
 module.exports = {install, configuration, seal, unseal, equal};
+
 
 
