@@ -47,10 +47,22 @@ test("renders approval controls without claiming automatic execution", () => {
   const html=renderPlanCard(plan);
   assert.doesNotMatch(html,/<script>/);
   assert.match(html,/Approve Plan/);
+  assert.match(html,/Edit Plan/);
+  assert.match(html,/edit_plan=7/);
   assert.match(html,/Dismiss/);
   const page=renderOperatorPage({role:"advertiser",placements:[{id:1,name:"Stadium"}],plans:[plan]});
   assert.match(page,/Nothing runs until an authorized user approves it/);
   assert.match(page,/Prepare Campaign Plan/);
+});
+
+test("prefills an editable pending plan and offers recalculation", () => {
+  const editPlan={id:7,status:"pending",brief_json:{name:"Saturday Tournament",objective:"engagement",audience:"Families",offer:"Game offer",placementId:4,startDate:"2026-09-21",endDate:"2026-11-21",budget:400,eventNotes:"Home games"}};
+  const html=renderOperatorPage({role:"advertiser",placements:[{id:4,name:"Gymnasium"}],plans:[],editPlan});
+  assert.match(html,/Edit recommended plan/);
+  assert.match(html,/name="plan_id" value="7"/);
+  assert.match(html,/value="Saturday Tournament"/);
+  assert.match(html,/value="4" selected/);
+  assert.match(html,/Save &amp; Recalculate Plan|Save & Recalculate Plan/);
 });
 
 test("renders offer, where and when for previous campaigns", () => {
