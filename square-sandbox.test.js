@@ -88,3 +88,30 @@ test('successful callback encrypts credentials and never returns them to browser
   assert.equal((await h.run('GET /integrations/square/sandbox/callback',makeReq())).code,403);
   assert.equal(calls,1);
 });
+
+test('existing advertiser user can start OAuth without a customers record', async () => {
+  const h = harness({query:(sql,args)=>{
+    if (sql.startsWith('SELECT id FROM')) {
+      assert.equal(sql, "SELECT id FROM users WHERE id=$1 AND role='customer'");
+      assert.equal(args[0], 17);
+      return {rows:[{id:17}]};
+    }
+    return {rows:[]};
+  }});
+  const req = {params:{customerId:'17'},body:{csrf:'csrf-test'},session:{
+    user:{id:17},squareSandboxCsrf:'csrf-test',save:cb=>cb()
+  }};
+  const res = await h.run('POST /integrations/square/sandbox/customers/:customerId/connect',req);
+  const url = new URL(res.redirectTo);
+  assert.equal(url.origin,'https://connect.squareupsandbox.com');
+  assert.equal(url.pathname,'/oauth2/authorize');
+  assert.equal(url.searchParams.get('state'),req.session.squareSandboxPending.state);
+});
+test('unknown advertiser is rejected before authorization state is created', async () => {
+  const h = harness();
+  const res = await h.run('POST /integrations/square/sandbox/customers/:customerId/connect',{
+    params:{customerId:'17'},body:{csrf:'csrf-test'},session:{user:{id:17},squareSandboxCsrf:'csrf-test'}
+  });
+  assert.equal(res.code,404);
+  assert.ok(!h.queries.some(x=>x.sql.startsWith('INSERT INTO square_sandbox_states')));
+});
