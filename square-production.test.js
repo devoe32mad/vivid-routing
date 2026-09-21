@@ -164,6 +164,7 @@ function salesHarness({scopes=SALES_SCOPES,fail=false,conflict=false,matches=tru
       return {rows:matches ? [{scan_id:10,qr_id:20,campaign_id:30,click_id:'click-1',name:'Test campaign'}] : []};
     }
     if(sql.includes("status='syncing'"))return {rows:[{customer_id:17}]};
+    if(sql.includes('AS fenced FROM fence'))return {rows:[{fenced:1}]};
     if(sql.startsWith('WITH fence')){imports++;for(const r of JSON.parse(args[4]))records.set(r.payment.id,r);state=JSON.parse(args[5]);snapshot={payments:[...records.values()].map(r=>r.payment),refunds:[...records.values()].flatMap(r=>r.refunds)};return {rows:[{customer_id:17}]};}
     if(sql.startsWith('SELECT state') || sql.startsWith('SELECT s.state'))return {rows:state ? [{state,updated_at:'2026-09-21T12:00:00Z'}] : []};
     if(sql.startsWith('SELECT CASE WHEN l.payment'))return {rows:[...records.values()].map(r=>({...r,updated_at:'2026-09-21T12:00:00Z'}))};
@@ -192,7 +193,8 @@ test('import matches an owned scan, reads refunds and re-import updates durable 
   assert.equal(h.snapshot().payments.length,1);assert.equal(h.snapshot().payments[0].match.campaign_id,30);
   assert.equal(amounts(h.snapshot().payments[0],h.snapshot().refunds).net,900);
   const view=await h.run(salesRoute,h.req());assert.match(view.body,/Matched: Test campaign/);assert.match(view.body,/\$9\.00/);assert.match(view.body,/<details>/);
-  assert.ok(!h.queries.some(x=>/INSERT INTO events|UPDATE campaigns/.test(x.sql)));
+  assert.equal(h.queries.filter(x=>x.sql.includes('AS fenced FROM fence')).length,2);
+  assert.ok(!h.queries.some(x=>/UPDATE campaigns/.test(x.sql)));
 });
 test('conflicting references and references outside advertiser scope stay unmatched',async()=>{
   for(const options of [{conflict:true},{matches:false}]){
