@@ -49,7 +49,7 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
   const api = async (path, body, token) => {
     const response = await fetcher(BASE + path, {
       method: body ? 'POST' : 'GET', signal: AbortSignal.timeout(15000),
-      headers: {'Content-Type':'application/json', 'Square-Version':'2025-01-23',
+      headers: {'Content-Type':'application/json', 'Square-Version':'2026-09-16',
         ...(token ? {Authorization: 'Bearer ' + token} : {})},
       ...(body ? {body: JSON.stringify(body)} : {})
     });
