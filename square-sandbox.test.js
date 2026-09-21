@@ -6,6 +6,82 @@ const {install,configuration,seal,unseal,equal} = require('./square-sandbox');
 const env = {SQUARE_SANDBOX_ENABLED:'true',SQUARE_SANDBOX_APPLICATION_ID:'sandbox-example',
   SQUARE_SANDBOX_APPLICATION_SECRET:'test-only',SQUARE_SANDBOX_TOKEN_KEY:Buffer.alloc(32,7).toString('base64'),
   SQUARE_SANDBOX_REDIRECT_URL:'https://example.com/integrations/square/sandbox/callback'};
+const checkoutRoute='/integrations/square/sandbox/customers/:customerId/checkout';
+const checkoutClick='03d3a38e-5af2-4389-b905-c09096576260';
+function checkoutHarness(options={}) {
+  const requests=[];
+  const token={access_token:'test-only',vivid_scopes:options.scopes ?? 'MERCHANT_PROFILE_READ PAYMENTS_READ ORDERS_READ ORDERS_WRITE PAYMENTS_WRITE'};
+  const h=harness({query:(sql,args)=>{
+    if(sql.includes('SELECT * FROM square_sandbox_connections'))return {rows:[{merchant_id:'sandbox-merchant',expires_at:'2030-01-01',token_ciphertext:seal(token,configuration(env).key,'1')}]};
+    if(sql.includes('FROM events e')) {
+      assert.match(sql,/c.user_id=\$1 AND c.is_test=true/);
+      assert.match(sql,/INTERVAL '30 days'/);
+      assert.deepEqual(args,[1,checkoutClick]);
+      return {rows:options.scans ?? [{scan_id:11,qr_id:60,campaign_id:56,name:'Test <campaign>'}]};
+    }
+    return {rows:[]};
+  },fetcher:async(url,opts)=>{
+    assert.ok(url.startsWith('https://connect.squareupsandbox.com/'));
+    const body=opts.body ? JSON.parse(opts.body) : null;
+    requests.push({url,body});
+    if(url.endsWith('/v2/locations'))return {ok:true,json:async()=>({locations:[{id:'loc',name:'Test location',currency:'USD',status:'ACTIVE'}]})};
+    assert.ok(url.endsWith('/v2/online-checkout/payment-links'));
+    if(options.fail)throw Error('timeout');
+    return {ok:true,json:async()=>({payment_link:{order_id:'sandbox-order',url:options.url || 'https://sandbox.square.link/u/test'}})};
+  }});
+  const req=(extra={})=>({params:{customerId:'1'},query:{vivid_click_id:checkoutClick},
+    session:{user:{id:1},squareSandboxCsrf:'csrf'},body:{csrf:'csrf',vivid_click_id:checkoutClick,location_id:'loc',amount:1},...extra});
+  return {...h,requests,req};
+}
+test('checkout denies unauthenticated, other owners, missing CSRF and invalid scan input',async()=>{
+  const h=checkoutHarness();
+  assert.equal((await h.run('GET '+checkoutRoute,h.req({session:{}}))).code,401);
+  assert.equal((await h.run('POST '+checkoutRoute,h.req({session:{user:{id:2}}}))).code,403);
+  assert.equal((await h.run('POST '+checkoutRoute,h.req({body:{}}))).code,403);
+  for(const click of ['', ['bad'], 'x'.repeat(41),'<script>'])
+    assert.equal((await h.run('POST '+checkoutRoute,h.req({body:{csrf:'csrf',vivid_click_id:click}}))).code,400);
+  assert.equal(h.requests.length,0);
+});
+test('checkout rejects missing, cross-account, non-test and ambiguous scans before Square calls',async()=>{
+  for(const scans of [[],[{scan_id:1},{scan_id:2}]]) {
+    const h=checkoutHarness({scans});
+    assert.equal((await h.run('POST '+checkoutRoute,h.req())).code,400);
+    assert.equal(h.requests.length,0);
+  }
+});
+test('read-only connections need reauthorization; checkout GET never creates an order',async()=>{
+  const old=checkoutHarness({scopes:'MERCHANT_PROFILE_READ PAYMENTS_READ ORDERS_READ'});
+  assert.equal((await old.run('GET '+checkoutRoute,old.req())).code,409);
+  assert.equal(old.requests.length,0);
+  const h=checkoutHarness();
+  const response=await h.run('GET '+checkoutRoute,h.req());
+  assert.match(response.body,/Test &lt;campaign&gt;/);
+  assert.match(response.body,/Your scan reference has been captured automatically/);
+  assert.equal(h.requests.length,1);assert.equal(h.requests[0].body,null);
+});
+test('checkout carries the owned scan on a fixed-price order and retries with the same idempotency key',async()=>{
+  const h=checkoutHarness();
+  const first=await h.run('POST '+checkoutRoute,h.req());
+  assert.equal(first.code,303);assert.equal(first.redirectTo,'https://sandbox.square.link/u/test');
+  await h.run('POST '+checkoutRoute,h.req());
+  const bodies=h.requests.filter(r=>r.body).map(r=>r.body);
+  assert.equal(bodies.length,2);assert.deepEqual(bodies[0],bodies[1]);
+  assert.equal(bodies[0].order.reference_id,checkoutClick);
+  assert.deepEqual(bodies[0].order.line_items[0].base_price_money,{amount:1000,currency:'USD'});
+  assert.equal(bodies[0].checkout_options.allow_tipping,false);
+  assert.ok(h.queries.every(x=>!x.sql.includes('INSERT INTO events')));
+});
+test('checkout rejects foreign locations and untrusted redirects; failures never confirm payment',async()=>{
+  const h=checkoutHarness();
+  assert.equal((await h.run('POST '+checkoutRoute,h.req({body:{csrf:'csrf',vivid_click_id:checkoutClick,location_id:'foreign'}}))).code,400);
+  assert.equal(h.requests.filter(r=>r.body).length,0);
+  for(const options of [{url:'https://square.link.evil.example/'},{url:'http://square.link/test'},{fail:true}]) {
+    const bad=checkoutHarness(options);
+    assert.equal((await bad.run('POST '+checkoutRoute,bad.req())).code,502);
+  }
+  const result=await h.run('GET '+checkoutRoute+'/return',h.req({query:{status:'COMPLETED'}}));
+  assert.match(result.body,/does not confirm payment/);
+});
 test('encrypted credentials are tenant-bound and reject tampering', () => {
   const key = crypto.randomBytes(32), value = {access_token:'test-only'};
   const sealed = seal(value,key,'10');
@@ -33,7 +109,7 @@ function harness(options = {}) {
     return next();
   },fetcher:options.fetcher || (() => assert.fail('Unexpected network request'))});
   async function run(key,req) {
-    const res = {code:200,status(n){this.code=n;return this;},set(){return this;},type(){return this;},send(v){this.body=v;return this;},redirect(v){this.redirectTo=v;}};
+    const res = {code:200,status(n){this.code=n;return this;},set(){return this;},type(){return this;},send(v){this.body=v;return this;},redirect(v,url){this.redirectTo=url || v;if(url)this.code=v;}};
     const handlers = routes.get(key); let i=0;
     await handlers[i++](req,res,async () => {while(i<handlers.length) await handlers[i++](req,res,()=>{});});
     return res;
@@ -84,7 +160,7 @@ test('successful callback encrypts credentials and never returns them to browser
   assert.equal(res.redirectTo,'/integrations/square/sandbox/customers/1');
   const insert=h.queries.find(q=>q.sql.includes('INSERT INTO square_sandbox_connections'));
   assert.ok(insert); assert.ok(!insert.args[2].includes('fake-access'));
-  assert.deepEqual(unseal(insert.args[2],configuration(env).key,'1'),{...token,vivid_scopes:'MERCHANT_PROFILE_READ PAYMENTS_READ ORDERS_READ'});
+  assert.deepEqual(unseal(insert.args[2],configuration(env).key,'1'),{...token,vivid_scopes:'MERCHANT_PROFILE_READ PAYMENTS_READ ORDERS_READ ORDERS_WRITE PAYMENTS_WRITE'});
   assert.equal((await h.run('GET /integrations/square/sandbox/callback',makeReq())).code,403);
   assert.equal(calls,1);
 });
