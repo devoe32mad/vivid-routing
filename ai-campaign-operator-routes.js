@@ -45,11 +45,13 @@ function registerAiCampaignOperatorRoutes({ app, q, page, orgPage, organizationN
     return result.rows[0] || null;
   }
 
-  async function loadPlans(actorType, actorId, scopeId) {
+  async function loadPlans(actorType, actorId, scopeId, superAdmin = false) {
     await ensureSchema();
     const result = actorType === "enterprise"
       ? await q(`SELECT * FROM ai_campaign_plans WHERE actor_type='enterprise' AND scope_id=$1 ORDER BY created_at DESC LIMIT 25`,[scopeId])
-      : await q(`SELECT * FROM ai_campaign_plans WHERE actor_type=$1 AND actor_id=$2 AND scope_id=$3 ORDER BY created_at DESC LIMIT 25`,[actorType,actorId,scopeId]);
+      : await q(superAdmin
+        ? `SELECT * FROM ai_campaign_plans WHERE actor_type='advertiser' AND scope_id=0 ORDER BY created_at DESC LIMIT 25`
+        : `SELECT * FROM ai_campaign_plans WHERE actor_type=$1 AND actor_id=$2 AND scope_id=$3 ORDER BY created_at DESC LIMIT 25`,superAdmin?[]:[actorType,actorId,scopeId]);
     return result.rows;
   }
 
@@ -100,7 +102,9 @@ function registerAiCampaignOperatorRoutes({ app, q, page, orgPage, organizationN
     if(planId){
       const updated=role==='enterprise'
         ? await q(`UPDATE ai_campaign_plans SET name=$1,objective=$2,placement_id=$3,brief_json=$4::jsonb,plan_json=$5::jsonb,updated_at=CURRENT_TIMESTAMP WHERE id=$6 AND actor_type='enterprise' AND scope_id=$7 AND status='pending' RETURNING id`,[checked.value.name,checked.value.objective,checked.value.placementId,JSON.stringify(checked.value),JSON.stringify(plan),planId,scopeId])
-        : await q(`UPDATE ai_campaign_plans SET name=$1,objective=$2,placement_id=$3,brief_json=$4::jsonb,plan_json=$5::jsonb,updated_at=CURRENT_TIMESTAMP WHERE id=$6 AND actor_type='advertiser' AND actor_id=$7 AND scope_id=0 AND status='pending' RETURNING id`,[checked.value.name,checked.value.objective,checked.value.placementId,JSON.stringify(checked.value),JSON.stringify(plan),planId,actorId]);
+        : await q(superAdmin
+          ? `UPDATE ai_campaign_plans SET name=$1,objective=$2,placement_id=$3,brief_json=$4::jsonb,plan_json=$5::jsonb,updated_at=CURRENT_TIMESTAMP WHERE id=$6 AND actor_type='advertiser' AND scope_id=0 AND status='pending' RETURNING id`
+          : `UPDATE ai_campaign_plans SET name=$1,objective=$2,placement_id=$3,brief_json=$4::jsonb,plan_json=$5::jsonb,updated_at=CURRENT_TIMESTAMP WHERE id=$6 AND actor_type='advertiser' AND actor_id=$7 AND scope_id=0 AND status='pending' RETURNING id`,superAdmin?[checked.value.name,checked.value.objective,checked.value.placementId,JSON.stringify(checked.value),JSON.stringify(plan),planId]:[checked.value.name,checked.value.objective,checked.value.placementId,JSON.stringify(checked.value),JSON.stringify(plan),planId,actorId]);
       if(!updated.rows.length)return res.status(404).send("Pending plan not found or cannot be edited.");
     }else{
       await q(`INSERT INTO ai_campaign_plans(actor_type,actor_id,scope_id,name,objective,placement_id,brief_json,plan_json,status) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,'pending')`,[role,actorId,scopeId,checked.value.name,checked.value.objective,checked.value.placementId,JSON.stringify(checked.value),JSON.stringify(plan)]);
@@ -108,13 +112,15 @@ function registerAiCampaignOperatorRoutes({ app, q, page, orgPage, organizationN
     res.redirect(`${redirectBase}${redirectBase.includes("?")?"&":"?"}prepared=1`);
   }
 
-  async function decide(req,res,role,actorId,scopeId,returnTo) {
+  async function decide(req,res,role,actorId,scopeId,returnTo,superAdmin = false) {
     await ensureSchema();
     const planId=Number(req.body.plan_id||0), decision=String(req.body.decision||"");
     if (!Number.isInteger(planId)||!['approved','dismissed'].includes(decision)) return res.status(400).send("Invalid decision");
     const result = role === "enterprise"
       ? await q(`UPDATE ai_campaign_plans SET status=$1,approved_by=CASE WHEN $1='approved' THEN $2 ELSE approved_by END,approved_at=CASE WHEN $1='approved' THEN CURRENT_TIMESTAMP ELSE approved_at END,updated_at=CURRENT_TIMESTAMP WHERE id=$3 AND actor_type='enterprise' AND scope_id=$4 AND status='pending' RETURNING *`,[decision,actorId,planId,scopeId])
-      : await q(`UPDATE ai_campaign_plans SET status=$1,approved_by=CASE WHEN $1='approved' THEN $2 ELSE approved_by END,approved_at=CASE WHEN $1='approved' THEN CURRENT_TIMESTAMP ELSE approved_at END,updated_at=CURRENT_TIMESTAMP WHERE id=$3 AND actor_type=$4 AND actor_id=$2 AND scope_id=$5 AND status='pending' RETURNING *`,[decision,actorId,planId,role,scopeId]);
+      : await q(superAdmin
+        ? `UPDATE ai_campaign_plans SET status=$1,approved_by=CASE WHEN $1='approved' THEN $2 ELSE approved_by END,approved_at=CASE WHEN $1='approved' THEN CURRENT_TIMESTAMP ELSE approved_at END,updated_at=CURRENT_TIMESTAMP WHERE id=$3 AND actor_type='advertiser' AND scope_id=0 AND status='pending' RETURNING *`
+        : `UPDATE ai_campaign_plans SET status=$1,approved_by=CASE WHEN $1='approved' THEN $2 ELSE approved_by END,approved_at=CASE WHEN $1='approved' THEN CURRENT_TIMESTAMP ELSE approved_at END,updated_at=CURRENT_TIMESTAMP WHERE id=$3 AND actor_type=$4 AND actor_id=$2 AND scope_id=$5 AND status='pending' RETURNING *`,superAdmin?[decision,actorId,planId]:[decision,actorId,planId,role,scopeId]);
     if(!result.rows.length)return res.status(404).send("Plan not found or already reviewed.");
     if(decision==='approved'){
       const plan=result.rows[0];
@@ -156,10 +162,10 @@ function registerAiCampaignOperatorRoutes({ app, q, page, orgPage, organizationN
     res.redirect(role==='enterprise'?`/org-ai-campaign-draft/${draftId}?organization_id=${scopeId}`:`/admin/ai-campaign-draft/${draftId}`);
   }
 
-  app.get("/admin/ai-campaign-operator",requireLogin,async(req,res)=>{try{const actor=req.session.user,id=Number(actor.id),superAdmin=actor.role==='super_admin';const [placements,plans]=await Promise.all([placementsFor('advertiser',id,0,superAdmin),loadPlans('advertiser',id,0)]);const editId=Number(req.query.edit_plan||0),editPlan=plans.find(item=>Number(item.id)===editId&&item.status==='pending');res.send(page("Vivid AI Campaign Operator",renderOperatorPage({role:'advertiser',placements,plans,editPlan})));}catch(error){console.error("AI CAMPAIGN OPERATOR ERROR",error);res.status(500).send("Unable to load campaign operator");}});
+  app.get("/admin/ai-campaign-operator",requireLogin,async(req,res)=>{try{const actor=req.session.user,id=Number(actor.id),superAdmin=actor.role==='super_admin';const [placements,plans]=await Promise.all([placementsFor('advertiser',id,0,superAdmin),loadPlans('advertiser',id,0,superAdmin)]);const editId=Number(req.query.edit_plan||0),editPlan=plans.find(item=>Number(item.id)===editId&&item.status==='pending');res.send(page("Vivid AI Campaign Operator",renderOperatorPage({role:'advertiser',placements,plans,editPlan})));}catch(error){console.error("AI CAMPAIGN OPERATOR ERROR",error);res.status(500).send("Unable to load campaign operator");}});
   app.post("/admin/ai-campaign-operator",requireLogin,async(req,res)=>{try{const actor=req.session.user;await prepare(req,res,'advertiser',Number(actor.id),0,actor.role==='super_admin','/admin/ai-approval-center');}catch(error){console.error("AI CAMPAIGN PREPARE ERROR",error);res.status(500).send("Unable to prepare campaign");}});
-  app.get("/admin/ai-approval-center",requireLogin,async(req,res)=>{try{const plans=await loadPlans('advertiser',Number(req.session.user.id),0);res.send(page("AI Approval Center",`<main class="wrap"><div class="topbar"><div class="brand">Vivid AI</div><h1>Approval Center</h1><p class="subtitle">Review AI-prepared work before anything changes.</p></div><a class="btn" href="/admin/ai-campaign-operator">Prepare Campaign</a><div style="display:grid;gap:13px;margin-top:18px;">${plans.length?plans.map(p=>renderPlanCard(p)).join(''):'<div class="card">No campaign plans are waiting for review.</div>'}</div></main>`));}catch(error){res.status(500).send("Unable to load approval center");}});
-  app.post("/admin/ai-approval-center/action",requireLogin,async(req,res)=>{try{await decide(req,res,'advertiser',Number(req.session.user.id),0,'/admin/ai-approval-center');}catch(error){res.status(500).send("Unable to review plan");}});
+  app.get("/admin/ai-approval-center",requireLogin,async(req,res)=>{try{const actor=req.session.user,plans=await loadPlans('advertiser',Number(actor.id),0,actor.role==='super_admin');res.send(page("AI Approval Center",`<main class="wrap"><div class="topbar"><div class="brand">Vivid AI</div><h1>Approval Center</h1><p class="subtitle">Review AI-prepared work before anything changes.</p></div><a class="btn" href="/admin/ai-campaign-operator">Prepare Campaign</a><div style="display:grid;gap:13px;margin-top:18px;">${plans.length?plans.map(p=>renderPlanCard(p)).join(''):'<div class="card">No campaign plans are waiting for review.</div>'}</div></main>`));}catch(error){res.status(500).send("Unable to load approval center");}});
+  app.post("/admin/ai-approval-center/action",requireLogin,async(req,res)=>{try{const actor=req.session.user;await decide(req,res,'advertiser',Number(actor.id),0,'/admin/ai-approval-center',actor.role==='super_admin');}catch(error){res.status(500).send("Unable to review plan");}});
   app.get("/admin/ai-campaign-draft/:id",requireLogin,async(req,res)=>{try{const draft=await loadDraft('advertiser',Number(req.session.user.id),0,Number(req.params.id));if(!draft)return res.status(404).send("Draft not found.");res.send(page("Review AI Campaign Draft",renderDraftReview(draft)));}catch(error){res.status(500).send("Unable to load campaign draft");}});
   app.post("/admin/ai-campaign-draft/:id",requireLogin,async(req,res)=>{try{await publishDraft(req,res,'advertiser',Number(req.session.user.id),0,Number(req.params.id),page);}catch(error){console.error("AI DRAFT PUBLISH ERROR",error);res.status(500).send("Unable to publish campaign draft");}});
 
