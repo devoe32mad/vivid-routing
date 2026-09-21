@@ -999,5 +999,28 @@ source = source.replace(
   "clicks from"
 );
 
+const campaignStartDateAnchor = `\${
+                        campaign.start_date ||
+                        "Not set"
+                      }`;
+const campaignEndDateAnchor = `\${
+                        campaign.end_date ||
+                        "Not set"
+                      }`;
+const cleanCampaignStartDate = `\${campaign.start_date
+                        ? new Date(campaign.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
+                        : "Not set"}`;
+const cleanCampaignEndDate = `\${campaign.end_date
+                        ? new Date(campaign.end_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
+                        : "Not set"}`;
+
+if (!source.includes(cleanCampaignStartDate)) {
+  if (!source.includes(campaignStartDateAnchor) || !source.includes(campaignEndDateAnchor)) {
+    throw new Error("Unable to install clean campaign dates: expected date blocks were not found.");
+  }
+  source = source.replace(campaignStartDateAnchor, cleanCampaignStartDate);
+  source = source.replace(campaignEndDateAnchor, cleanCampaignEndDate);
+}
+
 fs.writeFileSync(serverPath, source, "utf8");
 console.log("Vivid intelligence preview installed.");
