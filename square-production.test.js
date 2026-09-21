@@ -40,14 +40,14 @@ function harness(options = {}) {
   }
   return {run,queries,routes};
 }
-test('production isolation rejects sandbox ciphertext and exposes no checkout or refund writes',()=>{
+test('production isolation rejects sandbox ciphertext and exposes no refund writes',()=>{
   const sandbox=require('./square-sandbox');
   const key=configuration(env).key;
   const sealed=sandbox.seal({access_token:'sandbox-test'},key,'17');
   assert.throws(()=>unseal(sealed,key,'17'));
   const h=harness();
   assert.ok([...h.routes.keys()].every(r=>r.includes('/square/production/')));
-  assert.ok([...h.routes.keys()].every(r=>!r.includes('checkout') && !r.includes('refund')));
+  assert.ok([...h.routes.keys()].every(r=>!r.includes('refund')));
   install({env:{SQUARE_SANDBOX_ENABLED:'true'},app:null,q:()=>assert.fail('Sandbox flag enabled production')});
 });
 test('installer upgrades an already patched server without duplicating sandbox routes',()=>{
@@ -155,22 +155,23 @@ test('pagination follows cursors and deduplicates payment IDs',async()=>{
   await assert.rejects(()=>collect(async()=>({payments:[],cursor:'repeat'}),'/v2/payments','payments','test',{}));
 });
 function salesHarness({scopes=SALES_SCOPES,fail=false,conflict=false,matches=true}={}){
-  let snapshot,imports=0;
+  let snapshot,imports=0,state;const records=new Map();
   const token={access_token:'fake',refresh_token:'fake',merchant_id:'m1',expires_at:'2030-01-01T00:00:00Z',vivid_scopes:scopes};
   const h=harness({query:(sql,args)=>{
     if(sql.startsWith('SELECT * FROM square_production_connections'))return {rows:[{merchant_id:'m1',expires_at:token.expires_at,token_ciphertext:seal(token,configuration(env).key,'17')}]};
     if(sql.includes('FROM events e JOIN campaigns')){
-      assert.match(sql,/COALESCE\(c.is_test,false\)=false/);assert.equal(args[0],17);assert.deepEqual(args[1],['click-1']);assert.ok(sql.includes('c.user_id=$1'));
+      assert.match(sql,/COALESCE\(c.is_test,false\)=false/);assert.equal(args[0],17);assert.equal(args[1],'click-1');assert.ok(sql.includes('c.user_id=$1'));
       return {rows:matches ? [{scan_id:10,qr_id:20,campaign_id:30,click_id:'click-1',name:'Test campaign'}] : []};
     }
     if(sql.includes("status='syncing'"))return {rows:[{customer_id:17}]};
-    if(sql.startsWith('INSERT INTO square_production_sales')){imports++;snapshot=JSON.parse(args[2]);return {rows:[{customer_id:17}]};}
-    if(sql.startsWith('SELECT s.snapshot'))return {rows:snapshot ? [{snapshot,imported_at:'2026-09-21T12:00:00Z'}] : []};
+    if(sql.startsWith('WITH fence')){imports++;for(const r of JSON.parse(args[4]))records.set(r.payment.id,r);state=JSON.parse(args[5]);snapshot={payments:[...records.values()].map(r=>r.payment),refunds:[...records.values()].flatMap(r=>r.refunds)};return {rows:[{customer_id:17}]};}
+    if(sql.startsWith('SELECT state') || sql.startsWith('SELECT s.state'))return {rows:state ? [{state,updated_at:'2026-09-21T12:00:00Z'}] : []};
+    if(sql.startsWith('SELECT CASE WHEN l.payment'))return {rows:[...records.values()].map(r=>({...r,updated_at:'2026-09-21T12:00:00Z'}))};
     return {rows:[]};
   },fetcher:async(url,opts)=>{
     assert.equal(opts.method,'GET');assert.ok(url.startsWith('https://connect.squareup.com/v2/'));
     if(fail)return {ok:false};
-    const data=url.includes('/payments?') ? {payments:[payment({reference_id:'click-1',order_id:'o1',refund_ids:['r1','r2']})]} : url.includes('/orders/') ? {order:{id:'o1',location_id:'loc-1',reference_id:conflict ? 'different-click' : 'click-1'}} : {refund:{id:url.endsWith('r1') ? 'r1':'r2',payment_id:'pay-1',status:url.endsWith('r1') ? 'COMPLETED':'PENDING',amount_money:{amount:300,currency:'USD'}}};
+    const data=url.includes('/refunds?') ? {refunds:[]} : url.includes('/payments?') ? {payments:[payment({reference_id:'click-1',order_id:'o1',refund_ids:['r1','r2']})]} : url.includes('/orders/') ? {order:{id:'o1',location_id:'loc-1',reference_id:conflict ? 'different-click' : 'click-1'}} : {refund:{id:url.endsWith('r1') ? 'r1':'r2',payment_id:'pay-1',status:url.endsWith('r1') ? 'COMPLETED':'PENDING',amount_money:{amount:300,currency:'USD'}}};
     return {ok:true,json:async()=>data};
   }});
   const req=()=>({params:{customerId:'17'},body:{csrf:'csrf'},session:{user:{id:17},squareProductionCsrf:'csrf'}});
@@ -185,7 +186,7 @@ test('sales import requires upgraded permissions and CSRF',async()=>{
   assert.match((await h.run(salesRoute,h.req())).body,/One more authorization/);
   const req=h.req();req.body.csrf='wrong';assert.equal((await h.run(importRoute,req)).code,403);
 });
-test('import matches an owned scan, reads refunds and re-import replaces snapshot',async()=>{
+test('import matches an owned scan, reads refunds and re-import updates durable records',async()=>{
   const h=salesHarness();
   for(let i=0;i<2;i++)assert.equal((await h.run(importRoute,h.req())).redirectTo,'/integrations/square/production/customers/17/sales');
   assert.equal(h.snapshot().payments.length,1);assert.equal(h.snapshot().payments[0].match.campaign_id,30);
@@ -245,12 +246,12 @@ test('background failures are retried and concurrent ticks do not overlap',async
   const disabled=createSync({q:()=>assert.fail('disabled worker touched database'),ready:async()=>{},enabled:false});
   await disabled.tick(()=>assert.fail('disabled worker ran'));
 });
-test('snapshot replacement requires unexpired lease and unchanged merchant credentials',async()=>{
+test('ledger update requires unexpired lease and unchanged merchant credentials',async()=>{
   const h=salesHarness();await h.run(importRoute,h.req());
-  const saved=h.queries.find(x=>x.sql.startsWith('INSERT INTO square_production_sales'));
-  assert.match(saved.sql,/merchant_id=\$2 AND token_ciphertext=\$4/);
-  assert.match(saved.sql,/lease=\$5 AND lease_until>NOW\(\)/);
-  assert.equal(typeof saved.args[4],'string');
+  const saved=h.queries.find(x=>x.sql.startsWith('WITH fence'));
+  assert.match(saved.sql,/c.merchant_id=\$2 AND c.token_ciphertext=\$3/);
+  assert.match(saved.sql,/s.lease=\$4 AND s.lease_until>NOW\(\)/);
+  assert.equal(typeof saved.args[3],'string');
 });
 test('campaign report keeps currencies separate and subtracts refunds only from matched completed sales',()=>{
   const {campaignTotals}=require('./square-production-sales');
@@ -258,4 +259,18 @@ test('campaign report keeps currencies separate and subtracts refunds only from 
   const p={...normalizePayment(payment()),match};
   const totals=campaignTotals({payments:[p,{...p,id:'pending',status:'PENDING'},{...p,id:'unmatched',match:null},{...p,id:'eur',total:{amount:500,currency:'EUR'}}],refunds:[refund('r','COMPLETED',300)]});
   assert.deepEqual(totals,[{campaign_id:56,name:'Test',currency:'USD',count:1,gross:1200,refunded:300,net:900},{campaign_id:56,name:'Test',currency:'EUR',count:1,gross:500,refunded:0,net:500}]);
+});
+test('checkout permissions require explicit owner OAuth upgrade and are bound to pending state',async()=>{
+  const h=harness({query:sql=>({rows:sql.startsWith('SELECT id FROM') ? [{id:17}] : []})});
+  const req={params:{customerId:'17'},body:{csrf:'csrf',checkout:'true'},session:{user:{id:17},squareProductionCsrf:'csrf',save:cb=>cb()}};
+  const res=await h.run('POST /integrations/square/production/customers/:customerId/connect',req);
+  const scopes=new URL(res.redirectTo).searchParams.get('scope');
+  assert.equal(scopes,'MERCHANT_PROFILE_READ PAYMENTS_READ ORDERS_READ ORDERS_WRITE PAYMENTS_WRITE');
+  assert.equal(req.session.squareProductionPending.scopes,scopes);
+});
+test('CSV export uses verified net and neutralizes spreadsheet formulas',()=>{
+  const {exportSales}=require('./square-production-sales');
+  const p={...normalizePayment(payment()),match:{campaign_id:1,name:'=CMD()',click_id:'click-1'}};
+  const csv=exportSales({payments:[p],refunds:[refund('r','COMPLETED',300)]});
+  assert.ok(csv.includes('"1200","300","900"'));assert.ok(csv.includes('"\'=CMD()"'));
 });
