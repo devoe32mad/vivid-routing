@@ -1,7 +1,8 @@
 'use strict';
-// Verified live payment ledger. Never creates estimated conversion events.
+// Verified live payment ledger and native conversion reporting.
 const crypto = require('node:crypto');
 const {createLedger}=require('./square-production-ledger');
+const {createConversions}=require('./square-production-conversions');
 const SALES_SCOPES = 'MERCHANT_PROFILE_READ PAYMENTS_READ ORDERS_READ';
 const esc = x => String(x ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function money(m) {
@@ -93,12 +94,13 @@ function installSales({app,q,owner,wrap,api,getConnection,csrf,root,sync}) {
     return {payment:p,refunds:list};
   };
   const ledger=createLedger({q,api,enrich});
+  const conversions=createConversions({q});
   const load=async id=>{await ready();return ledger.load(id);};
   app.get(route,owner,wrap(async(req,res)=>{
     req.session.squareProductionCsrf ||= crypto.randomBytes(32).toString('hex');
     const id=Number(req.params.customerId), connection=await getConnection(id);
     if(!connection)return res.status(409).send(page('Connect Square first',`<a href="${root(id)}">Back to connection</a>`));
-    const intro=`<p>Verified Square sales retained from the initial 90-day import onward. Square-attributed revenue is reported separately from estimated conversion values so the same sale is never added twice.</p><a href="${root(id)}">Back to connection</a>`;
+    const intro=`<p>Verified Square sales retained from the initial 90-day import onward. Matched completed USD payments also appear in Vivid conversions and revenue. Each payment is counted once; completed refunds reduce its revenue.</p><a href="${root(id)}">Back to connection</a>`;
     if(!permitted(connection.token))return res.type('html').send(page('Enable live sales',intro+`<section><h2>One more authorization</h2><p>Reconnect your Square live account and allow read access to payments and orders. This also lets Vivid read refunds. This page imports live transactions only.</p><a href="${root(id)}">Reconnect Square live account</a></section>`));
     const row=await load(id), snap=row?.snapshot;
     const campaignFilter=String(req.query?.campaign || '');
@@ -123,7 +125,7 @@ function installSales({app,q,owner,wrap,api,getConnection,csrf,root,sync}) {
       for(const p of snap.payments){const a=amounts(p,snap.refunds);const t=totals[p.total.currency] ||= {gross:0,refunded:0,net:0,matched:0};for(const k of ['gross','refunded','net'])t[k]+=a[k];if(p.match)t.matched+=a.net;}
       body+=`<p>Imported ${esc(new Date(row.imported_at).toISOString())} · ${row.state?.window ? 'Sync is still catching up; totals may be incomplete.' : 'Retained payment history'}</p><section><h2>Payment totals</h2><p>Collected amounts include any tax and tips. Pending and failed payments are excluded; only completed refunds reduce net amounts.</p><div class="scroll"><table><thead><tr><th>Currency</th><th>Collected</th><th>Refunded</th><th>Net collected</th><th>Matched net</th></tr></thead><tbody>${Object.entries(totals).map(([c,t])=>`<tr><td>${esc(c)}</td>${['gross','refunded','net','matched'].map(k=>`<td>${esc(format(t[k],c))}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
       const campaigns=campaignTotals(snap);
-      body+=`<section><h2>Matched campaign results</h2><p>Verified Square payments less completed refunds. This is the Square-attributed revenue total for each campaign. It is not added to estimated conversion values or existing ROI. Test campaigns are excluded from matching.</p>${campaigns.length ? `<div class="scroll"><table><thead><tr><th>Campaign</th><th>Currency</th><th>Payments</th><th>Collected</th><th>Refunded</th><th>Net collected</th></tr></thead><tbody>${campaigns.map(c=>`<tr><td><a href="${root(id)}/sales?campaign=${esc(c.campaign_id)}">${esc(c.name)}</a> (ID ${esc(c.campaign_id)})</td><td>${esc(c.currency)}</td><td>${c.count}</td>${['gross','refunded','net'].map(k=>`<td>${esc(format(c[k],c.currency))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p>No completed payments have matched a campaign yet.</p>'}</section>`;
+      body+=`<section><h2>Matched campaign results</h2><p>Verified Square payments less completed refunds. Matched completed USD payments feed Vivid conversion counts, revenue and ROI. A refund adjusts the original conversion’s revenue; the completed purchase remains one conversion. Estimates for the same customer action and scan are superseded, not added again. Other currencies remain in this report only. Test campaigns are excluded from matching.</p>${campaigns.length ? `<div class="scroll"><table><thead><tr><th>Campaign</th><th>Currency</th><th>Payments</th><th>Collected</th><th>Refunded</th><th>Net collected</th></tr></thead><tbody>${campaigns.map(c=>`<tr><td><a href="${root(id)}/sales?campaign=${esc(c.campaign_id)}">${esc(c.name)}</a> (ID ${esc(c.campaign_id)})</td><td>${esc(c.currency)}</td><td>${c.count}</td>${['gross','refunded','net'].map(k=>`<td>${esc(format(c[k],c.currency))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p>No completed payments have matched a campaign yet.</p>'}</section>`;
       body+=`<section><h2>Transactions (${snap.payments.length})</h2><p>Matching requires a payment or order reference equal to an existing Vivid click ID for this advertiser, from a scan within 30 days before the payment. Conflicting references remain unmatched.</p>${snap.payments.length ? snap.payments.slice((detailPage-1)*pageSize,detailPage*pageSize).map(p=>{
         const a=amounts(p,snap.refunds),refunds=snap.refunds.filter(r=>r.payment_id===p.id);
         return `<details><summary>${esc(p.created_at.slice(0,10))} · ${esc(format(a.net,p.total.currency))} · ${esc(p.status)} · ${p.match ? 'Matched: '+esc(p.match.name) : 'Unmatched'}</summary><dl><dt>Square payment</dt><dd>${esc(p.id)}</dd><dt>Square location</dt><dd>${esc(p.location_id)}</dd><dt>Square order</dt><dd>${esc(p.order_id || 'None')}</dd><dt>Payment reference</dt><dd>${esc(p.reference || 'None')}</dd><dt>Order reference</dt><dd>${esc(p.order_reference || 'None')}</dd><dt>Collected / refunded / net</dt><dd>${esc(format(a.gross,p.total.currency))} / ${esc(format(a.refunded,p.total.currency))} / ${esc(format(a.net,p.total.currency))}</dd><dt>Attribution evidence</dt><dd>${p.match ? 'Exact reference: '+esc(p.match.click_id)+' · Campaign '+esc(p.match.campaign_id)+' · QR '+esc(p.match.qr_id)+' · Scan '+esc(p.match.scan_id) : 'No unique eligible Vivid scan reference found.'}</dd></dl><h3>Refunds</h3>${refunds.length ? '<ul>'+refunds.map(r=>`<li>${esc(r.id)} · ${esc(r.status)} · ${esc(format(r.amount.amount,r.amount.currency))}</li>`).join('')+'</ul>' : '<p>No refunds.</p>'}</details>`;
@@ -137,6 +139,7 @@ function installSales({app,q,owner,wrap,api,getConnection,csrf,root,sync}) {
     if(!connection || !permitted(connection.token))throw Error('Reconnect required');
     await ready();
     await ledger.run(id,connection,lease);
+    await conversions.reconcile(id,connection,lease);
   };
   app.post(route+'/import',owner,wrap(async(req,res)=>{
     if(!csrf(req))return res.status(403).send('Reload the connection page and retry.');

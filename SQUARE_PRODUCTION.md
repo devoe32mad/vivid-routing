@@ -2,9 +2,9 @@
 
 ## Current release scope
 
-A connected merchant can opt into Square-hosted checkout for fixed-price USD offers. Only an eligible non-test Vivid campaign scan can open an offer. The order carries that scan's click ID. Completed payments are matched to the advertiser and scan; ordinary sales stay unmatched. Square-attributed campaign totals and CSV exports are separate from estimated conversions and existing executive ROI, not added on top of them.
+A connected merchant can opt into Square-hosted checkout for fixed-price USD offers. Only an eligible non-test Vivid campaign scan can open an offer. The order carries that scan's click ID. Completed payments are matched to the advertiser and scan; ordinary sales stay unmatched. Matched completed USD payments now project into native conversion events used by campaign, QR, customer-action and executive revenue/ROI reports. The Square report remains the payment audit trail; its totals are not separately added again.
 
-No merchant has completed this new production purchase flow yet. Sandbox acceptance and a live read-only OAuth/sync have passed. A merchant-authorized live purchase/refund pilot remains the release acceptance gate. Do not call the integration fully live-validated before that gate passes.
+On September 21, 2026, a $1 live purchase matched campaign 66, QR 60 and scan 39609. Native conversion reporting was missing at that point; this change backfills it on the next successful sync. Deployed native report verification and the live refund check remain pending.
 
 ## Configuration
 
@@ -40,7 +40,9 @@ The first checkout request freezes its price, merchant, order body and idempoten
 - Campaign links drill into verified sales. UTC date filters, 50-row transaction pages and CSV export use the same verified records. CSV neutralizes spreadsheet formula prefixes.
 - The report marks an incomplete sync window as catching up. Five-minute polling is eventually consistent, not a real-time guarantee.
 
-This release does not merge verified collections into the legacy estimated-conversion ROI calculation. That would require choosing a revenue source and campaign cost/date policy; adding both totals would double-count. It also does not automatically identify unrelated in-store purchases: those need a register redemption/order-reference workflow. General shopping carts, catalog inventory, shipping, disputes, and webhook revocation notifications are not included in this fixed-offer release.
+Native reporting uses one event per advertiser/merchant/payment, timestamped at purchase. Its value is collected USD less completed refunds, without processor-fee deductions. Partial and full refunds revise that original value; a fully refunded purchase remains one historical conversion with zero revenue. Existing estimates for the same scan and customer action are retained as superseded records and excluded from conversion totals. Other actions remain unchanged. Non-USD payments stay in the currency-separated Square report. Existing campaign cost allocation and payment-date reporting apply; refunds restate the original purchase period. Reconciliation retries after failure and backfills retained payments, so no new purchase is needed. Disconnecting a merchant preserves historical conversion events.
+
+This release does not automatically identify unrelated in-store purchases: those need a register redemption/order-reference workflow. General shopping carts, catalog inventory, shipping, disputes, and webhook revocation notifications are not included in this fixed-offer release.
 
 ## Acceptance
 
@@ -60,7 +62,7 @@ Database-backed flow tests use PGlite (PostgreSQL in WASM), not a SQL-string moc
 
 ```
 npm install --prefix /tmp/vivid-square-tests @electric-sql/pglite
-NODE_PATH=/tmp/vivid-square-tests/node_modules node --test square-production-flow.test.js
+NODE_PATH=/tmp/vivid-square-tests/node_modules node --test square-production-flow.test.js square-production-conversions.test.js
 ```
 
 Tests cover page interruption/resume, snapshot migration, old-payment refunds, expired leases, merchant separation, forged scans, server-owned prices, timeout retries, disabled offers and OAuth opt-in. Square API responses are simulated; live merchant acceptance is still required.
@@ -74,3 +76,4 @@ Set SQUARE_PRODUCTION_ENABLED=false and redeploy to stop routes/workers while re
 - https://developer.squareup.com/reference/square/checkout-api/create-payment-link
 - https://developer.squareup.com/reference/square/payments-api/list-payments
 - https://developer.squareup.com/reference/square/refunds-api/list-payment-refunds
+
