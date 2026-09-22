@@ -203,3 +203,69 @@ test('simultaneous claims and approvals keep one code and one approval window',a
     assert.equal((await f.q('SELECT * FROM square_instore_claims',[])).rows.length,1);
   }finally{await f.db.close();}
 });
+
+test('short codes omit ambiguous characters and normalize strictly alongside legacy codes',()=>{
+  for(let i=0;i<100;i++)assert.match(newCode(),/^V-[2-9A-HJ-NP-Z]{8}$/);
+  assert.equal(normalizeCode('  v-7k3m9r2x  '),'V-7K3M9R2X');
+  assert.equal(normalizeCode('vivid-7f7e-4671-73cf-74f6'),'VIVID-7F7E-4671-73CF-74F6');
+  for(const bad of ['V-7K3M9R2','V-7K3M9R2XX','V-0K3M9R2X','V-OK3M9R2X','V-1K3M9R2X','V-IK3M9R2X','7K3M9R2X','prefix V-7K3M9R2X'])assert.equal(normalizeCode(bad),null);
+});
+test('legacy claimed code survives repeated claims, cashier approval and exact paid order sync',async()=>{
+  const f=await fixture();try{
+    await f.setup();const legacy='VIVID-7F7E-4671-73CF-74F6';
+    await f.q('UPDATE square_instore_claims SET code=$1',[legacy]);
+    assert.equal((await f.model.issue(17,66,click)).code,legacy);
+    const approval=await f.run(admin+'/approve',f.req({code:legacy.toLowerCase(),confirm:'true'}));
+    assert.equal(approval.code,200);assert.match(approval.body,/Copy code/);assert.ok(approval.body.includes(legacy));
+    f.pay(legacy);await f.sync();await f.sync();
+    assert.equal((await f.report()).rows.length,1);
+    assert.equal(await f.model.lookup(17,legacy,'loc'),null);
+  }finally{await f.db.close();}
+});
+test('random-code collisions retry without changing an existing claim and stop after a bound',async()=>{
+  const f=await fixture();try{
+    const original=await f.setup();const secondClick='bbbbbbbb-bbbb-cccc-dddd-eeeeeeeeeeee';
+    await f.q("INSERT INTO events(qr_id,campaign_id,type,vivid_click_id) VALUES(60,66,'scan',$1)",[secondClick]);
+    let attempts=0;
+    const model=createRedemptions({q:f.q,generateCode:()=>++attempts===1?original.code:'V-23456789'});
+    const claim=await model.issue(17,66,secondClick);
+    assert.equal(claim.code,'V-23456789');assert.equal(attempts,2);
+    assert.equal((await f.model.issue(17,66,click)).code,original.code);
+    const thirdClick='cccccccc-bbbb-cccc-dddd-eeeeeeeeeeee';
+    await f.q("INSERT INTO events(qr_id,campaign_id,type,vivid_click_id) VALUES(60,66,'scan',$1)",[thirdClick]);
+    let collisions=0;
+    await assert.rejects(createRedemptions({q:f.q,generateCode:()=>{collisions++;return original.code;}}).issue(17,66,thirdClick),/unique claim code/);
+    assert.equal(collisions,5);
+    assert.equal((await f.q('SELECT * FROM square_instore_claims',[])).rows.length,2);
+    const failure=Object.assign(Error('different constraint'),{code:'23505',constraint:'other_constraint'});
+    let writes=0;
+    await assert.rejects(createRedemptions({q:async(sql)=>{if(sql.includes('WITH eligible')){writes++;throw failure;}return {rows:[]};}}).issue(17,66,thirdClick),/different constraint/);
+    assert.equal(writes,1);
+  }finally{await f.db.close();}
+});
+test('copy control copies the exact code and offers manual selection when clipboard is unavailable',async()=>{
+  const f=await fixture();try{
+    await f.setup();const response=await f.run(claimRoute,f.req());
+    assert.match(response.body,/id="claim-code"/);assert.match(response.body,/Copy code/);
+    const script=await f.run('GET /integrations/square/production/instore-copy.js',f.req());
+    const {runInNewContext}=require('node:vm');
+    for(const supported of [true,false]){
+      let handler,copied,selection,focused=false;
+      const field={value:'V-7K3M9R2X',focus(){focused=true;},select(){},setSelectionRange(start,end){selection=[start,end];}};
+      const button={hidden:true,addEventListener(event,fn){assert.equal(event,'click');handler=fn;}},status={};
+      const elements={'claim-code':field,'copy-claim-code':button,'copy-code-status':status};
+      runInNewContext(script.body,{document:{getElementById:id=>elements[id]},navigator:supported?{clipboard:{writeText:async text=>{copied=text;}}}:{}});
+      assert.equal(button.hidden,false);await handler();
+      if(supported){assert.equal(copied,field.value);assert.match(status.textContent,/copied/);}
+      else{assert.equal(focused,true);assert.deepEqual(selection,[0,field.value.length]);assert.match(status.textContent,/selected/);}
+    }
+  }finally{await f.db.close();}
+});
+test('short and legacy codes on the same order are conflicting even with different prefixes',()=>{
+  const code=newCode(),legacy='VIVID-7F7E-4671-73CF-74F6';
+  const p={id:'p',order_id:'o',location_id:'loc',status:'COMPLETED',total:{amount:100,currency:'USD'}};
+  const order={id:'o',location_id:'loc',state:'COMPLETED',closed_at:new Date().toISOString(),total_money:p.total,
+    line_items:[{note:code},{note:legacy}],tenders:[{type:'CARD',payment_id:'p',location_id:'loc',amount_money:p.total}]};
+  assert.equal(orderEvidence(order,p).eligible,false);
+  assert.equal(orderEvidence({...order,line_items:[{note:'V-INVALID'}]},p).eligible,false);
+});
