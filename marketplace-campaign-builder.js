@@ -1,0 +1,62 @@
+"use strict";
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function validateCampaignRequest(input = {}) {
+  const value = {
+    companyName: String(input.company_name || "").trim().slice(0, 160),
+    contactName: String(input.contact_name || "").trim().slice(0, 160),
+    email: String(input.email || "").trim().toLowerCase().slice(0, 254),
+    phone: String(input.phone || "").trim().slice(0, 60),
+    objective: ["sales", "leads", "visits", "awareness"].includes(input.objective)
+      ? input.objective
+      : "sales",
+    audience: String(input.audience || "").trim().slice(0, 500),
+    geography: String(input.geography || "").trim().slice(0, 300),
+    offer: String(input.offer || "").trim().slice(0, 500),
+    monthlyBudget: Math.max(0, Number(input.monthly_budget || 0)),
+    startDate: String(input.start_date || "").trim(),
+    notes: String(input.notes || "").trim().slice(0, 1200),
+    approvalRequired: input.approval_required !== "no"
+  };
+  const errors = [];
+  if (!value.companyName) errors.push("Company name is required.");
+  if (!value.contactName) errors.push("Contact name is required.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email)) errors.push("A valid email is required.");
+  if (!value.audience) errors.push("Target audience is required.");
+  if (!value.geography) errors.push("Target geography is required.");
+  if (!value.offer) errors.push("An offer or message is required.");
+  if (!(value.monthlyBudget > 0)) errors.push("A monthly budget greater than zero is required.");
+  if (value.startDate && !/^\d{4}-\d{2}-\d{2}$/.test(value.startDate)) errors.push("Start date is invalid.");
+  return { valid: errors.length === 0, errors, value };
+}
+
+function shell(title, body) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>
+  *{box-sizing:border-box}body{margin:0;background:#f4f7f5;color:#173c2c;font-family:Arial,Helvetica,sans-serif}.hero{padding:42px 20px;background:linear-gradient(135deg,#0b1f3a,#176b3a);color:#fff}.hero>div,.wrap{width:min(960px,calc(100% - 32px));margin:auto}.eyebrow{font-size:12px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#bfe8d0}.hero h1{margin:8px 0;font-size:clamp(32px,5vw,52px)}.hero p{max-width:760px;margin:0;color:#e2f1e8;line-height:1.65}.wrap{padding:30px 0 60px}.card{background:#fff;border:1px solid #d7e2da;border-radius:18px;padding:24px;box-shadow:0 10px 28px rgba(16,61,43,.07)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}label{display:block;margin-bottom:7px;font-size:13px;font-weight:800}input,select,textarea{width:100%;padding:12px;border:1px solid #cbd8ce;border-radius:9px;background:#fff;font:inherit}textarea{min-height:110px;resize:vertical}.wide{grid-column:1/-1}.hint{color:#65776b;font-size:13px;line-height:1.5}.error{margin-bottom:18px;padding:13px;border-radius:10px;background:#fff0f0;color:#941b1b}.button{display:inline-block;border:0;border-radius:10px;padding:13px 18px;background:#176b3a;color:#fff;font-weight:900;text-decoration:none;cursor:pointer}.secondary{background:#fff;color:#176b3a;border:1px solid #a9c6b3}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}.step{padding:14px;border-radius:12px;background:#edf6f0;color:#28533b;font-size:13px;line-height:1.45}.status{display:inline-block;border-radius:999px;padding:6px 10px;background:#e8f5ed;color:#176b3a;font-size:12px;font-weight:900}.request{margin-bottom:14px}.request h3{margin:8px 0}.meta{display:flex;gap:14px;flex-wrap:wrap;color:#65776b;font-size:13px}@media(max-width:680px){.grid,.steps{grid-template-columns:1fr}.wide{grid-column:auto}}
+  </style></head><body>${body}</body></html>`;
+}
+
+function renderCampaignBuilder({ organization, error = "", values = {} }) {
+  const v = values;
+  const selected = key => String(v.objective || "sales") === key ? " selected" : "";
+  return shell(`Build a Campaign | ${organization.name}`, `<section class="hero"><div><div class="eyebrow">Vivid Campaign Builder · Powered for ${escapeHtml(organization.name)}</div><h1>Tell us the outcome. Vivid will build the campaign.</h1><p>Share your goal, audience, budget and guardrails. Vivid will recommend the physical and digital mix, explain the evidence behind it, and send the plan for approval before anything runs.</p></div></section><main class="wrap"><div class="steps"><div class="step"><strong>1. Define the outcome</strong><br>Sales, leads, visits or awareness.</div><div class="step"><strong>2. Vivid builds the plan</strong><br>Placements, channels, timing and measurement.</div><div class="step"><strong>3. You approve</strong><br>No campaign or spend changes without authorization.</div></div><section class="card">${error ? `<div class="error">${escapeHtml(error)}</div>` : ""}<form method="post"><div class="grid"><div><label>Company name</label><input name="company_name" required value="${escapeHtml(v.company_name || "")}"></div><div><label>Contact name</label><input name="contact_name" required value="${escapeHtml(v.contact_name || "")}"></div><div><label>Email</label><input name="email" type="email" required value="${escapeHtml(v.email || "")}"></div><div><label>Phone <span class="hint">(optional)</span></label><input name="phone" value="${escapeHtml(v.phone || "")}"></div><div><label>Primary goal</label><select name="objective"><option value="sales"${selected("sales")}>Generate sales</option><option value="leads"${selected("leads")}>Generate leads</option><option value="visits"${selected("visits")}>Drive visits or traffic</option><option value="awareness"${selected("awareness")}>Build awareness</option></select></div><div><label>Monthly budget</label><input name="monthly_budget" type="number" min="1" step="1" required value="${escapeHtml(v.monthly_budget || "")}"></div><div><label>Target audience</label><input name="audience" required placeholder="Who should this campaign reach?" value="${escapeHtml(v.audience || "")}"></div><div><label>Target geography</label><input name="geography" required placeholder="City, radius, region, or markets" value="${escapeHtml(v.geography || "")}"></div><div class="wide"><label>Offer or message</label><textarea name="offer" required placeholder="What should people know or do?">${escapeHtml(v.offer || "")}</textarea></div><div><label>Preferred start date <span class="hint">(optional)</span></label><input name="start_date" type="date" value="${escapeHtml(v.start_date || "")}"></div><div><label>Approval preference</label><select name="approval_required"><option value="yes">Approve every plan and change</option><option value="no">Discuss bounded Autopilot after setup</option></select></div><div class="wide"><label>Other instructions <span class="hint">(optional)</span></label><textarea name="notes" placeholder="Restrictions, timing, channels, products, or anything Vivid should know.">${escapeHtml(v.notes || "")}</textarea></div></div><p class="hint">Submitting this brief does not launch a campaign or authorize spending. ${escapeHtml(organization.name)} and Vivid will review the recommendation with you first.</p><div class="actions"><button class="button" type="submit">Build My Campaign</button><a class="button secondary" href="/advertise/${encodeURIComponent(organization.slug)}">Browse Placements</a></div></form></section></main>`);
+}
+
+function renderConfirmation({ organization, reference }) {
+  return shell("Campaign brief received", `<section class="hero"><div><div class="eyebrow">Campaign brief received</div><h1>Vivid is preparing your campaign.</h1><p>Your objective and guardrails have been recorded. The next step is an evidence-backed recommendation for review—not an automatic launch.</p></div></section><main class="wrap"><section class="card"><span class="status">Awaiting review</span><h2>Reference ${escapeHtml(reference)}</h2><p class="hint">${escapeHtml(organization.name)} can now review your brief and prepare the proposed placement, channel, budget and measurement plan.</p><div class="actions"><a class="button" href="/advertise/${encodeURIComponent(organization.slug)}">Return to Marketplace</a></div></section></main>`);
+}
+
+function renderEnterpriseQueue({ organization, requests }) {
+  const cards = requests.length ? requests.map(item => `<article class="card request"><span class="status">${escapeHtml(item.status)}</span><h3>${escapeHtml(item.company_name)}</h3><div class="meta"><span>${escapeHtml(item.reference)}</span><span>${escapeHtml(item.objective)}</span><span>$${Number(item.monthly_budget || 0).toLocaleString("en-US")}/month</span><span>${escapeHtml(item.created_at ? new Date(item.created_at).toLocaleDateString("en-US") : "")}</span></div><p><strong>Audience:</strong> ${escapeHtml(item.audience)}<br><strong>Geography:</strong> ${escapeHtml(item.geography)}<br><strong>Offer:</strong> ${escapeHtml(item.offer)}</p><p class="hint">${escapeHtml(item.contact_name)} · ${escapeHtml(item.email)}${item.phone ? ` · ${escapeHtml(item.phone)}` : ""}</p><div class="actions"><a class="button" href="/org-ai-campaign-operator?organization_id=${Number(organization.id)}">Prepare Recommendation</a><a class="button secondary" href="/org-ai-readiness?organization_id=${Number(organization.id)}">Check Evidence Passport</a></div></article>`).join("") : `<section class="card"><h2>No campaign briefs yet</h2><p class="hint">New Build My Campaign requests will appear here.</p></section>`;
+  return `<main class="wrap"><section class="hero" style="border-radius:18px"><div><div class="eyebrow">Enterprise campaign service</div><h1>Campaign Builder Requests</h1><p>${escapeHtml(organization.name)} can review advertiser goals here, then use Vivid’s evidence and approval controls to prepare the recommendation.</p></div></section><div style="margin-top:20px">${cards}</div></main>`;
+}
+
+module.exports = { validateCampaignRequest, renderCampaignBuilder, renderConfirmation, renderEnterpriseQueue };
