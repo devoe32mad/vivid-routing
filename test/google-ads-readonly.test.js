@@ -139,6 +139,10 @@ test("real PostgreSQL imports replace snapshots, preserve failed reports and iso
     // Expired access tokens are renewed server-side; refresh credentials stay encrypted.
     await q("UPDATE google_ads_private_connections SET token_ciphertext=$1 WHERE id=$2",[seal({...token(),expires_at:0},config.key,"1:"+account.id),id]);
     fail=false;data=[];await store.sync(1,id,range);assert.equal(refreshes,1);assert.equal((await dashboardEvidence(q,1,range)).rows.length,0);
+    const renamed=raw("99","2026-09-21");renamed.campaign.name="Latest name";renamed.campaign.status="PAUSED";
+    data=normalizeRows([raw(),renamed],account,range);await store.sync(1,id,range);
+    const grouped=(await dashboardEvidence(q,1,range)).rows;
+    assert.equal(grouped.length,1);assert.equal(grouped[0].campaign_name,"Latest name");assert.equal(grouped[0].campaign_status,"PAUSED");assert.equal(grouped[0].clicks,"16");
     await store.disconnect(1,id);assert.equal((await store.list(1)).length,0);assert.equal((await store.list(2)).length,1);
     assert.equal((await q("SELECT COUNT(*)::int count FROM google_ads_private_syncs WHERE connection_id=$1",[id])).rows[0].count,0);
     assert.ok(other);
@@ -193,7 +197,7 @@ test("dashboard integrates only the logged-in advertiser's Google evidence; ente
   },page:(_,b)=>b,orgPage:(_,b)=>b,organizationNav:()=>"",requireLogin:(req,res,next)=>next(),requireOrganizationPermission:()=>((req,res,next)=>next()),getOrganizationScope:async()=>({organizationId:23}),env});
   const res={status(){return this;},send(body){this.body=body;}};
   await routes["/admin/marketing-command-center"].at(-1)({session:{user:{id:7}},query:{...range,user_id:999}},res);
-  assert.match(res.body,/Private campaign/);assert.match(res.body,/1 CAD/);
+  assert.match(res.body,/Google Ads/);assert.match(res.body,/1 CAD/);
   assert.match(res.body,/Recorded conversion value · USD<\/small><strong class="mcc-number">\$0.00/);
   const privateCalls=calls.filter(c=>c.sql.includes("google_ads_private"));assert.equal(privateCalls.length,3);for(const c of privateCalls)assert.equal(c.params[0],7);
   calls.length=0;
