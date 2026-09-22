@@ -55,7 +55,7 @@ function createConversions({q}) {
         SELECT MIN(cd.id) AS id FROM campaign_destinations cd
         WHERE cd.campaign_id=e.campaign_id
           AND split_part(split_part(cd.destination_url,'?',1),'#',1)
-            ~ ('^https://[^/]+/integrations/square/production/buy/' || l.customer_id || '/' || e.campaign_id || '$')
+            ~ ('^https://[^/]+/integrations/square/production/' || CASE WHEN l.payment->'match'->>'method'='in_store_code' THEN 'claim/' ELSE 'buy/' END || l.customer_id || '/' || e.campaign_id || '$')
         HAVING COUNT(*)=1
       ) action ON true
       WHERE e.type='scan' AND COALESCE(c.is_test,false)=false
@@ -91,3 +91,4 @@ function createConversions({q}) {
   return {ready,reconcile};
 }
 module.exports={createConversions};
+
