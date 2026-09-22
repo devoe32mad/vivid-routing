@@ -27,11 +27,11 @@ async function fixture(){
     INSERT INTO square_production_sync VALUES(17,'lease',NOW()+INTERVAL '10 minutes');
   `);
   const q=async(sql,args)=>args ? db.query(sql,args) : {rows:(await db.exec(sql)).at(-1)?.rows||[]};
-  const routes=new Map(),provider={payments:[],orders:{},refunds:{}};
+  const routes=new Map(),provider={payments:[],orders:{},refunds:{},locations:[{id:'loc',name:'Pilot shop',status:'ACTIVE',currency:'USD'}]};
   const app={get:(path,...h)=>routes.set('GET '+path,h),post:(path,...h)=>routes.set('POST '+path,h)};
   const api=async(path,body)=>{
     assert.equal(body,null,'in-store pilot must never write to Square');
-    if(path==='/v2/locations')return {locations:[{id:'loc',name:'Pilot shop',status:'ACTIVE',currency:'USD'}]};
+    if(path==='/v2/locations')return {locations:provider.locations};
     if(path.startsWith('/v2/payments?'))return {payments:provider.payments};
     if(path.startsWith('/v2/refunds?'))return {refunds:Object.values(provider.refunds)};
     if(path.startsWith('/v2/refunds/'))return {refund:provider.refunds[path.split('/').at(-1)]};
@@ -268,4 +268,99 @@ test('short and legacy codes on the same order are conflicting even with differe
     line_items:[{note:code},{note:legacy}],tenders:[{type:'CARD',payment_id:'p',location_id:'loc',amount_money:p.total}]};
   assert.equal(orderEvidence(order,p).eligible,false);
   assert.equal(orderEvidence({...order,line_items:[{note:'V-INVALID'}]},p).eligible,false);
+});
+
+test('cashier QR opens authorized read-only lookup; explicit approval still required',async()=>{
+  const f=await fixture();try{
+    const claim=await f.setup();
+    const customer=await f.run(claimRoute,f.req());
+    assert.match(customer.body,/<svg/);assert.match(customer.body,/Cashier QR code/);
+    const get='GET /integrations/square/production/customers/:customerId/instore/redeem';
+    const req=f.req();req.query={code:claim.code};
+    const lookup=await f.run(get,req);
+    assert.equal(lookup.code,200);assert.match(lookup.body,/Confirm eligible items/);
+    assert.doesNotMatch(lookup.body,/type="checkbox"/);
+    assert.equal((await f.q('SELECT approved_at FROM square_instore_claims',[])).rows[0].approved_at,null);
+    assert.equal((await f.report()).rows.length,0);
+    req.session.user.id=18;assert.equal((await f.run(get,req)).code,403);
+    delete req.session.user;assert.equal((await f.run(get,req)).code,403);
+    req.session.user={id:17};req.query.code='<script>';
+    assert.equal((await f.run(get,req)).code,400);
+    req.query.code=claim.code;await f.q("UPDATE square_instore_claims SET expires_at=NOW()-INTERVAL '1 second'",[]);
+    assert.equal((await f.run(get,req)).code,409);
+    assert.doesNotMatch((await f.run(claimRoute,f.req())).body,/<svg/);
+  }finally{await f.db.close();}
+});
+test('cashier location is explicit for multiple locations and remembered only within merchant scope',async()=>{
+  const f=await fixture();try{
+    const claim=await f.setup();
+    f.provider.locations.push({id:'other-loc',name:'Other shop',status:'ACTIVE',currency:'USD'});
+    const get='GET /integrations/square/production/customers/:customerId/instore/redeem';
+    const req=f.req({code:claim.code});req.query={code:claim.code};
+    let response=await f.run(get,req);
+    assert.match(response.body,/Choose your checkout location/);assert.match(response.body,/Check code/);
+    await f.run(admin+'/lookup',req);
+    assert.equal(req.session.squareInstoreLocation.locationId,'loc');
+    response=await f.run(get,req);assert.match(response.body,/Confirm eligible items/);
+    req.query.choose_location='1';assert.match((await f.run(get,req)).body,/Choose your checkout location/);
+    delete req.query.choose_location;
+    for(const changed of [{customerId:18,merchantId:'merchant',locationId:'loc'},{customerId:17,merchantId:'other',locationId:'loc'},{customerId:17,merchantId:'merchant',locationId:'deleted'}]){
+      req.session.squareInstoreLocation=changed;assert.match((await f.run(get,req)).body,/Choose your checkout location/);
+    }
+    req.session.squareInstoreLocation={customerId:17,merchantId:'merchant',locationId:'other-loc'};
+    response=await f.run(get,req);assert.equal(response.code,409);assert.match(response.body,/Change checkout location/);
+    assert.equal((await f.q('SELECT approved_at FROM square_instore_claims',[])).rows[0].approved_at,null);
+  }finally{await f.db.close();}
+});
+test('quick approval JSON uses the existing CSRF, ownership and fixed payment window',async()=>{
+  const f=await fixture();try{
+    const claim=await f.setup();const req=f.req({code:claim.code,confirm:'true'});req.headers={accept:'application/json'};
+    const approval=await f.run(admin+'/approve',req);assert.equal(approval.code,200);
+    const body=JSON.parse(approval.body);assert.equal(body.code,claim.code);assert.ok(Date.parse(body.checkout_until));
+    assert.equal(JSON.parse((await f.run(admin+'/approve',req)).body).checkout_until,body.checkout_until);
+    assert.equal((await f.report()).rows.length,0);
+    req.body.confirm='false';assert.equal((await f.run(admin+'/approve',req)).code,400);
+    req.body.confirm='true';req.body.csrf='bad';assert.equal((await f.run(admin+'/approve',req)).code,403);
+    req.body.csrf='csrf';req.session.user.id=18;assert.equal((await f.run(admin+'/approve',req)).code,403);
+    req.session.user.id=17;f.pay(claim.code);await f.sync();
+    assert.equal((await f.run(admin+'/approve',req)).code,409);
+    assert.equal((await f.report()).rows.length,1);
+  }finally{await f.db.close();}
+});
+test('one-tap client copies only after successful approval and leaves manual clipboard fallback',async()=>{
+  const f=await fixture();try{
+    const {runInNewContext}=require('node:vm');
+    const script=(await f.run('GET /integrations/square/production/instore-copy.js',f.req())).body;
+    for(const mode of ['ok','clipboard-denied','denied','redirect','wrong-code','network']){
+      const code='V-7K3M9R2X';let handler,copied,selected=false,requests=0;
+      const elements={
+        'claim-code':{value:code,focus(){},select(){selected=true;},setSelectionRange(){}},
+        'copy-claim-code':{hidden:true,addEventListener(){}},'copy-code-status':{},
+        'approve-checkout':{action:'/approve',hidden:false,addEventListener(event,fn){handler=fn;}},
+        'approve-button':{textContent:'Confirm eligible items'},'approval-status':{},'checkout-steps':{hidden:true},'checkout-deadline':{}
+      };
+      const fetch=async(url,options)=>{
+        requests++;assert.equal(url,'/approve');assert.equal(options.method,'POST');
+        assert.equal(options.body.get('confirm'),'true');assert.equal(options.body.get('csrf'),'csrf');
+        assert.equal(copied,undefined,'must not copy before approval response');
+        if(mode==='network')throw Error('offline');
+        return {ok:mode!=='denied',redirected:mode==='redirect',headers:{get:()=> 'application/json'},json:async()=>({code:mode==='wrong-code'?'V-ABCDEFGH':code,checkout_until:'2026-09-22T16:00:00Z'})};
+      };
+      runInNewContext(script,{document:{getElementById:id=>elements[id]},fetch,URLSearchParams,
+        FormData:class{constructor(){return [['csrf','csrf'],['code',code],['location_id','loc']];}},
+        navigator:{clipboard:{writeText:async value=>{if(mode==='clipboard-denied')throw Error('denied');copied=value;}}}});
+      assert.equal(elements['copy-claim-code'].hidden,true);
+      await handler({preventDefault(){}});assert.equal(requests,1);
+      if(mode==='ok' || mode==='clipboard-denied'){
+        assert.equal(elements['approve-checkout'].hidden,true);assert.equal(elements['checkout-steps'].hidden,false);
+        assert.equal(elements['copy-claim-code'].hidden,false);
+        if(mode==='ok')assert.equal(copied,code);else{assert.equal(selected,true);assert.match(elements['copy-code-status'].textContent,/Choose Copy/);}
+      }else{
+        assert.equal(copied,undefined);assert.equal(selected,false);
+        assert.equal(elements['approve-checkout'].hidden,false);assert.equal(elements['checkout-steps'].hidden,true);
+        assert.match(elements['approval-status'].textContent,/Could not confirm/);
+      }
+      assert.equal(elements['approve-button'].disabled,false);
+    }
+  }finally{await f.db.close();}
 });
