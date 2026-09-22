@@ -4,12 +4,15 @@ const {dateRange} = require("./marketing-command-center");
 const {PATH,SCOPE,ConnectorError,configuration,customerId,equal,hash,importRange,createGoogleReader} = require("./google-ads-readonly");
 const {createStore,dashboardEvidence} = require("./google-ads-readonly-store");
 const {renderHome,renderAccount} = require("./google-ads-readonly-view");
-function registerGoogleAdsReadOnlyRoutes({app,q,pool,page,requireLogin,env=process.env,fetcher=fetch,logger=console}) {
+const {createAutoSync} = require("./google-ads-auto-sync");
+function registerGoogleAdsReadOnlyRoutes({app,q,pool,page,requireLogin,env=process.env,fetcher=fetch,logger=console,startBackground=true}) {
   let config;
   if(env.GOOGLE_ADS_OBSERVATION_ENABLED === "true") {
     try { config = configuration(env); } catch { /* Fail closed without breaking the whole application. */ }
   }
   const store = config && createStore({pool,q,config,reader:createGoogleReader({config,fetcher})});
+  const autoSync = Boolean(store) && env.GOOGLE_ADS_AUTO_SYNC !== "false";
+  if(store && startBackground) createAutoSync({store,enabled:autoSync,logger}).start();
   const save = req => new Promise((resolve,reject)=>req.session.save(error=>error?reject(error):resolve()));
   const owner = (req,res,next) => {
     if(!Number.isSafeInteger(Number(req.session?.user?.id)) || Number(req.session.user.id)<=0) return res.status(403).send("Advertiser login required.");
@@ -52,8 +55,8 @@ function registerGoogleAdsReadOnlyRoutes({app,q,pool,page,requireLogin,env=proce
     req.session.googleAdsCsrf ||= crypto.randomBytes(32).toString("hex"); await save(req);
     if(store) await store.ready();
     const connections = store ? await store.list(req.googleOwner) : [];
-    const notice = req.query.notice==="connected"?"Account connected. Open it to import a reporting period.":req.query.notice==="denied"?"Google authorization was not completed.":req.query.notice==="disconnected"?"Connection and imported Google evidence removed.":"";
-    res.send(page("Google Ads connection",renderHome({configured:Boolean(config),connections,csrf:req.session.googleAdsCsrf,notice})));
+    const notice = req.query.notice==="connected"?(autoSync?"Account connected. Your first automatic sync is queued and will begin shortly.":"Account connected. Automatic syncing is disabled by the administrator."):req.query.notice==="denied"?"Google authorization was not completed.":req.query.notice==="disconnected"?"Connection and imported Google evidence removed.":"";
+    res.send(page("Google Ads connection",renderHome({configured:Boolean(config),connections,csrf:req.session.googleAdsCsrf,notice,autoSync})));
   }));
   route("post","/connect",enabled,csrf,wrap(async(req,res)=>{
     const id = customerId(req.body.customer_id), manager = req.body.manager_id === undefined || req.body.manager_id === "" ? "" : customerId(req.body.manager_id);
@@ -97,7 +100,7 @@ function registerGoogleAdsReadOnlyRoutes({app,q,pool,page,requireLogin,env=proce
     const syncs = (await q(`SELECT s.started_at,s.date_from::text,s.date_to::text,s.status,s.rows_imported,s.api_version,s.error_code
       FROM google_ads_private_syncs s JOIN google_ads_private_connections c ON c.id=s.connection_id
       WHERE c.owner_user_id=$1 AND c.id=$2 ORDER BY s.id DESC LIMIT 20`,[req.googleOwner,connection.id])).rows;
-    res.send(page("Google Ads reports",renderAccount({connection,rows:evidence.rows.filter(r=>String(r.connection_id)===String(connection.id)),syncs,range,csrf:req.session.googleAdsCsrf,
+    res.send(page("Google Ads dashboard",renderAccount({connection,rows:evidence.rows.filter(r=>String(r.connection_id)===String(connection.id)),daily:evidence.daily.filter(r=>String(r.connection_id)===String(connection.id)),syncs,range,csrf:req.session.googleAdsCsrf,autoSync,
       notice:req.query.imported==="1"?"Import completed. Google’s reported conversions remain separate from verified sales.":""})));
   }));
   const validConnection = (req,res,next) => /^\d+$/.test(req.params.connectionId) && Number.isSafeInteger(Number(req.params.connectionId)) && Number(req.params.connectionId)>0 ? next() : res.status(404).send("Google account not found.");

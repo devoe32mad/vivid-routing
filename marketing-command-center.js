@@ -1,5 +1,6 @@
 "use strict";
 const {renderEvidence}=require("./google-ads-readonly-view");
+const {googleRecommendations}=require("./marketing-performance-insights");
 const CONNECTORS = [
   ["vivid","Vivid placements","Physical + marketplace","QR engagement and recorded campaign conversions.","Available"],
   ["square","Square","Sales evidence","Matched purchases and refund-adjusted revenue.","Existing integration"],
@@ -42,32 +43,35 @@ function recommendations(campaigns,scope) {
   if(!items.length)items.push({title:"Build a measured baseline",reason:"Choose a goal, confirm tracking and collect outcomes before allocating budget by performance.",href:scope.kind==="enterprise"?`/org-ai-readiness/advertiser/${scope.advertiserId}?organization_id=${scope.orgId}`:"/admin/ai-readiness"});
   return items;
 }
-function renderCommandCenter({title,scope,range,campaigns,squareStatus,googleEvidence=null,googleEnabled=false}) {
+function renderCommandCenter({title,scope,range,campaigns,squareStatus,googleEvidence=null,googleEnabled=false,googleAutoSync=true}) {
   const totals=summarize(campaigns),recs=recommendations(campaigns,scope);
+  const square=typeof squareStatus==="object"?squareStatus:{label:squareStatus};
+  if(scope.kind==="advertiser" && googleEvidence)recs.push(...googleRecommendations(googleEvidence,range));
+  if(totals.square_conversions>0)recs.push({title:"Review placements with verified Square payments",reason:`${totals.square_conversions} matched payment conversions and ${money(totals.square_value)} recorded net value in this period. Inspect the offers and placements producing purchases before preparing another test. Profit and ROI also require campaign costs.`,href:scope.kind==="advertiser"?`/integrations/square/production/customers/${scope.userId}/sales?from=${range.from}&to=${range.to}`:"#campaign-evidence",source:"Square"});
   const passport=scope.kind==="enterprise"?`/org-ai-readiness/advertiser/${scope.advertiserId}?organization_id=${scope.orgId}`:"/admin/ai-readiness";
   const approval=scope.kind==="enterprise"?`/org-ai-approval-center?organization_id=${scope.orgId}`:"/admin/ai-approval-center";
   const cards=CONNECTORS.map(c=>{
     let detail=c.stage,href="";
     if(c.id==="vivid"){detail=campaigns.length?"Campaign records available":"No campaign records";href="#campaign-evidence";}
-    if(c.id==="square"){detail=squareStatus;if(scope.kind==="advertiser" && squareStatus!=="Not enabled")href=`/integrations/square/production/customers/${scope.userId}`;}
+    if(c.id==="square"){detail=square.label;if(scope.kind==="advertiser" && square.label!=="Not enabled")href=`/integrations/square/production/customers/${scope.userId}${square.connected?"/sales":""}`;}
     if(c.id==="google_ads" && scope.kind==="enterprise")href=`/org-connectors/google-ads/advertiser/${scope.advertiserId}?organization_id=${scope.orgId}`;
     if(c.id==="google_ads" && scope.kind==="advertiser"){
-      href="/admin/connectors/google-ads";
-      detail=googleEnabled?(googleEvidence?.connections.length?"Account connected · review imports":"Ready to connect"):"Awaiting application setup";
+      href=googleEvidence?.connections.length===1?`/admin/connectors/google-ads/${Number(googleEvidence.connections[0].id)}?from=${range.from}&to=${range.to}`:"/admin/connectors/google-ads";
+      detail=googleEnabled?(googleEvidence?.connections.length?(googleAutoSync?"Connected · automatic hourly sync":"Connected · automatic sync disabled"):"Ready to connect"):"Awaiting application setup";
     }
-    return `<article class="mcc-card"><small>${esc(c.category)}</small><h3>${esc(c.name)}</h3><span class="mcc-status">${esc(detail)}</span><p>${esc(c.purpose)}</p>${href?`<a href="${esc(href)}">${c.id==="google_ads"?"View setup":c.id==="square"?"Review Square":"View evidence"} →</a>`:`<details><summary>What's needed?</summary><p>${c.id==="google_ads"?"Account authorization and reporting sync still need implementation.":"This source is on the connector roadmap. No account data is being imported here."}</p></details>`}</article>`;
+    return `<article class="mcc-card"><small>${esc(c.category)}</small><h3>${esc(c.name)}</h3><span class="mcc-status">${esc(detail)}</span><p>${esc(c.purpose)}</p>${c.id==="square"&&square.lastSuccess?`<p>Last sync: ${esc(new Date(square.lastSuccess).toISOString())}</p>`:""}${href?`<a href="${esc(href)}">${c.id==="google_ads"&&scope.kind==="enterprise"?"View setup":c.id==="google_ads"&&!googleEvidence?.connections.length?"Connect account":"Open dashboard"} →</a>`:`<details><summary>What's needed?</summary><p>${c.id==="google_ads"?"Account authorization and reporting sync still need implementation.":"This source is on the connector roadmap. No account data is being imported here."}</p></details>`}</article>`;
   }).join("");
   return `<style>
 .mcc{max-width:1180px;margin:28px auto;padding:0 20px 40px;color:#122b49;font:15px/1.5 system-ui,sans-serif}.mcc h1{font-size:32px;margin:8px 0}.mcc h2{margin:26px 0 12px}.mcc h3{margin:5px 0 10px}.mcc a{color:#165ca8;font-weight:700}.mcc-hero{background:#102b50;color:white;padding:28px;border-radius:18px}.mcc-hero a{color:#cce5ff}.mcc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.mcc-card{background:white;border:1px solid #d9e2ed;padding:18px;border-radius:14px}.mcc-card p,.mcc small{color:#53677c}.mcc-status{display:inline-block;background:#eef3fa;padding:4px 8px;border-radius:8px;font-size:12px;font-weight:700}.mcc-number{display:block;font-size:28px}.mcc form{display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin:18px 0}.mcc input,.mcc button{font:inherit;padding:8px;border:1px solid #b7c8da;border-radius:7px}.mcc button{background:#102b50;color:white}.mcc label{display:grid}.mcc-scroll{overflow:auto}.mcc table{width:100%;border-collapse:collapse;background:white}.mcc th,.mcc td{text-align:left;padding:12px;border-bottom:1px solid #d9e2ed;white-space:nowrap}.mcc summary{cursor:pointer}.mcc-nav{display:flex;gap:18px;flex-wrap:wrap}@media(max-width:600px){.mcc{padding:0 12px}.mcc-hero{padding:20px}.mcc h1{font-size:26px}}
-</style><main class="mcc"><section class="mcc-hero"><small style="color:#cce5ff">VIVID · MARKETING COMMAND CENTER</small><h1>${esc(title)}</h1><p>Your campaign evidence, next actions and connector roadmap in one place.</p><nav class="mcc-nav"><a href="${passport}">Evidence Passport</a><a href="${approval}">Approval Center</a><a href="/build-my-campaign">Build a campaign</a></nav></section>
+</style><main class="mcc"><section class="mcc-hero"><small style="color:#cce5ff">VIVID · MARKETING COMMAND CENTER</small><h1>${esc(title)}</h1><p>Your connected platforms, campaign results and recommended next actions in one place.</p><nav class="mcc-nav"><a href="#platform-dashboards">Platform dashboards</a><a href="${passport}">Evidence Passport</a><a href="${approval}">Approval Center</a><a href="/build-my-campaign">Build a campaign</a></nav></section>
 <form method="get">${scope.kind==="enterprise"?`<input type="hidden" name="organization_id" value="${scope.orgId}">`:""}<label>From (UTC)<input type="date" name="from" value="${range.from}" required></label><label>To (UTC)<input type="date" name="to" value="${range.to}" required></label><button>Update period</button></form>
 <p>${scope.kind==="enterprise"?"This view includes only this advertiser’s campaigns assigned to your organization. Unrelated advertising accounts and merchant sales are private.":"This view uses campaigns owned by your signed-in advertiser account."}</p>
 <section class="mcc-grid">${[["Vivid scans",totals.scans],["Intent actions",totals.clicks],["Recorded conversions",totals.conversions],["Recorded conversion value · USD",money(totals.conversion_value)]].map(([label,value])=>`<a class="mcc-card" href="#campaign-evidence" style="text-decoration:none"><small>${label}</small><strong class="mcc-number">${esc(value)}</strong></a>`).join("")}</section>
 <p><strong>Revenue accounting:</strong> Recorded conversions include matched Square events already imported into Vivid. The Square subset is ${totals.square_conversions} conversions / ${money(totals.square_value)} and is not added again. These are recorded outcomes, not a complete cross-channel revenue total. CAC and ROI require comparable costs and verified customer outcomes.</p>
-<h2>Recommended next actions</h2><section class="mcc-grid">${recs.map(r=>`<article class="mcc-card"><span class="mcc-status">For review</span><h3>${esc(r.title)}</h3><p>${esc(r.reason)}</p><a href="${esc(r.href)}">Inspect supporting evidence →</a></article>`).join("")}</section>
-<p>These suggestions use Vivid campaign records for the selected period. Channel, vertical and budget recommendations will need connected evidence; no campaign or spending action is performed here.</p>
+<h2>Automatic recommendations</h2><section class="mcc-grid">${recs.map(r=>`<article class="mcc-card"><span class="mcc-status">${esc(r.source||"Vivid")} · ${esc(r.signal||"For review")}</span><h3>${esc(r.title)}</h3><p>${esc(r.reason)}</p><a href="${esc(r.href)}">Inspect supporting evidence →</a></article>`).join("")}</section>
+<p>Suggestions update from the latest saved evidence when this dashboard opens. Google comparisons use completed account days and require a minimum baseline. Click costs and platform conversions alone do not establish revenue or ROI. No campaign or spending action is performed here.</p>
 <h2 id="campaign-evidence">Campaign evidence</h2><div class="mcc-scroll"><table><thead><tr><th>Campaign</th><th>Scans</th><th>Intent</th><th>Conversions</th><th>Recorded value · USD</th></tr></thead><tbody>${campaigns.length?campaigns.map(c=>`<tr><td><a href="${sourceHref(c.id,scope)}">${esc(c.name)}</a></td><td>${n(c.scans)}</td><td>${n(c.clicks)}</td><td>${n(c.conversions)}</td><td>${money(c.conversion_value)}</td></tr>`).join(""):'<tr><td colspan="5">No campaigns available in this account.</td></tr>'}</tbody></table></div>
-${scope.kind==="advertiser"&&googleEvidence?renderEvidence(googleEvidence,range):""}
-<h2>Channels & connections</h2><section class="mcc-grid">${cards}</section></main>`;
+${scope.kind==="advertiser"&&googleEvidence?renderEvidence(googleEvidence,range,{autoSync:googleAutoSync}):""}
+<h2 id="platform-dashboards">Platform dashboards & connections</h2><section class="mcc-grid">${cards}</section></main>`;
 }
 module.exports={CONNECTORS,dateRange,summarize,recommendations,renderCommandCenter};

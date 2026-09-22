@@ -31,7 +31,7 @@ async function connect(store,q,userId=1,id=account.id) {
 function harness({q,pool,fetcher,configurationEnv=env,logger=console}) {
   const routes = {};
   registerGoogleAdsReadOnlyRoutes({app:{get:(path,...handlers)=>routes["GET "+path]=handlers,post:(path,...handlers)=>routes["POST "+path]=handlers},q,pool,
-    page:(_,body)=>body,requireLogin:(req,res,next)=>req.session.user?next():res.status(401).send("login"),env:configurationEnv,fetcher,logger});
+    page:(_,body)=>body,requireLogin:(req,res,next)=>req.session.user?next():res.status(401).send("login"),env:configurationEnv,fetcher,logger,startBackground:false});
   return async(method,path,req={})=>{
     req = {query:{},body:{},params:{},...req};
     req.session ||= {};
@@ -195,7 +195,7 @@ test("dashboard integrates only the logged-in advertiser's Google evidence; ente
   await routes["/admin/marketing-command-center"].at(-1)({session:{user:{id:7}},query:{...range,user_id:999}},res);
   assert.match(res.body,/Private campaign/);assert.match(res.body,/1 CAD/);
   assert.match(res.body,/Recorded conversion value · USD<\/small><strong class="mcc-number">\$0.00/);
-  const privateCalls=calls.filter(c=>c.sql.includes("google_ads_private"));assert.equal(privateCalls.length,2);for(const c of privateCalls)assert.equal(c.params[0],7);
+  const privateCalls=calls.filter(c=>c.sql.includes("google_ads_private"));assert.equal(privateCalls.length,3);for(const c of privateCalls)assert.equal(c.params[0],7);
   calls.length=0;
   await routes["/org-marketing-command-center/advertiser/:advertiserId"].at(-1)({session:{orgUser:{id:3}},params:{advertiserId:"8"},query:range},res);
   assert.doesNotMatch(res.body,/Private Google|Private campaign/);assert.ok(calls.every(c=>!c.sql.includes("google_ads_private")));

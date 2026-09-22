@@ -26,7 +26,11 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     try {
       const row=(await q("SELECT expires_at FROM square_production_connections WHERE customer_id=$1",[id])).rows[0];
       if(!row)return "Not connected";
-      return Date.parse(row.expires_at)>Date.now()?"Account authorized · review sync":"Authorization needs review";
+      let state;
+      try{state=(await q("SELECT status,last_success FROM square_production_sync WHERE customer_id=$1",[id])).rows[0];}
+      catch(error){if(error.code!=="42P01")throw error;}
+      const label=env.SQUARE_PRODUCTION_AUTO_SYNC==="false"?"Automatic sync disabled":state?.status==="retry"?"Sync needs attention · retry scheduled":state?.status==="syncing"?"Syncing sales and refunds":"Automatic sync every 5 minutes";
+      return {label,connected:true,lastSuccess:state?.last_success};
     } catch(error) {
       if(error.code==="42P01")return "Not connected";
       throw error;
@@ -47,7 +51,8 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     }
     const [campaigns,status,googleEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId),
       googleEnabled?dashboardEvidence(q,scope.userId,range):Promise.resolve(null)]);
-    res.send(page("Marketing Command Center",renderCommandCenter({title:"Your marketing, together",scope,range,campaigns,squareStatus:status,googleEvidence,googleEnabled})));
+    res.set?.("Cache-Control","no-store");
+    res.send(page("Marketing Command Center",renderCommandCenter({title:"Your marketing, together",scope,range,campaigns,squareStatus:status,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false"})));
   }));
   app.get("/org-marketing-command-center/advertiser/:advertiserId",requireOrganizationPermission("manage_advertisers"),handle(async(req,res,range)=>{
     const authorized=await getOrganizationScope(req);
