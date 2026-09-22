@@ -1,6 +1,6 @@
 const test=require("node:test");
 const assert=require("node:assert/strict");
-const {validateProfile,scoreReadiness,renderReadinessCenter}=require("./ai-readiness");
+const {validateProfile,scoreReadiness,renderReadinessCenter,renderAdvertiserPortfolio}=require("./ai-readiness");
 const {install}=require("./install-ai-readiness");
 
 const complete={goal:"revenue",monthlyBudget:5000,targetGeography:"Naples",targetCustomer:"Families",targetMetric:"ROI",targetValue:2,channels:["vivid","google_ads"],approvedOffers:"Approved offer",prohibitedActions:"No unapproved claims",desiredMode:"autopilot",maxAutoChangePct:10,approvalRequired:true};
@@ -29,6 +29,13 @@ test("operating contract enforces a conservative automatic-change ceiling",()=>{
 test("Evidence Passport renders proof and permission",()=>{
   const readiness=scoreReadiness(strong,complete),html=renderReadinessCenter({profile:complete,readiness,action:"/save"});
   assert.match(html,/Vivid Evidence Passport/);assert.match(html,/Permitted action/);assert.match(html,/Next Best Proof|Autopilot Ready/);assert.match(html,/AI Operating Contract/);
+});
+
+test("enterprise portfolio preserves advertiser evidence boundaries",()=>{
+  const html=renderAdvertiserPortfolio([{id:7,name:'Advertiser <One>',readiness:scoreReadiness(strong,complete)},{id:8,name:'Advertiser Two',readiness:scoreReadiness({campaigns:0},{})}],23);
+  assert.match(html,/Enterprise Autonomy Portfolio/);assert.match(html,/Advertiser Evidence Passports/);
+  assert.match(html,/advertiser\/7\?organization_id=23/);assert.match(html,/advertiser\/8\?organization_id=23/);
+  assert.doesNotMatch(html,/Advertiser <One>/);assert.match(html,/Advertiser &lt;One&gt;/);
 });
 
 test("installer adds routes and both navigation entries once",()=>{
