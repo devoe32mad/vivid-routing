@@ -1,13 +1,15 @@
 'use strict';
 const crypto=require('node:crypto');
-const CODE=/^VIVID-(?:[A-F0-9]{4}-){3}[A-F0-9]{4}$/;
+// Eight base32 characters (40 random bits), without 0/O or 1/I. Keep issued legacy codes valid.
+const ALPHABET='23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+const CODE=/^(?:V-[2-9A-HJ-NP-Z]{8}|VIVID-(?:[A-F0-9]{4}-){3}[A-F0-9]{4})$/;
 const normalizeCode=value=>typeof value==='string' && CODE.test(value.trim().toUpperCase()) ? value.trim().toUpperCase() : null;
-const newCode=()=> 'VIVID-'+crypto.randomBytes(8).toString('hex').toUpperCase().match(/.{4}/g).join('-');
+const newCode=()=> 'V-'+Array.from(crypto.randomBytes(8),b=>ALPHABET[b & 31]).join('');
 
 // Retain only redemption evidence, never arbitrary notes or card/customer details.
 function orderEvidence(order,p){
   const notes=(order.line_items||[]).map(i=>i.note).filter(n=>typeof n==='string');
-  const marked=notes.filter(n=>/VIVID-/i.test(n));
+  const marked=notes.filter(n=>/VIVID-|\bV-/i.test(n));
   if(!marked.length)return null;
   const codes=[...new Set(marked.map(normalizeCode))];
   const code=codes.length===1 && codes[0] ? codes[0] : null;
@@ -20,7 +22,7 @@ function orderEvidence(order,p){
   return {code,eligible,closed_at:eligible ? order.closed_at : null};
 }
 
-function createRedemptions({q}){
+function createRedemptions({q,generateCode=newCode}){
   let schema;
   const ready=()=>schema || (schema=q(`
     CREATE TABLE IF NOT EXISTS square_instore_offers (
@@ -56,14 +58,22 @@ function createRedemptions({q}){
   }
   async function issue(id,campaign,click){
     await ready();
+    for(let attempt=0;attempt<5;attempt++){
+      try{
     const result=await q(`WITH eligible AS (${eligibleSQL})
       INSERT INTO square_instore_claims(code,customer_id,merchant_id,campaign_id,scan_id,qr_id,click_id,
         location_id,location_name,name,terms,expires_at)
       SELECT $4,customer_id,merchant_id,campaign_id,scan_id,qr_id,click_id,location_id,location_name,name,terms,
         LEAST(NOW()+INTERVAL '7 days',scanned_at+INTERVAL '30 days') FROM eligible WHERE scan_count=1
       ON CONFLICT(customer_id,merchant_id,campaign_id,click_id) DO UPDATE SET code=square_instore_claims.code
-      RETURNING *`,[id,campaign,click,newCode()]);
+      RETURNING *`,[id,campaign,click,generateCode()]);
     return result.rows[0]||null;
+      }catch(error){
+        // Never overwrite/recycle an issued code. Retry only a random-code PK collision.
+        if(error.code!=='23505' || error.constraint!=='square_instore_claims_pkey')throw error;
+      }
+    }
+    throw Error('Could not allocate a unique claim code; retry the claim.');
   }
   const usableSQL=`FROM square_instore_claims r
     JOIN square_production_connections sc USING(customer_id,merchant_id)
