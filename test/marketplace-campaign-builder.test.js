@@ -1,7 +1,7 @@
 "use strict";
 
 const assert = require("assert");
-const { validateCampaignRequest, renderCampaignBuilder, renderConfirmation, renderEnterpriseQueue } = require("../marketplace-campaign-builder");
+const { validateCampaignRequest, renderCampaignBuilder, renderConfirmation, renderEnterpriseQueue, renderVividCampaignBuilder, renderVividConfirmation } = require("../marketplace-campaign-builder");
 
 const valid = validateCampaignRequest({ company_name:"Naples Coffee", contact_name:"Alex Smith", email:"alex@example.com", objective:"visits", audience:"Local families", geography:"Naples, FL", offer:"Free pastry with purchase", monthly_budget:"1500", approval_required:"yes" });
 assert.equal(valid.valid, true);
@@ -26,5 +26,21 @@ const queue = renderEnterpriseQueue({ organization, requests:[{ reference:"VIVID
 assert(queue.includes("Prepare Recommendation"));
 assert(queue.includes("Check Evidence Passport"));
 assert(queue.includes("Naples Coffee"));
+
+const crossChannel = validateCampaignRequest({ company_name:"Naples Coffee", contact_name:"Alex Smith", email:"alex@example.com", objective:"sales", audience:"Local families", geography:"Naples, FL", offer:"Free pastry", monthly_budget:"2500", campaign_scope:"vivid_selects", channels:["digital","physical","vivid","owned"] });
+assert.equal(crossChannel.valid, true);
+assert.deepEqual(crossChannel.value.channels, ["digital","physical","vivid","owned"]);
+assert.equal(crossChannel.value.campaignScope, "vivid_selects");
+
+const vividForm = renderVividCampaignBuilder({});
+assert(vividForm.includes("Run My Marketing"));
+assert(vividForm.includes("Valpak"));
+assert(vividForm.includes("Vivid Marketplace"));
+assert(vividForm.includes("Owned Channels"));
+assert(vividForm.includes("Vivid Selects"));
+
+const vividConfirmation = renderVividConfirmation({ reference:"VIVID-WIDE" });
+assert(vividConfirmation.includes("VIVID-WIDE"));
+assert(vividConfirmation.includes("No campaign has launched"));
 
 console.log("marketplace-campaign-builder tests passed");
