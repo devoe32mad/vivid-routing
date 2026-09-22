@@ -26,10 +26,10 @@ function installInstore({app,q,owner,wrap,api,getConnection,csrf,root,origin,red
       button.addEventListener('click',async()=>{
         try{
           await navigator.clipboard.writeText(field.value);
-          status.textContent='Code copied. Paste it into the Square item note.';
+          status.textContent='Code copied.';
         }catch(error){
           field.focus();field.select();field.setSelectionRange(0,field.value.length);
-          status.textContent='Code selected. Choose Copy, then paste it into the Square item note.';
+          status.textContent='Code selected. Choose Copy from your device menu.';
         }
       });
     }
