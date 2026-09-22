@@ -1,11 +1,14 @@
 'use strict';
 const crypto=require('node:crypto');
+const QRCode=require('qrcode');
+const cashierScript=require('node:fs').readFileSync(require('node:path').join(__dirname,'square-instore-cashier-client.js'),'utf8');
 const {page,SALES_SCOPES}=require('./square-production-sales');
 const {createRedemptions,normalizeCode}=require('./square-production-redemptions');
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const idOK=x=>/^\d+$/.test(String(x)) && Number.isSafeInteger(Number(x)) && Number(x)>0;
 const clickOK=x=>typeof x==='string' && /^[A-Za-z0-9_-]{20,40}$/.test(x);
 const date=x=>new Date(x).toLocaleString('en-US',{timeZone:'UTC'})+' UTC';
+const time=x=>`<time datetime="${esc(new Date(x).toISOString())}">${esc(date(x))}</time>`;
 function installInstore({app,q,owner,wrap,api,getConnection,csrf,root,origin,redemptions}){
   const model=redemptions || createRedemptions({q});
   const admin='/integrations/square/production/customers/:customerId/instore';
@@ -16,30 +19,19 @@ function installInstore({app,q,owner,wrap,api,getConnection,csrf,root,origin,red
   const locations=async c=>((await api('/v2/locations',null,c.token.access_token)).locations||[]).filter(l=>l.status==='ACTIVE' && l.currency==='USD');
   const back=id=>`<p><a href="${root(id)}/instore">In-store offers</a> · <a href="${root(id)}/instore/redeem">Validate a customer code</a> · <a href="${root(id)}/sales">Verified sales</a></p>`;
   const copyScriptPath='/integrations/square/production/instore-copy.js';
-  app.get(copyScriptPath,wrap(async(req,res)=>res.type('application/javascript').send(`
-    'use strict';
-    const field=document.getElementById('claim-code');
-    const button=document.getElementById('copy-claim-code');
-    const status=document.getElementById('copy-code-status');
-    if(field && button && status){
-      button.hidden=false;
-      button.addEventListener('click',async()=>{
-        try{
-          await navigator.clipboard.writeText(field.value);
-          status.textContent='Code copied.';
-        }catch(error){
-          field.focus();field.select();field.setSelectionRange(0,field.value.length);
-          status.textContent='Code selected. Choose Copy from your device menu.';
-        }
-      });
-    }
-  `)));
+  app.get(copyScriptPath,wrap(async(req,res)=>res.type('application/javascript').send(cashierScript)));
   const codeBlock=code=>`<label for="claim-code">Code</label><input id="claim-code" readonly value="${esc(code)}" autocomplete="off" spellcheck="false" style="font-family:monospace;font-weight:700;font-size:1.3em"><button id="copy-claim-code" type="button" hidden>Copy code</button><span id="copy-code-status" role="status" aria-live="polite"></span><script src="${copyScriptPath}" defer></script>`;
   const terms=r=>`<h2>${esc(r.name)}</h2><p style="white-space:pre-wrap">${esc(r.terms)}</p><p>Location: <strong>${esc(r.location_name)}</strong></p>`;
-  function claimPage(r){
+  async function claimPage(r){
     const expired=Date.parse(r.expires_at)<=Date.now() || (r.checkout_until && Date.parse(r.checkout_until)<=Date.now());
-    return page('Your in-store offer',`<section>${terms(r)}${r.payment_id ? '<p>This offer has been redeemed.</p>' : expired ? '<p>This code has expired.</p>' : `<p>Show this code to the cashier before paying:</p>${codeBlock(r.code)}<p>Valid until ${esc(date(r.checkout_until||r.expires_at))}.</p><p>${r.approved_at ? 'Approved for this checkout. Complete payment with the cashier.' : 'The cashier will check the offer and apply it to eligible items.'}</p>`}<p>One use for this claim. Payment takes place at the merchant’s Square checkout.</p></section>`);
+    const cashierUrl=origin+root(Number(r.customer_id))+'/instore/redeem?code='+encodeURIComponent(r.code);
+    const qr=!expired && !r.payment_id ? await QRCode.toString(cashierUrl,{type:'svg',width:240,margin:4,errorCorrectionLevel:'M'}) : '';
+    return page('Your in-store offer',`<section>${terms(r)}${r.payment_id ? '<p>This offer has been redeemed.</p>' : expired ? '<p>This code has expired.</p>' : `<p>Show this to the cashier before paying.</p><div role="img" aria-label="Cashier QR code to check this offer" style="max-width:240px">${qr}</div><p><small>Cashier: scan with your phone camera while signed in to Vivid, or enter the code below.</small></p>${codeBlock(r.code)}<p>Valid until ${time(r.checkout_until||r.expires_at)}.</p><p>${r.approved_at ? 'Approved for this checkout. Complete payment with the cashier.' : 'The cashier will check the offer and apply it to eligible items.'}</p>`}<p>One use for this claim. Payment takes place at the merchant’s Square checkout.</p></section>`);
   }
+  const changeLocation=(id,code)=>`<p><a href="${root(id)}/instore/redeem?code=${encodeURIComponent(code)}&amp;choose_location=1">Change checkout location</a></p>`;
+  const unavailable=(id,code)=>page('Code unavailable',`<p>This code is invalid, expired, already redeemed, or belongs to a different merchant or location.</p>${code?changeLocation(id,code):''}${back(id)}`);
+  const checkoutSteps=r=>`<ol><li>Apply the offer to the eligible items in Square.</li><li>Paste the code into an eligible item’s <strong>Note</strong>. Keep only the code in that note.</li><li>Complete one card payment for the full order before <span id="checkout-deadline">${time(r.checkout_until||r.expires_at)}</span>.</li></ol><p>Vivid will confirm the sale automatically after Square reports the completed payment. You do not need to wait here.</p>`;
+  const cashierPage=(req,id,r,approved)=>page(approved?'Approved for this checkout':'Check offer eligibility',`${back(id)}<section>${terms(r)}${approved?'':changeLocation(id,r.code)}${codeBlock(r.code)}${approved?'':`<form id="approve-checkout" method="post" action="${root(id)}/instore/approve">${hidden(req)}<input type="hidden" name="code" value="${esc(r.code)}"><input type="hidden" name="location_id" value="${esc(r.location_id)}"><p>By confirming, you have checked the eligible items and will apply this offer in Square.</p><button id="approve-button" name="confirm" value="true">${r.approved_at?'Resume checkout':'Confirm eligible items'}</button><p id="approval-status" role="status" aria-live="polite"></p></form>`}<div id="checkout-steps" ${approved?'':'hidden'}>${checkoutSteps(r)}</div><p><a href="${root(id)}/instore/redeem">Next customer</a></p></section>`);
   app.get(admin,owner,wrap(async(req,res)=>{
     await model.ready();prepare(req);const id=Number(req.params.customerId),c=await connection(id);
     if(!c)return res.status(409).send(page('Connect Square first',`<a href="${root(id)}">Square connection</a>`));
@@ -93,13 +85,23 @@ function installInstore({app,q,owner,wrap,api,getConnection,csrf,root,origin,red
     if(!idOK(req.params.customerId)||!idOK(req.params.campaignId)||!clickOK(req.body.vivid_click_id))return res.status(404).send('Offer unavailable.');
     const claim=await model.issue(req.params.customerId,req.params.campaignId,req.body.vivid_click_id);
     if(!claim)return res.status(404).send('This offer or scan is no longer available.');
-    res.type('html').send(claimPage(claim));
+    res.type('html').send(await claimPage(claim));
   }));
   app.get(admin+'/redeem',owner,wrap(async(req,res)=>{
     prepare(req);const id=Number(req.params.customerId),c=await connection(id);
     if(!c)return res.status(409).send('Connect Square first.');
     const locs=await locations(c);
-    res.type('html').send(page('Validate an in-store offer',`${back(id)}<section><form method="post" action="${root(id)}/instore/lookup">${hidden(req)}<label>Checkout location<select name="location_id" required>${locs.map(l=>`<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('')}</select></label><label>Customer code<input name="code" maxlength="25" autocomplete="off" autocapitalize="characters" required spellcheck="false" placeholder="V-7K3M9R2X"></label><button>Check code</button></form><p>Check the customer’s items against the offer before approving. Approval is not payment confirmation.</p></section>`));
+    const remembered=req.session.squareInstoreLocation;
+    const chosen=req.query?.choose_location==='1'?null:locs.length===1?locs[0]:remembered?.customerId===id && remembered.merchantId===c.row.merchant_id ? locs.find(l=>l.id===remembered.locationId) : null;
+    const code=normalizeCode(req.query?.code);
+    if(req.query?.code && !code)return res.status(400).send(unavailable(id));
+    if(code && chosen){
+      // Scanning performs a read-only lookup. Only the explicit POST can approve.
+      const r=await model.lookup(id,code,chosen.id);
+      if(!r)return res.status(409).send(unavailable(id,code));
+      return res.type('html').send(cashierPage(req,id,r,false));
+    }
+    res.type('html').send(page('Cashier checkout',`${back(id)}<section><p>Scan the customer’s offer QR with your phone camera, or enter their short code here.</p><form method="post" action="${root(id)}/instore/lookup">${hidden(req)}<label>Checkout location<select name="location_id" required>${chosen?'':'<option value="">Choose your checkout location</option>'}${locs.map(l=>`<option value="${esc(l.id)}" ${l.id===chosen?.id?'selected':''}>${esc(l.name)}</option>`).join('')}</select></label><label>Customer code<input name="code" maxlength="25" autocomplete="off" autocapitalize="characters" required spellcheck="false" value="${esc(code||'')}" placeholder="V-7K3M9R2X"></label><button>Check code</button></form><p>Keep Vivid signed in on the cashier device. Check the customer’s items before confirming the offer.</p></section>`));
   }));
   for(const action of ['lookup','approve'])app.post(admin+'/'+action,owner,wrap(async(req,res)=>{
     if(!csrf(req))return res.status(403).send('Reload and retry.');
@@ -110,9 +112,11 @@ function installInstore({app,q,owner,wrap,api,getConnection,csrf,root,origin,red
     // Location must still be active at approval, not only when the offer was configured.
     if(action==='approve' && !(await locations(c)).some(l=>l.id===req.body.location_id))return res.status(409).send('Checkout location is no longer active.');
     const r=action==='lookup' ? await model.lookup(id,code,req.body.location_id) : await model.approve(id,code,req.body.location_id,req.session.user.id);
-    if(!r)return res.status(409).send(page('Code unavailable',`<p>This code is invalid, expired, already redeemed, or belongs to a different merchant or location.</p>${back(id)}`));
+    if(!r)return res.status(409).send(unavailable(id,code));
+    req.session.squareInstoreLocation={customerId:id,merchantId:c.row.merchant_id,locationId:r.location_id};
     prepare(req);
-    res.type('html').send(page(action==='lookup'?'Check offer eligibility':'Approved for this checkout',`${back(id)}<section>${terms(r)}${codeBlock(r.code)}${action==='lookup' ? `<p>Valid until ${esc(date(r.checkout_until||r.expires_at))}.</p><form method="post" action="${root(id)}/instore/approve">${hidden(req)}<input type="hidden" name="code" value="${esc(r.code)}"><input type="hidden" name="location_id" value="${esc(r.location_id)}"><p><label><input type="checkbox" name="confirm" value="true" required> I checked the items and will apply the offer in Square.</label></p><button>${r.approved_at?'Resume this checkout':'Approve for this checkout'}</button></form>` : `<ol><li>Apply the offer to the eligible items in Square.</li><li>Copy the complete code above into an eligible item’s Note field. The note must contain only this code.</li><li>Complete one card payment for the full order before ${esc(date(r.checkout_until))}.</li></ol><p>This code is reserved for this checkout. Do not use it on another sale. Vivid will confirm redemption when Square reports the completed payment, normally after the next five-minute sync.</p>`}</section>`));
+    if(action==='approve' && req.headers?.accept==='application/json')return res.type('application/json').send(JSON.stringify({code:r.code,checkout_until:new Date(r.checkout_until).toISOString()}));
+    res.type('html').send(cashierPage(req,id,r,action==='approve'));
   }));
   return model;
 }
