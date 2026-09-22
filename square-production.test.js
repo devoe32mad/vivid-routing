@@ -193,7 +193,7 @@ test('import matches an owned scan, reads refunds and re-import updates durable 
   assert.equal(h.snapshot().payments.length,1);assert.equal(h.snapshot().payments[0].match.campaign_id,30);
   assert.equal(amounts(h.snapshot().payments[0],h.snapshot().refunds).net,900);
   const view=await h.run(salesRoute,h.req());assert.match(view.body,/Matched: Test campaign/);assert.match(view.body,/\$9\.00/);assert.match(view.body,/<details>/);
-  assert.equal(h.queries.filter(x=>x.sql.includes('AS fenced FROM fence')).length,2);
+  assert.equal(h.queries.filter(x=>x.sql.includes('AS fenced FROM fence')).length,4);
   assert.ok(!h.queries.some(x=>/UPDATE campaigns/.test(x.sql)));
 });
 test('conflicting references and references outside advertiser scope stay unmatched',async()=>{
@@ -276,3 +276,4 @@ test('CSV export uses verified net and neutralizes spreadsheet formulas',()=>{
   const csv=exportSales({payments:[p],refunds:[refund('r','COMPLETED',300)]});
   assert.ok(csv.includes('"1200","300","900"'));assert.ok(csv.includes('"\'=CMD()"'));
 });
+
