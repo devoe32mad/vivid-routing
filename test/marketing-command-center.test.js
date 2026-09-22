@@ -24,6 +24,11 @@ test("anonymous and unprivileged enterprise requests perform no database reads",
   assert.equal((await run(userPath,{session:{}})).code,401);
   assert.equal((await run(orgPath,{session:{}})).code,403);
 });
+test("invalid drill-down queries and enterprise private-account requests fail before database reads",async()=>{
+  const run=harness({q:()=>{throw Error("Unexpected DB");}});
+  for(const query of [{platform:"unknown"},{platform:["vivid"]},{platform:"google_ads",campaign:"1:99<script>"}])assert.equal((await run(userPath,{session:{user:{id:7}},query})).code,400);
+  assert.equal((await run(orgPath,{session:{orgUser:{id:4}},params:{advertiserId:8},query:{platform:"google_ads"}})).code,403);
+});
 test("advertiser identity comes from session even for admin and ignores supplied owner",async()=>{
   const calls=[],run=harness({q:async(sql,params)=>{calls.push({sql,params});return {rows:[]};}});
   const res=await run(userPath,{session:{user:{id:7,role:"super_admin"}},query:{user_id:999,from:"2026-09-01",to:"2026-09-22"}});

@@ -139,12 +139,13 @@ function createStore({pool,q,config,reader}) {
 async function dashboardEvidence(q,userId,range) {
   try {
     const connections = (await q(`SELECT ${PUBLIC_COLUMNS} FROM google_ads_private_connections WHERE owner_user_id=$1 ORDER BY id`,[userId])).rows;
-    const rows = (await q(`SELECT d.connection_id,d.campaign_id,d.campaign_name,d.channel,d.currency_code,d.account_timezone,
+    const rows = (await q(`SELECT d.connection_id,d.campaign_id,(ARRAY_AGG(d.campaign_name ORDER BY d.evidence_date DESC))[1] campaign_name,d.channel,d.currency_code,d.account_timezone,
+        (ARRAY_AGG(d.campaign_status ORDER BY d.evidence_date DESC))[1] campaign_status,
         SUM(d.impressions)::text impressions,SUM(d.clicks)::text clicks,SUM(d.cost_micros)::text cost_micros,
         SUM(d.conversions)::text conversions,SUM(d.conversion_value)::text conversion_value,MAX(d.imported_at) imported_at
       FROM google_ads_private_daily d JOIN google_ads_private_connections c ON c.id=d.connection_id
       WHERE c.owner_user_id=$1 AND d.evidence_date BETWEEN $2::date AND $3::date
-      GROUP BY d.connection_id,d.campaign_id,d.campaign_name,d.channel,d.currency_code,d.account_timezone
+      GROUP BY d.connection_id,d.campaign_id,d.channel,d.currency_code,d.account_timezone
       ORDER BY d.connection_id,d.campaign_id`,[userId,range.from,range.to])).rows;
     const daily = (await q(`SELECT d.connection_id,d.evidence_date::text date,d.campaign_id,d.campaign_name,d.channel,
       d.currency_code,d.impressions::text,d.clicks::text,d.cost_micros::text,d.conversions::text,d.conversion_value::text
