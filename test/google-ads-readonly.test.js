@@ -28,10 +28,10 @@ async function connect(store,q,userId=1,id=account.id) {
   await q("INSERT INTO google_ads_private_states VALUES($1,$2,NOW()+INTERVAL '10 minutes')",[stateHash,userId]);
   return store.authorize(userId,{hash:stateHash,customerId:id,managerId:""},token(),{...account,id});
 }
-function harness({q,pool,fetcher,configurationEnv=env}) {
+function harness({q,pool,fetcher,configurationEnv=env,logger=console}) {
   const routes = {};
   registerGoogleAdsReadOnlyRoutes({app:{get:(path,...handlers)=>routes["GET "+path]=handlers,post:(path,...handlers)=>routes["POST "+path]=handlers},q,pool,
-    page:(_,body)=>body,requireLogin:(req,res,next)=>req.session.user?next():res.status(401).send("login"),env:configurationEnv,fetcher});
+    page:(_,body)=>body,requireLogin:(req,res,next)=>req.session.user?next():res.status(401).send("login"),env:configurationEnv,fetcher,logger});
   return async(method,path,req={})=>{
     req = {query:{},body:{},params:{},...req};
     req.session ||= {};
@@ -203,4 +203,51 @@ test("dashboard integrates only the logged-in advertiser's Google evidence; ente
 test("evidence UI escapes names, keeps currency and attribution distinctions, and labels partial imports",()=>{
   const html=renderEvidence({connections:[{id:1,account_name:"<img>",customer_id:account.id,account_timezone:account.timeZone}],rows:[{connection_id:1,campaign_id:"99",campaign_name:"<script>",currency_code:"CAD",account_timezone:account.timeZone,cost_micros:"1000000",conversion_value:"12"}]},range);
   assert.doesNotMatch(html,/<img>|<script>/);assert.match(html,/1 CAD/);assert.match(html,/not verified sales/);assert.match(html,/missing dates are not evidence of zero/);assert.match(html,/America\/Toronto/);
+});
+
+
+test("provider diagnostics distinguish credentials, account setup and project access without leaking data",async()=>{
+  const failure = (field,value) => ({error:{message:"private-provider-message",details:[{
+    errors:[{errorCode:{[field]:value},message:"private-access",trigger:{stringValue:"private-refresh"}}],
+    requestId:"private-request-id"}]}});
+  const cases = [
+    [400,{error:"invalid_client",error_description:"private-secret"},"oauth_client","invalid_client","exchange"],
+    [401,{error:"invalid_client"},"oauth_client","invalid_client","refresh"],
+    [403,failure("authorizationError","INCOMPLETE_SIGNUP"),"customer_signup","INCOMPLETE_SIGNUP","account"],
+    [403,failure("authorizationError","USER_PERMISSION_DENIED"),"account_permission","USER_PERMISSION_DENIED","account"],
+    [403,failure("authorizationError","CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION"),"project_access","CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION","account"],
+    [403,{error:{details:[{reason:"SERVICE_DISABLED",metadata:{secret:"private-secret"}}]}},"api_disabled","SERVICE_DISABLED","account"],
+    [403,{error:{details:[{reason:"ACCESS_TOKEN_SCOPE_INSUFFICIENT"}]}},"oauth_scope","ACCESS_TOKEN_SCOPE_INSUFFICIENT","report"],
+    [400,failure("requestError","private-secret"),"google_access","UNKNOWN","account"],
+    [400,null,"google_access","UNKNOWN","account"],
+    [503,{error:"invalid_client"},"temporary","invalid_client","exchange"]
+  ];
+  for(const [status,body,code,providerCode,operation] of cases) {
+    const reader=createGoogleReader({config,fetcher:async()=>response(body,status)});
+    const call=operation==="account"?reader.account("private-access",account.id,""):
+      operation==="report"?reader.report("private-access",account.id,"",account,range):reader[operation]("private-code");
+    await assert.rejects(call,error=>{
+      assert.equal(error.code,code);
+      assert.deepEqual(error.diagnostic,{stage:{exchange:"oauth_exchange",refresh:"oauth_refresh",account:"account_check",report:"report_read"}[operation],httpStatus:status,providerCode});
+      assert.doesNotMatch(JSON.stringify(error),/private-/);
+      return true;
+    });
+  }
+});
+test("failed OAuth callback shows actionable error, logs only codes and consumes state without saving a connection",async()=>{
+  const {db,q,pool}=await database();
+  try {
+    const logs=[],run=harness({q,pool,logger:{warn:message=>logs.push(message)},fetcher:async()=>response({error:"invalid_client",error_description:"private-secret"},400)});
+    const session={user:{id:1}};
+    await run("GET","",{session});
+    const launched=await run("POST","/connect",{session,body:{csrf:session.googleAdsCsrf,customer_id:account.id}});
+    const state=new URL(launched.location).searchParams.get("state");
+    const result=await run("GET","/callback",{session,query:{state,code:"private-code"}});
+    assert.equal(result.code,502);assert.match(result.body,/matching client secret in Railway/);
+    assert.deepEqual(logs,['google_ads_readonly_failure {"stage":"oauth_exchange","httpStatus":400,"providerCode":"invalid_client"}']);
+    assert.doesNotMatch(result.body+logs.join(),/private-|1234567890/);
+    assert.equal((await q("SELECT * FROM google_ads_private_connections")).rows.length,0);
+    assert.equal((await q("SELECT * FROM google_ads_private_states")).rows.length,0);
+    assert.equal(session.googleAdsPending,undefined);
+  } finally {await db.close();}
 });

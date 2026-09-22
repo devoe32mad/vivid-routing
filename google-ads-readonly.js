@@ -8,6 +8,43 @@ const ACCOUNT_QUERY = "SELECT customer.id, customer.descriptive_name, customer.c
 class ConnectorError extends Error {
   constructor(code) { super(code); this.code = code; }
 }
+// Only fixed provider codes are retained. Never retain response messages, request
+// URLs, OAuth codes, credentials, customer IDs or provider metadata in diagnostics.
+const GOOGLE_ERROR_CODES = new Map([
+  ["invalid_client", "oauth_client"], ["unauthorized_client", "oauth_client"],
+  ["invalid_grant", "authorization"], ["redirect_uri_mismatch", "oauth_redirect"],
+  ["CUSTOMER_NOT_FOUND", "customer_missing"], ["CUSTOMER_NOT_ENABLED", "customer_inactive"],
+  ["INCOMPLETE_SIGNUP", "customer_signup"], ["USER_PERMISSION_DENIED", "account_permission"],
+  ["GOOGLE_ACCOUNT_USER_AND_ADS_USER_MISMATCH", "account_permission"],
+  ["CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION", "project_access"],
+  ["SERVICE_DISABLED", "api_disabled"], ["ACCESS_TOKEN_SCOPE_INSUFFICIENT", "oauth_scope"],
+  ["OAUTH_TOKEN_SCOPE_INSUFFICIENT", "oauth_scope"],
+  ["DEVELOPER_TOKEN_NOT_APPROVED", "project_access"],
+  ["DEVELOPER_TOKEN_PROHIBITED", "project_access"],
+  ["ACTION_NOT_PERMITTED", "google_access"], ["PERMISSION_DENIED", "google_access"],
+  ["INVALID_LOGIN_CUSTOMER_ID", "manager_invalid"],
+  ["INVALID_CUSTOMER_ID", "customer_missing"]
+]);
+function providerError(body, status, stage) {
+  const candidates = [];
+  if (typeof body?.error === "string") candidates.push(body.error);
+  const details = Array.isArray(body?.error?.details) ? body.error.details : [];
+  for (const detail of details) {
+    candidates.push(detail?.reason);
+    for (const error of Array.isArray(detail?.errors) ? detail.errors : []) {
+      for (const field of ["authenticationError", "authorizationError", "requestError", "headerError"]) {
+        candidates.push(error?.errorCode?.[field]);
+      }
+    }
+  }
+  candidates.push(body?.error?.status);
+  const providerCode = candidates.find(value => GOOGLE_ERROR_CODES.has(value)) || "UNKNOWN";
+  const code = status === 429 || status >= 500 ? "temporary" :
+    GOOGLE_ERROR_CODES.get(providerCode) || (status === 401 ? "authorization" : "google_access");
+  const error = new ConnectorError(code);
+  error.diagnostic = Object.freeze({stage, httpStatus:status, providerCode});
+  return error;
+}
 function customerId(value) {
   if (typeof value !== "string" || !/^(\d{10}|\d{3}-\d{3}-\d{4})$/.test(value.trim())) return "";
   return value.trim().replace(/-/g, "");
@@ -78,23 +115,21 @@ function normalizeRows(rows, account, range) {
 }
 
 function createGoogleReader({config, fetcher=fetch}) {
-  async function request(url, options) {
+  async function request(url, options, stage) {
     let response;
     try { response = await fetcher(url, {...options, redirect:"error", signal:AbortSignal.timeout(15000)}); }
     catch { throw new ConnectorError("network"); }
     if (!response.ok) {
       let body = {};
       try { body = await response.json(); } catch { /* Never expose provider bodies or tokens. */ }
-      if (body.error === "invalid_grant" || response.status === 401) throw new ConnectorError("authorization");
-      if (response.status === 429 || response.status >= 500) throw new ConnectorError("temporary");
-      throw new ConnectorError("google_access");
+      throw providerError(body, response.status, stage);
     }
     try { return await response.json(); } catch { throw new ConnectorError("invalid_report"); }
   }
   async function token(fields, requireRefresh) {
     const result = await request("https://oauth2.googleapis.com/token", {method:"POST",
       headers:{"Content-Type":"application/x-www-form-urlencoded"},
-      body:new URLSearchParams({client_id:config.clientId,client_secret:config.clientSecret,...fields}).toString()});
+      body:new URLSearchParams({client_id:config.clientId,client_secret:config.clientSecret,...fields}).toString()}, requireRefresh ? "oauth_exchange" : "oauth_refresh");
     if (typeof result.access_token !== "string" || !result.access_token ||
         (requireRefresh && (typeof result.refresh_token !== "string" || !result.refresh_token)) ||
         !(Number(result.expires_in) > 0) ||
@@ -113,7 +148,7 @@ function createGoogleReader({config, fetcher=fetch}) {
       const data = await request(`https://googleads.googleapis.com/${config.version}/customers/${id}/googleAds:search`, {
         method:"POST", headers:{"Content-Type":"application/json",Authorization:"Bearer " + accessToken,
           ...(managerId ? {"login-customer-id":managerId} : {})},
-        body:JSON.stringify({query,...(pageToken ? {pageToken} : {})})});
+        body:JSON.stringify({query,...(pageToken ? {pageToken} : {})})}, query === ACCOUNT_QUERY ? "account_check" : "report_read");
       if (data.results !== undefined && !Array.isArray(data.results)) throw new ConnectorError("invalid_report");
       results.push(...(data.results || []));
       if (results.length > 100000) throw new ConnectorError("report_too_large");

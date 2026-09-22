@@ -1,10 +1,10 @@
 "use strict";
 const crypto = require("node:crypto");
 const {dateRange} = require("./marketing-command-center");
-const {PATH,SCOPE,configuration,customerId,equal,hash,importRange,createGoogleReader} = require("./google-ads-readonly");
+const {PATH,SCOPE,ConnectorError,configuration,customerId,equal,hash,importRange,createGoogleReader} = require("./google-ads-readonly");
 const {createStore,dashboardEvidence} = require("./google-ads-readonly-store");
 const {renderHome,renderAccount} = require("./google-ads-readonly-view");
-function registerGoogleAdsReadOnlyRoutes({app,q,pool,page,requireLogin,env=process.env,fetcher=fetch}) {
+function registerGoogleAdsReadOnlyRoutes({app,q,pool,page,requireLogin,env=process.env,fetcher=fetch,logger=console}) {
   let config;
   if(env.GOOGLE_ADS_OBSERVATION_ENABLED === "true") {
     try { config = configuration(env); } catch { /* Fail closed without breaking the whole application. */ }
@@ -20,11 +20,25 @@ function registerGoogleAdsReadOnlyRoutes({app,q,pool,page,requireLogin,env=proce
   const wrap = fn => async(req,res) => {
     try { await fn(req,res); }
     catch(error) {
+      if (error instanceof ConnectorError && error.diagnostic) {
+        // Do not log req, the error stack, or the provider response body.
+        logger.warn("google_ads_readonly_failure " + JSON.stringify(error.diagnostic));
+      }
       const messages = {state:"Authorization expired or was already used. Start again from Google connections.",
         not_found:"Google account not found.","55P03":"An import is already running for this account. Try again shortly.",
         date_range:"Choose at most 31 days per import.",authorization:"Google authorization needs renewal. Reconnect this account.",
         temporary:"Google is temporarily unavailable or limiting requests. Retry later; existing evidence is unchanged.",
         google_access:"Google did not grant account access. Check the selected account, manager ID and Vivid’s Google API access.",
+        oauth_client:"Google rejected Vivid’s OAuth application credentials. Check the Google Ads client ID and matching client secret in Railway, then deploy and reconnect.",
+        oauth_redirect:"Vivid’s Google callback address does not match its OAuth configuration. Ask the Vivid administrator to check the redirect URI.",
+        customer_signup:"Google reports that this Ads account’s signup is incomplete. Review the account setup in Google Ads; you do not need to launch a campaign to connect reporting.",
+        customer_missing:"Google could not find the selected Ads customer account. Verify the 10-digit customer ID in Google Ads.",
+        customer_inactive:"Google reports that this Ads account is not enabled. Check its account status in Google Ads.",
+        account_permission:"The selected Google login cannot access this Ads account through the supplied manager ID. Use a login with account access; leave Manager ID blank for direct access.",
+        manager_invalid:"Google rejected the Manager ID. Leave it blank for direct account access, or enter the manager account used to access this customer.",
+        project_access:"Vivid’s Google Cloud project is not approved for this production Ads account. Check Google Ads API access in Google Cloud; Explorer access or higher is required.",
+        api_disabled:"The Google Ads API is disabled for Vivid’s Google Cloud project. Enable it for the project that owns the OAuth client.",
+        oauth_scope:"Google did not grant the required Ads permission. Reconnect and review the Google Ads permission on Google’s consent screen.",
         account:"Choose an accessible production advertising account, not a manager or test account.",
         report_too_large:"This report is too large for one import. Choose a shorter date range."};
       res.status(error.code==="not_found"?404:error.code==="state"?403:error.code==="55P03"?409:502)
