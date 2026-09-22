@@ -3,6 +3,7 @@
 const crypto = require('node:crypto');
 const {createLedger}=require('./square-production-ledger');
 const {createConversions}=require('./square-production-conversions');
+const {createRedemptions,orderEvidence}=require('./square-production-redemptions');
 const SALES_SCOPES = 'MERCHANT_PROFILE_READ PAYMENTS_READ ORDERS_READ';
 const esc = x => String(x ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function money(m) {
@@ -80,9 +81,10 @@ function installSales({app,q,owner,wrap,api,getConnection,csrf,root,sync}) {
       const order=(await api('/v2/orders/'+encodeURIComponent(p.order_id),null,token)).order;
       if(order?.id!==p.order_id || order.location_id!==p.location_id)throw Error('Order mismatch');
       p.order_reference=order.reference_id || null;
+      p.instore=orderEvidence(order,p);
     }
     const refs=[...new Set([p.reference,p.order_reference].filter(x=>typeof x==='string' && x.length>0))];
-    if(refs.length===1 && refs[0].length<=192){
+    if(!p.instore && refs.length===1 && refs[0].length<=192){
       const matched=await q(`SELECT e.id AS scan_id,e.qr_id,e.campaign_id,e.vivid_click_id AS click_id,c.name
         FROM events e JOIN campaigns c ON c.id=e.campaign_id
         WHERE c.user_id=$1 AND COALESCE(c.is_test,false)=false AND e.type='scan' AND e.vivid_click_id=$2
@@ -95,6 +97,7 @@ function installSales({app,q,owner,wrap,api,getConnection,csrf,root,sync}) {
   };
   const ledger=createLedger({q,api,enrich});
   const conversions=createConversions({q});
+  const redemptions=createRedemptions({q});
   const load=async id=>{await ready();return ledger.load(id);};
   app.get(route,owner,wrap(async(req,res)=>{
     req.session.squareProductionCsrf ||= crypto.randomBytes(32).toString('hex');
@@ -126,9 +129,9 @@ function installSales({app,q,owner,wrap,api,getConnection,csrf,root,sync}) {
       body+=`<p>Imported ${esc(new Date(row.imported_at).toISOString())} · ${row.state?.window ? 'Sync is still catching up; totals may be incomplete.' : 'Retained payment history'}</p><section><h2>Payment totals</h2><p>Collected amounts include any tax and tips. Pending and failed payments are excluded; only completed refunds reduce net amounts.</p><div class="scroll"><table><thead><tr><th>Currency</th><th>Collected</th><th>Refunded</th><th>Net collected</th><th>Matched net</th></tr></thead><tbody>${Object.entries(totals).map(([c,t])=>`<tr><td>${esc(c)}</td>${['gross','refunded','net','matched'].map(k=>`<td>${esc(format(t[k],c))}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
       const campaigns=campaignTotals(snap);
       body+=`<section><h2>Matched campaign results</h2><p>Verified Square payments less completed refunds. Matched completed USD payments feed Vivid conversion counts, revenue and ROI. A refund adjusts the original conversion’s revenue; the completed purchase remains one conversion. Estimates for the same customer action and scan are superseded, not added again. Other currencies remain in this report only. Test campaigns are excluded from matching.</p>${campaigns.length ? `<div class="scroll"><table><thead><tr><th>Campaign</th><th>Currency</th><th>Payments</th><th>Collected</th><th>Refunded</th><th>Net collected</th></tr></thead><tbody>${campaigns.map(c=>`<tr><td><a href="${root(id)}/sales?campaign=${esc(c.campaign_id)}">${esc(c.name)}</a> (ID ${esc(c.campaign_id)})</td><td>${esc(c.currency)}</td><td>${c.count}</td>${['gross','refunded','net'].map(k=>`<td>${esc(format(c[k],c.currency))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p>No completed payments have matched a campaign yet.</p>'}</section>`;
-      body+=`<section><h2>Transactions (${snap.payments.length})</h2><p>Matching requires a payment or order reference equal to an existing Vivid click ID for this advertiser, from a scan within 30 days before the payment. Conflicting references remain unmatched.</p>${snap.payments.length ? snap.payments.slice((detailPage-1)*pageSize,detailPage*pageSize).map(p=>{
+      body+=`<section><h2>Transactions (${snap.payments.length})</h2><p>Online purchases require an exact payment or order reference. In-store purchases require a merchant-approved, single-use Vivid code on the paid Square order. Both must link to this advertiser’s eligible scan within 30 days. Conflicting evidence remains unmatched.</p>${snap.payments.length ? snap.payments.slice((detailPage-1)*pageSize,detailPage*pageSize).map(p=>{
         const a=amounts(p,snap.refunds),refunds=snap.refunds.filter(r=>r.payment_id===p.id);
-        return `<details><summary>${esc(p.created_at.slice(0,10))} · ${esc(format(a.net,p.total.currency))} · ${esc(p.status)} · ${p.match ? 'Matched: '+esc(p.match.name) : 'Unmatched'}</summary><dl><dt>Square payment</dt><dd>${esc(p.id)}</dd><dt>Square location</dt><dd>${esc(p.location_id)}</dd><dt>Square order</dt><dd>${esc(p.order_id || 'None')}</dd><dt>Payment reference</dt><dd>${esc(p.reference || 'None')}</dd><dt>Order reference</dt><dd>${esc(p.order_reference || 'None')}</dd><dt>Collected / refunded / net</dt><dd>${esc(format(a.gross,p.total.currency))} / ${esc(format(a.refunded,p.total.currency))} / ${esc(format(a.net,p.total.currency))}</dd><dt>Attribution evidence</dt><dd>${p.match ? 'Exact reference: '+esc(p.match.click_id)+' · Campaign '+esc(p.match.campaign_id)+' · QR '+esc(p.match.qr_id)+' · Scan '+esc(p.match.scan_id) : 'No unique eligible Vivid scan reference found.'}</dd></dl><h3>Refunds</h3>${refunds.length ? '<ul>'+refunds.map(r=>`<li>${esc(r.id)} · ${esc(r.status)} · ${esc(format(r.amount.amount,r.amount.currency))}</li>`).join('')+'</ul>' : '<p>No refunds.</p>'}</details>`;
+        return `<details><summary>${esc(p.created_at.slice(0,10))} · ${esc(format(a.net,p.total.currency))} · ${esc(p.status)} · ${p.match ? 'Matched: '+esc(p.match.name) : 'Unmatched'}</summary><dl><dt>Square payment</dt><dd>${esc(p.id)}</dd><dt>Square location</dt><dd>${esc(p.location_id)}</dd><dt>Square order</dt><dd>${esc(p.order_id || 'None')}</dd><dt>Payment reference</dt><dd>${esc(p.reference || 'None')}</dd><dt>Order reference</dt><dd>${esc(p.order_reference || 'None')}</dd><dt>Collected / refunded / net</dt><dd>${esc(format(a.gross,p.total.currency))} / ${esc(format(a.refunded,p.total.currency))} / ${esc(format(a.net,p.total.currency))}</dd><dt>Attribution evidence</dt><dd>${p.match ? (p.match.method==='in_store_code' ? 'In-store code: '+esc(p.match.code)+' · Scan reference: ' : 'Exact reference: ')+esc(p.match.click_id)+' · Campaign '+esc(p.match.campaign_id)+' · QR '+esc(p.match.qr_id)+' · Scan '+esc(p.match.scan_id) : (p.instore ? 'No eligible approved in-store code matched this payment. Check code, location, approval time and single-card checkout.' : 'No unique eligible Vivid scan reference found.')}</dd></dl><h3>Refunds</h3>${refunds.length ? '<ul>'+refunds.map(r=>`<li>${esc(r.id)} · ${esc(r.status)} · ${esc(format(r.amount.amount,r.amount.currency))}</li>`).join('')+'</ul>' : '<p>No refunds.</p>'}</details>`;
       }).join('<hr>') : '<p>No Square live payments were found in this period.</p>'}</section>`;
     }
     if(snap?.payments.length>pageSize)body+=`<p>Page ${detailPage} · ${detailPage>1 ? `<a href="?page=${detailPage-1}&${esc(reportQuery)}">Previous</a>` : ''} ${detailPage*pageSize<snap.payments.length ? `<a href="?page=${detailPage+1}&${esc(reportQuery)}">Next</a>` : ''}</p>`;
@@ -139,6 +142,7 @@ function installSales({app,q,owner,wrap,api,getConnection,csrf,root,sync}) {
     if(!connection || !permitted(connection.token))throw Error('Reconnect required');
     await ready();
     await ledger.run(id,connection,lease);
+    await redemptions.reconcile(id,connection,lease);
     await conversions.reconcile(id,connection,lease);
   };
   app.post(route+'/import',owner,wrap(async(req,res)=>{
@@ -149,8 +153,9 @@ function installSales({app,q,owner,wrap,api,getConnection,csrf,root,sync}) {
     if(!done)return res.status(409).send(page('Sync in progress',`<p>A sync is already running. Please return to sales shortly.</p><a href="${root(id)}/sales">View live sales</a>`));
     res.redirect(root(id)+'/sales');
   }));
-  return {syncSales};
+  return {syncSales,redemptions};
 }
 module.exports={installSales,SALES_SCOPES,normalizePayment,normalizeRefund,amounts,collect,page,campaignTotals,exportSales};
+
 
 

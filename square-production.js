@@ -5,6 +5,7 @@ const BASE = 'https://connect.squareup.com';
 const {installSales, SALES_SCOPES, page} = require('./square-production-sales');
 const SCOPES = SALES_SCOPES;
 const {installCheckout,CHECKOUT_SCOPES}=require('./square-production-checkout');
+const {installInstore}=require('./square-production-instore');
 const PATH = '/integrations/square/production';
 function equal(a, b) {
   return typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) &&
@@ -76,7 +77,7 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
     const result = await q('SELECT merchant_id, updated_at FROM square_production_connections WHERE customer_id=$1', [id]);
     const row = result.rows[0];
     const form = (action, label) => `<form method="post" action="${root(id)}/${action}"><input type="hidden" name="csrf" value="${req.session.squareProductionCsrf}"><button>${label}</button></form>`;
-    res.type('html').send(page('Square live connection',`<section><p>Live connection for advertiser ${id}. Vivid reads payments, orders and refunds. Verified Square totals appear in a separate report. Optional tracked checkout requires additional Square authorization and a configured offer.</p><p>${row ? 'Connected merchant: ' + escape(row.merchant_id) : 'Not connected'}</p>${form('connect', row ? 'Reconnect Square live account' : 'Connect Square live account')}${row ? `<p><a href="${root(id)}/locations">View Square live locations</a></p><p><a href="${root(id)}/sales">View Square live sales</a></p><p><a href="${root(id)}/checkout">Configure tracked live checkout</a></p>` + form('disconnect', 'Disconnect Square live account') : ''}</section>`));
+    res.type('html').send(page('Square live connection',`<section><p>Live connection for advertiser ${id}. Vivid reads payments, orders and refunds. Verified Square totals appear in a separate report. Optional tracked checkout requires additional Square authorization and a configured offer.</p><p>${row ? 'Connected merchant: ' + escape(row.merchant_id) : 'Not connected'}</p>${form('connect', row ? 'Reconnect Square live account' : 'Connect Square live account')}${row ? `<p><a href="${root(id)}/locations">View Square live locations</a></p><p><a href="${root(id)}/sales">View Square live sales</a></p><p><a href="${root(id)}/checkout">Configure tracked live checkout</a></p><p><a href="${root(id)}/instore">Configure in-store offers</a></p><p><a href="${root(id)}/instore/redeem">Validate an in-store code</a></p>` + form('disconnect', 'Disconnect Square live account') : ''}</section>`));
   }));
   app.post(PATH + '/customers/:customerId/connect', owner, wrap(async (req, res) => {
     if (!csrf(req)) return res.status(403).send('Reload the Square connection page and retry.');
@@ -141,9 +142,10 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
     return {row,token};
   };
   const sync=createSync({q,ready,enabled:env.SQUARE_PRODUCTION_AUTO_SYNC !== 'false'});
-  const {syncSales}=installSales({app,q,owner,wrap,api,getConnection,csrf,root,sync});
+  const {syncSales,redemptions}=installSales({app,q,owner,wrap,api,getConnection,csrf,root,sync});
   sync.start(syncSales);
   installCheckout({app,q,owner,wrap,api,getConnection,csrf,root,origin:new URL(config.redirect).origin});
+  installInstore({app,q,owner,wrap,api,getConnection,csrf,root,redemptions,origin:new URL(config.redirect).origin});
   app.get(PATH + '/customers/:customerId/locations', owner, wrap(async (req, res) => {
     const id = Number(req.params.customerId), connection = await getConnection(id);
     if (!connection) return res.status(409).send('Connect a Square live account first.');
@@ -168,6 +170,7 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
   }));
 }
 module.exports = {install, configuration, seal, unseal, equal};
+
 
 
 
