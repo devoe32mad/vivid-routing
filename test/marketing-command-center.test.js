@@ -35,14 +35,15 @@ test("foreign advertiser is rejected before any metric or merchant reads",async(
   assert.equal(res.code,404);assert.equal(calls.length,1);assert.deepEqual(calls[0].params,[99,2]);
 });
 test("enterprise metric query has both boundaries and never reads Square account data",async()=>{
-  const calls=[],run=harness({env:{SQUARE_PRODUCTION_ENABLED:"true"},q:async(sql,params)=>{calls.push({sql,params});return {rows:calls.length===1?[{id:8,name:"Advertiser",organization_name:"Enterprise"}]:[]};}});
+  const calls=[],run=harness({env:{SQUARE_PRODUCTION_ENABLED:"true",GOOGLE_ADS_OBSERVATION_ENABLED:"true"},q:async(sql,params)=>{calls.push({sql,params});return {rows:calls.length===1?[{id:8,name:"Advertiser",organization_name:"Enterprise"}]:[]};}});
   const res=await run(orgPath,{session:{orgUser:{id:4}},params:{advertiserId:8},query:{from:"2026-09-01",to:"2026-09-22"}});
   assert.equal(res.code,200);assert.equal(calls.length,2);assert.match(calls[1].sql,/c.organization_id=\$1 AND c.advertiser_id=\$2/);assert.deepEqual(calls[1].params,[2,8,"2026-09-01","2026-09-22"]);
   assert.doesNotMatch(res.body,/integrations\/square\/production\/customers/);
+  assert.doesNotMatch(calls.map(c=>c.sql).join(" "),/google_ads_private/);
 });
 test("unbuilt connectors remain planned and customer content is escaped",()=>{
   const html=renderCommandCenter({title:"<script>secret</script>",scope:{kind:"advertiser",userId:7},range:{from:"2026-09-01",to:"2026-09-22"},campaigns:[{id:3,name:'<img src=x onerror=alert(1)>',clicks:2}],squareStatus:"Not enabled"});
-  assert.doesNotMatch(html,/<script>|<img/);assert.match(html,/LinkedIn Ads/);assert.match(html,/Setup foundation only/);assert.match(html,/Planned/);assert.match(html,/not added again/);assert.doesNotMatch(html,/href=".*connect.*meta/);
+  assert.doesNotMatch(html,/<script>|<img/);assert.match(html,/LinkedIn Ads/);assert.match(html,/Awaiting application setup/);assert.match(html,/Planned/);assert.match(html,/not added again/);assert.doesNotMatch(html,/href=".*connect.*meta/);
 });
 test("real PostgreSQL aggregation excludes other owners, organizations, test campaigns and out-of-period events",async()=>{
   const {PGlite}=require("@electric-sql/pglite"),db=new PGlite();
@@ -71,11 +72,11 @@ test("startup installers compose against the real server without starting it",()
   const fs=require('fs'),os=require('os'),path=require('path'),{execFileSync}=require('child_process');
   const root=path.resolve(__dirname,'..'),tmp=fs.mkdtempSync(path.join(os.tmpdir(),'vivid-command-center-'));
   try{
-    const installers=['install-public-marketplace-redirect.js','install-ai-insights-performance.js','install-vivid-intelligence.js','install-ai-readiness.js','install-marketplace-campaign-builder.js','install-google-ads-observation.js','install-marketing-command-center.js'];
+    const installers=['install-public-marketplace-redirect.js','install-ai-insights-performance.js','install-vivid-intelligence.js','install-ai-readiness.js','install-marketplace-campaign-builder.js','install-google-ads-observation.js','install-marketing-command-center.js','install-google-ads-readonly.js'];
     for(const file of ['server.js',...installers])fs.copyFileSync(path.join(root,file),path.join(tmp,file));
     for(const file of installers)execFileSync(process.execPath,[path.join(tmp,file)],{stdio:'pipe'});
     const source=fs.readFileSync(path.join(tmp,'server.js'),'utf8'),{install}=require('../install-marketing-command-center');
-    assert.equal(install(source),source);assert.match(source,/registerMarketingCommandCenterRoutes\(\{/);
+    assert.equal(install(source),source);assert.equal(require('../install-google-ads-readonly').install(source),source);assert.match(source,/registerGoogleAdsReadOnlyRoutes\(\{app,q,pool,page,requireLogin\}\)/);assert.match(source,/registerMarketingCommandCenterRoutes\(\{/);
     execFileSync(process.execPath,['--check',path.join(tmp,'server.js')],{stdio:'pipe'});
   }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 });

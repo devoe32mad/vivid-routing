@@ -11,7 +11,10 @@ administrators see only their own advertiser campaigns on the advertiser page.
 
 Suggestions are deterministic checks based on measured scans, intent and recorded
 conversions. They do not forecast outcomes or recommend automatic spending.
-Google Ads account setup exists, but OAuth and reporting sync still need implementation.
+Google Ads advertiser-owned OAuth and manual read-only reporting imports are implemented behind
+`GOOGLE_ADS_OBSERVATION_ENABLED`. See [Google Ads setup](GOOGLE_ADS_READONLY.md).
+Production account access still requires application configuration and live verification.
+The earlier enterprise setup remains separate and does not grant access to private advertiser imports.
 Meta, LinkedIn and the other catalog entries are explicitly planned, with no fake connect buttons.
 
 ## Recommended connector order
@@ -48,4 +51,6 @@ provider API exists. A reviewed CSV import is a future fallback, not implemented
 
 Tests cover date validation, identity/session boundaries, rejection before metric
 reads, real PostgreSQL aggregation, optional Square columns, non-additive revenue,
-escaped content and actual startup installer composition. No production writes or external API calls are made by the dashboard.
+escaped content and actual startup installer composition. The dashboard itself makes no external API calls. Explicit Google connection and import
+actions call Google OAuth and reporting endpoints and write private evidence to Vivid;
+they never change Google campaigns or spending.
