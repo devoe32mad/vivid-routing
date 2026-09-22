@@ -1,5 +1,7 @@
 "use strict";
 const {dateRange,renderCommandCenter}=require("./marketing-command-center");
+const {dashboardEvidence}=require("./google-ads-readonly-store");
+const {configuration}=require("./google-ads-readonly");
 function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNav,requireLogin,requireOrganizationPermission,getOrganizationScope,env=process.env}) {
   async function loadCampaigns(scope,range) {
     const enterprise=scope.kind==="enterprise";
@@ -39,8 +41,13 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
   app.get("/admin/marketing-command-center",requireLogin,handle(async(req,res,range)=>{
     if(!validId(req.session?.user?.id))return res.status(403).send("Account required.");
     const scope={kind:"advertiser",userId:Number(req.session.user.id)};
-    const [campaigns,status]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId)]);
-    res.send(page("Marketing Command Center",renderCommandCenter({title:"Your marketing, together",scope,range,campaigns,squareStatus:status})));
+    let googleEnabled=false;
+    if(env.GOOGLE_ADS_OBSERVATION_ENABLED==="true"){
+      try{configuration(env);googleEnabled=true;}catch{/* Keep setup unavailable until valid. */}
+    }
+    const [campaigns,status,googleEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId),
+      googleEnabled?dashboardEvidence(q,scope.userId,range):Promise.resolve(null)]);
+    res.send(page("Marketing Command Center",renderCommandCenter({title:"Your marketing, together",scope,range,campaigns,squareStatus:status,googleEvidence,googleEnabled})));
   }));
   app.get("/org-marketing-command-center/advertiser/:advertiserId",requireOrganizationPermission("manage_advertisers"),handle(async(req,res,range)=>{
     const authorized=await getOrganizationScope(req);

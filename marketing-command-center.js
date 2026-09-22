@@ -1,4 +1,5 @@
 "use strict";
+const {renderEvidence}=require("./google-ads-readonly-view");
 const CONNECTORS = [
   ["vivid","Vivid placements","Physical + marketplace","QR engagement and recorded campaign conversions.","Available"],
   ["square","Square","Sales evidence","Matched purchases and refund-adjusted revenue.","Existing integration"],
@@ -41,7 +42,7 @@ function recommendations(campaigns,scope) {
   if(!items.length)items.push({title:"Build a measured baseline",reason:"Choose a goal, confirm tracking and collect outcomes before allocating budget by performance.",href:scope.kind==="enterprise"?`/org-ai-readiness/advertiser/${scope.advertiserId}?organization_id=${scope.orgId}`:"/admin/ai-readiness"});
   return items;
 }
-function renderCommandCenter({title,scope,range,campaigns,squareStatus}) {
+function renderCommandCenter({title,scope,range,campaigns,squareStatus,googleEvidence=null,googleEnabled=false}) {
   const totals=summarize(campaigns),recs=recommendations(campaigns,scope);
   const passport=scope.kind==="enterprise"?`/org-ai-readiness/advertiser/${scope.advertiserId}?organization_id=${scope.orgId}`:"/admin/ai-readiness";
   const approval=scope.kind==="enterprise"?`/org-ai-approval-center?organization_id=${scope.orgId}`:"/admin/ai-approval-center";
@@ -50,6 +51,10 @@ function renderCommandCenter({title,scope,range,campaigns,squareStatus}) {
     if(c.id==="vivid"){detail=campaigns.length?"Campaign records available":"No campaign records";href="#campaign-evidence";}
     if(c.id==="square"){detail=squareStatus;if(scope.kind==="advertiser" && squareStatus!=="Not enabled")href=`/integrations/square/production/customers/${scope.userId}`;}
     if(c.id==="google_ads" && scope.kind==="enterprise")href=`/org-connectors/google-ads/advertiser/${scope.advertiserId}?organization_id=${scope.orgId}`;
+    if(c.id==="google_ads" && scope.kind==="advertiser"){
+      href="/admin/connectors/google-ads";
+      detail=googleEnabled?(googleEvidence?.connections.length?"Account connected · review imports":"Ready to connect"):"Awaiting application setup";
+    }
     return `<article class="mcc-card"><small>${esc(c.category)}</small><h3>${esc(c.name)}</h3><span class="mcc-status">${esc(detail)}</span><p>${esc(c.purpose)}</p>${href?`<a href="${esc(href)}">${c.id==="google_ads"?"View setup":c.id==="square"?"Review Square":"View evidence"} →</a>`:`<details><summary>What's needed?</summary><p>${c.id==="google_ads"?"Account authorization and reporting sync still need implementation.":"This source is on the connector roadmap. No account data is being imported here."}</p></details>`}</article>`;
   }).join("");
   return `<style>
@@ -62,6 +67,7 @@ function renderCommandCenter({title,scope,range,campaigns,squareStatus}) {
 <h2>Recommended next actions</h2><section class="mcc-grid">${recs.map(r=>`<article class="mcc-card"><span class="mcc-status">For review</span><h3>${esc(r.title)}</h3><p>${esc(r.reason)}</p><a href="${esc(r.href)}">Inspect supporting evidence →</a></article>`).join("")}</section>
 <p>These suggestions use Vivid campaign records for the selected period. Channel, vertical and budget recommendations will need connected evidence; no campaign or spending action is performed here.</p>
 <h2 id="campaign-evidence">Campaign evidence</h2><div class="mcc-scroll"><table><thead><tr><th>Campaign</th><th>Scans</th><th>Intent</th><th>Conversions</th><th>Recorded value · USD</th></tr></thead><tbody>${campaigns.length?campaigns.map(c=>`<tr><td><a href="${sourceHref(c.id,scope)}">${esc(c.name)}</a></td><td>${n(c.scans)}</td><td>${n(c.clicks)}</td><td>${n(c.conversions)}</td><td>${money(c.conversion_value)}</td></tr>`).join(""):'<tr><td colspan="5">No campaigns available in this account.</td></tr>'}</tbody></table></div>
+${scope.kind==="advertiser"&&googleEvidence?renderEvidence(googleEvidence,range):""}
 <h2>Channels & connections</h2><section class="mcc-grid">${cards}</section></main>`;
 }
 module.exports={CONNECTORS,dateRange,summarize,recommendations,renderCommandCenter};
