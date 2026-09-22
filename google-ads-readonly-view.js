@@ -48,13 +48,13 @@ function renderHome({configured,connections,csrf,notice="",autoSync=true}) {
       <p>Find your customer ID in Google Ads. After signing in, Vivid checks access to this account before saving the connection. Connect each additional account separately.</p>` : "<p>Google connection setup is not enabled yet. Vivid needs its Google application configuration before accounts can authorize access.</p>"}</section>
     <h2>Your dashboards</h2>${connections.length ? connections.map(c=>`<section><a href="${PATH}/${Number(c.id)}">${esc(c.account_name)} · ${esc(c.customer_id)} · Open dashboard</a><p>${esc(syncStatus(c,autoSync))} · Last sync ${when(c.last_synced_at)}</p></section>`).join("") : "<p>No accounts connected.</p>"}</main>`;
 }
-function renderAccount({connection,rows,daily=[],syncs,csrf,range,notice="",autoSync=true}) {
+function renderAccount({connection,rows,daily=[],syncs,csrf,range,notice="",autoSync=true,aiVisible=false}) {
   const root = PATH + "/" + Number(connection.id);
   return `${style}<main class="gads"><a href="/admin/marketing-command-center">← Marketing dashboard</a> · <a href="${PATH}">Google connections</a><h1>${esc(connection.account_name)} · Google Ads dashboard</h1><p>${esc(notice)}</p>
   <form method="get"><label>From (account timezone)<input type="date" name="from" value="${range.from}" required></label><label>To<input type="date" name="to" value="${range.to}" required></label><button>View period</button></form>
   <form method="post" action="${root}/sync">${field(csrf)}<input type="hidden" name="from" value="${range.from}"><input type="hidden" name="to" value="${range.to}"><button>Refresh now</button><span>Optional refresh of the selected period, up to 31 days.</span></form>
   ${renderEvidence({connections:[connection],rows,daily},range,{autoSync})}
-  ${renderRecommendations({connections:[connection],daily},range)}
+  ${aiVisible?renderRecommendations({connections:[connection],daily},range):""}
   <h2>Import history</h2><ul>${syncs.length ? syncs.map(s=>`<li>${when(s.started_at)} · ${esc(s.date_from)} – ${esc(s.date_to)} · ${esc(s.status)} · ${Number(s.rows_imported)} records · ${esc(s.api_version)}${s.error_code ? " · " + esc(s.error_code) : ""}</li>`).join("") : "<li>No imports yet.</li>"}</ul>
   <section><h2>Disconnect and remove imported evidence</h2><p>This removes this account’s saved credentials and imported Google reports from Vivid. It does not change Google campaigns or Vivid campaign records. You can also revoke Vivid access in your Google Account permissions.</p><form method="post" action="${root}/disconnect">${field(csrf)}<label><input type="checkbox" name="confirm" value="remove" required> Remove this connection and its Google evidence</label><button>Disconnect account</button></form></section></main>`;
 }

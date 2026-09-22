@@ -1,4 +1,5 @@
 "use strict";
+const {canPreviewAi}=require("./ai-preview-access");
 const crypto = require("node:crypto");
 const {dateRange} = require("./marketing-command-center");
 const {PATH,SCOPE,ConnectorError,configuration,customerId,equal,hash,importRange,createGoogleReader} = require("./google-ads-readonly");
@@ -100,7 +101,7 @@ function registerGoogleAdsReadOnlyRoutes({app,q,pool,page,requireLogin,env=proce
     const syncs = (await q(`SELECT s.started_at,s.date_from::text,s.date_to::text,s.status,s.rows_imported,s.api_version,s.error_code
       FROM google_ads_private_syncs s JOIN google_ads_private_connections c ON c.id=s.connection_id
       WHERE c.owner_user_id=$1 AND c.id=$2 ORDER BY s.id DESC LIMIT 20`,[req.googleOwner,connection.id])).rows;
-    res.send(page("Google Ads dashboard",renderAccount({connection,rows:evidence.rows.filter(r=>String(r.connection_id)===String(connection.id)),daily:evidence.daily.filter(r=>String(r.connection_id)===String(connection.id)),syncs,range,csrf:req.session.googleAdsCsrf,autoSync,
+    res.send(page("Google Ads dashboard",renderAccount({aiVisible:canPreviewAi(req.session),connection,rows:evidence.rows.filter(r=>String(r.connection_id)===String(connection.id)),daily:evidence.daily.filter(r=>String(r.connection_id)===String(connection.id)),syncs,range,csrf:req.session.googleAdsCsrf,autoSync,
       notice:req.query.imported==="1"?"Import completed. Google’s reported conversions remain separate from verified sales.":""})));
   }));
   const validConnection = (req,res,next) => /^\d+$/.test(req.params.connectionId) && Number.isSafeInteger(Number(req.params.connectionId)) && Number(req.params.connectionId)>0 ? next() : res.status(404).send("Google account not found.");

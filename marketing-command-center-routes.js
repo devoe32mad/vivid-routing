@@ -1,4 +1,5 @@
 "use strict";
+const {canPreviewAi}=require("./ai-preview-access");
 const {dateRange,renderCommandCenter}=require("./marketing-command-center");
 const {dashboardEvidence}=require("./google-ads-readonly-store");
 const {configuration}=require("./google-ads-readonly");
@@ -56,7 +57,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     const [campaigns,status,googleEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId),
       googleEnabled?dashboardEvidence(q,scope.userId,range):Promise.resolve(null)]);
     res.set?.("Cache-Control","no-store");
-    res.send(page("Marketing Command Center",renderCommandCenter({title:"Your marketing, together",scope,range,campaigns,squareStatus:status,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",platform:req.query.platform||"",campaign:req.query.campaign||""})));
+    res.send(page("Marketing Command Center",renderCommandCenter({aiVisible:canPreviewAi(req.session),title:"Your marketing, together",scope,range,campaigns,squareStatus:status,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",platform:req.query.platform||"",campaign:req.query.campaign||""})));
   }));
   app.get("/org-marketing-command-center/advertiser/:advertiserId",requireOrganizationPermission("manage_advertisers"),handle(async(req,res,range)=>{
     if(req.query.platform==="google_ads")return res.status(403).send("Private Google accounts are only available in their owner’s dashboard.");
@@ -68,7 +69,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     if(!advertiser)return res.status(404).send("Advertiser not found.");
     const campaigns=await loadCampaigns(scope,range);
     res.send(orgPage("Marketing Command Center",organizationNav({organizationId:scope.orgId,organizationName:advertiser.organization_name,activePage:"ai-readiness",userName:(req.session.orgUser||req.session.user)?.name||""})+
-      renderCommandCenter({title:advertiser.name,scope,range,campaigns,squareStatus:"Only shared campaign conversions",platform:req.query.platform||"",campaign:req.query.campaign||""})));
+      renderCommandCenter({aiVisible:canPreviewAi(req.session),title:advertiser.name,scope,range,campaigns,squareStatus:"Only shared campaign conversions",platform:req.query.platform||"",campaign:req.query.campaign||""})));
   }));
 }
 module.exports={registerMarketingCommandCenterRoutes};

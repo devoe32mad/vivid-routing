@@ -1,4 +1,5 @@
 "use strict";
+const {PREVIEW_EMAIL,canPreviewAiActor}=require("./ai-preview-access");
 
 const {
   renderWeeklyAiPreferences,
@@ -59,11 +60,12 @@ function registerWeeklyAiReportRoutes({
     try {
       await ensureSchema();
       const due = await q(`
-        SELECT p.id,p.actor_type,p.actor_id,p.scope_id,p.timezone,u.email,
+        SELECT p.id,p.actor_type,p.actor_id,p.scope_id,p.timezone,u.email,u.role,
           COALESCE(NULLIF(TRIM(u.name),''),NULLIF(TRIM(u.email),''),'Vivid user') recipient_name
         FROM ai_weekly_report_preferences p
         JOIN users u ON u.id=p.actor_id
         WHERE p.enabled=true
+          AND (u.role='super_admin' OR LOWER(TRIM(u.email))=$1)
           AND EXTRACT(ISODOW FROM (CURRENT_TIMESTAMP AT TIME ZONE p.timezone))::int=p.delivery_day
           AND EXTRACT(HOUR FROM (CURRENT_TIMESTAMP AT TIME ZONE p.timezone))::int=p.delivery_hour
           AND (p.last_sent_at IS NULL OR
@@ -71,8 +73,9 @@ function registerWeeklyAiReportRoutes({
           AND NULLIF(TRIM(u.email),'') IS NOT NULL
         ORDER BY p.id
         LIMIT 50
-      `);
+      `, [PREVIEW_EMAIL]);
       for (const item of due.rows) {
+        if (!canPreviewAiActor({id:item.actor_id,email:item.email,role:item.role})) continue;
         const claimed = await q(
           `UPDATE ai_weekly_report_preferences
            SET last_sent_at=CURRENT_TIMESTAMP
