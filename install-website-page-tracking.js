@@ -26,7 +26,7 @@ function install(source) {
     setup=setup.replace(campaignButton,campaignButton+'\n  <a class="btn secondary" href="#website-page-tracking">Website Page Tracking</a>');
     source=source.slice(0,from)+setup+source.slice(to);
   }
-  return source;
+  return require("./install-website-page-reporting").install(source);
 }
 if(require.main===module){const file=path.join(__dirname,"server.js");fs.writeFileSync(file,install(fs.readFileSync(file,"utf8")));console.log("Attributed website page tracking installed.");}
 module.exports={install};
