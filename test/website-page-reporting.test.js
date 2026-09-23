@@ -64,6 +64,21 @@ test("CSV matches HTML data, escapes formulas and quotes, and marks missing reco
     assert.doesNotMatch(reporting.renderSection(r),/<script>/);
   }finally{await db.close();}
 });
+test("website page visits omit unrelated empty campaigns while retaining configured pages and recorded history",async()=>{
+  const {db,q}=await fixture();try{
+    await db.exec(`INSERT INTO campaigns VALUES (29,7,'Low Inventory Store Push','Pepsi',true),(30,7,'Open Enrollment','Burton HR',true)`);
+    const report=await reporting.load({q,user,query});
+    assert.doesNotMatch(reporting.renderSection(report),/Pepsi|Burton HR/);
+    assert.doesNotMatch(reporting.csv(report),/Pepsi|Burton HR/);
+    assert.equal(report.pages.filter(p=>p.campaign_id===55).length,5);
+    assert.equal(report.pages.find(p=>p.campaign_id===57).visits,1);
+    assert.equal(report.total,4);
+    const empty=await reporting.load({q,user,query:{...query,campaign_id:30}});
+    assert.equal(empty.pages.length,0);
+    assert.match(reporting.renderSection(empty),/No configured pages or page visits match/);
+    assert.equal((await q('SELECT COUNT(*)::int AS n FROM campaigns WHERE id IN (29,30)')).rows[0].n,2);
+  }finally{await db.close();}
+});
 function response(){
   const res=new PassThrough();res.code=200;res.headers={};res.chunks=[];res.on("data",chunk=>res.chunks.push(Buffer.from(chunk)));
   res.status=c=>(res.code=c,res);res.set=res.setHeader=(k,v)=>(res.headers[k]=v,res);res.type=v=>res.set("Content-Type",v);res.send=b=>(res.end(String(b)),res);
