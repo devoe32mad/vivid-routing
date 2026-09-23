@@ -64,11 +64,11 @@ function renderPageTable(campaign,rows) {
   const pages=configured.map(p=>({...p,record:rows.find(r=>canonical(r.page_url)===canonical(p.url))}));
   for(const row of rows)if(!pages.some(p=>canonical(p.url)===canonical(row.page_url)))pages.push({name:row.page_name,url:row.page_url,record:row});
   return `<div style="overflow-x:auto;width:100%;"><table>
-    <thead><tr><th>Page</th><th>URL</th><th>QR Visits</th><th>Last Recorded Visit</th><th>Status</th><th>Action</th></tr></thead>
+    <thead><tr><th>Page</th><th>URL</th><th>Page Visits</th><th>Last Recorded Visit</th><th>Status</th><th>Action</th></tr></thead>
     <tbody>${pages.length?pages.map(p=>{
       const hasData=!!p.record,valid=cleanUrl(p.url);
       return `<tr><td>${esc(p.name)}</td><td style="overflow-wrap:anywhere;">${esc(valid?valid.url:p.url)}</td>
-        <td data-page-visits="${hasData?Number(p.record.visits):"pending"}" aria-label="${hasData?Number(p.record.visits)+" QR visits":"No tracking data yet"}">${hasData?Number(p.record.visits):"—"}</td>
+        <td data-page-visits="${hasData?Number(p.record.visits):"pending"}" aria-label="${hasData?Number(p.record.visits)+" page visits":"No tracking data yet"}">${hasData?Number(p.record.visits):"—"}</td>
         <td>${hasData?esc(new Date(p.record.last_visit).toISOString().replace("T"," ").slice(0,16))+" UTC":"—"}</td>
         <td><span style="background:${hasData?"#dcfce7":"#f1f5f9"};color:${hasData?"#166534":"#475569"};padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">${hasData?"Data received":"Awaiting data"}</span></td>
         <td>${valid?`<a href="${esc(valid.url)}" target="_blank" rel="noopener noreferrer">View</a>`:"—"}</td></tr>`;
@@ -110,7 +110,7 @@ function renderReport(campaign, rows, days) {
     ${[7,30,90,365].map(d=>`<option value="${d}" ${d===days?"selected":""}>Last ${d} days</option>`).join("")}</select><button class="btn" type="submit">Update</button></form>
     <p>Each QR visit is counted once per page. Refreshing a page does not add another count. A visit can reach several pages, so these counts should not be added together as unique visitors.</p>
     <p>These are page arrivals, not individual link clicks, completed inquiries, sales, or revenue. Attribution lasts up to 24 hours in the same browser tab. Times below are UTC.</p>
-    <div style="overflow-x:auto"><table><thead><tr><th>Page</th><th>URL</th><th>QR visits reaching page</th><th>Last recorded visit</th></tr></thead><tbody>
+    <div style="overflow-x:auto"><table><thead><tr><th>Page</th><th>URL</th><th>Page Visits</th><th>Last recorded visit</th></tr></thead><tbody>
     ${rows.length ? rows.map(r=>`<tr><td>${esc(r.page_name)}</td><td>${esc(r.page_url)}</td><td>${Number(r.visits)}</td><td>${esc(new Date(r.last_visit).toISOString().replace("T"," ").slice(0,19))}</td></tr>`).join("") : '<tr><td colspan="4">No attributed page visits recorded in this period. Install the website tracker on the landing page and each tracked page, then test with a fresh QR scan.</td></tr>'}
     </tbody></table></div></div>
     <div class="card"><h2>Installation</h2><p>Use the Vivid website-visit snippet configured for this campaign (ID ${Number(campaign.id)}). Install it once on the QR landing page and all pages being measured, through the website’s consent controls. The separate conversion script remains for confirmed outcomes.</p>

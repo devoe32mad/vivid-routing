@@ -70,7 +70,7 @@ test("PostgreSQL: attribution, deduplication, ownership and report separation fr
     assert.equal((await run({session:{}})).code,401);
     assert.equal((await run({id:"56"})).code,404);
     assert.equal((await run({id:"56",session:{user:{id:1,role:"super_admin"}}})).code,200);
-    const report=await run();assert.equal(report.code,200);assert.match(report.body,/Contact Us/);assert.match(report.body,/QR visits reaching page/);assert.doesNotMatch(report.body,/secret|Private campaign/);
+    const report=await run();assert.equal(report.code,200);assert.match(report.body,/Contact Us/);assert.match(report.body,/Page Visits/);assert.doesNotMatch(report.body,/secret|Private campaign/);
     const campaigns=(await q("SELECT * FROM campaigns ORDER BY id")).rows;
     const setup=await mySetupWebsiteTracking({q,user:{id:7,role:"customer"},campaigns});
     assert.match(setup,/id="website-page-tracking"/);assert.match(setup,/Contact Us/);assert.match(setup,/rubber\/about-us/);
@@ -106,7 +106,7 @@ test("configured table shows all five planned pages without inventing visits and
   assert.equal((pending.match(/data-page-visits="pending"/g)||[]).length,5);
   for(const name of ["Quality Journey","Contact Us","What We Offer","About Us","Find Contact"])assert.ok(pending.includes(name));
   assert.doesNotMatch(pending,/data-page-visits="0"|Data received|vivid-page-card|<article/);
-  assert.match(pending,/<th>Page<\/th><th>URL<\/th><th>QR Visits<\/th>/);
+  assert.match(pending,/<th>Page<\/th><th>URL<\/th><th>Page Visits<\/th>/);
   const received=renderPageTable(campaign,[{page_url:"https://www.hexpol.com/rubber/contact",page_name:"Contact Us",visits:3,last_visit:new Date()}]);
   assert.equal((received.match(/data-page-visits="3"/g)||[]).length,1);
   assert.equal((received.match(/data-page-visits="pending"/g)||[]).length,4);
