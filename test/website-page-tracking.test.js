@@ -1,6 +1,6 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),vm=require("node:vm");
-const {createTracker,registerWebsitePageTracking,renderReport,mySetupWebsiteTracking}=require("../website-page-tracking");
+const {createTracker,registerWebsitePageTracking,renderReport,mySetupWebsiteTracking,renderPageCards}=require("../website-page-tracking");
 const {install}=require("../install-website-page-tracking");
 const click="00000000-0000-4000-8000-000000000001";
 const paths=["/rubber/what-we-offer/qualityjourney/","/rubber/contact/","/rubber/what-we-offer/","/rubber/about-us/","/rubber/contact/find-contact/"];
@@ -74,7 +74,7 @@ test("PostgreSQL: attribution, deduplication, ownership and report separation fr
     const campaigns=(await q("SELECT * FROM campaigns ORDER BY id")).rows;
     const setup=await mySetupWebsiteTracking({q,user:{id:7,role:"customer"},campaigns});
     assert.match(setup,/id="website-page-tracking"/);assert.match(setup,/Contact Us/);assert.match(setup,/rubber\/about-us/);
-    assert.match(setup,/<td>1<\/td>/);assert.doesNotMatch(setup,/Private campaign|secret/);
+    assert.match(setup,/data-page-visits="1"/);assert.doesNotMatch(setup,/Private campaign|secret/);
     const otherSetup=await mySetupWebsiteTracking({q,user:{id:8,role:"customer"},campaigns});
     assert.match(otherSetup,/Awaiting tracked page visits/);assert.doesNotMatch(otherSetup,/Contact Us|hexpol.com/);
     assert.match(await mySetupWebsiteTracking({q,user:{id:1,role:"super_admin"},campaigns}),/Private campaign/);
@@ -99,4 +99,18 @@ test("report escapes page labels and installer preserves existing conversion rou
 test("My Setup remains available when website statistics cannot be loaded",async()=>{
   const html=await mySetupWebsiteTracking({q:async()=>{throw {code:"TEST_DB_UNAVAILABLE"}},user:{id:7,role:"customer"},campaigns:[{id:55,user_id:7}]});
   assert.match(html,/temporarily unavailable/);assert.doesNotMatch(html,/Awaiting tracked page visits/);
+});
+test("configured cards show all five planned pages without inventing visits and accept real counts",()=>{
+  const campaign={id:55,advertiser:"Hexpol"};
+  const pending=renderPageCards(campaign,[]);
+  assert.equal((pending.match(/data-page-visits="pending"/g)||[]).length,5);
+  for(const name of ["Quality Journey","Contact Us","What We Offer","About Us","Find Contact"])assert.ok(pending.includes(name));
+  assert.doesNotMatch(pending,/data-page-visits="0"|Data received/);
+  const received=renderPageCards(campaign,[{page_url:"https://www.hexpol.com/rubber/contact",page_name:"Contact Us",visits:3,last_visit:new Date()}]);
+  assert.equal((received.match(/data-page-visits="3"/g)||[]).length,1);
+  assert.equal((received.match(/data-page-visits="pending"/g)||[]).length,4);
+  assert.doesNotMatch(renderPageCards({id:56,advertiser:"Hexpol"},[]),/Quality Journey/);
+  assert.doesNotMatch(renderPageCards({id:55,advertiser:"Other"},[]),/Quality Journey/);
+  const escaped=renderPageCards({id:1,advertiser:'<img src=x>'},[{page_url:'javascript:alert(1)',page_name:'<script>x</script>',visits:1,last_visit:new Date()}]);
+  assert.doesNotMatch(escaped,/<script>|<img|href="javascript:/);
 });
