@@ -5,11 +5,11 @@ const configurations = [{
   campaignId:55,
   advertiser:"hexpol",
   pages:[
-    {name:"Quality Journey",url:"https://www.hexpol.com/rubber/what-we-offer/qualityjourney/",icon:"quality"},
-    {name:"Contact Us",url:"https://www.hexpol.com/rubber/contact/",icon:"contact"},
-    {name:"What We Offer",url:"https://www.hexpol.com/rubber/what-we-offer/",icon:"offer"},
-    {name:"About Us",url:"https://www.hexpol.com/rubber/about-us/",icon:"about"},
-    {name:"Find Contact",url:"https://www.hexpol.com/rubber/contact/find-contact/",icon:"find"}
+    {name:"Quality Journey",url:"https://www.hexpol.com/rubber/what-we-offer/qualityjourney/"},
+    {name:"Contact Us",url:"https://www.hexpol.com/rubber/contact/"},
+    {name:"What We Offer",url:"https://www.hexpol.com/rubber/what-we-offer/"},
+    {name:"About Us",url:"https://www.hexpol.com/rubber/about-us/"},
+    {name:"Find Contact",url:"https://www.hexpol.com/rubber/contact/find-contact/"}
   ]
 }];
 function configuredWebsitePages(campaign) {
