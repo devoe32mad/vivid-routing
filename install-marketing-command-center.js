@@ -14,11 +14,7 @@ function install(source) {
     source=source.replace(routeAnchor,route+"\n\n"+routeAnchor);
   }
   const nav='<a href="/admin/marketing-command-center" style="color:white;text-decoration:none;">Marketing Command Center</a>';
-  const navAnchor='<a href="/admin/ai-insights"';
-  if(!source.includes(nav)){
-    if(!source.includes(navAnchor))throw Error("Command Center navigation anchor missing");
-    source=source.replace(navAnchor,nav+"\n  "+navAnchor);
-  }
+  source=source.split(nav).join("");
   return source;
 }
 if(require.main===module){const file=path.join(__dirname,"server.js");fs.writeFileSync(file,install(fs.readFileSync(file,"utf8")));}
