@@ -61,7 +61,8 @@ async function load({q,user,query={},allTime=false}) {
       const url=cleanUrl(p.url).url;
       if(!observed.has(url))observed.set(url,{page_url:url,page_name:p.name,visits:null,last_visit:null});
     }
-    if(!observed.size)observed.set("",{page_url:"",page_name:"No page records in this period",visits:null,last_visit:null});
+    // Only list configured pages or recorded visits. Unrelated legacy campaigns
+    // must not become empty website-tracking entries merely because they exist.
     for(const p of observed.values())pages.push({...p,campaign_id:Number(c.id),campaign_name:c.name,advertiser:c.advertiser});
   }
   return {filters:f,campaigns,rows,pages,total:rows.reduce((sum,r)=>sum+Number(r.visits),0)};
@@ -78,7 +79,7 @@ function renderSection(report){
     <p><a class="btn secondary" href="/export/website-pages.csv?${esc(query)}">Export Page Visits CSV</a>
       <a class="btn secondary" href="/export/website-pages.pdf?${esc(query)}">Export Page Visits PDF</a></p>
     <div style="overflow-x:auto"><table><thead><tr><th>Advertiser</th><th>Campaign</th><th>Page</th><th>URL</th><th>Page Visits</th><th>Last Recorded Visit</th></tr></thead><tbody>
-    ${report.pages.map(p=>`<tr><td>${esc(p.advertiser)}</td><td>${esc(p.campaign_name)}</td><td>${esc(p.page_name)}</td><td style="overflow-wrap:anywhere">${esc(p.page_url)||"—"}</td><td>${p.visits??"—"}</td><td>${esc(stamp(p.last_visit))}</td></tr>`).join("")||'<tr><td colspan="6">No campaigns match these filters.</td></tr>'}
+    ${report.pages.map(p=>`<tr><td>${esc(p.advertiser)}</td><td>${esc(p.campaign_name)}</td><td>${esc(p.page_name)}</td><td style="overflow-wrap:anywhere">${esc(p.page_url)||"—"}</td><td>${p.visits??"—"}</td><td>${esc(stamp(p.last_visit))}</td></tr>`).join("")||'<tr><td colspan="6">No configured pages or page visits match these filters.</td></tr>'}
     </tbody></table></div></section>`;
 }
 function csv(report){
@@ -104,7 +105,7 @@ function appendPdf(doc,report,{newPage=true}={}){
     doc.y=y+28;
   };
   heading(false);
-  if(!report.pages.length)doc.font("Helvetica").fontSize(10).text("No campaigns match these filters.",left,doc.y+12,{width});
+  if(!report.pages.length)doc.font("Helvetica").fontSize(10).text("No configured pages or page visits match these filters.",left,doc.y+12,{width});
   for(const p of report.pages){
     const values=[`${p.campaign_name}\n${p.advertiser}`,`${p.page_name}\n${p.page_url||"-"}`,String(p.visits??"-"),p.last_visit?stamp(p.last_visit).replace(" UTC",""):"-"];
     doc.font("Helvetica").fontSize(8);
