@@ -1,6 +1,6 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),vm=require("node:vm");
-const {createTracker,registerWebsitePageTracking,renderReport}=require("../website-page-tracking");
+const {createTracker,registerWebsitePageTracking,renderReport,mySetupWebsiteTracking}=require("../website-page-tracking");
 const {install}=require("../install-website-page-tracking");
 const click="00000000-0000-4000-8000-000000000001";
 const paths=["/rubber/what-we-offer/qualityjourney/","/rubber/contact/","/rubber/what-we-offer/","/rubber/about-us/","/rubber/contact/find-contact/"];
@@ -71,6 +71,13 @@ test("PostgreSQL: attribution, deduplication, ownership and report separation fr
     assert.equal((await run({id:"56"})).code,404);
     assert.equal((await run({id:"56",session:{user:{id:1,role:"super_admin"}}})).code,200);
     const report=await run();assert.equal(report.code,200);assert.match(report.body,/Contact Us/);assert.match(report.body,/QR visits reaching page/);assert.doesNotMatch(report.body,/secret|Private campaign/);
+    const campaigns=(await q("SELECT * FROM campaigns ORDER BY id")).rows;
+    const setup=await mySetupWebsiteTracking({q,user:{id:7,role:"customer"},campaigns});
+    assert.match(setup,/id="website-page-tracking"/);assert.match(setup,/Contact Us/);assert.match(setup,/rubber\/about-us/);
+    assert.match(setup,/<td>1<\/td>/);assert.doesNotMatch(setup,/Private campaign|secret/);
+    const otherSetup=await mySetupWebsiteTracking({q,user:{id:8,role:"customer"},campaigns});
+    assert.match(otherSetup,/Awaiting tracked page visits/);assert.doesNotMatch(otherSetup,/Contact Us|hexpol.com/);
+    assert.match(await mySetupWebsiteTracking({q,user:{id:1,role:"super_admin"},campaigns}),/Private campaign/);
     assert.equal((await run({route:"/website/page-visit",body:"not json"})).code,400);
     assert.equal((await run({route:"/website/page-visit",body:JSON.stringify({...data,vivid_click_id:"invalid"}),origin:"https://www.hexpol.com"})).code,204);
     await db.exec("UPDATE events SET created_at=(CURRENT_TIMESTAMP AT TIME ZONE 'UTC') - INTERVAL '25 hours' WHERE type='scan'");
@@ -82,4 +89,14 @@ test("report escapes page labels and installer preserves existing conversion rou
   assert.doesNotMatch(html,/<script>|<img/);
   const source=fs.readFileSync(require.resolve("../server.js"),"utf8"),updated=install(source);
   assert.equal(install(updated),updated);assert.match(updated,/app.get\("\/conversion"/);assert.match(updated,/Website page visits/);new vm.Script(updated);
+  const setup=updated.slice(updated.indexOf('app.get("/my-setup"'),updated.indexOf('\napp.',updated.indexOf('app.get("/my-setup"')+10));
+  assert.match(setup,/await require\("\.\/website-page-tracking"\).mySetupWebsiteTracking/);
+  assert.match(setup,/href="#website-page-tracking"/);assert.match(setup,/\$\{websiteTrackingSection\}\s*<h2>Schedules/);
+  const legacy=updated.replace(/\/\/ MY_SETUP_WEBSITE_TRACKING[\s\S]*?(?=    res.send\(page\("My Setup")/,"")
+    .replace('${websiteTrackingSection}\n\n',"").replace('  <a class="btn secondary" href="#website-page-tracking">Website Page Tracking</a>\n',"");
+  assert.match(install(legacy),/MY_SETUP_WEBSITE_TRACKING/); // Existing installations can gain the section too.
+});
+test("My Setup remains available when website statistics cannot be loaded",async()=>{
+  const html=await mySetupWebsiteTracking({q:async()=>{throw {code:"TEST_DB_UNAVAILABLE"}},user:{id:7,role:"customer"},campaigns:[{id:55,user_id:7}]});
+  assert.match(html,/temporarily unavailable/);assert.doesNotMatch(html,/Awaiting tracked page visits/);
 });

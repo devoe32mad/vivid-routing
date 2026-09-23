@@ -52,6 +52,40 @@ function createTracker(q) {
   }
   return {ensureSchema, record};
 }
+const trackers = new WeakMap();
+function sharedTracker(q) {
+  if (!trackers.has(q)) trackers.set(q,createTracker(q));
+  return trackers.get(q);
+}
+async function mySetupWebsiteTracking({q,user,campaigns}) {
+  const allowed = campaigns.filter(c => user.role === "super_admin" || Number(c.user_id) === Number(user.id));
+  const heading = '<section id="website-page-tracking"><h2>Website Page Tracking</h2>';
+  if (!allowed.length) return heading+'<p>Your campaign website pages will appear here after you create a campaign.</p></section>';
+  try {
+    await sharedTracker(q).ensureSchema();
+    const rows = (await q(`SELECT v.campaign_id,v.page_url,MAX(v.page_name) AS page_name,
+      COUNT(*)::int AS visits,MAX(v.created_at) AS last_visit
+      FROM campaign_website_visits v JOIN campaigns c ON c.id=v.campaign_id
+      WHERE v.campaign_id=ANY($1::int[]) AND ($2::boolean OR c.user_id=$3)
+        AND v.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+      GROUP BY v.campaign_id,v.page_url ORDER BY v.campaign_id,v.page_url`,
+      [allowed.map(c=>Number(c.id)),user.role==="super_admin",Number(user.id)])).rows;
+    return heading+`<p>See which website pages people reach after scanning your QR. Last 30 days · one count per QR visit per page · times in UTC.</p>
+      ${allowed.map(c=>{
+        const pages=rows.filter(r=>Number(r.campaign_id)===Number(c.id));
+        return `<div class="card"><h3>${esc(c.advertiser)} — ${esc(c.name)}</h3>
+          <p><a class="btn secondary" href="/admin/campaign/${Number(c.id)}/website-pages">Open page-by-page report</a></p>
+          ${pages.length ? `<div style="overflow-x:auto"><table><thead><tr><th>Website page</th><th>Page URL</th><th>QR visits reaching page</th><th>Last recorded visit</th></tr></thead><tbody>
+            ${pages.map(r=>`<tr><td>${esc(r.page_name)}</td><td>${esc(r.page_url)}</td><td>${Number(r.visits)}</td><td>${esc(new Date(r.last_visit).toISOString().replace("T"," ").slice(0,19))}</td></tr>`).join("")}
+            </tbody></table></div>` : '<p><strong>Awaiting tracked page visits.</strong> Install the website tracker on the landing page and each page you want to measure, then test with a fresh QR scan. Page names and counts will appear here when visits are received.</p>'}
+          </div>`;
+      }).join("")}
+      <p>Page visits measure engagement. Completed inquiries and sales are tracked separately. Missing records do not confirm zero activity or whether the script is installed.</p></section>`;
+  } catch(error) {
+    console.error("My Setup website tracking failed",error.code || "internal");
+    return heading+'<p>Website page tracking is temporarily unavailable. Your other setup information is still available. Please try again.</p></section>';
+  }
+}
 function renderReport(campaign, rows, days) {
   return `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Website page visits</h1>
     <p class="subtitle">${esc(campaign.advertiser)} — ${esc(campaign.name)}</p></div>
@@ -68,7 +102,7 @@ function renderReport(campaign, rows, days) {
     <p>Tracking depends on the advertiser installing the script. This report does not verify installation or infer zero activity from missing records.</p></div></main>`;
 }
 function registerWebsitePageTracking({app,q,page,requireLogin,express}) {
-  const tracker = createTracker(q);
+  const tracker = sharedTracker(q);
   app.get("/vivid-website.js", (req,res) => res.set("Cache-Control","public, max-age=300").sendFile(path.join(__dirname,"public/vivid-website.js")));
   app.post("/website/page-visit", express.text({type:"text/plain",limit:"4kb"}), async(req,res) => {
     try {
@@ -95,4 +129,4 @@ function registerWebsitePageTracking({app,q,page,requireLogin,express}) {
     } catch(error) { console.error("Website page report failed",error.code || "internal"); return res.status(500).send("Unable to load website page visits. Please try again."); }
   });
 }
-module.exports = {cleanUrl,createTracker,renderReport,registerWebsitePageTracking};
+module.exports = {cleanUrl,createTracker,renderReport,registerWebsitePageTracking,mySetupWebsiteTracking};
