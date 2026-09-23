@@ -90,7 +90,7 @@ test("PostgreSQL update preserves the assignment, QR, campaign and schedules, an
 test("startup composes with private AI and scheduling installers and retains exactly one edit link",()=>{
   const fs=require("node:fs"),os=require("node:os"),path=require("node:path"),{execFileSync}=require("node:child_process");
   const root=path.resolve(__dirname,".."),tmp=fs.mkdtempSync(path.join(os.tmpdir(),"vivid-assignment-edit-"));
-  const installers=["install-public-marketplace-redirect.js","install-ai-insights-performance.js","install-vivid-intelligence.js","install-ai-readiness.js","install-marketplace-campaign-builder.js","install-google-ads-observation.js","install-marketing-command-center.js","install-google-ads-readonly.js","install-campaign-calendar.js","install-assignment-edit.js","install-private-ai-preview.js"];
+  const installers=["install-public-marketplace-redirect.js","install-ai-insights-performance.js","install-vivid-intelligence.js","install-ai-readiness.js","install-marketplace-campaign-builder.js","install-google-ads-observation.js","install-marketing-command-center.js","install-google-ads-readonly.js","install-campaign-calendar.js","install-assignment-edit.js","install-qr-edit.js","install-private-ai-preview.js"];
   try{
     for(const file of ["server.js",...installers])fs.copyFileSync(path.join(root,file),path.join(tmp,file));
     for(const file of installers)execFileSync(process.execPath,[path.join(tmp,file)],{stdio:"pipe"});
