@@ -30,7 +30,7 @@ function renderAssignmentEdit({assignment:a,csrf,start=a.start_date,error="",sav
     <section class="card" style="margin-top:18px"><h2>Related dates</h2>
       <p>Effective start in My Setup: <strong>${esc(effective)}</strong>. This uses the latest assignment, QR and campaign start date.</p>
       <p>Campaign start: ${esc(a.campaign_start || a.campaign_live || "Not set")} · <a href="/admin/edit-campaign/${Number(a.campaign_id)}">Edit campaign</a></p>
-      <p>QR live date: ${esc(a.qr_start || "Not set")} · <a href="/admin/view-qr/${Number(a.qr_id)}">View QR placement</a></p>
+      <p>QR live date: ${esc(a.qr_start || "Not set")} · <a href="/admin/edit-qr/${Number(a.qr_id)}">Edit QR live date</a></p>
       ${effective > start ? '<p><strong>A later related date applies.</strong> Changing this assignment alone will not move the effective start earlier than that date.</p>' : ""}
       <p>Existing schedule days, hours and event windows still apply.</p>
     </section></main>`;
