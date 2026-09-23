@@ -58,40 +58,22 @@ function sharedTracker(q) {
   if (!trackers.has(q)) trackers.set(q,createTracker(q));
   return trackers.get(q);
 }
-const cardStyles = `<style>
-.vivid-page-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:18px;margin:22px 0}
-.vivid-page-card{background:#fff;border:1px solid #dce5f2;border-radius:18px;padding:22px;box-shadow:0 8px 22px #10264208;min-width:0}
-.vivid-page-card h4{font-size:19px;color:#102642;margin:16px 0 4px}
-.vivid-page-top,.vivid-page-foot{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.vivid-page-icon{display:grid;place-items:center;width:44px;height:44px;background:#edf3ff;color:#245de2;border-radius:12px}
-.vivid-page-badge{font-size:12px;font-weight:650;padding:5px 9px;border-radius:20px;background:#f1f4f8;color:#52647a}
-.vivid-page-badge.received{color:#16633b;background:#e4f8ec}
-.vivid-page-url{font-size:12px;color:#617087;overflow-wrap:anywhere;min-height:42px;margin:0}
-.vivid-page-count{font-size:42px;font-weight:750;line-height:1.1;color:#102642;margin:22px 0 5px;font-variant-numeric:tabular-nums}
-.vivid-page-label{font-size:13px;color:#52647a;margin:0 0 18px}
-.vivid-page-foot{border-top:1px solid #edf0f5;padding-top:14px;font-size:12px;color:#617087;align-items:flex-start}
-.vivid-page-foot a{color:#245de2;white-space:nowrap;font-weight:650}
-.vivid-page-flow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:#52647a;font-size:13px}
-.vivid-page-flow span{background:#edf3ff;border-radius:9px;padding:9px 13px;color:#183a69}
-</style>`;
-function renderPageCards(campaign,rows) {
+function renderPageTable(campaign,rows) {
   const canonical=value=>cleanUrl(value)?.url || "";
   const configured=configuredWebsitePages(campaign);
-  const cards=configured.map(p=>({...p,record:rows.find(r=>canonical(r.page_url)===canonical(p.url))}));
-  for(const row of rows)if(!cards.some(p=>canonical(p.url)===canonical(row.page_url)))cards.push({name:row.page_name,url:row.page_url,icon:"page",record:row});
-  if(!cards.length)return '<p><strong>Awaiting tracked page visits.</strong> Install the website tracker on the landing page and each page you want to measure, then test with a fresh QR scan. Each received page will appear as a card here.</p>';
-  const icons={quality:'<path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z"/><path d="m8 12 3 3 5-6"/>',contact:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/>',offer:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',about:'<path d="M5 21V5l7-2 7 2v16M3 21h18M9 8h1m4 0h1M9 12h1m4 0h1M10 21v-5h4v5"/>',find:'<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/>',page:'<path d="M6 3h8l4 4v14H6V3Zm8 0v5h4M9 12h6m-6 4h6"/>'};
-  return `<div class="vivid-page-flow" aria-label="QR scan to website to page visits"><span>QR scan</span> → <span>${esc(campaign.advertiser||"Campaign")} website</span> → <span>${cards.length} website ${cards.length===1?"page":"pages"}</span></div>
-    <div class="vivid-page-grid">${cards.map(p=>{
+  const pages=configured.map(p=>({...p,record:rows.find(r=>canonical(r.page_url)===canonical(p.url))}));
+  for(const row of rows)if(!pages.some(p=>canonical(p.url)===canonical(row.page_url)))pages.push({name:row.page_name,url:row.page_url,record:row});
+  return `<div style="overflow-x:auto;width:100%;"><table>
+    <thead><tr><th>Page</th><th>URL</th><th>QR Visits</th><th>Last Recorded Visit</th><th>Status</th><th>Action</th></tr></thead>
+    <tbody>${pages.length?pages.map(p=>{
       const hasData=!!p.record,valid=cleanUrl(p.url);
-      return `<article class="vivid-page-card"><div class="vivid-page-top"><span class="vivid-page-icon"><svg aria-hidden="true" width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${icons[p.icon]||icons.page}</svg></span>
-        <span class="vivid-page-badge ${hasData?"received":""}">${hasData?"Data received":"Awaiting data"}</span></div>
-        <h4>${esc(p.name)}</h4><p class="vivid-page-url">${esc(valid?new URL(valid.url).host+new URL(valid.url).pathname:p.url)}</p>
-        <div class="vivid-page-count" data-page-visits="${hasData?Number(p.record.visits):"pending"}" aria-label="${hasData?Number(p.record.visits)+" QR visits":"No tracking data yet"}">${hasData?Number(p.record.visits):"—"}</div>
-        <p class="vivid-page-label">QR visits reaching this page</p>
-        <div class="vivid-page-foot"><span>${hasData?"Last received<br>"+esc(new Date(p.record.last_visit).toISOString().replace("T"," ").slice(0,16))+" UTC":"No visits received<br>in this period"}</span>
-        ${valid?`<a href="${esc(valid.url)}" target="_blank" rel="noopener noreferrer">View page ↗</a>`:""}</div></article>`;
-    }).join("")}</div>${configured.length&&!rows.length?'<p>These are the five pages selected for tracking. Counters will update as attributed visits arrive after installation.</p>':""}`;
+      return `<tr><td>${esc(p.name)}</td><td style="overflow-wrap:anywhere;">${esc(valid?valid.url:p.url)}</td>
+        <td data-page-visits="${hasData?Number(p.record.visits):"pending"}" aria-label="${hasData?Number(p.record.visits)+" QR visits":"No tracking data yet"}">${hasData?Number(p.record.visits):"—"}</td>
+        <td>${hasData?esc(new Date(p.record.last_visit).toISOString().replace("T"," ").slice(0,16))+" UTC":"—"}</td>
+        <td><span style="background:${hasData?"#dcfce7":"#f1f5f9"};color:${hasData?"#166534":"#475569"};padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">${hasData?"Data received":"Awaiting data"}</span></td>
+        <td>${valid?`<a href="${esc(valid.url)}" target="_blank" rel="noopener noreferrer">View</a>`:"—"}</td></tr>`;
+    }).join(""):'<tr><td colspan="6">Awaiting tracked page visits. Install the website tracker and test with a fresh QR scan.</td></tr>'}</tbody>
+    </table></div>`;
 }
 async function mySetupWebsiteTracking({q,user,campaigns}) {
   const allowed = campaigns.filter(c => user.role === "super_admin" || Number(c.user_id) === Number(user.id));
@@ -106,13 +88,12 @@ async function mySetupWebsiteTracking({q,user,campaigns}) {
         AND v.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
       GROUP BY v.campaign_id,v.page_url ORDER BY v.campaign_id,v.page_url`,
       [allowed.map(c=>Number(c.id)),user.role==="super_admin",Number(user.id)])).rows;
-    return heading+cardStyles+`<p>See which website pages people reach after scanning your QR. Last 30 days · one count per QR visit per page · times in UTC.</p>
+    return heading+`<p>See which website pages people reach after scanning your QR. Last 30 days · one count per QR visit per page · times in UTC.</p>
       ${allowed.map(c=>{
         const pages=rows.filter(r=>Number(r.campaign_id)===Number(c.id));
-        return `<div class="card"><h3>${esc(c.advertiser)} — ${esc(c.name)}</h3>
-          <p><a class="btn secondary" href="/admin/campaign/${Number(c.id)}/website-pages">Open page-by-page report</a></p>
-          ${renderPageCards(c,pages)}
-          </div>`;
+        return `<h3>${esc(c.advertiser)} — ${esc(c.name)}</h3>
+          <p><a href="/admin/campaign/${Number(c.id)}/website-pages">View page-by-page report</a></p>
+          ${renderPageTable(c,pages)}`;
       }).join("")}
       <p>Page visits measure engagement. Completed inquiries and sales are tracked separately. Missing records do not confirm zero activity or whether the script is installed.</p></section>`;
   } catch(error) {
@@ -163,4 +144,4 @@ function registerWebsitePageTracking({app,q,page,requireLogin,express}) {
     } catch(error) { console.error("Website page report failed",error.code || "internal"); return res.status(500).send("Unable to load website page visits. Please try again."); }
   });
 }
-module.exports = {cleanUrl,createTracker,renderReport,registerWebsitePageTracking,mySetupWebsiteTracking,renderPageCards};
+module.exports = {cleanUrl,createTracker,renderReport,registerWebsitePageTracking,mySetupWebsiteTracking,renderPageTable};

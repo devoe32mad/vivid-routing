@@ -1,6 +1,6 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),vm=require("node:vm");
-const {createTracker,registerWebsitePageTracking,renderReport,mySetupWebsiteTracking,renderPageCards}=require("../website-page-tracking");
+const {createTracker,registerWebsitePageTracking,renderReport,mySetupWebsiteTracking,renderPageTable}=require("../website-page-tracking");
 const {install}=require("../install-website-page-tracking");
 const click="00000000-0000-4000-8000-000000000001";
 const paths=["/rubber/what-we-offer/qualityjourney/","/rubber/contact/","/rubber/what-we-offer/","/rubber/about-us/","/rubber/contact/find-contact/"];
@@ -100,17 +100,18 @@ test("My Setup remains available when website statistics cannot be loaded",async
   const html=await mySetupWebsiteTracking({q:async()=>{throw {code:"TEST_DB_UNAVAILABLE"}},user:{id:7,role:"customer"},campaigns:[{id:55,user_id:7}]});
   assert.match(html,/temporarily unavailable/);assert.doesNotMatch(html,/Awaiting tracked page visits/);
 });
-test("configured cards show all five planned pages without inventing visits and accept real counts",()=>{
+test("configured table shows all five planned pages without inventing visits and accept real counts",()=>{
   const campaign={id:55,advertiser:"Hexpol"};
-  const pending=renderPageCards(campaign,[]);
+  const pending=renderPageTable(campaign,[]);
   assert.equal((pending.match(/data-page-visits="pending"/g)||[]).length,5);
   for(const name of ["Quality Journey","Contact Us","What We Offer","About Us","Find Contact"])assert.ok(pending.includes(name));
-  assert.doesNotMatch(pending,/data-page-visits="0"|Data received/);
-  const received=renderPageCards(campaign,[{page_url:"https://www.hexpol.com/rubber/contact",page_name:"Contact Us",visits:3,last_visit:new Date()}]);
+  assert.doesNotMatch(pending,/data-page-visits="0"|Data received|vivid-page-card|<article/);
+  assert.match(pending,/<th>Page<\/th><th>URL<\/th><th>QR Visits<\/th>/);
+  const received=renderPageTable(campaign,[{page_url:"https://www.hexpol.com/rubber/contact",page_name:"Contact Us",visits:3,last_visit:new Date()}]);
   assert.equal((received.match(/data-page-visits="3"/g)||[]).length,1);
   assert.equal((received.match(/data-page-visits="pending"/g)||[]).length,4);
-  assert.doesNotMatch(renderPageCards({id:56,advertiser:"Hexpol"},[]),/Quality Journey/);
-  assert.doesNotMatch(renderPageCards({id:55,advertiser:"Other"},[]),/Quality Journey/);
-  const escaped=renderPageCards({id:1,advertiser:'<img src=x>'},[{page_url:'javascript:alert(1)',page_name:'<script>x</script>',visits:1,last_visit:new Date()}]);
+  assert.doesNotMatch(renderPageTable({id:56,advertiser:"Hexpol"},[]),/Quality Journey/);
+  assert.doesNotMatch(renderPageTable({id:55,advertiser:"Other"},[]),/Quality Journey/);
+  const escaped=renderPageTable({id:1,advertiser:'<img src=x>'},[{page_url:'javascript:alert(1)',page_name:'<script>x</script>',visits:1,last_visit:new Date()}]);
   assert.doesNotMatch(escaped,/<script>|<img|href="javascript:/);
 });
