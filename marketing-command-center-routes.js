@@ -49,7 +49,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
   };
   app.get("/admin/marketing-command-center",requireLogin,handle(async(req,res,range)=>{
     if(!validId(req.session?.user?.id))return res.status(403).send("Account required.");
-    const scope={kind:"advertiser",userId:Number(req.session.user.id)};
+    const scope={kind:"advertiser",userId:Number(req.session.user.id),accountName:req.session.user.name||"",accountEmail:req.session.user.email||""};
     let googleEnabled=false;
     if(env.GOOGLE_ADS_OBSERVATION_ENABLED==="true"){
       try{configuration(env);googleEnabled=true;}catch{/* Keep setup unavailable until valid. */}
