@@ -32,7 +32,7 @@ test("invalid drill-down queries and enterprise private-account requests fail be
 test("advertiser identity comes from session even for admin and ignores supplied owner",async()=>{
   const calls=[],run=harness({q:async(sql,params)=>{calls.push({sql,params});return {rows:[]};}});
   const res=await run(userPath,{session:{user:{id:7,role:"super_admin"}},query:{user_id:999,from:"2026-09-01",to:"2026-09-22"}});
-  assert.equal(res.code,200);assert.equal(calls.length,1);assert.match(calls[0].sql,/WHERE c.user_id=\$1/);assert.deepEqual(calls[0].params,[7,"2026-09-01","2026-09-22"]);
+  assert.equal(res.code,200);assert.equal(calls.length,2);assert.match(calls[1].sql,/WHERE c.user_id=\$1/);assert.deepEqual(calls[1].params,[7,"2026-09-01","2026-09-22"]);
 });
 test("foreign advertiser is rejected before any metric or merchant reads",async()=>{
   const calls=[],run=harness({q:async(sql,params)=>{calls.push({sql,params});return {rows:[]};}});
@@ -84,4 +84,52 @@ test("startup installers compose against the real server without starting it",()
     assert.equal(install(source),source);assert.equal(require('../install-google-ads-readonly').install(source),source);assert.match(source,/registerGoogleAdsReadOnlyRoutes\(\{app,q,pool,page,requireLogin\}\)/);assert.match(source,/registerMarketingCommandCenterRoutes\(\{/);
     execFileSync(process.execPath,['--check',path.join(tmp,'server.js')],{stdio:'pipe'});
   }finally{fs.rmSync(tmp,{recursive:true,force:true});}
+});
+
+test("account selection is restricted, remembered, and never reads another user's private ad connections",async()=>{
+  const calls=[];
+  const q=async(sql,params)=>{calls.push({sql,params});
+    if(sql.startsWith("SELECT id,name FROM users"))return {rows:[{id:1,name:"Owner"},{id:17,name:"Square <pilot>"}]};
+    if(sql.includes("SELECT expires_at"))return {rows:[{expires_at:"2027-01-01"}]};
+    if(sql.includes("SELECT status,last_success"))return {rows:[{status:"ok",last_success:"2026-09-24"}]};
+    if(sql.includes("SELECT l.payment"))return {rows:[1,2,3].map(id=>({payment:{id:String(id),status:"COMPLETED",total:{amount:100,currency:"USD"}},refunds:[]}))};
+    if(sql.includes("FROM campaigns c"))return {rows:[{id:66,name:"Pilot",square_conversions:2,square_value:2,conversions:2,conversion_value:2}]};
+    return {rows:[]};};
+  const run=harness({q,env:{SQUARE_PRODUCTION_ENABLED:"true"}}),session={user:{id:1,role:"super_admin"}};
+  let res=await run(userPath,{session,query:{account:"17",platform:"square"}});
+  assert.equal(res.code,200);assert.equal(session.marketingAccountId,17);
+  assert.match(res.body,/Square &lt;pilot&gt; · Account 17/);assert.match(res.body,/3 USD/);assert.match(res.body,/2 USD/);
+  assert.match(res.body,/customers\/17\/sales/);assert.match(res.body,/account=17/);
+  assert.ok(calls.filter(c=>/FROM campaigns c|square_production/.test(c.sql)).every(c=>c.params[0]===17));
+  assert.ok(calls.every(c=>!/google_ads_private|meta_ads_private/.test(c.sql)));
+  calls.length=0;res=await run(userPath,{session,query:{}});assert.equal(res.code,200);assert.match(res.body,/Account 17/);
+  assert.doesNotMatch(res.body,/data-platform="google_ads"|data-platform="meta"/);
+  res=await run(userPath,{session,query:{account:"1"}});assert.equal(res.code,200);assert.equal(session.marketingAccountId,1);
+  for(const role of ["customer","admin","advertiser"]){calls.length=0;
+    assert.equal((await run(userPath,{session:{user:{id:1,role}},query:{account:"17"}})).code,403);assert.equal(calls.length,0);
+  }
+  for(const account of [["17"],"17x","0"]){calls.length=0;assert.equal((await run(userPath,{session,query:{account}})).code,400);assert.equal(calls.length,0);}
+  calls.length=0;assert.equal((await run(userPath,{session,query:{account:"999"}})).code,404);assert.equal(calls.length,1);
+  calls.length=0;assert.equal((await run(userPath,{session,query:{account:"17",platform:"google_ads"}})).code,403);assert.equal(calls.length,1);
+});
+
+test("Square totals query isolates merchant, dates, refunds and currencies in PostgreSQL",async()=>{
+  const {PGlite}=require("@electric-sql/pglite"),db=new PGlite();
+  try {
+    await db.exec(`CREATE TABLE square_production_connections(customer_id INT,merchant_id TEXT,expires_at TIMESTAMPTZ);
+      CREATE TABLE square_production_sync(customer_id INT,status TEXT,last_success TIMESTAMPTZ);
+      CREATE TABLE square_production_ledger(customer_id INT,merchant_id TEXT,payment JSONB,refunds JSONB);
+      INSERT INTO square_production_connections VALUES(17,'current','2027-01-01');
+      INSERT INTO square_production_sync VALUES(17,'ok','2026-09-24');`);
+    const insert=async(customer,merchant,id,date,currency,amount,status="COMPLETED",refunds=[])=>db.query('INSERT INTO square_production_ledger VALUES($1,$2,$3,$4)',[customer,merchant,JSON.stringify({id,created_at:date,status,total:{currency,amount}}),JSON.stringify(refunds)]);
+    await insert(17,'current','a','2026-09-22T12:00:00Z','USD',300,["COMPLETED"][0],[{payment_id:'a',status:'COMPLETED',amount:{currency:'USD',amount:100}},{payment_id:'a',status:'PENDING',amount:{currency:'USD',amount:100}}]);
+    await insert(17,'current','b','2026-09-22T12:00:00Z','CAD',500);
+    await insert(17,'old','c','2026-09-22T12:00:00Z','USD',99900);
+    await insert(2,'current','d','2026-09-22T12:00:00Z','USD',99900);
+    await insert(17,'current','e','2026-08-01T12:00:00Z','USD',99900);
+    await insert(17,'current','f','2026-09-22T12:00:00Z','USD',99900,'PENDING');
+    const run=harness({env:{SQUARE_PRODUCTION_ENABLED:"true"},q:(sql,params)=>sql.includes('FROM campaigns c')?Promise.resolve({rows:[]}):db.query(sql,params)});
+    const res=await run(userPath,{session:{user:{id:17}},query:{platform:'square',from:'2026-09-01',to:'2026-09-24'}});
+    assert.equal(res.code,200);assert.match(res.body,/3 USD · 5 CAD/);assert.match(res.body,/2 USD · 5 CAD/);assert.doesNotMatch(res.body,/999/);
+  }finally{await db.close();}
 });
