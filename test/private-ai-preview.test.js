@@ -43,15 +43,34 @@ test("AI read/write routes are closed and concurrent performance requests retain
       }
     }
     assert.equal(writes,0);
+    // Platform Admin opens MoFlo/other enterprises without changing the login.
+    for (const method of ["GET", "POST"]) {
+      const response = await fetch(url+"/org-ai-approval-center/action?organization_id=23", {
+        method, headers:{"x-test-actor":"platform"}
+      });
+      assert.equal(response.status,404);
+    }
+    assert.equal(writes,0);
     for(const actor of ["preview","platform"]){assert.equal((await fetch(url+"/admin/ai-readiness",{headers:{"x-test-actor":actor}})).status,200);}
     await Promise.all(["regular","preview","platform","org"].flatMap(actor=>["/admin/ai-insights","/org-performance","/reports","/admin/marketing-command-center","/admin/connectors/google-ads/1"].map(async route=>{
       const response=await fetch(url+route+"?ask=what+is+working",{headers:{"x-test-actor":actor}}),html=await response.text();
       assert.equal(response.status,200);assert.match(html,/Impressions 100 · Clicks 10/);assert.match(html,/Performance Insights/);assert.match(html,/href="\/reports"/);
-      if(actor==="preview"||actor==="platform"){assert.match(html,/Ask Vivid/);assert.match(html,/AI Readiness/);}
+      if(actor==="preview"||(actor==="platform"&&!route.startsWith("/org-"))){assert.match(html,/Ask Vivid/);assert.match(html,/AI Readiness/);}
       else{assert.doesNotMatch(html,/Ask Vivid|AI Readiness|ai-readiness/);}
     })));
     assert.equal(render(),"");
   } finally { server.closeAllConnections();await new Promise(resolve=>server.close(resolve)); }
+});
+
+test("enterprise customer views suppress the admin exception without changing the session",()=>{
+  const session = structuredClone(platform);
+  for (const path of ["/org-organization/23", "/org-performance", "/ORG-AI-READINESS/", "/org-marketing-command-center/advertiser/7"]) {
+    assert.equal(canPreviewAi(session,{path}),false);
+    assert.equal(canPreviewAi(preview,{path}),true);
+    assert.equal(canPreviewAi(org,{path}),false);
+  }
+  assert.equal(canPreviewAi(session,{path:"/admin/ai-readiness"}),true);
+  assert.deepEqual(session,platform);
 });
 
 test("AI route matching handles Express case/trailing slashes without hiding metrics or connectors",()=>{
