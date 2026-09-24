@@ -10,6 +10,7 @@ function dashboardHref(scope,range,platform="",campaign="") {
   const root=scope.kind==="enterprise"?`/org-marketing-command-center/advertiser/${scope.advertiserId}`:"/admin/marketing-command-center";
   const params=new URLSearchParams({from:range.from,to:range.to});
   if(scope.kind==="enterprise")params.set("organization_id",scope.orgId);
+  if(scope.accountSelection)params.set("account",scope.userId);
   if(platform)params.set("platform",platform);
   if(campaign)params.set("campaign",campaign);
   return root+"?"+params;
@@ -41,13 +42,16 @@ function buildPlatforms({scope,range,campaigns,squareStatus,googleEvidence,googl
     rows:campaigns.map(c=>({key:String(c.id),name:c.name,context:`Campaign ${c.id}`,cells:vividMetrics([c]).map(m=>m[1]),metrics:vividMetrics([c]),href:sourceHref(c.id,scope),action:"Open campaign workspace"}))
   },{
     id:"square",name:"Square",mark:"S",category:"Campaign-attributed sales",status:square.label||"Not connected",available:Boolean(square.connected)||matched.length>0||scope.kind==="enterprise",
-    campaignCount:matched.length,countLabel:"matched campaigns",freshness:square.connected?`Last sync: ${timestamp(square.lastSuccess)}`:"Based on recorded campaign conversions",metrics:squareMetrics(matched),
-    note:"Completed USD purchases matched to Vivid campaigns, with refunds reflected in net value. This is a subset of Vivid conversions, not all merchant sales. Scans, intent and impressions are not Square metrics. Dates use UTC.",
+    campaignCount:matched.length,countLabel:"matched campaigns",freshness:square.connected?`Last sync: ${timestamp(square.lastSuccess)}`:"Based on recorded campaign conversions",metrics:[...(square.totals===null?[["Collected","—"],["Refunded","—"],["Net collected","—"]]:Array.isArray(square.totals)?[
+      ["Completed payments",number(total(square.totals,"payments"))],
+      ...["gross","refunded","net"].map((key,i)=>[["Collected","Refunded","Net collected"][i],square.totals.map(t=>currency(t[key]/100,t.currency)).join(" · ")||"—"])
+    ]:[]),...squareMetrics(matched)],
+    note:"Collected and net collected cover all imported completed Square payments in the selected period, including tax and tips. They are not added to Vivid revenue. Campaign results below cover only attributed purchases. Completed USD purchases matched to Vivid campaigns, with refunds reflected in net value. This is a subset of Vivid conversions, not all merchant sales. Scans, intent and impressions are not Square metrics. Dates use UTC.",
     columns:["Matched purchases","Matched net value · USD"],
     rows:matched.map(c=>({key:String(c.id),name:c.name,context:`Campaign ${c.id}`,cells:squareMetrics([c]).map(m=>m[1]),metrics:squareMetrics([c]),href:scope.kind==="advertiser"?`/integrations/square/production/customers/${scope.userId}/sales?${new URLSearchParams({from:range.from,to:range.to,campaign:String(c.id)})}`:sourceHref(c.id,scope),action:scope.kind==="advertiser"?"View matched payments & refunds":"Open shared campaign"})),
     manageHref:scope.kind==="advertiser"?`/integrations/square/production/customers/${scope.userId}${square.connected?"/sales":""}`:"",manageLabel:square.connected?"All merchant transactions":"Connect Square"
   }];
-  if(scope.kind==="advertiser") {
+  if(scope.kind==="advertiser" && scope.privateAdsAllowed!==false) {
     const connections=googleEvidence?.connections||[],raw=googleEvidence?.rows||[];
     // A campaign can have more than one name/status across imported days. Its
     // identity is account + campaign ID, not the display name.

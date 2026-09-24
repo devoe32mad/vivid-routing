@@ -1,4 +1,5 @@
 "use strict";
+const {amounts}=require("./square-production-sales");
 const {canPreviewAi}=require("./ai-preview-access");
 const {dateRange,renderCommandCenter}=require("./marketing-command-center");
 const {dashboardEvidence}=require("./google-ads-readonly-store");
@@ -24,7 +25,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
       WHERE ${enterprise?"c.organization_id=$1 AND c.advertiser_id=$2":"c.user_id=$1"} AND COALESCE(c.is_test,false)=false
       GROUP BY c.id,c.name ORDER BY conversions DESC,clicks DESC,c.id`,params)).rows;
   }
-  async function squareStatus(id) {
+  async function squareStatus(id,range) {
     if(env.SQUARE_PRODUCTION_ENABLED!=="true")return "Not enabled";
     try {
       const row=(await q("SELECT expires_at FROM square_production_connections WHERE customer_id=$1",[id])).rows[0];
@@ -33,7 +34,24 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
       try{state=(await q("SELECT status,last_success FROM square_production_sync WHERE customer_id=$1",[id])).rows[0];}
       catch(error){if(error.code!=="42P01")throw error;}
       const label=env.SQUARE_PRODUCTION_AUTO_SYNC==="false"?"Automatic sync disabled":state?.status==="retry"?"Sync needs attention · retry scheduled":state?.status==="syncing"?"Syncing sales and refunds":"Automatic sync every 5 minutes";
-      return {label,connected:true,lastSuccess:state?.last_success};
+      let totals=null;
+      try {
+        const payments=(await q(`SELECT l.payment,l.refunds FROM square_production_ledger l
+          JOIN square_production_connections c USING(customer_id,merchant_id)
+          WHERE l.customer_id=$1 AND (l.payment->>'created_at')::timestamptz >= $2::date
+          AND (l.payment->>'created_at')::timestamptz < ($3::date+INTERVAL '1 day')`,[id,range.from,range.to])).rows;
+        if(state?.last_success || payments.length) {
+          const groups=new Map();
+          for(const {payment,refunds} of payments) {
+            if(payment.status!=="COMPLETED")continue;
+            const code=payment.total.currency, a=amounts(payment,refunds||[]);
+            if(!groups.has(code))groups.set(code,{currency:code,payments:0,gross:0,refunded:0,net:0});
+            const g=groups.get(code);g.payments++;for(const k of ["gross","refunded","net"])g[k]+=a[k];
+          }
+          totals=[...groups.values()];
+        }
+      } catch(error) {if(error.code!=="42P01")throw error;}
+      return {label,connected:true,lastSuccess:state?.last_success,totals};
     } catch(error) {
       if(error.code==="42P01")return "Not connected";
       throw error;
@@ -51,7 +69,22 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
   };
   app.get("/admin/marketing-command-center",requireLogin,handle(async(req,res,range)=>{
     if(!validId(req.session?.user?.id))return res.status(403).send("Account required.");
-    const scope={kind:"advertiser",userId:Number(req.session.user.id)};
+    const user=req.session.user, ownId=Number(user.id);
+    const canSelect=String(user.role||"").toLowerCase()==="super_admin";
+    const requested=req.query.account;
+    if(requested!==undefined && (typeof requested!=="string" || !/^[1-9]\d*$/.test(requested) || !validId(requested)))return res.status(400).send("Choose a valid account.");
+    if(!canSelect && requested!==undefined && Number(requested)!==ownId)return res.status(403).send("Account access denied.");
+    const accounts=canSelect?(await q("SELECT id,name FROM users WHERE role='customer' OR id=$1 ORDER BY name,id",[ownId])).rows:[];
+    let selectedId=canSelect?Number(requested ?? req.session.marketingAccountId ?? ownId):ownId;
+    if(selectedId!==ownId && !accounts.some(a=>Number(a.id)===selectedId)) {
+      if(requested!==undefined)return res.status(404).send("Account not found.");
+      selectedId=ownId;
+    }
+    const scope={kind:"advertiser",userId:selectedId,accountSelection:canSelect,
+      accountName:accounts.find(a=>Number(a.id)===selectedId)?.name || user.name || "Your account",
+      accounts,privateAdsAllowed:selectedId===ownId};
+    if(!scope.privateAdsAllowed && ["google_ads","meta"].includes(req.query.platform))return res.status(403).send("Private ad accounts are available in your own account view.");
+    if(canSelect)req.session.marketingAccountId=selectedId;
     let googleEnabled=false;
     if(env.GOOGLE_ADS_OBSERVATION_ENABLED==="true"){
       try{configuration(env);googleEnabled=true;}catch{/* Keep setup unavailable until valid. */}
@@ -60,9 +93,9 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     if(env.META_ADS_OBSERVATION_ENABLED==="true"){
       try{metaConfiguration(env);metaEnabled=true;}catch{/* Keep setup unavailable until valid. */}
     }
-    const [campaigns,status,googleEvidence,metaEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId),
-      googleEnabled?dashboardEvidence(q,scope.userId,range):Promise.resolve(null),
-      metaEnabled?metaDashboardEvidence(q,scope.userId,range):Promise.resolve(null)]);
+    const [campaigns,status,googleEvidence,metaEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId,range),
+      googleEnabled&&scope.privateAdsAllowed?dashboardEvidence(q,scope.userId,range):Promise.resolve(null),
+      metaEnabled&&scope.privateAdsAllowed?metaDashboardEvidence(q,scope.userId,range):Promise.resolve(null)]);
     res.set?.("Cache-Control","no-store");
     res.send(page("Marketing Command Center",renderCommandCenter({aiVisible:canPreviewAi(req.session),title:"Your marketing, together",scope,range,campaigns,squareStatus:status,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",metaEvidence,metaEnabled,metaAutoSync:env.META_ADS_AUTO_SYNC!=="false",platform:req.query.platform||"",campaign:req.query.campaign||""})));
   }));
