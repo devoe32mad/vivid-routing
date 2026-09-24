@@ -24,8 +24,8 @@ test("platform totals aggregate campaigns and preserve attribution/currency boun
 test("overview retains combined summary before uniform platform cards and removes inline campaign tables",()=>{
   const html=renderCommandCenter(data);
   assert.ok(html.indexOf("Across your platforms")<html.indexOf("Your platforms"));
-  for(const label of ["Scans","Intent actions","Ad impressions","Ad clicks","Ad spend","Recorded conversions","Verified matched purchases","Platform-reported conversions"])assert.ok(html.includes(label));
-  assert.equal((html.match(/data-platform=/g)||[]).length,3);
+  for(const label of ["Scans","Intent actions","Ad impressions","Ad clicks","Ad spend","Recorded conversions","Verified matched purchases","Google-reported conversions","Meta-reported purchases"])assert.ok(html.includes(label));
+  assert.equal((html.match(/data-platform=/g)||[]).length,4);
   assert.match(html,/Recorded conversion value · USD<\/small><strong class="mcc-number">\$300.00/);
   assert.doesNotMatch(html,/<table>/);assert.match(html,/not added again/);
 });
