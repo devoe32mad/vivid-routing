@@ -85,3 +85,13 @@ test("startup installers compose against the real server without starting it",()
     execFileSync(process.execPath,['--check',path.join(tmp,'server.js')],{stdio:'pipe'});
   }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 });
+
+test("Square summary distinguishes unavailable evidence from a connected zero and retains historical matches",()=>{
+  const base={title:"Marketing",scope:{kind:"advertiser",userId:7,accountName:"<Mike>",accountEmail:"mike@example.com"},range:{from:"2026-09-01",to:"2026-09-22"},campaigns:[]};
+  const value=html=>html.match(/Verified matched purchases<\/small><strong class="mcc-number">([^<]+)/)[1];
+  const unavailable=renderCommandCenter({...base,squareStatus:"Not connected"});
+  assert.equal(value(unavailable),"—");
+  assert.match(unavailable,/Viewing account:.*&lt;Mike&gt;.*mike@example.com.*Account 7/);
+  assert.equal(value(renderCommandCenter({...base,squareStatus:{connected:true,label:"Connected"}})),"0");
+  assert.equal(value(renderCommandCenter({...base,squareStatus:"Not connected",campaigns:[{id:1,name:"Historical",square_conversions:2,square_value:10}]})),"2");
+});
