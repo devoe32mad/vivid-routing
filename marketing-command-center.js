@@ -53,6 +53,7 @@ function renderCommandCenter({title,scope,range,campaigns,squareStatus,googleEvi
   const passport=scope.kind==="enterprise"?`/org-ai-readiness/advertiser/${scope.advertiserId}?organization_id=${scope.orgId}`:"/admin/ai-readiness";
   const approval=scope.kind==="enterprise"?`/org-ai-approval-center?organization_id=${scope.orgId}`:"/admin/ai-approval-center";
   const google=platforms.find(p=>p.id==="google_ads"),gm=google?.metrics||[];
+  const squareAvailable=platforms.find(p=>p.id==="square")?.available;
   const metrics=[
     ["Scans",totals.scans,"Vivid placements","vivid"],
     ["Intent actions",totals.clicks,"Offers, maps & destination actions","vivid"],
@@ -62,8 +63,8 @@ function renderCommandCenter({title,scope,range,campaigns,squareStatus,googleEvi
     ["Ad click-through rate",gm[4]?.[1]||"—","Total clicks / total impressions","google_ads"],
     ["Recorded conversions",totals.conversions,"Vivid · includes matched Square purchases","vivid"],
     ["Recorded conversion value · USD",money(totals.conversion_value),"Vivid · includes matched Square value","vivid"],
-    ["Verified matched purchases",totals.square_conversions,"Square · subset of recorded conversions","square"],
-    ["Verified matched net value · USD",money(totals.square_value),"Square · completed refunds deducted","square"],
+    ["Verified matched purchases",squareAvailable?totals.square_conversions:"—","Square · subset of recorded conversions","square"],
+    ["Verified matched net value · USD",squareAvailable?money(totals.square_value):"—","Square · completed refunds deducted","square"],
     ["Platform-reported conversions",gm[2]?.[1]||"—","Google Ads · may overlap recorded outcomes","google_ads"],
     ["Platform-reported value",gm[5]?.[1]||"—","Google Ads · not verified revenue","google_ads"]
   ].filter(m=>scope.kind==="advertiser"||m[3]!=="google_ads");
@@ -75,6 +76,7 @@ ${active?`<nav class="mcc-breadcrumb" aria-label="Breadcrumb"><a href="${esc(das
 <section class="mcc-hero"><small style="color:#cce5ff">VIVID · MARKETING COMMAND CENTER</small><h1>${esc(active?active.name+" campaigns":title)}</h1><p>${active?"Platform totals, campaign results and supporting evidence.":"All your connected platforms. One view of reach, engagement and outcomes."}</p><nav class="mcc-nav"><a href="${active?esc(dashboardHref(scope,range)):"#platform-dashboards"}">All platforms</a>${aiVisible?`<a href="${passport}">Evidence Passport</a><a href="${approval}">Approval Center</a>`:""}<a href="/build-my-campaign">Build a campaign</a></nav></section>
 <form method="get">${scope.kind==="enterprise"?`<input type="hidden" name="organization_id" value="${scope.orgId}">`:""}${active?`<input type="hidden" name="platform" value="${active.id}">`:""}${campaign?`<input type="hidden" name="campaign" value="${esc(campaign)}">`:""}<label>From<input type="date" name="from" value="${range.from}" required></label><label>To<input type="date" name="to" value="${range.to}" required></label><button>Update period</button></form>
 <p class="mcc-coverage">${scope.kind==="enterprise"?"Only this advertiser’s campaigns shared with your organization. Private advertising accounts and merchant sales are excluded.":"All campaigns owned by your signed-in account and reports from your connected platforms. Vivid and Square dates use UTC; Google dates use each account’s timezone."}</p>
+${scope.kind==="advertiser"?`<p class="mcc-coverage"><strong>Viewing account:</strong> ${esc(scope.accountName||"Signed-in account")}${scope.accountEmail?` · ${esc(scope.accountEmail)}`:""} · Account ${esc(scope.userId)}. Connections saved under another account will not appear here.</p>`:""}
 ${active?renderPlatformDetail(active,scope,range,campaign):`<h2>Across your platforms</h2><section class="mcc-grid mcc-summary" aria-label="All-platform totals">${metrics.map(([label,value,context,target])=>`<a class="mcc-card" href="${esc(dashboardHref(scope,range,target))}"><small>${label}</small><strong class="mcc-number">${esc(value)}</strong><small>${context}</small></a>`).join("")}</section>
 <p class="mcc-coverage"><strong>Revenue accounting:</strong> Square matched purchases and value are included in Vivid recorded outcomes and are not added again. Google-reported conversions and value remain separate. No combined revenue or conversion total is inferred across overlapping platforms. A dash means no reporting data is available.</p>
 <h2 id="platform-dashboards">Your platforms</h2><p>Totals across each platform's campaigns for the selected period. Open a platform, then select a campaign.</p><section class="mcc-platform-grid">${platforms.map(p=>platformCard(p,scope,range)).join("")}</section>`}
