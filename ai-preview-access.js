@@ -9,8 +9,16 @@ function canPreviewAiActor(actor) {
   return Boolean(actor?.id && (actor.role === "super_admin" ||
     String(actor.email || "").trim().toLowerCase() === PREVIEW_EMAIL));
 }
-function canPreviewAi(session) {
-  return canPreviewAiActor(session?.orgUser || session?.user);
+function canPreviewAi(session, request = {}) {
+  const actor = session?.orgUser || session?.user;
+  // Opening an enterprise from Platform Admin keeps the admin session. Treat
+  // that portal as a customer view, not as the private admin AI workspace.
+  const enterpriseView = /^\/org-/i.test(String(request.path || ""));
+  if (enterpriseView) {
+    return Boolean(actor?.id &&
+      String(actor.email || "").trim().toLowerCase() === PREVIEW_EMAIL);
+  }
+  return canPreviewAiActor(actor);
 }
 function aiPreviewEnabled() {
   return previewContext.getStore() === true;
@@ -30,7 +38,7 @@ function withoutAiLinks(html) {
     (anchor, quote, href) => isAiOnlyPath(href) ? "" : anchor);
 }
 function aiPreviewMiddleware(req, res, next) {
-  const allowed = canPreviewAi(req.session);
+  const allowed = canPreviewAi(req.session, req);
   if (!allowed && isAiOnlyPath(req.path)) return res.status(404).send("Not found.");
   res.locals.aiPreview = allowed;
   if (!allowed) {
