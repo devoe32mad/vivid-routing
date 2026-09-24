@@ -10,7 +10,7 @@ const config=configuration(env),period={from:"2026-09-01",to:"2026-09-24"},accou
 const raw=(id="9",date="2026-09-20")=>({campaign_id:id,campaign_name:"Campaign <script>",objective:"OUTCOME_SALES",date_start:date,date_stop:date,impressions:"100",clicks:"12",inline_link_clicks:"8",spend:"12.345678",actions:[{action_type:"lead",value:"2"},{action_type:"offsite_conversion.fb_pixel_purchase",value:"1"},{action_type:"omni_purchase",value:"99"}],action_values:[{action_type:"offsite_conversion.fb_pixel_purchase",value:"45.50"}]});
 const response=(data,status=200)=>({ok:status>=200&&status<300,status,json:async()=>data});
 async function database(){const db=new PGlite();await db.exec("CREATE TABLE users(id BIGINT PRIMARY KEY);INSERT INTO users VALUES(1),(2)");const q=(sql,params)=>params?db.query(sql,params):db.exec(sql).then(r=>r.at(-1));const pool={connect:async()=>({query:q,release(){}})};await db.exec(SCHEMA);return{db,q,pool};}
-async function connect(store,q,user=1,id="123"){const state=hash(`${user}:${id}`);await q("INSERT INTO meta_ads_private_states VALUES($1,$2,NOW()+INTERVAL '10 minutes')",[state,user]);return store.authorize(user,{hash:state,accountId:id},{access_token:"private",expires_at:Date.now()+86400000},{...account,id:"act_"+id});}
+async function connect(store,q,user=1,id="123"){const state=hash(`${user}:${id}`);await q("INSERT INTO meta_ads_private_states VALUES($1,$2,NOW()+INTERVAL '10 minutes')",[state,user]);return store.authorize(user,{hash:state},{access_token:"private",expires_at:Date.now()+86400000},[{...account,id:"act_"+id}]);}
 
 test("Meta configuration, identifiers and import dates fail closed",()=>{
   assert.equal(config.version,"v26.0");assert.equal(accountId("act_123"),"123");assert.equal(accountId("123"),"123");
@@ -33,6 +33,11 @@ test("reader uses fixed Graph endpoints, bearer auth and cursor pagination",asyn
   const rows=await reader.report("access",account,period);assert.equal(rows.length,2);assert.equal(calls.length,2);
   for(const call of calls){assert.equal(call.url.origin,"https://graph.facebook.com");assert.equal(call.url.pathname,`/${config.version}/${account.id}/insights`);assert.equal(call.options.headers.Authorization,"Bearer access");assert.equal(call.options.redirect,"error");assert.match(call.url.searchParams.get("fields"),/impressions/);}
   assert.equal(calls[1].url.searchParams.get("after"),"cursor");assert.equal(reader.mutate,undefined);
+});
+
+test("reader discovers every authorized ad account without manual IDs",async()=>{
+  const calls=[],reader=createReader({config,fetcher:async(url)=>{const u=new URL(url);calls.push(u.pathname);if(u.pathname.endsWith("/me/adaccounts"))return response({data:[account,{...account,id:"act_456",name:"Second"}]});return response(u.pathname.endsWith("/act_123")?account:{...account,id:"act_456",name:"Second"});}});
+  const accounts=await reader.accounts("access");assert.deepEqual(accounts.map(a=>a.id),["act_123","act_456"]);assert.equal(calls.filter(x=>x.endsWith("/me/adaccounts")).length,1);assert.equal(calls.filter(x=>x.includes("/act_")).length,2);
 });
 
 test("private evidence is owner isolated and snapshot imports replace atomically",async()=>{
