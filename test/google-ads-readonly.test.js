@@ -123,7 +123,7 @@ test("real PostgreSQL imports replace snapshots, preserve failed reports and iso
   const {db,q,pool}=await database();
   try {
     let data=normalizeRows([raw(),raw("100")],account,range),fail=false,refreshes=0;
-    const reader={account:async()=>account,refresh:async()=>{refreshes++;return token();},report:async()=>{if(fail){const e=Error("private response");e.code="temporary";throw e;}return data;}};
+    const reader={campaigns:async()=>[],account:async()=>account,refresh:async()=>{refreshes++;return token();},report:async()=>{if(fail){const e=Error("private response");e.code="temporary";throw e;}return data;}};
     const store=createStore({q,pool,config,reader});await store.ready();
     const id=await connect(store,q),other=await connect(store,q,2);
     await assert.rejects(store.sync(2,id,range),{code:"not_found"});
@@ -151,7 +151,7 @@ test("real PostgreSQL imports replace snapshots, preserve failed reports and iso
 test("SQL failure during snapshot replacement rolls back evidence and success status together",async()=>{
   const {db,q,pool}=await database();
   try {
-    const reader={account:async()=>account,report:async()=>normalizeRows([raw()],account,range)};
+    const reader={campaigns:async()=>[],account:async()=>account,report:async()=>normalizeRows([raw()],account,range)};
     const initial=createStore({q,pool,config,reader}),id=await connect(initial,q);await initial.sync(1,id,range);
     const failingPool={connect:async()=>({query:(sql,params)=>sql.includes("INSERT INTO google_ads_private_daily")?Promise.reject(Error("database failure")):q(sql,params),release(){}})};
     const broken=createStore({q,pool:failingPool,config,reader});await assert.rejects(broken.sync(1,id,range));
@@ -199,7 +199,7 @@ test("dashboard integrates only the logged-in advertiser's Google evidence; ente
   await routes["/admin/marketing-command-center"].at(-1)({session:{user:{id:7}},query:{...range,user_id:999}},res);
   assert.match(res.body,/Google Ads/);assert.match(res.body,/1 CAD/);
   assert.match(res.body,/Recorded conversion value · USD<\/small><strong class="mcc-number">\$0.00/);
-  const privateCalls=calls.filter(c=>c.sql.includes("google_ads_private"));assert.equal(privateCalls.length,3);for(const c of privateCalls)assert.equal(c.params[0],7);
+  const privateCalls=calls.filter(c=>c.sql.includes("google_ads_private"));assert.equal(privateCalls.length,4);for(const c of privateCalls)assert.equal(c.params[0],7);
   calls.length=0;
   await routes["/org-marketing-command-center/advertiser/:advertiserId"].at(-1)({session:{orgUser:{id:3}},params:{advertiserId:"8"},query:range},res);
   assert.doesNotMatch(res.body,/Private Google|Private campaign/);assert.ok(calls.every(c=>!c.sql.includes("google_ads_private")));
@@ -253,5 +253,52 @@ test("failed OAuth callback shows actionable error, logs only codes and consumes
     assert.equal((await q("SELECT * FROM google_ads_private_connections")).rows.length,0);
     assert.equal((await q("SELECT * FROM google_ads_private_states")).rows.length,0);
     assert.equal(session.googleAdsPending,undefined);
+  } finally {await db.close();}
+});
+
+test("campaign inventory reads every page without requiring performance metrics",async()=>{
+  const queries=[];
+  const reader=createGoogleReader({config,fetcher:async(url,options)=>{
+    const body=JSON.parse(options.body);queries.push(body);
+    return response(body.pageToken?{results:[{campaign:{...raw("100").campaign,status:"PAUSED"}}]}:
+      {results:[{campaign:raw().campaign}],nextPageToken:"next"});
+  }});
+  const campaigns=await reader.campaigns("access",account.id,"");
+  assert.equal(campaigns.length,2);assert.equal(campaigns[1].campaign_status,"PAUSED");
+  for(const {query} of queries){assert.doesNotMatch(query,/metrics\.|segments\./);assert.match(query,/campaign.status != 'REMOVED'/);}
+  const invalid=createGoogleReader({config,fetcher:async()=>response({results:[{campaign:raw().campaign},{campaign:raw().campaign}]})});
+  await assert.rejects(invalid.campaigns("access",account.id,""),{code:"invalid_report"});
+});
+
+test("zero-activity campaigns survive reload, remain private, and preserve inventory on failed sync",async()=>{
+  const {db,q,pool}=await database();
+  try {
+    const {normalizeCampaigns}=require("../google-ads-readonly");
+    const {buildPlatforms,renderPlatformDetail}=require("../marketing-platform-dashboard");
+    let inventory=normalizeCampaigns([raw()]),fail=false;
+    const reader={account:async()=>account,campaigns:async()=>inventory,report:async()=>{
+      if(fail)throw Object.assign(Error("private"),{code:"temporary"});return [];
+    }};
+    const store=createStore({q,pool,config,reader}),id=await connect(store,q);
+    await store.sync(1,id,range);
+    let evidence=await dashboardEvidence(q,1,range);
+    assert.equal(evidence.campaigns.length,1);assert.equal(evidence.rows.length,0);assert.equal(evidence.daily.length,0);
+    assert.equal((await dashboardEvidence(q,2,range)).campaigns.length,0);
+    const scope={kind:"advertiser",userId:1};
+    const platform=buildPlatforms({scope,range,campaigns:[],googleEvidence:evidence,googleEnabled:true}).find(p=>p.id==="google_ads");
+    assert.equal(platform.campaignCount,1);assert.equal(platform.rows[0].cells[1],"ENABLED");
+    assert.equal(platform.rows[0].cells[2],"—");assert.equal(platform.metrics[0][1],"—");
+    const html=renderPlatformDetail(platform,scope,range,`${id}:99`);
+    assert.match(html,/Search &lt;img&gt;/);assert.match(html,/No reporting data for this period/);assert.doesNotMatch(html,/<img>/);
+    assert.match(renderEvidence(evidence,range),/Connected campaigns/);
+    const withMetrics={...evidence,rows:[{...normalizeRows([raw()],account,range)[0],connection_id:id}]};
+    const combined=buildPlatforms({scope,range,campaigns:[],googleEvidence:withMetrics,googleEnabled:true}).find(p=>p.id==="google_ads");
+    assert.equal(combined.campaignCount,1);assert.match(combined.rows[0].cells[5],/CAD/);
+    assert.equal(combined.rows[0].cells[2],"100");
+    inventory=[];fail=true;await assert.rejects(store.sync(1,id,range),{code:"temporary"});
+    assert.equal((await dashboardEvidence(q,1,range)).campaigns.length,1);
+    fail=false;await store.sync(1,id,range);assert.equal((await dashboardEvidence(q,1,range)).campaigns.length,0);
+    inventory=normalizeCampaigns([raw()]);await store.sync(1,id,range);await store.disconnect(1,id);
+    assert.equal((await q("SELECT * FROM google_ads_private_campaigns")).rows.length,0);
   } finally {await db.close();}
 });

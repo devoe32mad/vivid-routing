@@ -5,6 +5,16 @@ const PATH = "/admin/connectors/google-ads";
 const SCOPE = "https://www.googleapis.com/auth/adwords";
 const ACCOUNT_QUERY = "SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone, customer.manager, customer.test_account FROM customer LIMIT 1";
 
+const CAMPAIGN_QUERY = "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type FROM campaign WHERE campaign.status != 'REMOVED'";
+function normalizeCampaigns(rows) {
+  const seen = new Set();
+  return rows.map(({campaign:c}) => {
+    if (!c || !/^\d+$/.test(String(c.id)) || seen.has(String(c.id))) throw new ConnectorError("invalid_report");
+    seen.add(String(c.id));
+    return {campaign_id:String(c.id),campaign_name:String(c.name || "Unnamed campaign").slice(0,240),
+      campaign_status:String(c.status || "UNKNOWN"),channel:String(c.advertisingChannelType || "UNKNOWN")};
+  });
+}
 class ConnectorError extends Error {
   constructor(code) { super(code); this.code = code; }
 }
@@ -137,7 +147,7 @@ function createGoogleReader({config, fetcher=fetch}) {
     return {access_token:result.access_token,refresh_token:result.refresh_token || fields.refresh_token,
       expires_at:Date.now() + Number(result.expires_in) * 1000};
   }
-  // Deliberately no generic Google API path or caller-provided GAQL. These two fixed
+  // Deliberately no generic Google API path or caller-provided GAQL. These fixed
   // read queries are the entire Ads API surface. OAuth's scope itself is broader.
   async function search(accessToken, id, managerId, query) {
     if (!customerId(id) || (managerId && !customerId(managerId))) throw new ConnectorError("account");
@@ -168,9 +178,12 @@ function createGoogleReader({config, fetcher=fetch}) {
       try { new Intl.DateTimeFormat("en-US",{timeZone:account.timeZone}).format(); } catch { throw new ConnectorError("account"); }
       return account;
     },
+    async campaigns(accessToken, id, managerId) {
+      return normalizeCampaigns(await search(accessToken,id,managerId,CAMPAIGN_QUERY));
+    },
     async report(accessToken, id, managerId, account, range) {
       return normalizeRows(await search(accessToken,id,managerId,reportQuery(range)),account,range);
     }
   };
 }
-module.exports = {PATH,SCOPE,ConnectorError,configuration,customerId,equal,hash,seal,unseal,importRange,reportQuery,normalizeRows,createGoogleReader};
+module.exports = {CAMPAIGN_QUERY,normalizeCampaigns,PATH,SCOPE,ConnectorError,configuration,customerId,equal,hash,seal,unseal,importRange,reportQuery,normalizeRows,createGoogleReader};
