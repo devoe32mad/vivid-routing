@@ -8,6 +8,10 @@ CREATE TABLE IF NOT EXISTS google_ads_private_connections (
   status TEXT NOT NULL CHECK(status IN ('connected','attention_required','disconnected')),
   last_error TEXT NOT NULL DEFAULT '', last_synced_at TIMESTAMPTZ, last_from DATE, last_to DATE,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(owner_user_id,customer_id));
+CREATE TABLE IF NOT EXISTS google_ads_private_campaigns (
+  connection_id BIGINT NOT NULL REFERENCES google_ads_private_connections(id) ON DELETE CASCADE,
+  campaign_id TEXT NOT NULL, campaign_name TEXT NOT NULL, campaign_status TEXT NOT NULL, channel TEXT NOT NULL,
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(connection_id,campaign_id));
 CREATE TABLE IF NOT EXISTS google_ads_private_states (
   state_hash TEXT PRIMARY KEY, owner_user_id BIGINT NOT NULL REFERENCES users(id),
   expires_at TIMESTAMPTZ NOT NULL);
@@ -89,11 +93,12 @@ function createStore({pool,q,config,reader}) {
         if(dueOnly && (row.status !== 'connected' || Date.parse(row.next_sync_at)>Date.now())) return null;
         if (!row.token_ciphertext || row.status === "disconnected") throw new ConnectorError("authorization");
         const started = new Date();
-        let data, account;
+        let data, account, campaigns;
         try {
           let token = unseal(row.token_ciphertext,config.key,context(userId,row.customer_id));
           if (token.expires_at < Date.now()+60000) token = await reader.refresh(token.refresh_token);
           account = await reader.account(token.access_token,row.customer_id,row.manager_id);
+          campaigns = await reader.campaigns(token.access_token,row.customer_id,row.manager_id);
           data = await reader.report(token.access_token,row.customer_id,row.manager_id,account,range);
           await client.query("UPDATE google_ads_private_connections SET token_ciphertext=$1 WHERE id=$2 AND owner_user_id=$3",
             [seal(token,config.key,context(userId,row.customer_id)),id,userId]);
@@ -107,6 +112,13 @@ function createStore({pool,q,config,reader}) {
             next_sync_at=NOW()+LEAST(360,5*POWER(2,LEAST(sync_failures,7)))*INTERVAL '1 minute'
             WHERE id=$2 AND owner_user_id=$3`,[failure,id,userId,RECONNECT_ERRORS.has(failure)]);
           return 0;
+        }
+        // Replace inventory only after both provider reads succeed, in the same transaction.
+        await client.query("DELETE FROM google_ads_private_campaigns WHERE connection_id=$1",[id]);
+        for(let start=0;start<campaigns.length;start+=1000) {
+          await client.query(`INSERT INTO google_ads_private_campaigns(connection_id,campaign_id,campaign_name,campaign_status,channel)
+            SELECT $1,r.campaign_id,r.campaign_name,r.campaign_status,r.channel FROM jsonb_to_recordset($2::jsonb)
+            AS r(campaign_id text,campaign_name text,campaign_status text,channel text)`,[id,JSON.stringify(campaigns.slice(start,start+1000))]);
         }
         const syncId = (await client.query(`INSERT INTO google_ads_private_syncs(connection_id,date_from,date_to,status,rows_imported,api_version,started_at)
           VALUES($1,$2,$3,'succeeded',$4,$5,$6) RETURNING id`,[id,range.from,range.to,data.length,config.version,started])).rows[0].id;
@@ -152,7 +164,13 @@ async function dashboardEvidence(q,userId,range) {
       FROM google_ads_private_daily d JOIN google_ads_private_connections c ON c.id=d.connection_id
       WHERE c.owner_user_id=$1 AND d.evidence_date BETWEEN $2::date AND $3::date
       ORDER BY d.evidence_date,d.connection_id,d.campaign_id`,[userId,range.from,range.to])).rows;
-    return {connections,rows,daily};
+    let campaigns=[];
+    try {
+      campaigns=(await q(`SELECT d.* FROM google_ads_private_campaigns d
+        JOIN google_ads_private_connections c ON c.id=d.connection_id
+        WHERE c.owner_user_id=$1 ORDER BY d.connection_id,d.campaign_id`,[userId])).rows;
+    } catch(error) { if(error.code !== "42P01") throw error; }
+    return {connections,rows,daily,campaigns};
   } catch(error) { if(error.code === "42P01") return {connections:[],rows:[],daily:[]}; throw error; }
 }
 module.exports = {SCHEMA,createStore,dashboardEvidence,PUBLIC_COLUMNS};

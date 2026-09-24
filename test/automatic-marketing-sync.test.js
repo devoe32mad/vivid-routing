@@ -15,7 +15,7 @@ test("automatic sync persists scheduling, retries, recovery and reconnect state 
     const q=(sql,params)=>params?db.query(sql,params):db.exec(sql).then(r=>r.at(-1));
     const pool={connect:async()=>({query:q,release(){}})};
     let failure,reads=0;
-    const reader={account:async()=>account,report:async()=>{reads++;if(failure)throw Object.assign(Error("secret provider text"),{code:failure});return normalizeRows([{segments:{date:"2026-09-20"},campaign:{id:"99",name:"Test",status:"ENABLED",advertisingChannelType:"SEARCH"},metrics:{impressions:"100",clicks:"5",costMicros:"1000000",conversions:0,conversionsValue:0}}],account,range);}};
+    const reader={campaigns:async()=>[],account:async()=>account,report:async()=>{reads++;if(failure)throw Object.assign(Error("secret provider text"),{code:failure});return normalizeRows([{segments:{date:"2026-09-20"},campaign:{id:"99",name:"Test",status:"ENABLED",advertisingChannelType:"SEARCH"},metrics:{impressions:"100",clicks:"5",costMicros:"1000000",conversions:0,conversionsValue:0}}],account,range);}};
     const store=createStore({q,pool,config,reader});await store.ready();await q(SCHEMA);
     const connect=async()=>{
       const state=hash("test");await q("INSERT INTO google_ads_private_states VALUES($1,1,NOW()+INTERVAL '1 minute')",[state]);
