@@ -46,9 +46,9 @@ test("enterprise metric query has both boundaries and never reads Square account
   assert.doesNotMatch(res.body,/integrations\/square\/production\/customers/);
   assert.doesNotMatch(calls.map(c=>c.sql).join(" "),/google_ads_private/);
 });
-test("unbuilt connectors remain planned and customer content is escaped",()=>{
+test("unbuilt connectors remain planned, Meta is connectable, and customer content is escaped",()=>{
   const html=renderCommandCenter({title:"<script>secret</script>",scope:{kind:"advertiser",userId:7},range:{from:"2026-09-01",to:"2026-09-22"},campaigns:[{id:3,name:'<img src=x onerror=alert(1)>',clicks:2}],squareStatus:"Not enabled"});
-  assert.doesNotMatch(html,/<script>|<img/);assert.match(html,/LinkedIn Ads/);assert.match(html,/Awaiting application setup/);assert.match(html,/Planned/);assert.match(html,/not added again/);assert.doesNotMatch(html,/href=".*connect.*meta/);
+  assert.doesNotMatch(html,/<script>|<img/);assert.match(html,/LinkedIn Ads/);assert.match(html,/Awaiting application setup/);assert.match(html,/Planned/);assert.match(html,/not added again/);assert.match(html,/data-platform="meta"/);
 });
 test("real PostgreSQL aggregation excludes other owners, organizations, test campaigns and out-of-period events",async()=>{
   const {PGlite}=require("@electric-sql/pglite"),db=new PGlite();
