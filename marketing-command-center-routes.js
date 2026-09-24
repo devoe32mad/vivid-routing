@@ -6,6 +6,8 @@ const {dashboardEvidence}=require("./google-ads-readonly-store");
 const {configuration}=require("./google-ads-readonly");
 const {dashboardEvidence:metaDashboardEvidence}=require("./meta-ads-store");
 const {configuration:metaConfiguration}=require("./meta-ads-readonly");
+const {dashboardEvidence:linkedinDashboardEvidence}=require("./linkedin-ads-store");
+const {configuration:linkedinConfiguration}=require("./linkedin-ads-readonly");
 function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNav,requireLogin,requireOrganizationPermission,getOrganizationScope,env=process.env}) {
   async function loadCampaigns(scope,range) {
     const enterprise=scope.kind==="enterprise";
@@ -62,7 +64,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     let range;
     try{
       range=dateRange(req.query);
-      if(req.query.platform!==undefined && !["vivid","square","google_ads","meta"].includes(req.query.platform))return res.status(400).send("Choose a supported platform.");
+      if(req.query.platform!==undefined && !["vivid","square","google_ads","meta","linkedin"].includes(req.query.platform))return res.status(400).send("Choose a supported platform.");
       if(req.query.campaign!==undefined && (typeof req.query.campaign!=="string" || !/^\d+(?::\d+)?$/.test(req.query.campaign)))return res.status(400).send("Choose a valid campaign.");
     }catch(error){return res.status(400).send(error.message);}
     try{await fn(req,res,range);}catch(error){console.error("MARKETING COMMAND CENTER ERROR",error.code||error.name);res.status(500).send("Unable to load marketing evidence. Please try again.");}
@@ -83,7 +85,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     const scope={kind:"advertiser",userId:selectedId,accountSelection:canSelect,
       accountName:accounts.find(a=>Number(a.id)===selectedId)?.name || user.name || "Your account",
       accounts,privateAdsAllowed:selectedId===ownId};
-    if(!scope.privateAdsAllowed && ["google_ads","meta"].includes(req.query.platform))return res.status(403).send("Private ad accounts are available in your own account view.");
+    if(!scope.privateAdsAllowed && ["google_ads","meta","linkedin"].includes(req.query.platform))return res.status(403).send("Private ad accounts are available in your own account view.");
     if(canSelect)req.session.marketingAccountId=selectedId;
     let googleEnabled=false;
     if(env.GOOGLE_ADS_OBSERVATION_ENABLED==="true"){
@@ -93,14 +95,19 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     if(env.META_ADS_OBSERVATION_ENABLED==="true"){
       try{metaConfiguration(env);metaEnabled=true;}catch{/* Keep setup unavailable until valid. */}
     }
-    const [campaigns,status,googleEvidence,metaEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId,range),
+    let linkedinEnabled=false;
+    if(env.LINKEDIN_ADS_OBSERVATION_ENABLED==="true"){
+      try{linkedinConfiguration(env);linkedinEnabled=true;}catch{/* Keep setup unavailable until valid. */}
+    }
+    const [campaigns,status,googleEvidence,metaEvidence,linkedinEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId,range),
       googleEnabled&&scope.privateAdsAllowed?dashboardEvidence(q,scope.userId,range):Promise.resolve(null),
-      metaEnabled&&scope.privateAdsAllowed?metaDashboardEvidence(q,scope.userId,range):Promise.resolve(null)]);
+      metaEnabled&&scope.privateAdsAllowed?metaDashboardEvidence(q,scope.userId,range):Promise.resolve(null),
+      linkedinEnabled&&scope.privateAdsAllowed?linkedinDashboardEvidence(q,scope.userId,range):Promise.resolve(null)]);
     res.set?.("Cache-Control","no-store");
-    res.send(page("Marketing Command Center",renderCommandCenter({aiVisible:canPreviewAi(req.session),title:"Your marketing, together",scope,range,campaigns,squareStatus:status,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",metaEvidence,metaEnabled,metaAutoSync:env.META_ADS_AUTO_SYNC!=="false",platform:req.query.platform||"",campaign:req.query.campaign||""})));
+    res.send(page("Marketing Command Center",renderCommandCenter({aiVisible:canPreviewAi(req.session),title:"Your marketing, together",scope,range,campaigns,squareStatus:status,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",metaEvidence,metaEnabled,metaAutoSync:env.META_ADS_AUTO_SYNC!=="false",linkedinEvidence,linkedinEnabled,linkedinAutoSync:env.LINKEDIN_ADS_AUTO_SYNC!=="false",platform:req.query.platform||"",campaign:req.query.campaign||""})));
   }));
   app.get("/org-marketing-command-center/advertiser/:advertiserId",requireOrganizationPermission("manage_advertisers"),handle(async(req,res,range)=>{
-    if(["google_ads","meta"].includes(req.query.platform))return res.status(403).send("Private advertising accounts are only available in their owner’s dashboard.");
+    if(["google_ads","meta","linkedin"].includes(req.query.platform))return res.status(403).send("Private advertising accounts are only available in their owner’s dashboard.");
     const authorized=await getOrganizationScope(req);
     if(!validId(authorized?.organizationId)||!validId(req.params.advertiserId))return res.status(404).send("Advertiser not found.");
     const scope={kind:"enterprise",orgId:Number(authorized.organizationId),advertiserId:Number(req.params.advertiserId)};
