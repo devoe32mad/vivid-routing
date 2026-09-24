@@ -109,7 +109,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     if(!advertiser)return res.status(404).send("Advertiser not found.");
     const campaigns=await loadCampaigns(scope,range);
     res.send(orgPage("Marketing Command Center",organizationNav({organizationId:scope.orgId,organizationName:advertiser.organization_name,activePage:"ai-readiness",userName:(req.session.orgUser||req.session.user)?.name||""})+
-      renderCommandCenter({aiVisible:canPreviewAi(req.session),title:advertiser.name,scope,range,campaigns,squareStatus:"Only shared campaign conversions",platform:req.query.platform||"",campaign:req.query.campaign||""})));
+      renderCommandCenter({aiVisible:canPreviewAi(req.session,req),title:advertiser.name,scope,range,campaigns,squareStatus:"Only shared campaign conversions",platform:req.query.platform||"",campaign:req.query.campaign||""})));
   }));
 }
 module.exports={registerMarketingCommandCenterRoutes};
