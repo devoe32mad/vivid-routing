@@ -7,7 +7,6 @@ const CONNECTORS = [
   ["google_ads","Google Ads","Paid media","Search, display and YouTube campaign reporting.","Setup foundation only"],
   ["meta","Meta · Facebook + Instagram","Paid media","Campaign costs, delivery and reported outcomes.","Available when configured"],
   ["linkedin","LinkedIn Ads","Paid media","Business audience and campaign reporting.","Available when configured"],
-  ["ga4","Google Analytics 4","Website","Website visits, engagement and key events.","Planned"],
   ["search_console","Google Search Console","Organic search","Search queries, impressions, clicks and pages.","Planned"],
   ["shopify","Shopify","Sales evidence","Online orders, refunds and purchase outcomes.","Planned"],
   ["email","Mailchimp / Klaviyo","Email","Email engagement and reported outcomes.","Planned"],
@@ -48,9 +47,9 @@ function groupedMoney(rows,key) {
   for(const row of rows||[])groups.set(row.currency_code,(groups.get(row.currency_code)||0)+n(row[key]));
   return [...groups].map(([code,value])=>`${(key==="cost_micros"?value/1e6:value).toLocaleString("en-US",{maximumFractionDigits:2})} ${code}`).join(" · ")||"—";
 }
-function renderCommandCenter({title,scope,range,campaigns,squareStatus,googleEvidence=null,googleEnabled=false,googleAutoSync=true,metaEvidence=null,metaEnabled=false,metaAutoSync=true,linkedinEvidence=null,linkedinEnabled=false,linkedinAutoSync=true,platform="",campaign="",aiVisible=false}) {
+function renderCommandCenter({title,scope,range,campaigns,squareStatus,googleEvidence=null,googleEnabled=false,googleAutoSync=true,metaEvidence=null,metaEnabled=false,metaAutoSync=true,linkedinEvidence=null,linkedinEnabled=false,linkedinAutoSync=true,analyticsEvidence=null,analyticsEnabled=false,analyticsAutoSync=true,platform="",campaign="",aiVisible=false}) {
   const totals=summarize(campaigns),recs=recommendations(campaigns,scope);
-  const platforms=buildPlatforms({scope,range,campaigns,squareStatus,googleEvidence,googleEnabled,googleAutoSync,metaEvidence,metaEnabled,metaAutoSync,linkedinEvidence,linkedinEnabled,linkedinAutoSync});
+  const platforms=buildPlatforms({scope,range,campaigns,squareStatus,googleEvidence,googleEnabled,googleAutoSync,metaEvidence,metaEnabled,metaAutoSync,linkedinEvidence,linkedinEnabled,linkedinAutoSync,analyticsEvidence,analyticsEnabled,analyticsAutoSync});
   const active=platforms.find(p=>p.id===platform),selected=active?.rows.find(r=>r.key===campaign);
   if(scope.kind==="advertiser" && googleEvidence)recs.push(...googleRecommendations(googleEvidence,range));
   if(totals.square_conversions>0)recs.push({title:"Review placements with verified Square payments",reason:`${totals.square_conversions} matched payment conversions and ${money(totals.square_value)} recorded net value in this period. Inspect the offers and placements producing purchases before preparing another test. Profit and ROI also require campaign costs.`,href:dashboardHref(scope,range,"square"),source:"Square"});

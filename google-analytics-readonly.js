@@ -1,0 +1,29 @@
+"use strict";
+const crypto=require("node:crypto");
+const {dateRange}=require("./marketing-command-center");
+const PATH="/admin/connectors/google-analytics";
+const SCOPE="https://www.googleapis.com/auth/analytics.readonly";
+class ConnectorError extends Error{constructor(code){super(code);this.code=code;}}
+const equal=(a,b)=>typeof a==="string"&&typeof b==="string"&&a.length>0&&Buffer.byteLength(a)===Buffer.byteLength(b)&&crypto.timingSafeEqual(Buffer.from(a),Buffer.from(b));
+const hash=value=>crypto.createHash("sha256").update(value).digest("hex");
+function configuration(env){
+  const key=Buffer.from(env.GOOGLE_ANALYTICS_TOKEN_KEY||env.GOOGLE_ADS_TOKEN_KEY||"","base64");let redirect;
+  try{redirect=new URL(env.GOOGLE_ANALYTICS_REDIRECT_URI);}catch{throw new ConnectorError("configuration");}
+  if(key.length!==32||!env.GOOGLE_ADS_CLIENT_ID||!env.GOOGLE_ADS_CLIENT_SECRET||redirect.protocol!=="https:"||redirect.pathname!==PATH+"/callback"||redirect.search||redirect.hash)throw new ConnectorError("configuration");
+  return {key,redirect:redirect.href,clientId:env.GOOGLE_ADS_CLIENT_ID,clientSecret:env.GOOGLE_ADS_CLIENT_SECRET};
+}
+function seal(value,key,context){const iv=crypto.randomBytes(12),cipher=crypto.createCipheriv("aes-256-gcm",key,iv);cipher.setAAD(Buffer.from("google-analytics-readonly:"+context));const data=Buffer.concat([cipher.update(JSON.stringify(value)),cipher.final()]);return [iv,cipher.getAuthTag(),data].map(v=>v.toString("base64")).join(".");}
+function unseal(value,key,context){const [iv,tag,data]=value.split(".").map(v=>Buffer.from(v,"base64"));const cipher=crypto.createDecipheriv("aes-256-gcm",key,iv);cipher.setAAD(Buffer.from("google-analytics-readonly:"+context));cipher.setAuthTag(tag);return JSON.parse(Buffer.concat([cipher.update(data),cipher.final()]).toString());}
+function importRange(input){const range=dateRange(input);if(Date.parse(range.to)-Date.parse(range.from)>30*86400000)throw new ConnectorError("date_range");return range;}
+function createReader({config,fetcher=fetch}){
+  async function request(url,options,stage){let response;try{response=await fetcher(url,{...options,redirect:"error",signal:AbortSignal.timeout(20000)});}catch{throw new ConnectorError("network");}if(!response.ok){const e=new ConnectorError(response.status===401?"authorization":response.status===403?"google_access":response.status===429||response.status>=500?"temporary":"invalid_report");e.diagnostic={stage,httpStatus:response.status};throw e;}try{return await response.json();}catch{throw new ConnectorError("invalid_report");}}
+  async function token(fields,exchange){const result=await request("https://oauth2.googleapis.com/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:config.clientId,client_secret:config.clientSecret,...fields}).toString()},exchange?"oauth_exchange":"oauth_refresh");if(typeof result.access_token!=="string"||!(Number(result.expires_in)>0)||(exchange&&typeof result.refresh_token!=="string"))throw new ConnectorError("authorization");return {access_token:result.access_token,refresh_token:result.refresh_token||fields.refresh_token,expires_at:Date.now()+Number(result.expires_in)*1000};}
+  return {
+    exchange:code=>token({grant_type:"authorization_code",code,redirect_uri:config.redirect},true),
+    refresh:refreshToken=>token({grant_type:"refresh_token",refresh_token:refreshToken},false),
+    async properties(accessToken){let token="",rows=[],pages=0;do{const url=new URL("https://analyticsadmin.googleapis.com/v1beta/accountSummaries");url.searchParams.set("pageSize","200");if(token)url.searchParams.set("pageToken",token);const body=await request(url,{headers:{Authorization:"Bearer "+accessToken}},"property_discovery");for(const account of body.accountSummaries||[])for(const p of account.propertySummaries||[]){const id=String(p.property||"").replace("properties/","");if(/^\d+$/.test(id))rows.push({property_id:id,property_name:String(p.displayName||id).slice(0,240),account_name:String(account.displayName||"").slice(0,240)});}token=body.nextPageToken||"";if(++pages>20)throw new ConnectorError("report_too_large");}while(token);return rows;},
+    async report(accessToken,propertyId,range){range=importRange(range);const body=await request(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,{method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify({dateRanges:[{startDate:range.from,endDate:range.to}],dimensions:[{name:"date"},{name:"sessionSource"},{name:"sessionMedium"}],metrics:[{name:"sessions"},{name:"totalUsers"},{name:"engagedSessions"},{name:"eventCount"},{name:"keyEvents"},{name:"totalRevenue"}],limit:"100000"})},"report_read");
+      const metricNames=(body.metricHeaders||[]).map(x=>x.name),dimensionNames=(body.dimensionHeaders||[]).map(x=>x.name);if(!["date","sessionSource","sessionMedium"].every(x=>dimensionNames.includes(x)))throw new ConnectorError("invalid_report");return (body.rows||[]).map(row=>{const d=Object.fromEntries(dimensionNames.map((k,i)=>[k,row.dimensionValues?.[i]?.value||""])),m=Object.fromEntries(metricNames.map((k,i)=>[k,Number(row.metricValues?.[i]?.value||0)]));if(!/^\d{8}$/.test(d.date)||Object.values(m).some(v=>!Number.isFinite(v)))throw new ConnectorError("invalid_report");const item={date:`${d.date.slice(0,4)}-${d.date.slice(4,6)}-${d.date.slice(6)}`,source:String(d.sessionSource||"(direct)").slice(0,240),medium:String(d.sessionMedium||"(none)").slice(0,120),sessions:m.sessions||0,users:m.totalUsers||0,engaged_sessions:m.engagedSessions||0,event_count:m.eventCount||0,key_events:m.keyEvents||0,revenue:m.totalRevenue||0};return {...item,payload_hash:hash(JSON.stringify(item))};});}
+  };
+}
+module.exports={PATH,SCOPE,ConnectorError,equal,hash,configuration,seal,unseal,importRange,createReader};
