@@ -102,7 +102,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     const [campaigns,status,googleEvidence,metaEvidence,linkedinEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId,range),
       googleEnabled&&scope.privateAdsAllowed?dashboardEvidence(q,scope.userId,range):Promise.resolve(null),
       metaEnabled&&scope.privateAdsAllowed?metaDashboardEvidence(q,scope.userId,range):Promise.resolve(null),
-      linkedinEnabled&&scope.privateAdsAllowed?linkedinDashboardEvidence(q,scope.userId,range):Promise.resolve(null)]);
+      scope.privateAdsAllowed?linkedinDashboardEvidence(q,scope.userId,range):Promise.resolve(null)]);
     res.set?.("Cache-Control","no-store");
     res.send(page("Marketing Command Center",renderCommandCenter({aiVisible:canPreviewAi(req.session),title:"Your marketing, together",scope,range,campaigns,squareStatus:status,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",metaEvidence,metaEnabled,metaAutoSync:env.META_ADS_AUTO_SYNC!=="false",linkedinEvidence,linkedinEnabled,linkedinAutoSync:env.LINKEDIN_ADS_AUTO_SYNC!=="false",platform:req.query.platform||"",campaign:req.query.campaign||""})));
   }));
