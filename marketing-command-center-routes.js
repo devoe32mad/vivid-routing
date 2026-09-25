@@ -85,7 +85,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     const scope={kind:"advertiser",userId:selectedId,accountSelection:canSelect,
       accountName:accounts.find(a=>Number(a.id)===selectedId)?.name || user.name || "Your account",
       accounts,privateAdsAllowed:selectedId===ownId};
-    if(!scope.privateAdsAllowed && ["google_ads","meta","linkedin"].includes(req.query.platform))return res.status(403).send("Private ad accounts are available in your own account view.");
+    if(!scope.privateAdsAllowed && ["google_ads","meta"].includes(req.query.platform))return res.status(403).send("Private ad accounts are available in your own account view.");
     if(canSelect)req.session.marketingAccountId=selectedId;
     let googleEnabled=false;
     if(env.GOOGLE_ADS_OBSERVATION_ENABLED==="true"){
@@ -102,7 +102,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     const [campaigns,status,googleEvidence,metaEvidence,linkedinEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId,range),
       googleEnabled&&scope.privateAdsAllowed?dashboardEvidence(q,scope.userId,range):Promise.resolve(null),
       metaEnabled&&scope.privateAdsAllowed?metaDashboardEvidence(q,scope.userId,range):Promise.resolve(null),
-      scope.privateAdsAllowed?linkedinDashboardEvidence(q,scope.userId,range):Promise.resolve(null)]);
+      linkedinDashboardEvidence(q,scope.userId,range)]);
     if(canSelect&&!(linkedinEvidence?.connections||[]).length)try{const owners=(await q("SELECT owner_user_id,COUNT(*)::int connections FROM linkedin_ads_private_connections GROUP BY owner_user_id ORDER BY owner_user_id")).rows;console.log("linkedin_dashboard_owner_mismatch "+JSON.stringify({selectedId,ownId,privateAdsAllowed:scope.privateAdsAllowed,owners}));}catch(error){if(error.code!=="42P01")throw error;}
     res.set?.("Cache-Control","no-store");
     res.send(page("Marketing Command Center",renderCommandCenter({aiVisible:canPreviewAi(req.session),title:"Your marketing, together",scope,range,campaigns,squareStatus:status,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",metaEvidence,metaEnabled,metaAutoSync:env.META_ADS_AUTO_SYNC!=="false",linkedinEvidence,linkedinEnabled,linkedinAutoSync:env.LINKEDIN_ADS_AUTO_SYNC!=="false",platform:req.query.platform||"",campaign:req.query.campaign||""})));
