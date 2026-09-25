@@ -35,7 +35,21 @@ function linkedinMetrics(rows) {
 }
 function analyticsMetrics(rows) {
   const sessions=total(rows,"sessions"),engaged=total(rows,"engaged_sessions");
-  return [["Sessions",rows.length?number(sessions):"—"],["Users",rows.length?number(total(rows,"users")):"—"],["Engaged sessions",rows.length?number(engaged):"—"],["Engagement rate",rate(engaged,sessions)],["Key events",rows.length?number(total(rows,"key_events")):"—"],["GA4-reported revenue",rows.length?currency(total(rows,"revenue"),"USD"):"—"]];
+  return [["Visited · website sessions",rows.length?number(sessions):"—"],["Visitors",rows.length?number(total(rows,"users")):"—"],["Engaged · meaningful visits",rows.length?number(engaged):"—"],["Engagement rate",rate(engaged,sessions)],["Acted · key actions",rows.length?number(total(rows,"key_events")):"—"],["Purchased · GA4-reported revenue",rows.length?currency(total(rows,"revenue"),"USD"):"—"]];
+}
+const titleCase=value=>String(value||"").replace(/^https?:\/\//,"").replace(/^www\./,"").split(/[._-]/).filter(Boolean).map(v=>v.charAt(0).toUpperCase()+v.slice(1)).join(" ");
+function analyticsSourceLabel(source,medium){
+  source=String(source||"").trim();medium=String(medium||"").trim();
+  if(source==="(direct)"||medium==="(none)")return "Direct visits";
+  if(source==="(not set)"||medium==="(not set)"||source==="(data not available)")return "Unidentified traffic";
+  const name=titleCase(source)||"Unknown";
+  if(medium==="cpc")return name+" Ads";
+  if(["paid-social","paid_social","paid"].includes(medium))return name+" paid traffic";
+  if(medium==="organic")return ["google","bing"].includes(source.toLowerCase())?name+" organic search":"Organic "+name;
+  if(medium==="organic_social")return "Organic "+name;
+  if(medium==="email")return name+" email";
+  if(medium==="ai-assistant"||medium==="referral")return name+" referrals";
+  return name+(medium?" · "+titleCase(medium):"");
 }
 function buildPlatforms({scope,range,campaigns,squareStatus,googleEvidence,googleEnabled,googleAutoSync=true,metaEvidence,metaEnabled=false,metaAutoSync=true,linkedinEvidence,linkedinEnabled=false,linkedinAutoSync=true,analyticsEvidence,analyticsEnabled=false,analyticsAutoSync=true}) {
   const square=typeof squareStatus==="object"&&squareStatus?squareStatus:{label:squareStatus};
@@ -108,20 +122,21 @@ function buildPlatforms({scope,range,campaigns,squareStatus,googleEvidence,googl
     const connections=analyticsEvidence?.connections||[],raw=analyticsEvidence?.rows||[],grouped=new Map();
     for(const r of raw){const key=`${r.connection_id}:${r.source}:${r.medium}`;if(!grouped.has(key))grouped.set(key,[]);grouped.get(key).push(r);}
     const attention=connections.some(c=>c.status==="attention_required"||c.last_error),stale=connections.some(c=>!c.last_synced_at||Date.now()-new Date(c.last_synced_at)>2*3600000);
-    platforms.push({id:"ga4",name:"Google Analytics 4",mark:"GA",category:"Website activity & outcomes",available:connections.length>0,
+    platforms.push({id:"ga4",name:"Website Traffic & Engagement",heading:"Website Traffic & Engagement",mark:"W",category:"What visitors did after arriving",available:connections.length>0,
       status:!analyticsEnabled?"Awaiting application setup":!connections.length?"Ready to connect":attention?"Sync needs attention":!analyticsAutoSync?"Automatic sync disabled":stale?"Awaiting fresh reports":"Automatic hourly sync",
       campaignCount:grouped.size,countLabel:"traffic sources",accountCount:connections.length,
       freshness:connections.length?connections.map(c=>`${c.property_name}: ${timestamp(c.last_synced_at)}`).join(" · "):"No property connected",metrics:analyticsMetrics(raw),
-      note:"GA4 reports website sessions, users, engagement, key events and Analytics-attributed revenue by source and medium. Revenue is platform-reported evidence, not verified Vivid or POS revenue, and is never added to verified sales. Missing reports are not zero activity.",
-      columns:["Medium","Sessions","Users","Engaged sessions","Engagement rate","Events","Key events","GA4-reported revenue"],
-      rows:[...grouped].map(([key,rows])=>{const r=rows[0],c=connections.find(c=>String(c.id)===String(r.connection_id)),sessions=total(rows,"sessions"),engaged=total(rows,"engaged_sessions");return {key,name:r.source||"(direct)",context:`${c?.property_name||"GA4 property"} · ${r.medium||"(none)"}`,metrics:analyticsMetrics(rows),cells:[r.medium||"(none)",number(sessions),number(total(rows,"users")),number(engaged),rate(engaged,sessions),number(total(rows,"event_count")),number(total(rows,"key_events")),currency(total(rows,"revenue"),"USD")],href:`/admin/connectors/google-analytics/${Number(r.connection_id)}?${new URLSearchParams(range)}`,action:"Property reporting"};}),
+      note:"Website Traffic & Engagement shows what happened after people reached the website: visits, meaningful engagement, key actions and GA4-reported revenue. Open a source for the original GA4 evidence. Revenue is not verified Vivid or POS revenue and is never added to verified sales.",
+      columns:["Traffic source","Visited","Visitors","Engaged","Engagement rate","Website events","Acted","Purchased · GA4 revenue"],
+      rows:[...grouped].map(([key,rows])=>{const r=rows[0],c=connections.find(c=>String(c.id)===String(r.connection_id)),sessions=total(rows,"sessions"),engaged=total(rows,"engaged_sessions");return {key,name:analyticsSourceLabel(r.source,r.medium),context:`${c?.property_name||"GA4 property"} · Original GA4 source: ${r.source||"(direct)"} / ${r.medium||"(none)"}`,metrics:analyticsMetrics(rows),cells:[analyticsSourceLabel(r.source,r.medium),number(sessions),number(total(rows,"users")),number(engaged),rate(engaged,sessions),number(total(rows,"event_count")),number(total(rows,"key_events")),currency(total(rows,"revenue"),"USD")],href:`/admin/connectors/google-analytics/${Number(r.connection_id)}?${new URLSearchParams(range)}`,action:"View source evidence"};}),
+      viewLabel:"View website traffic sources",
       manageHref:"/admin/connectors/google-analytics",manageLabel:connections.length?"Manage Analytics properties":"Connect Google Analytics"});
   }
   return platforms;
 }
 const metricsHtml=metrics=>`<dl class="mcc-metrics">${metrics.map(([label,value])=>`<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>`;
 function platformCard(p,scope,range) {
-  return `<article class="mcc-platform" data-platform="${p.id}"><header><span class="mcc-platform-mark" aria-hidden="true">${p.mark}</span><div><small>${esc(p.category)}</small><h3>${esc(p.name)}</h3></div></header><span class="mcc-status">${esc(p.status)}</span><p class="mcc-count">${p.campaignCount} ${esc(p.countLabel)}${p.accountCount!==undefined?` · ${p.accountCount} accounts`:""}</p>${metricsHtml(p.available?p.metrics:p.metrics.map(([label])=>[label,"—"]))}<p class="mcc-freshness">${esc(p.freshness)}</p><footer>${p.available?`<a class="mcc-primary" href="${esc(dashboardHref(scope,range,p.id))}">View ${esc(p.name)} campaigns <span aria-hidden="true">→</span></a>`:p.manageHref&&p.status!=="Awaiting application setup"&&p.status!=="Not enabled"?`<a href="${esc(p.manageHref)}">${esc(p.manageLabel)} →</a>`:"<span>Reporting not connected</span>"}</footer></article>`;
+  return `<article class="mcc-platform" data-platform="${p.id}"><header><span class="mcc-platform-mark" aria-hidden="true">${p.mark}</span><div><small>${esc(p.category)}</small><h3>${esc(p.name)}</h3></div></header><span class="mcc-status">${esc(p.status)}</span><p class="mcc-count">${p.campaignCount} ${esc(p.countLabel)}${p.accountCount!==undefined?` · ${p.accountCount} accounts`:""}</p>${metricsHtml(p.available?p.metrics:p.metrics.map(([label])=>[label,"—"]))}<p class="mcc-freshness">${esc(p.freshness)}</p><footer>${p.available?`<a class="mcc-primary" href="${esc(dashboardHref(scope,range,p.id))}">${esc(p.viewLabel||`View ${p.name} campaigns`)} <span aria-hidden="true">→</span></a>`:p.manageHref&&p.status!=="Awaiting application setup"&&p.status!=="Not enabled"?`<a href="${esc(p.manageHref)}">${esc(p.manageLabel)} →</a>`:"<span>Reporting not connected</span>"}</footer></article>`;
 }
 function renderPlatformDetail(p,scope,range,campaignKey="") {
   const selected=campaignKey?p.rows.find(r=>r.key===campaignKey):null;
@@ -133,4 +148,4 @@ function renderPlatformDetail(p,scope,range,campaignKey="") {
 }
 const platformStyle=`
 .mcc-platform-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.mcc-platform,.mcc-panel{background:#fff;border:1px solid #d9e2ed;border-radius:16px;padding:24px;min-width:0}.mcc-platform{display:flex;flex-direction:column;box-shadow:0 4px 18px #102b5006}.mcc-platform header{display:flex;gap:12px;align-items:center;margin-bottom:18px}.mcc-platform header h3{margin:2px 0;font-size:22px}.mcc-platform-mark{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:#eaf2ff;color:#164d93;font-size:23px;font-weight:750;flex-shrink:0}.mcc-platform .mcc-status{align-self:flex-start}.mcc-count{font-size:13px;color:#53677c}.mcc-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px;margin:22px 0}.mcc-metrics>div{min-width:0}.mcc-metrics dt{font-size:12px;color:#53677c;margin-bottom:5px}.mcc-metrics dd{margin:0;font-weight:700;font-size:24px;line-height:1.25;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}.mcc-freshness{font-size:12px;color:#53677c;overflow-wrap:anywhere}.mcc-platform footer{margin-top:auto;padding-top:18px;border-top:1px solid #e8edf3}.mcc-primary{display:flex;justify-content:space-between;align-items:center;gap:8px;text-decoration:none}.mcc-panel{margin:22px 0}.mcc-panel>.mcc-metrics{grid-template-columns:repeat(3,minmax(0,1fr));padding:20px 0;border-top:1px solid #e8edf3;border-bottom:1px solid #e8edf3}.mcc-section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.mcc-section-heading h2{margin:0}.mcc-row-context{display:block;font-size:11px;margin-top:4px}.mcc-breadcrumb{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px}.mcc a:focus-visible,.mcc summary:focus-visible{outline:3px solid #3275c6;outline-offset:4px}.mcc-roadmap{margin-top:32px;padding:22px;border:1px solid #d9e2ed;border-radius:14px}.mcc-roadmap>.mcc-grid{margin-top:20px}@media(max-width:1000px){.mcc-platform-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:640px){.mcc-platform-grid{grid-template-columns:1fr}.mcc-platform,.mcc-panel{padding:18px}.mcc-panel>.mcc-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.mcc-metrics dd{font-size:22px}}`;
-module.exports={buildPlatforms,platformCard,renderPlatformDetail,platformStyle,dashboardHref,googleMetrics,metaMetrics,linkedinMetrics,analyticsMetrics};
+module.exports={buildPlatforms,platformCard,renderPlatformDetail,platformStyle,dashboardHref,googleMetrics,metaMetrics,linkedinMetrics,analyticsMetrics,analyticsSourceLabel};
