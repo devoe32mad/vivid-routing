@@ -85,6 +85,8 @@ function buildPlatforms({scope,range,campaigns,squareStatus,googleEvidence,googl
       columns:["Objective","Impressions","Clicks","Link clicks","CTR","Avg. CPC","Spend","Reported purchases","Reported leads","Reported purchase value"],
       rows:[...metaGrouped].map(([key,rows])=>{const r=rows[0],c=metaConnections.find(c=>String(c.id)===String(r.connection_id));const clicks=total(rows,"clicks"),impressions=total(rows,"impressions");return {key,name:r.campaign_name,context:`${c?.account_name||"Meta account"} · ${r.campaign_id}`,metrics:metaMetrics(rows),cells:[r.objective||"Not reported",number(impressions),number(clicks),number(total(rows,"link_clicks")),rate(clicks,impressions),clicks?currency(total(rows,"cost_micros")/1e6/clicks,r.currency_code):"—",googleMoney(rows,"cost_micros"),number(total(rows,"purchases")),number(total(rows,"leads")),googleMoney(rows,"purchase_value")],href:`/admin/connectors/meta-ads/${Number(r.connection_id)}?${new URLSearchParams(range)}`,action:"Account sync & import history",daily:(metaEvidence?.daily||[]).filter(d=>String(d.connection_id)===String(r.connection_id)&&String(d.campaign_id)===String(r.campaign_id)),dailyKind:"meta",timezone:c?.account_timezone};}),
       manageHref:"/admin/connectors/meta-ads",manageLabel:metaConnections.length?"Manage Meta accounts":"Connect Meta Ads"});
+  }
+  if(scope.kind==="advertiser") {
     const linkedinConnections=linkedinEvidence?.connections||[],linkedinRaw=linkedinEvidence?.rows||[],linkedinGrouped=new Map();
     for(const r of linkedinRaw){const key=`${r.connection_id}:${r.campaign_id}`;if(!linkedinGrouped.has(key))linkedinGrouped.set(key,[]);linkedinGrouped.get(key).push(r);}
     const linkedinAttention=linkedinConnections.some(c=>c.status==="attention_required"||c.last_error);
@@ -96,7 +98,7 @@ function buildPlatforms({scope,range,campaigns,squareStatus,googleEvidence,googl
       note:"Totals cover connected LinkedIn ad accounts and imported campaign results. Currencies stay separate. Conversions, leads and value are LinkedIn-reported outcomes, not verified Vivid sales. Missing reports are not zero activity.",
       columns:["Impressions","Clicks","Landing-page clicks","CTR","Avg. CPC","Spend","Reported conversions","Reported leads","Reported conversion value"],
       rows:[...linkedinGrouped].map(([key,rows])=>{const r=rows[0],c=linkedinConnections.find(c=>String(c.id)===String(r.connection_id));const clicks=total(rows,"clicks"),impressions=total(rows,"impressions");return {key,name:r.campaign_name,context:`${c?.account_name||"LinkedIn account"} · ${r.campaign_id}`,metrics:linkedinMetrics(rows),cells:[number(impressions),number(clicks),number(total(rows,"link_clicks")),rate(clicks,impressions),clicks?currency(total(rows,"cost_micros")/1e6/clicks,r.currency_code):"—",googleMoney(rows,"cost_micros"),number(total(rows,"conversions")),number(total(rows,"leads")),googleMoney(rows,"conversion_value")],href:`/admin/connectors/linkedin-ads/${Number(r.connection_id)}?${new URLSearchParams(range)}`,action:"Account sync & import history"};}),
-      manageHref:"/admin/connectors/linkedin-ads",manageLabel:linkedinConnections.length?"Manage LinkedIn accounts":"Connect LinkedIn Ads"});
+      manageHref:scope.privateAdsAllowed!==false?"/admin/connectors/linkedin-ads":"",manageLabel:linkedinConnections.length?"Manage LinkedIn accounts":"Connect LinkedIn Ads"});
   }
   return platforms;
 }
