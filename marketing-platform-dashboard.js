@@ -90,7 +90,7 @@ function buildPlatforms({scope,range,campaigns,squareStatus,googleEvidence,googl
     const linkedinAttention=linkedinConnections.some(c=>c.status==="attention_required"||c.last_error);
     const linkedinStale=linkedinConnections.some(c=>!c.last_synced_at||Date.now()-new Date(c.last_synced_at)>2*3600000);
     platforms.push({id:"linkedin",name:"LinkedIn Ads",mark:"in",category:"Professional paid media",available:linkedinConnections.length>0,
-      status:!linkedinEnabled?"Awaiting application setup":!linkedinConnections.length?"Ready to connect":linkedinAttention?"Sync needs attention":!linkedinAutoSync?"Automatic sync disabled":linkedinStale?"Awaiting fresh reports":"Automatic hourly sync",
+      status:!linkedinConnections.length&&!linkedinEnabled?"Awaiting application setup":!linkedinConnections.length?"Ready to connect":linkedinAttention?"Sync needs attention":!linkedinAutoSync?"Automatic sync disabled":linkedinStale?"Awaiting fresh reports":"Automatic hourly sync",
       campaignCount:linkedinGrouped.size,countLabel:"campaigns with reporting",accountCount:linkedinConnections.length,
       freshness:linkedinConnections.length?linkedinConnections.map(c=>`${c.account_name}: ${timestamp(c.last_synced_at)}`).join(" · "):"No account connected",metrics:linkedinMetrics(linkedinRaw),
       note:"Totals cover connected LinkedIn ad accounts and imported campaign results. Currencies stay separate. Conversions, leads and value are LinkedIn-reported outcomes, not verified Vivid sales. Missing reports are not zero activity.",
