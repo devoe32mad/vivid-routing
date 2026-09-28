@@ -7,13 +7,14 @@ Connected accounts should provide scheduled collection, a private platform dashb
 - Google Ads: the existing web service polls for due accounts every minute. Each successful automatic sync schedules the next one an hour later and replaces the latest 31 account-calendar days atomically. Existing connections become due on migration; new connections and reconnects become due immediately. Older imported history remains available. The account dashboard provides spend, impressions, clicks, CTR, CPC, reported conversions/value, daily results, freshness and recommendations. Refresh now remains an optional historical/backfill control.
 - Square: the existing five-minute production worker remains unchanged. The command center links to its sales dashboard and displays the sync state. Matched Square payments remain a subset of recorded Vivid conversions.
 - Vivid: first-party campaign results remain available in the command center with the existing performance suggestions.
+- TikTok Ads: the connector discovers authorized advertiser accounts, stores tokens with account- and owner-bound AES-GCM encryption, retains normalized daily campaign evidence, and schedules hourly collection with bounded retries. The dashboard keeps impressions, clicks, spend, video plays, 2-second/6-second views and TikTok-reported outcomes separate from verified Vivid revenue.
 - Other platform cards describe planned integrations; they are not connected or scheduled collectors.
 
 ## Reliability and privacy
 
 Scheduling lives in PostgreSQL, survives restarts, and uses connection row locks plus a due-time recheck to coordinate replicas and manual refreshes. Failed Google reads preserve prior evidence. Transient failures retry after 5 minutes with exponential backoff capped at 6 hours. Revoked/insufficient access pauses automatic collection until reconnect. Disconnect removes credentials, evidence and future scheduled work. Owner scoping and encrypted refresh tokens remain unchanged. Logs contain connection ID and fixed outcome codes, never credentials or provider response bodies.
 
-`GOOGLE_ADS_AUTO_SYNC=false` disables the automatic worker; manual reads remain available. Existing `GOOGLE_ADS_OBSERVATION_ENABLED` and credential configuration are still required. `SQUARE_PRODUCTION_AUTO_SYNC=false` remains Square's independent control.
+`GOOGLE_ADS_AUTO_SYNC=false` or `TIKTOK_ADS_AUTO_SYNC=false` disables the corresponding automatic worker; manual reads remain available. Each connector's enable switch and valid credential configuration are still required. `SQUARE_PRODUCTION_AUTO_SYNC=false` remains Square's independent control.
 
 ## Recommendations
 

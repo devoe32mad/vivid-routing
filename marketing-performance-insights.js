@@ -65,4 +65,27 @@ function googleRecommendations({connections=[],daily=[]}={},range,now=new Date()
   }
   return items;
 }
-module.exports={googleRecommendations,sum};
+function tiktokRecommendations({connections=[],rows=[]}={},range,now=new Date()) {
+  const items=[];
+  for(const connection of connections){
+    const href=`/admin/connectors/tiktok-ads/${Number(connection.id)}?from=${range.from}&to=${range.to}`;
+    const add=(title,reason,signal="Review")=>items.push({title:`${connection.account_name}: ${title}`,reason,signal,href,source:"TikTok Ads"});
+    if(connection.status==="attention_required"){add("Reconnect reporting","TikTok access needs attention. Reconnect the advertiser account before using its results to make decisions.","Connection");continue;}
+    if(!connection.last_synced_at){add("First sync pending","The advertiser account is connected. Performance recommendations will appear after TikTok reports arrive.","Awaiting data");continue;}
+    if(connection.last_error||!Number.isFinite(Date.parse(connection.last_synced_at))||now-Date.parse(connection.last_synced_at)>2*3600000){add("Refresh reporting before judging performance","The most recent TikTok report is stale or the last sync failed. Saved evidence remains available, but performance conclusions are withheld.","Data freshness");continue;}
+    const accountRows=rows.filter(r=>String(r.connection_id)===String(connection.id)),totals=sum(accountRows);
+    totals.video_views=accountRows.reduce((value,row)=>value+numeric(row.video_views),0);totals.video_views_6s=accountRows.reduce((value,row)=>value+numeric(row.video_views_6s),0);
+    const period=`${range.from}–${range.to} (${connection.account_timezone||"account timezone"})`;
+    if(!accountRows.length||totals.impressions===0){add("Waiting for delivery evidence",`No TikTok delivery rows were returned for ${period}. Check campaign eligibility if activity was expected; this alone does not establish poor performance.`,"Awaiting data");continue;}
+    if(totals.impressions<1000||totals.clicks<30){add("Keep collecting a baseline",`${totals.impressions} impressions, ${totals.clicks} clicks and ${money(totals.cost_micros,connection.currency_code)} spend for ${period}. Vivid waits for at least 1,000 impressions and 30 clicks before interpreting traffic or outcomes.`,"Limited evidence");continue;}
+    if(totals.conversions<=0)add("Review the path after the click",`${totals.clicks} clicks and ${money(totals.cost_micros,connection.currency_code)} TikTok spend, with no positive TikTok-reported conversions for ${period}. Validate the landing page, TikTok Pixel/events and Vivid outcome tracking before changing spend.`,"Measurement");
+    else add("Verify the reported outcomes",`${totals.clicks} clicks and ${totals.conversions} TikTok-reported conversions for ${period}. Reconcile them with GA4, Vivid and sales evidence before treating them as customers or revenue.`,"Reported outcomes");
+    const eligible=accountRows.filter(r=>numeric(r.impressions)>=1000&&numeric(r.clicks)>=30&&numeric(r.video_views)>0);
+    if(eligible.length>=2){
+      const scored=eligible.map(r=>({row:r,retention:numeric(r.video_views_6s)/numeric(r.video_views),ctr:numeric(r.clicks)/numeric(r.impressions)})).sort((a,b)=>b.retention-a.retention),best=scored[0],worst=scored.at(-1);
+      if(best.retention-worst.retention>=0.05&&best.retention>=worst.retention*1.25)add(`Compare ${best.row.campaign_name}'s creative with ${worst.row.campaign_name}`,`${(100*best.retention).toFixed(1)}% vs ${(100*worst.retention).toFixed(1)}% of recorded video plays reached 6 seconds. Review hooks, audience and placements, then run a controlled creative test; retention alone does not establish sales performance.`,"Creative signal");
+    }
+  }
+  return items;
+}
+module.exports={googleRecommendations,tiktokRecommendations,sum};

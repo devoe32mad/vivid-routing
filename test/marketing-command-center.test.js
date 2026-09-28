@@ -49,7 +49,8 @@ test("enterprise metric query has both boundaries and never reads Square account
 });
 test("unbuilt connectors remain planned, Meta is connectable, and customer content is escaped",()=>{
   const html=renderCommandCenter({title:"<script>secret</script>",scope:{kind:"advertiser",userId:7},range:{from:"2026-09-01",to:"2026-09-22"},campaigns:[{id:3,name:'<img src=x onerror=alert(1)>',clicks:2}],squareStatus:"Not enabled"});
-  assert.doesNotMatch(html,/<script>|<img/);assert.match(html,/LinkedIn Ads/);assert.match(html,/Awaiting application setup/);assert.match(html,/Planned/);assert.match(html,/not added again/);assert.match(html,/data-platform="meta"/);
+  assert.doesNotMatch(html,/<script>|<img/);assert.match(html,/LinkedIn Ads/);assert.match(html,/Awaiting application setup/);assert.match(html,/TikTok Ads/);assert.match(html,/Next integration/);assert.match(html,/YouTube Analytics/);assert.match(html,/Paid YouTube campaigns remain in Google Ads/);assert.match(html,/ChatGPT Ads/);assert.match(html,/Planned/);assert.match(html,/not added again/);assert.match(html,/data-platform="meta"/);
+  assert.equal((html.match(/Facebook &amp; Instagram paid media/g)||[]).length,1);
   assert.match(html,/Connect another platform/);assert.match(html,/Connected platforms load automatically whenever you sign in/);assert.match(html,/Connect platform/);
 });
 test("connected LinkedIn evidence appears in the main command center",()=>{
@@ -58,7 +59,7 @@ test("connected LinkedIn evidence appears in the main command center",()=>{
   const html=renderCommandCenter({title:"Account",scope:{kind:"advertiser",userId:1},range,campaigns:[],squareStatus:"Not connected",linkedinEvidence,linkedinEnabled:true});
   assert.match(html,/Automatic hourly sync/);
   assert.match(html,/1 campaigns with reporting · 1 accounts/);
-  assert.match(html,/Google \+ Meta \+ LinkedIn imported reports/);
+  assert.match(html,/Google \+ Meta \+ LinkedIn \+ TikTok imported reports/);
   const setup=html.match(/<section class="mcc-setup"[\s\S]*?<\/section>/)?.[0]||"";
   assert.match(setup,/Connect another platform/);
   assert.match(setup,/Google Ads/);

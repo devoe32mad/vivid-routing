@@ -8,6 +8,8 @@ const {dashboardEvidence:metaDashboardEvidence}=require("./meta-ads-store");
 const {configuration:metaConfiguration}=require("./meta-ads-readonly");
 const {dashboardEvidence:linkedinDashboardEvidence}=require("./linkedin-ads-store");
 const {configuration:linkedinConfiguration}=require("./linkedin-ads-readonly");
+const {dashboardEvidence:tiktokDashboardEvidence}=require("./tiktok-ads-store");
+const {configuration:tiktokConfiguration}=require("./tiktok-ads-readonly");
 const {dashboardEvidence:analyticsDashboardEvidence}=require("./google-analytics-store");
 const {configuration:analyticsConfiguration}=require("./google-analytics-readonly");
 function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNav,requireLogin,requireOrganizationPermission,getOrganizationScope,env=process.env}) {
@@ -66,7 +68,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     let range;
     try{
       range=dateRange(req.query);
-      if(req.query.platform!==undefined && !["vivid","square","google_ads","meta","linkedin","ga4"].includes(req.query.platform))return res.status(400).send("Choose a supported platform.");
+      if(req.query.platform!==undefined && !["vivid","square","google_ads","meta","linkedin","tiktok","ga4"].includes(req.query.platform))return res.status(400).send("Choose a supported platform.");
       if(req.query.campaign!==undefined && (typeof req.query.campaign!=="string" || (req.query.platform==="ga4" ? (!req.query.campaign || req.query.campaign.length>500 || /[\u0000-\u001f]/.test(req.query.campaign)) : !/^\d+(?::\d+)?$/.test(req.query.campaign))))return res.status(400).send("Choose a valid campaign or traffic source.");
     }catch(error){return res.status(400).send(error.message);}
     try{await fn(req,res,range);}catch(error){console.error("MARKETING COMMAND CENTER ERROR",error.code||error.name);res.status(500).send("Unable to load marketing evidence. Please try again.");}
@@ -101,23 +103,28 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     if(env.LINKEDIN_ADS_OBSERVATION_ENABLED==="true"){
       try{linkedinConfiguration(env);linkedinEnabled=true;}catch{/* Keep setup unavailable until valid. */}
     }
+    let tiktokEnabled=false;
+    if(env.TIKTOK_ADS_OBSERVATION_ENABLED==="true"){
+      try{tiktokConfiguration(env);tiktokEnabled=true;}catch{/* Keep setup unavailable until valid. */}
+    }
     let analyticsEnabled=false;
     if(env.GOOGLE_ANALYTICS_ENABLED==="true"){
       try{analyticsConfiguration(env);analyticsEnabled=true;}catch{/* Keep setup unavailable until valid. */}
     }
-    const [campaigns,status,googleEvidence,metaEvidence,linkedinEvidence,analyticsEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId,range),
+    const [campaigns,status,googleEvidence,metaEvidence,linkedinEvidence,tiktokEvidence,analyticsEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId,range),
       googleEnabled&&scope.privateAdsAllowed?dashboardEvidence(q,scope.userId,range):Promise.resolve(null),
       metaEnabled&&scope.privateAdsAllowed?metaDashboardEvidence(q,scope.userId,range):Promise.resolve(null),
       linkedinDashboardEvidence(q,scope.userId,range),
+      tiktokDashboardEvidence(q,scope.userId,range),
       analyticsEnabled&&scope.privateAdsAllowed?analyticsDashboardEvidence(q,scope.userId,range):Promise.resolve(null)]);
     if(canSelect&&!(linkedinEvidence?.connections||[]).length)try{const assignments=(await q("SELECT owner_user_id,dashboard_user_id,COUNT(*)::int connections FROM linkedin_ads_private_connections GROUP BY owner_user_id,dashboard_user_id ORDER BY owner_user_id,dashboard_user_id")).rows;console.log("linkedin_dashboard_assignment_mismatch "+JSON.stringify({selectedId,ownId,privateAdsAllowed:scope.privateAdsAllowed,assignments}));}catch(error){if(error.code!=="42P01"&&error.code!=="42703")throw error;}
     // Save only the account and dates resolved by the authorized dashboard route.
     req.session.marketingReturn={accountId:selectedId,from:range.from,to:range.to};
     res.set?.("Cache-Control","no-store");
-    res.send(page("Marketing Command Center",renderCommandCenter({aiVisible:canPreviewAi(req.session),title:"Your marketing, together",scope,range,campaigns,squareStatus:status,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",metaEvidence,metaEnabled,metaAutoSync:env.META_ADS_AUTO_SYNC!=="false",linkedinEvidence,linkedinEnabled,linkedinAutoSync:env.LINKEDIN_ADS_AUTO_SYNC!=="false",analyticsEvidence,analyticsEnabled,analyticsAutoSync:env.GOOGLE_ANALYTICS_AUTO_SYNC!=="false",platform:req.query.platform||"",campaign:req.query.campaign||""})));
+    res.send(page("Marketing Command Center",renderCommandCenter({aiVisible:canPreviewAi(req.session),title:"Your marketing, together",scope,range,campaigns,squareStatus:status,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",metaEvidence,metaEnabled,metaAutoSync:env.META_ADS_AUTO_SYNC!=="false",linkedinEvidence,linkedinEnabled,linkedinAutoSync:env.LINKEDIN_ADS_AUTO_SYNC!=="false",tiktokEvidence,tiktokEnabled,tiktokAutoSync:env.TIKTOK_ADS_AUTO_SYNC!=="false",analyticsEvidence,analyticsEnabled,analyticsAutoSync:env.GOOGLE_ANALYTICS_AUTO_SYNC!=="false",platform:req.query.platform||"",campaign:req.query.campaign||""})));
   }));
   app.get("/org-marketing-command-center/advertiser/:advertiserId",requireOrganizationPermission("manage_advertisers"),handle(async(req,res,range)=>{
-    if(["google_ads","meta","linkedin"].includes(req.query.platform))return res.status(403).send("Private advertising accounts are only available in their owner’s dashboard.");
+    if(["google_ads","meta","linkedin","tiktok"].includes(req.query.platform))return res.status(403).send("Private advertising accounts are only available in their owner’s dashboard.");
     const authorized=await getOrganizationScope(req);
     if(!validId(authorized?.organizationId)||!validId(req.params.advertiserId))return res.status(404).send("Advertiser not found.");
     const scope={kind:"enterprise",orgId:Number(authorized.organizationId),advertiserId:Number(req.params.advertiserId)};
