@@ -7,7 +7,7 @@ function validDate(value) {
 }
 function addMarketingReturn(html, req) {
   const path = String(req.path || "");
-  const connector = /^\/admin\/connectors\/(?:google-analytics|google-ads|meta-ads|linkedin-ads|tiktok-ads)(?:\/|$)/.test(path);
+  const connector = /^\/admin\/connectors\/(?:google-analytics|youtube-analytics|google-ads|meta-ads|linkedin-ads|tiktok-ads)(?:\/|$)/.test(path);
   if (req.method !== "GET" || (!connector && !(path === dashboard && req.query?.platform))) return html;
   if (!/<main\b/i.test(html) || html.includes('id="marketing-return-nav"')) return html;
   const saved = req.session?.marketingReturn || {};

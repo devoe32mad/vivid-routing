@@ -20,7 +20,7 @@ Meta, LinkedIn, GA4 and TikTok Ads follow the same read-only evidence boundary. 
 ## Recommended connector order
 
 1. Complete TikTok application approval and production authorization testing.
-2. Add YouTube organic analytics; paid YouTube remains part of Google Ads.
+2. Complete YouTube organic analytics production authorization; paid YouTube remains part of Google Ads.
 3. Add Pinterest, Reddit Ads and Snapchat based on production API access.
 4. Add Search Console and Shopify for organic search and commerce evidence.
 5. Add Mailchimp/Klaviyo, call tracking, HubSpot/Salesforce and additional POS providers.
@@ -37,6 +37,10 @@ The connector requires these deployment variables:
 - `TIKTOK_ADS_AUTO_SYNC=false` only when automatic hourly collection should be disabled
 
 The TikTok developer application must register the exact redirect URL and receive the reporting/account permissions required by TikTok. Vivid requests read-only account, campaign, delivery, spend, video-engagement and reported-outcome data. It does not create or modify advertising.
+
+## YouTube Analytics setup
+
+Enable the YouTube Data API v3 and YouTube Analytics API in the existing Google Cloud project, then add the exact callback URL `https://<production-host>/admin/connectors/youtube-analytics/callback`. Configure `YOUTUBE_ANALYTICS_ENABLED=true`, `YOUTUBE_ANALYTICS_REDIRECT_URI`, and a base64 32-byte `YOUTUBE_ANALYTICS_TOKEN_KEY`. The connector can reuse the existing Google OAuth client ID and secret, or use `YOUTUBE_ANALYTICS_CLIENT_ID` and `YOUTUBE_ANALYTICS_CLIENT_SECRET`. It requests only `youtube.readonly` and `yt-analytics.readonly`; paid YouTube reporting remains under Google Ads.
 
 Physical placements (billboards, magazines, Valpak, sponsorships and events) need
 cost records and campaign-specific QR/URL/offer/call identifiers. Do not assume a
