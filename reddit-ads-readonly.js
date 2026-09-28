@@ -13,9 +13,14 @@ class RedditAdsError extends Error {
 }
 
 function configuration(env=process.env){
-  const key=Buffer.from(env.REDDIT_ADS_TOKEN_KEY||"","base64"),redirect=new URL(env.REDDIT_ADS_REDIRECT_URL||"");
-  if(!/^[A-Za-z0-9_-]{5,100}$/.test(env.REDDIT_ADS_CLIENT_ID||"")||!env.REDDIT_ADS_CLIENT_SECRET||key.length!==32||redirect.protocol!=="https:"||redirect.username||redirect.password||redirect.pathname!==PATH+"/callback"||redirect.search||redirect.hash)throw Error("Invalid Reddit Ads configuration");
-  return{clientId:env.REDDIT_ADS_CLIENT_ID,clientSecret:env.REDDIT_ADS_CLIENT_SECRET,key,redirect:redirect.href};
+  const clientId=String(env.REDDIT_ADS_CLIENT_ID||"").trim();
+  const clientSecret=String(env.REDDIT_ADS_CLIENT_SECRET||"").trim();
+  const key=Buffer.from(String(env.REDDIT_ADS_TOKEN_KEY||"").trim(),"base64");
+  const redirect=new URL(String(env.REDDIT_ADS_REDIRECT_URL||"").trim());
+  // Reddit-issued credentials are opaque. Validate their presence and reject
+  // whitespace/control characters without assuming a legacy character set.
+  if(clientId.length<5||clientId.length>256||/[\s\x00-\x1f\x7f]/.test(clientId)||!clientSecret||clientSecret.length>4096||/[\x00-\x1f\x7f]/.test(clientSecret)||key.length!==32||redirect.protocol!=="https:"||redirect.username||redirect.password||redirect.pathname!==PATH+"/callback"||redirect.search||redirect.hash)throw Error("Invalid Reddit Ads configuration");
+  return{clientId,clientSecret,key,redirect:redirect.href};
 }
 
 const hash=value=>crypto.createHash("sha256").update(String(value)).digest("hex");
