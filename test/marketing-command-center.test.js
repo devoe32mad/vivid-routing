@@ -50,7 +50,7 @@ test("enterprise metric query has both boundaries and never reads Square account
 test("unbuilt connectors remain planned, Meta is connectable, and customer content is escaped",()=>{
   const html=renderCommandCenter({title:"<script>secret</script>",scope:{kind:"advertiser",userId:7},range:{from:"2026-09-01",to:"2026-09-22"},campaigns:[{id:3,name:'<img src=x onerror=alert(1)>',clicks:2}],squareStatus:"Not enabled"});
   assert.doesNotMatch(html,/<script>|<img/);assert.match(html,/LinkedIn Ads/);assert.match(html,/Awaiting application setup/);assert.match(html,/Planned/);assert.match(html,/not added again/);assert.match(html,/data-platform="meta"/);
-  assert.match(html,/Connection setup/);assert.match(html,/Authorize each platform once/);assert.match(html,/Connect platform/);
+  assert.match(html,/Connect another platform/);assert.match(html,/Connected platforms load automatically whenever you sign in/);assert.match(html,/Connect platform/);
 });
 test("connected LinkedIn evidence appears in the main command center",()=>{
   const range={from:"2026-09-01",to:"2026-09-22"};
@@ -59,8 +59,11 @@ test("connected LinkedIn evidence appears in the main command center",()=>{
   assert.match(html,/Automatic hourly sync/);
   assert.match(html,/1 campaigns with reporting · 1 accounts/);
   assert.match(html,/Google \+ Meta \+ LinkedIn imported reports/);
-  assert.match(html,/Manage connection/);
-  assert.match(html,/<strong>LinkedIn Ads<\/strong><span>Automatic hourly sync<\/span>/);
+  const setup=html.match(/<section class="mcc-setup"[\s\S]*?<\/section>/)?.[0]||"";
+  assert.match(setup,/Connect another platform/);
+  assert.match(setup,/Google Ads/);
+  assert.doesNotMatch(setup,/LinkedIn Ads/);
+  assert.doesNotMatch(setup,/Manage connection/);
 });
 test("real PostgreSQL aggregation excludes other owners, organizations, test campaigns and out-of-period events",async()=>{
   const {PGlite}=require("@electric-sql/pglite"),db=new PGlite();
