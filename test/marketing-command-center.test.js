@@ -32,7 +32,8 @@ test("invalid drill-down queries and enterprise private-account requests fail be
 test("advertiser identity comes from session even for admin and ignores supplied owner",async()=>{
   const calls=[],run=harness({q:async(sql,params)=>{calls.push({sql,params});return {rows:[]};}});
   const res=await run(userPath,{session:{user:{id:7,role:"super_admin"}},query:{user_id:999,from:"2026-09-01",to:"2026-09-22"}});
-  assert.equal(res.code,200);assert.equal(calls.length,2);assert.match(calls[1].sql,/WHERE c.user_id=\$1/);assert.deepEqual(calls[1].params,[7,"2026-09-01","2026-09-22"]);
+  const metrics=calls.find(c=>/WHERE c.user_id=\$1/.test(c.sql));
+  assert.equal(res.code,200);assert.ok(metrics);assert.deepEqual(metrics.params,[7,"2026-09-01","2026-09-22"]);assert.equal(calls.some(c=>(c.params||[]).includes(999)),false);
 });
 test("foreign advertiser is rejected before any metric or merchant reads",async()=>{
   const calls=[],run=harness({q:async(sql,params)=>{calls.push({sql,params});return {rows:[]};}});
@@ -49,6 +50,17 @@ test("enterprise metric query has both boundaries and never reads Square account
 test("unbuilt connectors remain planned, Meta is connectable, and customer content is escaped",()=>{
   const html=renderCommandCenter({title:"<script>secret</script>",scope:{kind:"advertiser",userId:7},range:{from:"2026-09-01",to:"2026-09-22"},campaigns:[{id:3,name:'<img src=x onerror=alert(1)>',clicks:2}],squareStatus:"Not enabled"});
   assert.doesNotMatch(html,/<script>|<img/);assert.match(html,/LinkedIn Ads/);assert.match(html,/Awaiting application setup/);assert.match(html,/Planned/);assert.match(html,/not added again/);assert.match(html,/data-platform="meta"/);
+  assert.match(html,/Connection setup/);assert.match(html,/Authorize each platform once/);assert.match(html,/Connect platform/);
+});
+test("connected LinkedIn evidence appears in the main command center",()=>{
+  const range={from:"2026-09-01",to:"2026-09-22"};
+  const linkedinEvidence={connections:[{id:5,account_name:"Vivid LinkedIn",account_id:"557716005",currency_code:"USD",status:"connected",last_synced_at:new Date()}],rows:[{connection_id:5,campaign_id:"9",campaign_name:"Decision Makers",currency_code:"USD",impressions:"100",clicks:"12",link_clicks:"8",cost_micros:"12345678",conversions:"1",leads:"2",conversion_value:"45.5"}]};
+  const html=renderCommandCenter({title:"Account",scope:{kind:"advertiser",userId:1},range,campaigns:[],squareStatus:"Not connected",linkedinEvidence,linkedinEnabled:true});
+  assert.match(html,/Automatic hourly sync/);
+  assert.match(html,/1 campaigns with reporting · 1 accounts/);
+  assert.match(html,/Google \+ Meta \+ LinkedIn imported reports/);
+  assert.match(html,/Manage connection/);
+  assert.match(html,/<strong>LinkedIn Ads<\/strong><span>Automatic hourly sync<\/span>/);
 });
 test("real PostgreSQL aggregation excludes other owners, organizations, test campaigns and out-of-period events",async()=>{
   const {PGlite}=require("@electric-sql/pglite"),db=new PGlite();
