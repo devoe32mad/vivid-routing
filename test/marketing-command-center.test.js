@@ -50,6 +50,7 @@ test("enterprise metric query has both boundaries and never reads Square account
 test("unbuilt connectors remain planned, Meta is connectable, and customer content is escaped",()=>{
   const html=renderCommandCenter({title:"<script>secret</script>",scope:{kind:"advertiser",userId:7},range:{from:"2026-09-01",to:"2026-09-22"},campaigns:[{id:3,name:'<img src=x onerror=alert(1)>',clicks:2}],squareStatus:"Not enabled"});
   assert.doesNotMatch(html,/<script>|<img/);assert.match(html,/LinkedIn Ads/);assert.match(html,/Awaiting application setup/);assert.match(html,/TikTok Ads/);assert.match(html,/Next integration/);assert.match(html,/YouTube Analytics/);assert.match(html,/Paid YouTube campaigns remain in Google Ads/);assert.match(html,/ChatGPT Ads/);assert.match(html,/Planned/);assert.match(html,/not added again/);assert.match(html,/data-platform="meta"/);
+  assert.match(html,/mcc-platform-logo/);assert.match(html,/aria-label="Google Ads"/);assert.match(html,/aria-label="Pinterest"/);assert.doesNotMatch(html,/>X Ads</);
   assert.equal((html.match(/Facebook &amp; Instagram paid media/g)||[]).length,1);
   assert.match(html,/Connect another platform/);assert.match(html,/Connected platforms load automatically whenever you sign in/);assert.match(html,/Connect platform/);
 });
