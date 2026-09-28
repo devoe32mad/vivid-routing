@@ -8,6 +8,7 @@ Connected accounts should provide scheduled collection, a private platform dashb
 - Square: the existing five-minute production worker remains unchanged. The command center links to its sales dashboard and displays the sync state. Matched Square payments remain a subset of recorded Vivid conversions.
 - Vivid: first-party campaign results remain available in the command center with the existing performance suggestions.
 - TikTok Ads: the connector discovers authorized advertiser accounts, stores tokens with account- and owner-bound AES-GCM encryption, retains normalized daily campaign evidence, and schedules hourly collection with bounded retries. The dashboard keeps impressions, clicks, spend, video plays, 2-second/6-second views and TikTok-reported outcomes separate from verified Vivid revenue.
+- YouTube Analytics: the connector discovers the authorized channel, stores channel-bound encrypted OAuth credentials, refreshes video metadata, retains daily video evidence and schedules hourly collection. Organic views, watch time, engagement and subscriber activity remain separate from paid YouTube reporting in Google Ads and from verified sales.
 - Other platform cards describe planned integrations; they are not connected or scheduled collectors.
 
 ## Reliability and privacy
