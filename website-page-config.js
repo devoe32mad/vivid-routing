@@ -4,10 +4,10 @@
 const configurations = [{
   campaignId:55,
   advertiser:"hexpol",
-  // QR 96 is Vivid's dedicated HEXPOL tracking QR. It may route through a
+  // QRs 61 and 96 are Vivid's dedicated HEXPOL tracking QRs. They may route through a
   // currently active event campaign while website visits remain reported in
   // the long-lived Customer-Tracking campaign.
-  qrIds:[96],
+  qrIds:[61,96],
   pages:[
     {name:"Quality Journey",url:"https://www.hexpol.com/rubber/what-we-offer/qualityjourney/"},
     {name:"Contact Us",url:"https://www.hexpol.com/rubber/contact/"},

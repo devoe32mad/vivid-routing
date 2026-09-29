@@ -40,7 +40,7 @@ test("configured HEXPOL tracking campaign accepts only its designated QR journey
   };
   const tracker=createTracker(q),data={campaign_id:55,vivid_click_id:click,page_url:"https://www.hexpol.com/rubber/contact/",page_name:"Contact Us"};
   assert.equal(await tracker.record(data,"https://www.hexpol.com"),true);
-  assert.deepEqual(queries.find(([sql])=>sql.includes("e.qr_id=ANY"))[1][2],[96]);
+  assert.deepEqual(queries.find(([sql])=>sql.includes("e.qr_id=ANY"))[1][2],[61,96]);
   assert.ok(queries.some(([sql,args])=>sql.includes("INSERT INTO campaign_website_visits")&&args[1]===55&&args[2]===96));
   assert.equal(await tracker.record({...data,campaign_id:56},"https://www.hexpol.com"),false);
 });
