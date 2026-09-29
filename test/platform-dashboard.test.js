@@ -42,7 +42,7 @@ test("overview retains combined summary before uniform platform cards and remove
   assert.equal((html.match(/data-platform="ga4"/g)||[]).length,1);
   assert.doesNotMatch(html,/data-platform="square"/);
   assert.ok(html.indexOf("Website Performance")<html.indexOf("AI Discovery &amp; Traffic"));assert.ok(html.indexOf("AI Discovery &amp; Traffic")<html.indexOf("Paid media"));
-  assert.doesNotMatch(html,/<table>/);assert.match(html,/POS and sales verification are preserved outside this marketing-platform view/);
+  assert.doesNotMatch(html,/<table>/);assert.match(html,/POS and sales verification are preserved outside this marketing-platform view/);assert.match(html,/View paid media performance/);
 });
 test("executive snapshot adds GA4 behavior without presenting it as verified revenue",()=>{
   const analyticsEvidence={connections:[{id:3,property_name:"Vivid",status:"connected",last_synced_at:new Date()}],rows:[{connection_id:3,source:"chatgpt.com",medium:"ai-assistant",sessions:9,users:9,engaged_sessions:2,event_count:31,key_events:1,revenue:25}]};
