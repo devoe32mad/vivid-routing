@@ -30,6 +30,20 @@ test("ordinary traffic, expired attribution and blocked storage do not fabricate
   assert.equal(visit("https://www.hexpol.com/rubber/contact/",storage,{blocked:true}).length,0);
   assert.equal(visit("https://www.hexpol.com/rubber/contact/?vivid_click_id="+click,storage,{blocked:true}).length,1);
 });
+test("configured HEXPOL tracking campaign accepts only its designated QR journey",async()=>{
+  const queries=[];
+  const q=async(sql,args=[])=>{queries.push([sql,args]);
+    if(sql.includes("AND e.campaign_id=$2"))return {rows:[]};
+    if(sql.includes("e.qr_id=ANY"))return {rows:args[2].includes(96)?[{id:901,qr_id:96,campaign_id:55,campaign_url:"https://www.hexpol.com/rubber/"}]:[]};
+    if(sql.includes("campaign_destinations"))return {rows:[{destination_url:"https://www.hexpol.com/rubber/what-we-offer/qualityjourney/"}]};
+    return {rows:[]};
+  };
+  const tracker=createTracker(q),data={campaign_id:55,vivid_click_id:click,page_url:"https://www.hexpol.com/rubber/contact/",page_name:"Contact Us"};
+  assert.equal(await tracker.record(data,"https://www.hexpol.com"),true);
+  assert.deepEqual(queries.find(([sql])=>sql.includes("e.qr_id=ANY"))[1][2],[96]);
+  assert.ok(queries.some(([sql,args])=>sql.includes("INSERT INTO campaign_website_visits")&&args[1]===55&&args[2]===96));
+  assert.equal(await tracker.record({...data,campaign_id:56},"https://www.hexpol.com"),false);
+});
 function harness(q){
   const routes={};
   registerWebsitePageTracking({app:{get:(p,...f)=>routes[p]=f,post:(p,...f)=>routes[p]=f},q,page:(_,b)=>b,

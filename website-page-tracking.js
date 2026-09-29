@@ -1,6 +1,6 @@
 "use strict";
 const path = require("node:path");
-const {configuredWebsitePages} = require("./website-page-config");
+const {configuredWebsitePages,configuredWebsiteTracking} = require("./website-page-config");
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const uuid = value => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 function cleanUrl(value) {
@@ -32,16 +32,26 @@ function createTracker(q) {
     if (!data || !Number.isSafeInteger(data.campaign_id) || data.campaign_id <= 0 || !uuid(data.vivid_click_id) || !url || origin !== url.origin) return false;
     // Only an existing QR journey in this campaign and within 24 hours is eligible.
     // Existing event timestamps are stored as UTC without a timezone.
-    const scan = (await q(`SELECT e.id,e.qr_id,e.campaign_id,c.campaign_url FROM events e
+    let scan = (await q(`SELECT e.id,e.qr_id,e.campaign_id,c.campaign_url FROM events e
       JOIN campaigns c ON c.id=e.campaign_id
       WHERE e.vivid_click_id=$1 AND e.type='scan' AND e.campaign_id=$2
         AND e.created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') - INTERVAL '24 hours'
         AND e.created_at <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
       ORDER BY e.created_at,e.id LIMIT 1`, [data.vivid_click_id, data.campaign_id])).rows[0];
+    // A specifically configured umbrella tracking campaign may receive visits
+    // from its designated QR even while that QR routes through a short-lived
+    // event campaign. The QR allowlist prevents cross-customer attribution.
+    const tracking= configuredWebsiteTracking(data.campaign_id);
+    if(!scan && tracking?.qrIds?.length)scan=(await q(`SELECT e.id,e.qr_id,$2::int AS campaign_id,c.campaign_url FROM events e
+      JOIN campaigns c ON c.id=$2
+      WHERE e.vivid_click_id=$1 AND e.type='scan' AND e.qr_id=ANY($3::int[])
+        AND e.created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') - INTERVAL '24 hours'
+        AND e.created_at <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
+      ORDER BY e.created_at,e.id LIMIT 1`,[data.vivid_click_id,data.campaign_id,tracking.qrIds])).rows[0];
     if (!scan || !scan.qr_id) return false;
     const destinations = (await q(`SELECT cd.destination_url FROM events e
-      JOIN campaign_destinations cd ON cd.id=e.campaign_destination_id AND cd.campaign_id=e.campaign_id
-      WHERE e.vivid_click_id=$1 AND e.campaign_id=$2 AND e.type='destination_click'`, [data.vivid_click_id, data.campaign_id])).rows;
+      JOIN campaign_destinations cd ON cd.id=e.campaign_destination_id
+      WHERE e.vivid_click_id=$1 AND e.qr_id=$2 AND e.type='destination_click'`, [data.vivid_click_id, scan.qr_id])).rows;
     const allowed = [scan.campaign_url, ...destinations.map(d => d.destination_url)].some(value => cleanUrl(value)?.host === url.host);
     if (!allowed) return false;
     await ensureSchema();
