@@ -17,6 +17,8 @@ const {dashboardEvidence:pinterestDashboardEvidence}=require("./pinterest-ads-st
 const {configuration:pinterestConfiguration}=require("./pinterest-ads-readonly");
 const {dashboardEvidence:analyticsDashboardEvidence}=require("./google-analytics-store");
 const {configuration:analyticsConfiguration}=require("./google-analytics-readonly");
+const {dashboardEvidence:searchConsoleDashboardEvidence}=require("./google-search-console-store");
+const {configuration:searchConsoleConfiguration}=require("./google-search-console-readonly");
 const {dashboardEvidence:youtubeDashboardEvidence}=require("./youtube-analytics-store");
 const {configuration:youtubeConfiguration}=require("./youtube-analytics-readonly");
 const {createMarketingEconomicsStore}=require("./marketing-economics-store");
@@ -148,10 +150,14 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     if(env.GOOGLE_ANALYTICS_ENABLED==="true"){
       try{analyticsConfiguration(env);analyticsEnabled=true;}catch{/* Keep setup unavailable until valid. */}
     }
+    let searchConsoleEnabled=false;
+    if(env.GOOGLE_SEARCH_CONSOLE_ENABLED==="true"){
+      try{searchConsoleConfiguration(env);searchConsoleEnabled=true;}catch{/* Keep setup unavailable until valid. */}
+    }
     let youtubeEnabled=false;
     if(env.YOUTUBE_ANALYTICS_ENABLED==="true")try{youtubeConfiguration(env);youtubeEnabled=true;}catch{}
     req.session.marketingEconomicsCsrf||=crypto.randomBytes(32).toString("hex");
-    const [campaigns,status,economics,googleEvidence,metaEvidence,linkedinEvidence,tiktokEvidence,redditEvidence,pinterestEvidence,youtubeEvidence,analyticsEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId,range),economicsStore.load(scope.userId),
+    const [campaigns,status,economics,googleEvidence,metaEvidence,linkedinEvidence,tiktokEvidence,redditEvidence,pinterestEvidence,youtubeEvidence,analyticsEvidence,searchConsoleEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId,range),economicsStore.load(scope.userId),
       googleEnabled&&scope.privateAdsAllowed?dashboardEvidence(q,scope.userId,range):Promise.resolve(null),
       metaEnabled&&scope.privateAdsAllowed?metaDashboardEvidence(q,scope.userId,range):Promise.resolve(null),
       linkedinDashboardEvidence(q,scope.userId,range),
@@ -159,12 +165,13 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
       redditDashboardEvidence(q,scope.userId,range),
       pinterestDashboardEvidence(q,scope.userId,range),
       youtubeEnabled?youtubeDashboardEvidence(q,scope.userId,range):Promise.resolve(null),
-      analyticsEnabled&&scope.privateAdsAllowed?analyticsDashboardEvidence(q,scope.userId,range):Promise.resolve(null)]);
+      analyticsEnabled&&scope.privateAdsAllowed?analyticsDashboardEvidence(q,scope.userId,range):Promise.resolve(null),
+      searchConsoleEnabled&&scope.privateAdsAllowed?searchConsoleDashboardEvidence(q,scope.userId,range):Promise.resolve(null)]);
     if(canSelect&&!(linkedinEvidence?.connections||[]).length)try{const assignments=(await q("SELECT owner_user_id,dashboard_user_id,COUNT(*)::int connections FROM linkedin_ads_private_connections GROUP BY owner_user_id,dashboard_user_id ORDER BY owner_user_id,dashboard_user_id")).rows;console.log("linkedin_dashboard_assignment_mismatch "+JSON.stringify({selectedId,ownId,privateAdsAllowed:scope.privateAdsAllowed,assignments}));}catch(error){if(error.code!=="42P01"&&error.code!=="42703")throw error;}
     // Save only the account and dates resolved by the authorized dashboard route.
     req.session.marketingReturn={accountId:selectedId,from:range.from,to:range.to};
     res.set?.("Cache-Control","no-store");
-    res.send(page("Marketing Command Center",renderCommandCenter({aiVisible:canPreviewAi(req.session),title:"Your marketing, together",scope,range,campaigns,squareStatus:status,economics,economicsCsrf:req.session.marketingEconomicsCsrf,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",metaEvidence,metaEnabled,metaAutoSync:env.META_ADS_AUTO_SYNC!=="false",linkedinEvidence,linkedinEnabled,linkedinAutoSync:env.LINKEDIN_ADS_AUTO_SYNC!=="false",tiktokEvidence,tiktokEnabled,tiktokAutoSync:env.TIKTOK_ADS_AUTO_SYNC!=="false",redditEvidence,redditEnabled,redditAutoSync:env.REDDIT_ADS_AUTO_SYNC!=="false",pinterestEvidence,pinterestEnabled,pinterestAutoSync:env.PINTEREST_ADS_AUTO_SYNC!=="false",youtubeEvidence,youtubeEnabled,youtubeAutoSync:env.YOUTUBE_ANALYTICS_AUTO_SYNC!=="false",analyticsEvidence,analyticsEnabled,analyticsAutoSync:env.GOOGLE_ANALYTICS_AUTO_SYNC!=="false",platform:req.query.platform||"",campaign:req.query.campaign||""})));
+    res.send(page("Marketing Command Center",renderCommandCenter({aiVisible:canPreviewAi(req.session),title:"Your marketing, together",scope,range,campaigns,squareStatus:status,economics,economicsCsrf:req.session.marketingEconomicsCsrf,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",metaEvidence,metaEnabled,metaAutoSync:env.META_ADS_AUTO_SYNC!=="false",linkedinEvidence,linkedinEnabled,linkedinAutoSync:env.LINKEDIN_ADS_AUTO_SYNC!=="false",tiktokEvidence,tiktokEnabled,tiktokAutoSync:env.TIKTOK_ADS_AUTO_SYNC!=="false",redditEvidence,redditEnabled,redditAutoSync:env.REDDIT_ADS_AUTO_SYNC!=="false",pinterestEvidence,pinterestEnabled,pinterestAutoSync:env.PINTEREST_ADS_AUTO_SYNC!=="false",youtubeEvidence,youtubeEnabled,youtubeAutoSync:env.YOUTUBE_ANALYTICS_AUTO_SYNC!=="false",analyticsEvidence,analyticsEnabled,analyticsAutoSync:env.GOOGLE_ANALYTICS_AUTO_SYNC!=="false",searchConsoleEvidence,searchConsoleEnabled,searchConsoleAutoSync:env.GOOGLE_SEARCH_CONSOLE_AUTO_SYNC!=="false",platform:req.query.platform||"",campaign:req.query.campaign||""})));
   }));
   app.get("/org-marketing-command-center/advertiser/:advertiserId",requireOrganizationPermission("manage_advertisers"),handle(async(req,res,range)=>{
     if(["google_ads","meta","linkedin","tiktok","reddit","pinterest"].includes(req.query.platform))return res.status(403).send("Private advertising accounts are only available in their owner’s dashboard.");
