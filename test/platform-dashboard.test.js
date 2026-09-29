@@ -38,7 +38,7 @@ test("overview retains combined summary before uniform platform cards and remove
   for(const label of ["Paid media","Website Performance","Scans","Intent actions","Impressions","Clicks","Spend","Reported ROAS","ROI","Recorded conversions"])assert.ok(html.includes(label));
   assert.doesNotMatch(html,/Vivid engagement/);
   assert.doesNotMatch(html,/Google-reported conversions|Meta-reported purchases/);
-  assert.equal((html.match(/data-platform=/g)||[]).length,6);
+  assert.equal((html.match(/data-platform=/g)||[]).length,7);
   assert.equal((html.match(/data-platform="ga4"/g)||[]).length,1);
   assert.doesNotMatch(html,/data-platform="square"/);
   assert.ok(html.indexOf("Website Performance")<html.indexOf("AI Discovery &amp; Traffic"));assert.ok(html.indexOf("AI Discovery &amp; Traffic")<html.indexOf("Paid media"));
@@ -61,6 +61,35 @@ test("executive snapshot adds GA4 behavior without presenting it as verified rev
   assert.match(html,/already included in Website Performance totals/);
   assert.match(html,/Potential sources tracked: ChatGPT, Perplexity, Claude, Microsoft Copilot/);
   assert.match(html,/Detected this period: ChatGPT/);
+});
+test("organic content is a no-ROI rollup with platform and evidence drill-downs",()=>{
+  const analyticsEvidence={connections:[{id:3,property_name:"Vivid",status:"connected",last_synced_at:new Date()}],rows:[
+    {connection_id:3,source:"facebook",medium:"organic_social",sessions:12,users:10,engaged_sessions:8,event_count:40,key_events:2,revenue:0},
+    {connection_id:3,source:"google",medium:"organic",sessions:30,users:20,engaged_sessions:15,event_count:80,key_events:1,revenue:0}
+  ]};
+  const youtubeEvidence={connections:[{id:8,owner_user_id:7,channel_name:"Vivid Spots",status:"connected",last_synced_at:new Date()}],rows:[
+    {connection_id:8,video_id:"video-1",video_title:"Vivid demo",views:100,watch_minutes:45,average_view_seconds:27,likes:7,comments:2,shares:3,subscribers_gained:1,subscribers_lost:0}
+  ]};
+  const organic=buildPlatforms({...data,analyticsEvidence,analyticsEnabled:true,youtubeEvidence,youtubeEnabled:true}).find(p=>p.id==="organic");
+  assert.equal(metric(organic,"Content items"),"1");
+  assert.equal(metric(organic,"Views"),"100");
+  assert.equal(metric(organic,"Engagements"),"12");
+  assert.equal(metric(organic,"Website visits"),"12");
+  assert.equal(metric(organic,"Engaged visits"),"8");
+  assert.equal(metric(organic,"Key actions"),"2");
+  assert.equal(organic.metrics.some(([label])=>/ROI|ROAS|Spend/i.test(label)),false);
+  assert.deepEqual(organic.rows.map(row=>row.name),["YouTube","Organic Facebook"]);
+  assert.match(organic.rows[0].drillHref,/platform=youtube/);
+  assert.match(organic.rows[1].drillHref,/platform=ga4&campaign=3%3Afacebook%3Aorganic_social/);
+  const html=renderCommandCenter({...data,analyticsEvidence,analyticsEnabled:true,youtubeEvidence,youtubeEnabled:true});
+  assert.match(html,/Organic Content/);assert.match(html,/No media spend reported/);
+  assert.ok(html.indexOf("Website Performance")<html.indexOf("AI Discovery &amp; Traffic"));
+  assert.ok(html.indexOf("Paid media")<html.indexOf("Organic Content"));
+  const detail=renderCommandCenter({...data,analyticsEvidence,analyticsEnabled:true,youtubeEvidence,youtubeEnabled:true,platform:"organic"});
+  assert.match(detail,/Organic sources/);assert.match(detail,/Platform or source/);assert.match(detail,/platform=youtube/);assert.match(detail,/platform=ga4&amp;campaign=3%3Afacebook%3Aorganic_social/);
+  assert.doesNotMatch(detail,/Estimate advertising ROI|Reported ROAS/);
+  const video=renderCommandCenter({...data,analyticsEvidence,analyticsEnabled:true,youtubeEvidence,youtubeEnabled:true,platform:"youtube",campaign:"8:video-1"});
+  assert.match(video,/Vivid demo/);assert.match(video,/View channel evidence/);
 });
 test("paid media snapshot opens a rollup containing every paid platform",()=>{
   const metaEvidence={connections:[connection(4)],rows:[{connection_id:4,campaign_id:"5",campaign_name:"Meta",currency_code:"USD",impressions:10,clicks:2,cost_micros:1000000,purchases:0,leads:1,purchase_value:0}]};
