@@ -92,6 +92,11 @@ test("AI recommendation cards render evidence, confidence and limitations safely
   assert.match(html,/Open official source/);
   assert.doesNotMatch(html,/<script>private/);
 });
+test("AI recommendation cards rank cross-platform actions and show an approval-safe next step",()=>{
+  const fresh=new Date().toISOString(),connection=(id,name)=>({id,account_name:name,currency_code:"USD",status:"connected",last_synced_at:fresh,last_error:""}),evidence=(id,cost)=>({connections:[connection(id,"Account")],rows:[{connection_id:id,impressions:5000,clicks:100,cost_micros:cost,conversions:2,conversion_value:50}]});
+  const html=renderCommandCenter({title:"Account",scope:{kind:"advertiser",userId:7},range:{from:"2026-09-01",to:"2026-09-22"},campaigns:[],squareStatus:"Not connected",aiVisible:true,googleEvidence:evidence(1,50000000),googleEnabled:true,linkedinEvidence:evidence(2,100000000),linkedinEnabled:true});
+  assert.match(html,/Medium priority/);assert.match(html,/Recommended next step/);assert.match(html,/controlled traffic test/);assert.match(html,/No campaign, bid, budget or spending change is made without review and approval/);
+});
 test("real PostgreSQL aggregation excludes other owners, organizations, test campaigns and out-of-period events",async()=>{
   const {PGlite}=require("@electric-sql/pglite"),db=new PGlite();
   try{
