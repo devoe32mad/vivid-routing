@@ -108,14 +108,17 @@ function analyticsSourceLabel(source,medium){
 function buildPlatforms({scope,range,campaigns,squareStatus,economics=null,googleEvidence,googleEnabled,googleAutoSync=true,metaEvidence,metaEnabled=false,metaAutoSync=true,linkedinEvidence,linkedinEnabled=false,linkedinAutoSync=true,tiktokEvidence,tiktokEnabled=false,tiktokAutoSync=true,redditEvidence,redditEnabled=false,redditAutoSync=true,pinterestEvidence,pinterestEnabled=false,pinterestAutoSync=true,youtubeEvidence,youtubeEnabled=false,youtubeAutoSync=true,analyticsEvidence,analyticsEnabled=false,analyticsAutoSync=true,searchConsoleEvidence=null,searchConsoleEnabled=false,searchConsoleAutoSync=true}) {
   const marginPct=economics?.gross_margin_pct,roiColumn=validMargin(marginPct)?"Estimated ROI":"ROI";
   const square=typeof squareStatus==="object"&&squareStatus?squareStatus:{label:squareStatus};
-  const vividMetrics=rows=>[["Scans",number(total(rows,"scans"))],["Intent actions",number(total(rows,"clicks"))],["Recorded conversions",number(total(rows,"conversions"))],["Recorded value · USD",currency(total(rows,"conversion_value"),"USD")]];
+  const vividMetrics=rows=>{
+    const scans=total(rows,"scans"),intent=total(rows,"clicks"),conversions=total(rows,"conversions"),value=total(rows,"conversion_value");
+    return [["Scans",number(scans)],["Intent actions",number(intent)],["Intent rate",rate(intent,scans)],["Recorded conversions",number(conversions)],["Scan-to-conversion rate",rate(conversions,scans)],["Recorded value · USD",currency(value,"USD")],["Average conversion value · USD",conversions?currency(value/conversions,"USD"):"—"]];
+  };
   const squareMetrics=rows=>[["Matched purchases",number(total(rows,"square_conversions"))],["Matched net value",currency(total(rows,"square_value"),"USD")]];
   const matched=campaigns.filter(c=>n(c.square_conversions)>0);
   const platforms=[{
     id:"vivid",name:"Vivid",mark:"V",category:"Placements & engagement",status:"Live campaign records",available:true,
     campaignCount:campaigns.length,countLabel:"campaigns",freshness:"Updated when you open this dashboard",metrics:vividMetrics(campaigns),
     note:"Intent includes offer, map and destination actions. Recorded conversions include matched Square purchases; they are not added again. Dates use UTC.",
-    columns:["Scans","Intent actions","Recorded conversions","Recorded value · USD"],
+    columns:["Scans","Intent actions","Intent rate","Recorded conversions","Scan-to-conversion rate","Recorded value · USD","Average conversion value · USD"],
     rows:campaigns.map(c=>({key:String(c.id),name:c.name,context:`Campaign ${c.id}`,cells:vividMetrics([c]).map(m=>m[1]),metrics:vividMetrics([c]),href:sourceHref(c.id,scope),action:"Open campaign workspace"}))
   },{
     id:"square",name:"Square",mark:"S",category:"Campaign-attributed sales",status:square.label||"Not connected",available:Boolean(square.connected)||matched.length>0||scope.kind==="enterprise",

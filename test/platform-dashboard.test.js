@@ -14,13 +14,23 @@ const data={title:"Your marketing",scope,range,campaigns,googleEvidence,googleEn
 const metric=(p,label)=>p.metrics.find(m=>m[0]===label)?.[1];
 test("platform totals aggregate campaigns and preserve attribution/currency boundaries",()=>{
   const [vivid,square,google]=buildPlatforms(data);
-  assert.equal(metric(vivid,"Scans"),"30");assert.equal(metric(vivid,"Intent actions"),"10");assert.equal(metric(vivid,"Recorded conversions"),"5");
+  assert.equal(metric(vivid,"Scans"),"30");assert.equal(metric(vivid,"Intent actions"),"10");assert.equal(metric(vivid,"Intent rate"),"33.33%");assert.equal(metric(vivid,"Recorded conversions"),"5");
+  assert.equal(metric(vivid,"Scan-to-conversion rate"),"16.67%");assert.equal(metric(vivid,"Recorded value · USD"),"300 USD");assert.equal(metric(vivid,"Average conversion value · USD"),"60 USD");
   assert.equal(metric(square,"Matched purchases"),"3");assert.equal(metric(square,"Matched net value"),"120 USD");
   assert.equal(metric(google,"Impressions"),"1,000");assert.equal(metric(google,"Clicks"),"50");assert.equal(metric(google,"Click-through rate"),"5%");
   assert.equal(metric(google,"Spend"),"30 USD · 40 CAD");assert.equal(metric(google,"Reported conversions"),"6");
   assert.equal(metric(google,"Reported ROAS"),"5x USD · 3.75x CAD");assert.equal(metric(google,"ROI"),"Add margin below");
   assert.equal(google.campaignCount,2);assert.deepEqual(google.rows.map(r=>r.key),["1:99","2:99"]);
   assert.equal(google.rows[0].daily.length,1);assert.equal(google.rows[1].daily.length,1);
+});
+test("Vivid card and campaign drill-down explain the full measured funnel",()=>{
+  const vivid=buildPlatforms(data).find(p=>p.id==="vivid");
+  assert.deepEqual(vivid.columns,["Scans","Intent actions","Intent rate","Recorded conversions","Scan-to-conversion rate","Recorded value · USD","Average conversion value · USD"]);
+  assert.equal(metric(vivid,"Intent rate"),"33.33%");
+  assert.equal(metric(vivid,"Scan-to-conversion rate"),"16.67%");
+  assert.equal(vivid.rows[0].metrics.find(m=>m[0]==="Intent rate")[1],"40%");
+  assert.equal(vivid.rows[0].metrics.find(m=>m[0]==="Scan-to-conversion rate")[1],"20%");
+  assert.equal(vivid.rows[0].metrics.find(m=>m[0]==="Average conversion value · USD")[1],"50 USD");
 });
 test("overview retains combined summary before uniform platform cards and removes inline campaign tables",()=>{
   const html=renderCommandCenter(data);
