@@ -74,7 +74,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     let range;
     try{
       range=dateRange(req.query);
-      if(req.query.platform!==undefined && !["vivid","square","google_ads","meta","linkedin","tiktok","reddit","pinterest","youtube","ga4"].includes(req.query.platform))return res.status(400).send("Choose a supported platform.");
+      if(req.query.platform!==undefined && !["vivid","square","paid_media","google_ads","meta","linkedin","tiktok","reddit","pinterest","youtube","ga4"].includes(req.query.platform))return res.status(400).send("Choose a supported platform.");
       if(req.query.campaign!==undefined && (typeof req.query.campaign!=="string" || (req.query.platform==="ga4" ? (!req.query.campaign || req.query.campaign.length>500 || /[\u0000-\u001f]/.test(req.query.campaign)) : !/^\d+(?::\d+)?$/.test(req.query.campaign))))return res.status(400).send("Choose a valid campaign or traffic source.");
     }catch(error){return res.status(400).send(error.message);}
     try{await fn(req,res,range);}catch(error){console.error("MARKETING COMMAND CENTER ERROR",error.code||error.name);res.status(500).send("Unable to load marketing evidence. Please try again.");}
@@ -95,7 +95,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     const scope={kind:"advertiser",userId:selectedId,accountSelection:canSelect,
       accountName:accounts.find(a=>Number(a.id)===selectedId)?.name || user.name || "Your account",
       accounts,privateAdsAllowed:selectedId===ownId};
-    if(!scope.privateAdsAllowed && ["google_ads","meta","ga4"].includes(req.query.platform))return res.status(403).send("Private platform accounts are available in your own account view.");
+    if(!scope.privateAdsAllowed && ["paid_media","google_ads","meta","ga4"].includes(req.query.platform))return res.status(403).send("Private platform accounts are available in your own account view.");
     if(canSelect)req.session.marketingAccountId=selectedId;
     let googleEnabled=false;
     if(env.GOOGLE_ADS_OBSERVATION_ENABLED==="true"){

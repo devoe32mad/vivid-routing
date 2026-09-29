@@ -45,11 +45,13 @@ test("executive snapshot adds GA4 behavior without presenting it as verified rev
   const firstPlatform=html.match(/<article class="mcc-platform" data-platform="([^"]+)"/);
   assert.equal(firstPlatform?.[1],"ga4");
 });
-test("paid media snapshot drills into the platform that supplied its evidence",()=>{
+test("paid media snapshot opens a rollup containing every paid platform",()=>{
   const metaEvidence={connections:[connection(4)],rows:[{connection_id:4,campaign_id:"5",campaign_name:"Meta",currency_code:"USD",impressions:10,clicks:2,cost_micros:1000000,purchases:0,leads:1,purchase_value:0}]};
   const html=renderCommandCenter({...data,googleEvidence:null,googleEnabled:false,metaEvidence,metaEnabled:true});
   const paid=html.match(/<a class="mcc-card mcc-summary-card" href="([^"]+)"><h3>Paid media<\/h3>/);
-  assert.ok(paid);assert.equal(new URL(paid[1].replaceAll("&amp;","&"),"https://example.com").searchParams.get("platform"),"meta");
+  assert.ok(paid);assert.equal(new URL(paid[1].replaceAll("&amp;","&"),"https://example.com").searchParams.get("platform"),"paid_media");
+  const rollup=renderCommandCenter({...data,metaEvidence,metaEnabled:true,platform:"paid_media"});
+  assert.match(rollup,/Paid media platforms/);assert.match(rollup,/data-platform="google_ads"/);assert.match(rollup,/data-platform="meta"/);
 });
 test("drill-down preserves range and separates same campaign IDs across accounts",()=>{
   const list=renderCommandCenter({...data,platform:"google_ads"});
