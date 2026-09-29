@@ -1,0 +1,5 @@
+"use strict";
+const fs=require("node:fs"),path=require("node:path"),target=path.join(__dirname,"server.js");
+function install(source){const line='const { registerPinterestAdsRoutes } = require("./pinterest-ads-routes");',reddit='const { registerRedditAdsRoutes } = require("./reddit-ads-routes");',command='const { registerMarketingCommandCenterRoutes } = require("./marketing-command-center-routes");',anchor=source.includes(reddit)?reddit:command;if(!source.includes(line)){if(!source.includes(anchor))throw Error("Pinterest route import anchor missing");source=source.replace(anchor,anchor+"\n"+line);}const registration="registerPinterestAdsRoutes({app,q,pool,page,requireLogin});",route="registerMarketingCommandCenterRoutes({";if(!source.includes(registration)){if(!source.includes(route))throw Error("Pinterest route registration anchor missing");source=source.replace(route,registration+"\n\n"+route);}return source;}
+if(require.main===module){const source=fs.readFileSync(target,"utf8"),updated=install(source);if(updated!==source)fs.writeFileSync(target,updated);}
+module.exports={install};

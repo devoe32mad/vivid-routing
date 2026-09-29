@@ -45,3 +45,10 @@ test("empty reporting uses unknown values, enterprise omits private accounts, an
   const html=renderCommandCenter({...data,platform:"vivid",campaigns:[{id:1,name:'<img onerror="bad">',scans:1}]});
   assert.doesNotMatch(html,/<img/);assert.match(html,/&lt;img/);
 });
+test("Website Analytics uses a wrapped table without a horizontal scrollbar",()=>{
+  const analyticsEvidence={connections:[{id:3,property_name:"Vivid",status:"connected",last_synced_at:new Date()}],rows:[{connection_id:3,source:"linkedin",medium:"paid-social",sessions:9,users:9,engaged_sessions:2,event_count:31,key_events:0,revenue:0}]};
+  const html=renderCommandCenter({...data,analyticsEvidence,analyticsEnabled:true,platform:"ga4"});
+  assert.match(html,/mcc-scroll mcc-ga4-table/);
+  assert.match(html,/\.mcc-ga4-table\{overflow:visible\}/);
+  assert.match(html,/\.mcc-ga4-table table\{table-layout:fixed/);
+});

@@ -20,6 +20,8 @@ Scheduling lives in PostgreSQL, survives restarts, and uses connection row locks
 
 Reddit requires `REDDIT_ADS_OBSERVATION_ENABLED=true`, `REDDIT_ADS_CLIENT_ID`, `REDDIT_ADS_CLIENT_SECRET`, a 32-byte base64 `REDDIT_ADS_TOKEN_KEY`, and `REDDIT_ADS_REDIRECT_URL=https://vivid-routing-production.up.railway.app/admin/connectors/reddit-ads/callback`.
 
+Pinterest requires `PINTEREST_ADS_OBSERVATION_ENABLED=true`, `PINTEREST_ADS_CLIENT_ID`, `PINTEREST_ADS_CLIENT_SECRET`, a 32-byte base64 `PINTEREST_ADS_TOKEN_KEY`, and `PINTEREST_ADS_REDIRECT_URL=https://vivid-routing-production.up.railway.app/admin/connectors/pinterest-ads/callback`. Only the `ads:read` scope is requested.
+
 ## Recommendations
 
 Recommendations recompute when dashboards are opened using saved evidence. Stale reports (over two hours or last sync failed), incomplete coverage, empty delivery and small samples get explicit health/baseline messages. Google traffic comparisons exclude today, require at least 7 completed calendar days and 30 clicks, and compare equal seven-day windows when 14 days are covered. Campaign comparisons require 30 clicks and 1,000 impressions per campaign and use the same account, currency and channel. CPC movements are traffic signals, not proof of ROI. Conversion prompts explain that reported actions may be page views rather than leads or purchases. No recommendation changes ads, bids or budgets.
