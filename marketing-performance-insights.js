@@ -88,4 +88,27 @@ function tiktokRecommendations({connections=[],rows=[]}={},range,now=new Date())
   }
   return items;
 }
-module.exports={googleRecommendations,tiktokRecommendations,sum};
+function crossPlatformRecommendations(sources=[],range,now=new Date()) {
+  const eligible=[];
+  for(const source of sources){
+    const fresh=(source.evidence?.connections||[]).filter(connection=>connection.status!=="attention_required"&&!connection.last_error&&Number.isFinite(Date.parse(connection.last_synced_at))&&now-Date.parse(connection.last_synced_at)<=2*3600000);
+    for(const connection of fresh){
+      const rows=(source.evidence?.rows||[]).filter(row=>String(row.connection_id)===String(connection.id));
+      const totals=sum(rows),currency=connection.currency_code||rows[0]?.currency_code||"USD";
+      if(totals.impressions<1000||totals.clicks<30||totals.cost_micros<=0)continue;
+      eligible.push({source:source.name,id:source.id,connection,totals,currency,href:source.href(connection.id,range),ctr:totals.clicks/totals.impressions,cpc:totals.cost_micros/totals.clicks});
+    }
+  }
+  const items=[];
+  for(const currency of new Set(eligible.map(item=>item.currency))){
+    const peers=eligible.filter(item=>item.currency===currency);
+    if(peers.length<2)continue;
+    const best=[...peers].sort((a,b)=>a.cpc-b.cpc)[0],worst=[...peers].sort((a,b)=>b.cpc-a.cpc)[0];
+    if(best.id!==worst.id&&worst.cpc>=best.cpc*1.25){
+      items.push({source:"Cross-platform",signal:"Traffic efficiency · Medium confidence",title:`Review ${best.source} as a lower-cost traffic test`,reason:`${money(best.cpc,currency)} average CPC across ${best.totals.clicks} clicks, compared with ${money(worst.cpc,currency)} across ${worst.totals.clicks} clicks on ${worst.source}. Both exceed Vivid’s minimum evidence threshold. Compare GA4 engagement and verified outcomes before reallocating budget; lower CPC alone does not establish better customers or ROI.`,href:best.href});
+      items.push({source:"Cross-platform",signal:"Cost review · Medium confidence",title:`Inspect ${worst.source} before increasing spend`,reason:`${money(worst.cpc,currency)} average CPC across ${worst.totals.clicks} clicks versus ${money(best.cpc,currency)} on ${best.source}. Review audience, creative and post-click quality before changing spend; platform attribution and campaign objectives may differ.`,href:worst.href});
+    }
+  }
+  return items.slice(0,4);
+}
+module.exports={googleRecommendations,tiktokRecommendations,crossPlatformRecommendations,sum};

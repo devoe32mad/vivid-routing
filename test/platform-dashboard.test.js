@@ -38,24 +38,27 @@ test("overview retains combined summary before uniform platform cards and remove
   for(const label of ["Paid media","Website Performance","Scans","Intent actions","Impressions","Clicks","Spend","Reported ROAS","ROI","Recorded conversions"])assert.ok(html.includes(label));
   assert.doesNotMatch(html,/Vivid engagement/);
   assert.doesNotMatch(html,/Google-reported conversions|Meta-reported purchases/);
-  assert.equal((html.match(/data-platform=/g)||[]).length,5);
+  assert.equal((html.match(/data-platform=/g)||[]).length,6);
   assert.equal((html.match(/data-platform="ga4"/g)||[]).length,1);
   assert.doesNotMatch(html,/data-platform="square"/);
-  assert.ok(html.indexOf("Website Performance")<html.indexOf("Paid media"));
+  assert.ok(html.indexOf("Website Performance")<html.indexOf("AI Discovery &amp; Traffic"));assert.ok(html.indexOf("AI Discovery &amp; Traffic")<html.indexOf("Paid media"));
   assert.doesNotMatch(html,/<table>/);assert.match(html,/POS and sales verification are preserved outside this marketing-platform view/);
 });
 test("executive snapshot adds GA4 behavior without presenting it as verified revenue",()=>{
-  const analyticsEvidence={connections:[{id:3,property_name:"Vivid",status:"connected",last_synced_at:new Date()}],rows:[{connection_id:3,source:"linkedin",medium:"paid-social",sessions:9,users:9,engaged_sessions:2,event_count:31,key_events:1,revenue:25}]};
+  const analyticsEvidence={connections:[{id:3,property_name:"Vivid",status:"connected",last_synced_at:new Date()}],rows:[{connection_id:3,source:"chatgpt.com",medium:"ai-assistant",sessions:9,users:9,engaged_sessions:2,event_count:31,key_events:1,revenue:25}]};
   const html=renderCommandCenter({...data,analyticsEvidence,analyticsEnabled:true});
   assert.match(html,/Visited · website sessions<\/dt><dd>9/);
   assert.match(html,/Engaged · meaningful visits<\/dt><dd>2/);
   assert.match(html,/Acted · key actions<\/dt><dd>1/);
+  assert.match(html,/AI-assistant visits<\/dt><dd>9/);
   assert.match(html,/Purchased · GA4-reported revenue<\/dt><dd>25 USD/);
   assert.match(html,/POS and sales verification are preserved outside this marketing-platform view/);
   assert.ok(html.indexOf("Website Performance")<html.indexOf("Paid media"));
   const firstPlatform=html.match(/<article class="mcc-platform" data-platform="([^"]+)"/);
   assert.equal(firstPlatform?.[1],"ga4");
   assert.equal((html.match(/data-platform="ga4"/g)||[]).length,1);
+  assert.equal((html.match(/data-platform="ai_traffic"/g)||[]).length,1);
+  assert.match(html,/already included in Website Performance totals/);
 });
 test("paid media snapshot opens a rollup containing every paid platform",()=>{
   const metaEvidence={connections:[connection(4)],rows:[{connection_id:4,campaign_id:"5",campaign_name:"Meta",currency_code:"USD",impressions:10,clicks:2,cost_micros:1000000,purchases:0,leads:1,purchase_value:0}]};

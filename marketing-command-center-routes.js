@@ -80,8 +80,8 @@ function registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizat
     let range;
     try{
       range=dateRange(req.query);
-      if(req.query.platform!==undefined && !["vivid","square","paid_media","google_ads","meta","linkedin","tiktok","reddit","pinterest","youtube","ga4"].includes(req.query.platform))return res.status(400).send("Choose a supported platform.");
-      if(req.query.campaign!==undefined && (typeof req.query.campaign!=="string" || (req.query.platform==="ga4" ? (!req.query.campaign || req.query.campaign.length>500 || /[\u0000-\u001f]/.test(req.query.campaign)) : !/^\d+(?::\d+)?$/.test(req.query.campaign))))return res.status(400).send("Choose a valid campaign or traffic source.");
+      if(req.query.platform!==undefined && !["vivid","square","paid_media","google_ads","meta","linkedin","tiktok","reddit","pinterest","youtube","ga4","ai_traffic"].includes(req.query.platform))return res.status(400).send("Choose a supported platform.");
+      if(req.query.campaign!==undefined && (typeof req.query.campaign!=="string" || (["ga4","ai_traffic"].includes(req.query.platform) ? (!req.query.campaign || req.query.campaign.length>500 || /[\u0000-\u001f]/.test(req.query.campaign)) : !/^\d+(?::\d+)?$/.test(req.query.campaign))))return res.status(400).send("Choose a valid campaign or traffic source.");
     }catch(error){return res.status(400).send(error.message);}
     try{await fn(req,res,range);}catch(error){console.error("MARKETING COMMAND CENTER ERROR",error.code||error.name);res.status(500).send("Unable to load marketing evidence. Please try again.");}
   };
