@@ -10,7 +10,7 @@ const googleEvidence={connections:[connection(1),connection(2)],rows:[
   {connection_id:1,campaign_id:"99",campaign_name:"New name",campaign_status:"PAUSED",channel:"SEARCH",currency_code:"USD",impressions:300,clicks:20,cost_micros:20000000,conversions:2,conversion_value:100},
   {connection_id:2,campaign_id:"99",campaign_name:"Different account",campaign_status:"ENABLED",channel:"SEARCH",currency_code:"CAD",impressions:600,clicks:20,cost_micros:40000000,conversions:3,conversion_value:150}
 ],daily:[{connection_id:1,campaign_id:"99",date:"2026-09-20",impressions:100,clicks:10,currency_code:"USD",cost_micros:10000000,conversions:1,conversion_value:50},{connection_id:2,campaign_id:"99",date:"2026-09-20",impressions:600,clicks:20,currency_code:"CAD",cost_micros:40000000,conversions:3,conversion_value:150}]};
-const data={title:"Your marketing",scope,range,campaigns,googleEvidence,googleEnabled:true,squareStatus:{connected:true,label:"Automatic sync every 5 minutes"}};
+const data={title:"Your marketing",scope,range,campaigns,googleEvidence,googleEnabled:true,analyticsEnabled:true,squareStatus:{connected:true,label:"Automatic sync every 5 minutes"}};
 const metric=(p,label)=>p.metrics.find(m=>m[0]===label)?.[1];
 test("platform totals aggregate campaigns and preserve attribution/currency boundaries",()=>{
   const [vivid,square,google]=buildPlatforms(data);
@@ -25,25 +25,27 @@ test("platform totals aggregate campaigns and preserve attribution/currency boun
 test("overview retains combined summary before uniform platform cards and removes inline campaign tables",()=>{
   const html=renderCommandCenter(data);
   assert.ok(html.indexOf("Performance snapshot")<html.indexOf("Your platforms"));
-  for(const label of ["Paid media","Website response","Vivid engagement","Scans","Intent actions","Impressions","Clicks","Spend","Reported ROAS","ROI","Recorded conversions"])assert.ok(html.includes(label));
+  for(const label of ["Paid media","Website Traffic &amp; Engagement","Vivid engagement","Scans","Intent actions","Impressions","Clicks","Spend","Reported ROAS","ROI","Recorded conversions"])assert.ok(html.includes(label));
   assert.doesNotMatch(html,/Google-reported conversions|Meta-reported purchases/);
-  assert.equal((html.match(/data-platform=/g)||[]).length,4);
+  assert.equal((html.match(/data-platform=/g)||[]).length,5);
+  assert.equal((html.match(/data-platform="ga4"/g)||[]).length,1);
   assert.doesNotMatch(html,/data-platform="square"/);
-  assert.ok(html.indexOf("Website response")<html.indexOf("Paid media"));
+  assert.ok(html.indexOf("Website Traffic &amp; Engagement")<html.indexOf("Paid media"));
   assert.match(html,/Recorded value<\/small><strong>\$300.00/);
   assert.doesNotMatch(html,/<table>/);assert.match(html,/POS and sales verification are preserved outside this marketing-platform view/);
 });
 test("executive snapshot adds GA4 behavior without presenting it as verified revenue",()=>{
   const analyticsEvidence={connections:[{id:3,property_name:"Vivid",status:"connected",last_synced_at:new Date()}],rows:[{connection_id:3,source:"linkedin",medium:"paid-social",sessions:9,users:9,engaged_sessions:2,event_count:31,key_events:1,revenue:25}]};
   const html=renderCommandCenter({...data,analyticsEvidence,analyticsEnabled:true});
-  assert.match(html,/Sessions<\/small><strong>9/);
-  assert.match(html,/Engaged visits<\/small><strong>2/);
-  assert.match(html,/Key actions<\/small><strong>1/);
-  assert.match(html,/GA4-reported revenue<\/small><strong>\$25.00/);
+  assert.match(html,/Visited · website sessions<\/dt><dd>9/);
+  assert.match(html,/Engaged · meaningful visits<\/dt><dd>2/);
+  assert.match(html,/Acted · key actions<\/dt><dd>1/);
+  assert.match(html,/Purchased · GA4-reported revenue<\/dt><dd>25 USD/);
   assert.match(html,/POS and sales verification are preserved outside this marketing-platform view/);
-  assert.ok(html.indexOf("Website response")<html.indexOf("Paid media"));
+  assert.ok(html.indexOf("Website Traffic &amp; Engagement")<html.indexOf("Paid media"));
   const firstPlatform=html.match(/<article class="mcc-platform" data-platform="([^"]+)"/);
   assert.equal(firstPlatform?.[1],"ga4");
+  assert.equal((html.match(/data-platform="ga4"/g)||[]).length,1);
 });
 test("paid media snapshot opens a rollup containing every paid platform",()=>{
   const metaEvidence={connections:[connection(4)],rows:[{connection_id:4,campaign_id:"5",campaign_name:"Meta",currency_code:"USD",impressions:10,clicks:2,cost_micros:1000000,purchases:0,leads:1,purchase_value:0}]};
