@@ -59,6 +59,7 @@ test("executive snapshot adds GA4 behavior without presenting it as verified rev
   assert.equal((html.match(/data-platform="ga4"/g)||[]).length,1);
   assert.equal((html.match(/data-platform="ai_traffic"/g)||[]).length,1);
   assert.match(html,/already included in Website Performance totals/);
+  assert.match(html,/Detected sources: ChatGPT/);
 });
 test("paid media snapshot opens a rollup containing every paid platform",()=>{
   const metaEvidence={connections:[connection(4)],rows:[{connection_id:4,campaign_id:"5",campaign_name:"Meta",currency_code:"USD",impressions:10,clicks:2,cost_micros:1000000,purchases:0,leads:1,purchase_value:0}]};
