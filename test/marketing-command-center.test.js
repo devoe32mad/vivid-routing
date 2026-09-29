@@ -36,6 +36,11 @@ test("invalid drill-down queries and enterprise private-account requests fail be
   for(const query of [{platform:"unknown"},{platform:["vivid"]},{platform:"google_ads",campaign:"1:99<script>"}])assert.equal((await run(userPath,{session:{user:{id:7}},query})).code,400);
   assert.equal((await run(orgPath,{session:{orgUser:{id:4}},params:{advertiserId:8},query:{platform:"google_ads"}})).code,403);
 });
+test("organic content is an accepted dashboard platform",async()=>{
+  const run=harness({q:async()=>({rows:[]})});
+  const res=await run(userPath,{session:{user:{id:7}},query:{platform:"organic",from:"2026-09-01",to:"2026-09-22"}});
+  assert.equal(res.code,200);assert.match(res.body,/Organic Content Performance/);
+});
 test("advertiser identity comes from session even for admin and ignores supplied owner",async()=>{
   const calls=[],run=harness({q:async(sql,params)=>{calls.push({sql,params});return {rows:[]};}});
   const res=await run(userPath,{session:{user:{id:7,role:"super_admin"}},query:{user_id:999,from:"2026-09-01",to:"2026-09-22"}});
