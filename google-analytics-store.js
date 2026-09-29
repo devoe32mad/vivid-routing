@@ -10,30 +10,35 @@ const PUBLIC="id,property_id,property_name,account_name,status,last_error,last_s
 function createStore({pool,q,config,reader}){let schema;const ready=()=>schema||(schema=q(SCHEMA).catch(e=>{schema=null;throw e;}));const context=(u,p)=>`${u}:${p}`;
   async function tx(fn){const c=await pool.connect();try{await c.query("BEGIN");const out=await fn(c);await c.query("COMMIT");return out;}catch(e){await c.query("ROLLBACK");throw e;}finally{c.release();}}
   async function sync(userId,id,range,{dueOnly=false}={}){
-    range=importRange(range);let failure;
+    range=importRange(range);let failure,failureDiagnostic;
     const count=await tx(async c=>{
       const row=(await c.query("SELECT * FROM google_analytics_private_connections WHERE id=$1 AND owner_user_id=$2 FOR UPDATE NOWAIT",[id,userId])).rows[0];
       if(!row)throw new ConnectorError("not_found");
       if(dueOnly&&(row.status!=="connected"||Date.parse(row.next_sync_at)>Date.now()))return null;
       await c.query("SAVEPOINT google_analytics_import");
+      let stage="token_decrypt";
       try{
         let token=unseal(row.token_ciphertext,config.key,context(userId,row.property_id));
-        if(token.expires_at<Date.now()+60000)token=await reader.refresh(token.refresh_token);
+        if(token.expires_at<Date.now()+60000){stage="token_refresh";token=await reader.refresh(token.refresh_token);}
+        stage="report_read";
         const rows=await reader.report(token.access_token,row.property_id,range);
+        stage="evidence_delete";
         await c.query("DELETE FROM google_analytics_private_daily WHERE connection_id=$1 AND evidence_date BETWEEN $2::date AND $3::date",[id,range.from,range.to]);
-        for(let i=0;i<rows.length;i+=1000)await c.query(`INSERT INTO google_analytics_private_daily(connection_id,evidence_date,source,medium,sessions,users,engaged_sessions,event_count,key_events,revenue,payload_hash) SELECT $1,r.date::date,r.source,r.medium,r.sessions::bigint,r.users::bigint,r.engaged_sessions::bigint,r.event_count::bigint,r.key_events,r.revenue,r.payload_hash FROM jsonb_to_recordset($2::jsonb) AS r(date text,source text,medium text,sessions text,users text,engaged_sessions text,event_count text,key_events numeric,revenue numeric,payload_hash text)`,[id,JSON.stringify(rows.slice(i,i+1000))]);
+        for(let i=0;i<rows.length;i+=1000){stage="evidence_insert";await c.query(`INSERT INTO google_analytics_private_daily(connection_id,evidence_date,source,medium,sessions,users,engaged_sessions,event_count,key_events,revenue,payload_hash) SELECT $1,r.date::date,r.source,r.medium,r.sessions::bigint,r.users::bigint,r.engaged_sessions::bigint,r.event_count::bigint,r.key_events,r.revenue,r.payload_hash FROM jsonb_to_recordset($2::jsonb) AS r(date text,source text,medium text,sessions text,users text,engaged_sessions text,event_count text,key_events numeric,revenue numeric,payload_hash text)`,[id,JSON.stringify(rows.slice(i,i+1000))]);}
+        stage="connection_update";
         await c.query(`UPDATE google_analytics_private_connections SET token_ciphertext=$1,status='connected',last_error='',last_synced_at=NOW(),last_from=$2,last_to=$3,last_attempt_at=NOW(),sync_failures=0,next_sync_at=NOW()+INTERVAL '1 hour',updated_at=NOW() WHERE id=$4 AND owner_user_id=$5`,[seal(token,config.key,context(userId,row.property_id)),range.from,range.to,id,userId]);
         await c.query("RELEASE SAVEPOINT google_analytics_import");
         return rows.length;
       }catch(e){
         failure=["authorization","google_access","temporary","network","invalid_report","report_too_large"].includes(e.code)?e.code:"import_failed";
+        failureDiagnostic={stage,sourceCode:String(e.code||e.name||"unknown").slice(0,40)};
         await c.query("ROLLBACK TO SAVEPOINT google_analytics_import");
         await c.query(`UPDATE google_analytics_private_connections SET last_error=$1,status=CASE WHEN $1 IN ('authorization','google_access') THEN 'attention_required' ELSE status END,last_attempt_at=NOW(),sync_failures=LEAST(sync_failures+1,10),next_sync_at=NOW()+INTERVAL '15 minutes' WHERE id=$2`,[failure,id]);
         await c.query("RELEASE SAVEPOINT google_analytics_import");
         return 0;
       }
     });
-    if(failure)throw new ConnectorError(failure);
+    if(failure){const error=new ConnectorError(failure);error.diagnostic=failureDiagnostic;throw error;}
     return count;
   }
   return {ready,due:()=>q("SELECT id,owner_user_id FROM google_analytics_private_connections WHERE status='connected' AND next_sync_at<=NOW() ORDER BY next_sync_at LIMIT 10").then(r=>r.rows),list:u=>q(`SELECT ${PUBLIC} FROM google_analytics_private_connections WHERE owner_user_id=$1 ORDER BY property_name`,[u]).then(r=>r.rows),

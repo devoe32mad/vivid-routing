@@ -25,7 +25,7 @@ test("GA4 import failure rolls back its savepoint before recording retry state",
     release(){}
   };
   const store=createStore({pool:{connect:async()=>client},q:async()=>({rows:[]}),config:{key},reader:{report:async()=>[{date:"2026-09-25",source:"google",medium:"cpc",sessions:1,users:1,engaged_sessions:1,event_count:1,key_events:0,revenue:0,payload_hash:"hash"}]}});
-  await assert.rejects(()=>store.sync(7,1,{from:"2026-09-01",to:"2026-09-25"}),error=>error.code==="import_failed");
+  await assert.rejects(()=>store.sync(7,1,{from:"2026-09-01",to:"2026-09-25"}),error=>error.code==="import_failed"&&error.diagnostic.stage==="evidence_insert"&&error.diagnostic.sourceCode==="22P02");
   assert.ok(queries.includes("ROLLBACK TO SAVEPOINT google_analytics_import"));
   assert.ok(queries.some(sql=>sql.includes("sync_failures=LEAST(sync_failures+1,10)")));
   assert.equal(queries.at(-1),"COMMIT");
