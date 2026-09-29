@@ -6,10 +6,11 @@ function harness({q,scope={organizationId:2},env={}}={}){
   const routes={};
   const login=(req,res,next)=>req.session?.user?next():res.status(401).send("Login required");
   const permission=key=>{assert.equal(key,"manage_advertisers");return (req,res,next)=>req.session?.orgUser?next():res.status(403).send("Permission required");};
-  registerMarketingCommandCenterRoutes({app:{get:(path,...fns)=>routes[path]=fns},q,page:(_,b)=>b,orgPage:(_,b)=>b,organizationNav:()=>"",requireLogin:login,requireOrganizationPermission:permission,getOrganizationScope:async()=>scope,env});
-  return async(path,req)=>{const res={code:200,status(code){this.code=code;return this;},send(body){this.body=body;return this;}};const stack=routes[path];let i=0;const next=()=>stack[i++]?.(req,res,next);await next();return res;};
+  registerMarketingCommandCenterRoutes({app:{get:(path,...fns)=>routes[path]=fns,post:(path,...fns)=>routes["POST "+path]=fns},q,page:(_,b)=>b,orgPage:(_,b)=>b,organizationNav:()=>"",requireLogin:login,requireOrganizationPermission:permission,getOrganizationScope:async()=>scope,env});
+  return async(path,req)=>{req.query||={};req.body||={};const res={code:200,status(code){this.code=code;return this;},send(body){this.body=body;return this;},redirect(location){this.code=302;this.location=location;return this;}};const stack=routes[path];let i=0;const next=()=>stack[i++]?.(req,res,next);await next();return res;};
 }
 const userPath="/admin/marketing-command-center",orgPath="/org-marketing-command-center/advertiser/:advertiserId";
+const economicsPath="POST /admin/marketing-command-center/economics";
 test("dates reject invalid calendar dates, arrays, reversed and oversized periods",()=>{
   for(const query of [{from:"2026-02-30"},{from:["2026-01-01"]},{from:"2026-09-03",to:"2026-09-01"},{from:"2020-01-01",to:"2026-01-01"}])assert.throws(()=>dateRange(query));
   assert.deepEqual(dateRange({},new Date("2026-09-22T12:00:00Z")),{from:"2026-08-24",to:"2026-09-22"});
@@ -23,6 +24,12 @@ test("anonymous and unprivileged enterprise requests perform no database reads",
   const run=harness({q:()=>{throw Error("Unexpected DB");}});
   assert.equal((await run(userPath,{session:{}})).code,401);
   assert.equal((await run(orgPath,{session:{}})).code,403);
+});
+test("margin setup is CSRF-protected, owner-scoped and supports not sure",async()=>{
+  const calls=[],run=harness({q:async(sql,args=[])=>{calls.push({sql,args});return {rows:[]};}}),session={user:{id:7},marketingEconomicsCsrf:"safe",marketingReturn:{from:"2026-09-01",to:"2026-09-22"}};
+  assert.equal((await run(economicsPath,{session,body:{csrf:"wrong",gross_margin_pct:"40",action:"save"}})).code,403);assert.equal(calls.length,0);
+  const saved=await run(economicsPath,{session,body:{csrf:"safe",gross_margin_pct:"40",action:"save"}});assert.equal(saved.code,302);assert.match(saved.location,/economics=saved/);assert.deepEqual(calls.at(-1).args,[7,40]);
+  await run(economicsPath,{session,body:{csrf:"safe",action:"unknown"}});assert.deepEqual(calls.at(-1).args,[7,null]);
 });
 test("invalid drill-down queries and enterprise private-account requests fail before database reads",async()=>{
   const run=harness({q:()=>{throw Error("Unexpected DB");}});
@@ -49,7 +56,7 @@ test("enterprise metric query has both boundaries and never reads Square account
 });
 test("unbuilt connectors remain planned, Meta is connectable, and customer content is escaped",()=>{
   const html=renderCommandCenter({title:"<script>secret</script>",scope:{kind:"advertiser",userId:7},range:{from:"2026-09-01",to:"2026-09-22"},campaigns:[{id:3,name:'<img src=x onerror=alert(1)>',clicks:2}],squareStatus:"Not enabled"});
-  assert.doesNotMatch(html,/<script>|<img/);assert.match(html,/LinkedIn Ads/);assert.match(html,/Awaiting application setup/);assert.match(html,/TikTok Ads/);assert.match(html,/Next integration/);assert.match(html,/YouTube Analytics/);assert.match(html,/Paid YouTube campaigns remain in Google Ads/);assert.match(html,/ChatGPT Ads/);assert.match(html,/Planned/);assert.match(html,/not added again/);assert.match(html,/data-platform="meta"/);
+  assert.doesNotMatch(html,/<script>|<img/);assert.match(html,/LinkedIn Ads/);assert.match(html,/Awaiting application setup/);assert.match(html,/TikTok Ads/);assert.match(html,/Next integration/);assert.match(html,/YouTube Analytics/);assert.match(html,/Paid YouTube campaigns remain in Google Ads/);assert.match(html,/ChatGPT Ads/);assert.match(html,/Planned/);assert.match(html,/POS and sales verification are preserved outside this marketing-platform view/);assert.match(html,/data-platform="meta"/);
   assert.match(html,/mcc-platform-logo/);assert.match(html,/aria-label="Google Ads"/);assert.match(html,/aria-label="Pinterest"/);assert.doesNotMatch(html,/>X Ads</);
   assert.equal((html.match(/Facebook &amp; Instagram paid media/g)||[]).length,1);
   assert.match(html,/Connect another platform/);assert.match(html,/Connected platforms load automatically whenever you sign in/);assert.match(html,/Connect platform/);
@@ -60,7 +67,8 @@ test("connected LinkedIn evidence appears in the main command center",()=>{
   const html=renderCommandCenter({title:"Account",scope:{kind:"advertiser",userId:1},range,campaigns:[],squareStatus:"Not connected",linkedinEvidence,linkedinEnabled:true});
   assert.match(html,/Automatic hourly sync/);
   assert.match(html,/1 campaigns with reporting · 1 accounts/);
-  assert.match(html,/Google \+ Meta \+ LinkedIn \+ TikTok imported reports/);
+  assert.match(html,/>Paid media</);
+  assert.match(html,/platform=paid_media/);
   const setup=html.match(/<section class="mcc-setup"[\s\S]*?<\/section>/)?.[0]||"";
   assert.match(setup,/Connect another platform/);
   assert.match(setup,/Google Ads/);

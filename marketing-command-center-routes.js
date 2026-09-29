@@ -1,4 +1,5 @@
 "use strict";
+const crypto=require("node:crypto");
 const {amounts}=require("./square-production-sales");
 const {canPreviewAi}=require("./ai-preview-access");
 const {dateRange,renderCommandCenter}=require("./marketing-command-center");
@@ -18,7 +19,9 @@ const {dashboardEvidence:analyticsDashboardEvidence}=require("./google-analytics
 const {configuration:analyticsConfiguration}=require("./google-analytics-readonly");
 const {dashboardEvidence:youtubeDashboardEvidence}=require("./youtube-analytics-store");
 const {configuration:youtubeConfiguration}=require("./youtube-analytics-readonly");
+const {createMarketingEconomicsStore}=require("./marketing-economics-store");
 function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNav,requireLogin,requireOrganizationPermission,getOrganizationScope,env=process.env}) {
+  const economicsStore=createMarketingEconomicsStore(q);
   async function loadCampaigns(scope,range) {
     const enterprise=scope.kind==="enterprise";
     const params=enterprise?[scope.orgId,scope.advertiserId,range.from,range.to]:[scope.userId,range.from,range.to];
@@ -70,6 +73,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     }
   }
   const validId=x=>Number.isSafeInteger(Number(x)) && Number(x)>0;
+  const equal=(a,b)=>{const x=Buffer.from(String(a||"")),y=Buffer.from(String(b||""));return x.length===y.length&&x.length>0&&crypto.timingSafeEqual(x,y);};
   const handle=fn=>async(req,res)=>{
     let range;
     try{
@@ -79,6 +83,25 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     }catch(error){return res.status(400).send(error.message);}
     try{await fn(req,res,range);}catch(error){console.error("MARKETING COMMAND CENTER ERROR",error.code||error.name);res.status(500).send("Unable to load marketing evidence. Please try again.");}
   };
+  app.post("/admin/marketing-command-center/economics",requireLogin,async(req,res)=>{
+    try{
+      if(!validId(req.session?.user?.id))return res.status(403).send("Account required.");
+      if(!equal(req.body?.csrf,req.session.marketingEconomicsCsrf))return res.status(403).send("Reload the Marketing Command Center and try again.");
+      const ownId=Number(req.session.user.id),canSelect=String(req.session.user.role||"").toLowerCase()==="super_admin",targetId=canSelect&&validId(req.session.marketingAccountId)?Number(req.session.marketingAccountId):ownId;
+      let margin=null;
+      if(req.body?.action!=="unknown"){
+        const raw=String(req.body?.gross_margin_pct||"").trim();
+        if(!/^(?:\d{1,2}(?:\.\d{1,2})?|100(?:\.0{1,2})?)$/.test(raw))return res.status(400).send("Enter an amount from 0 to 100, or choose I’m not sure.");
+        margin=Number(raw);
+      }
+      await economicsStore.save(targetId,margin);
+      const saved=req.session.marketingReturn||{},params=new URLSearchParams();
+      if(canSelect)params.set("account",targetId);
+      if(saved.from)params.set("from",saved.from);if(saved.to)params.set("to",saved.to);
+      params.set("economics","saved");
+      res.redirect("/admin/marketing-command-center?"+params);
+    }catch(error){console.error("MARKETING ECONOMICS ERROR",error.code||error.name);res.status(500).send("Unable to save the margin. Please try again.");}
+  });
   app.get("/admin/marketing-command-center",requireLogin,handle(async(req,res,range)=>{
     if(!validId(req.session?.user?.id))return res.status(403).send("Account required.");
     const user=req.session.user, ownId=Number(user.id);
@@ -127,7 +150,8 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     }
     let youtubeEnabled=false;
     if(env.YOUTUBE_ANALYTICS_ENABLED==="true")try{youtubeConfiguration(env);youtubeEnabled=true;}catch{}
-    const [campaigns,status,googleEvidence,metaEvidence,linkedinEvidence,tiktokEvidence,redditEvidence,pinterestEvidence,youtubeEvidence,analyticsEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId,range),
+    req.session.marketingEconomicsCsrf||=crypto.randomBytes(32).toString("hex");
+    const [campaigns,status,economics,googleEvidence,metaEvidence,linkedinEvidence,tiktokEvidence,redditEvidence,pinterestEvidence,youtubeEvidence,analyticsEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId,range),economicsStore.load(scope.userId),
       googleEnabled&&scope.privateAdsAllowed?dashboardEvidence(q,scope.userId,range):Promise.resolve(null),
       metaEnabled&&scope.privateAdsAllowed?metaDashboardEvidence(q,scope.userId,range):Promise.resolve(null),
       linkedinDashboardEvidence(q,scope.userId,range),
@@ -140,7 +164,7 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     // Save only the account and dates resolved by the authorized dashboard route.
     req.session.marketingReturn={accountId:selectedId,from:range.from,to:range.to};
     res.set?.("Cache-Control","no-store");
-    res.send(page("Marketing Command Center",renderCommandCenter({aiVisible:canPreviewAi(req.session),title:"Your marketing, together",scope,range,campaigns,squareStatus:status,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",metaEvidence,metaEnabled,metaAutoSync:env.META_ADS_AUTO_SYNC!=="false",linkedinEvidence,linkedinEnabled,linkedinAutoSync:env.LINKEDIN_ADS_AUTO_SYNC!=="false",tiktokEvidence,tiktokEnabled,tiktokAutoSync:env.TIKTOK_ADS_AUTO_SYNC!=="false",redditEvidence,redditEnabled,redditAutoSync:env.REDDIT_ADS_AUTO_SYNC!=="false",pinterestEvidence,pinterestEnabled,pinterestAutoSync:env.PINTEREST_ADS_AUTO_SYNC!=="false",youtubeEvidence,youtubeEnabled,youtubeAutoSync:env.YOUTUBE_ANALYTICS_AUTO_SYNC!=="false",analyticsEvidence,analyticsEnabled,analyticsAutoSync:env.GOOGLE_ANALYTICS_AUTO_SYNC!=="false",platform:req.query.platform||"",campaign:req.query.campaign||""})));
+    res.send(page("Marketing Command Center",renderCommandCenter({aiVisible:canPreviewAi(req.session),title:"Your marketing, together",scope,range,campaigns,squareStatus:status,economics,economicsCsrf:req.session.marketingEconomicsCsrf,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",metaEvidence,metaEnabled,metaAutoSync:env.META_ADS_AUTO_SYNC!=="false",linkedinEvidence,linkedinEnabled,linkedinAutoSync:env.LINKEDIN_ADS_AUTO_SYNC!=="false",tiktokEvidence,tiktokEnabled,tiktokAutoSync:env.TIKTOK_ADS_AUTO_SYNC!=="false",redditEvidence,redditEnabled,redditAutoSync:env.REDDIT_ADS_AUTO_SYNC!=="false",pinterestEvidence,pinterestEnabled,pinterestAutoSync:env.PINTEREST_ADS_AUTO_SYNC!=="false",youtubeEvidence,youtubeEnabled,youtubeAutoSync:env.YOUTUBE_ANALYTICS_AUTO_SYNC!=="false",analyticsEvidence,analyticsEnabled,analyticsAutoSync:env.GOOGLE_ANALYTICS_AUTO_SYNC!=="false",platform:req.query.platform||"",campaign:req.query.campaign||""})));
   }));
   app.get("/org-marketing-command-center/advertiser/:advertiserId",requireOrganizationPermission("manage_advertisers"),handle(async(req,res,range)=>{
     if(["google_ads","meta","linkedin","tiktok","reddit","pinterest"].includes(req.query.platform))return res.status(403).send("Private advertising accounts are only available in their owner’s dashboard.");

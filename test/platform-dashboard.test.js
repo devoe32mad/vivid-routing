@@ -18,7 +18,7 @@ test("platform totals aggregate campaigns and preserve attribution/currency boun
   assert.equal(metric(square,"Matched purchases"),"3");assert.equal(metric(square,"Matched net value"),"120 USD");
   assert.equal(metric(google,"Impressions"),"1,000");assert.equal(metric(google,"Clicks"),"50");assert.equal(metric(google,"Click-through rate"),"5%");
   assert.equal(metric(google,"Spend"),"30 USD · 40 CAD");assert.equal(metric(google,"Reported conversions"),"6");
-  assert.equal(metric(google,"Reported ROAS"),"5x USD · 3.75x CAD");assert.equal(metric(google,"ROI"),"Add margin/cost data");
+  assert.equal(metric(google,"Reported ROAS"),"5x USD · 3.75x CAD");assert.equal(metric(google,"ROI"),"Add margin below");
   assert.equal(google.campaignCount,2);assert.deepEqual(google.rows.map(r=>r.key),["1:99","2:99"]);
   assert.equal(google.rows[0].daily.length,1);assert.equal(google.rows[1].daily.length,1);
 });
@@ -54,6 +54,17 @@ test("paid media snapshot opens a rollup containing every paid platform",()=>{
   assert.ok(paid);assert.equal(new URL(paid[1].replaceAll("&amp;","&"),"https://example.com").searchParams.get("platform"),"paid_media");
   const rollup=renderCommandCenter({...data,metaEvidence,metaEnabled:true,platform:"paid_media"});
   assert.match(rollup,/Paid media platforms/);assert.match(rollup,/data-platform="google_ads"/);assert.match(rollup,/data-platform="meta"/);
+});
+test("customer margin produces clearly labeled estimated ROI at every paid-media level",()=>{
+  const economics={gross_margin_pct:"40"},platforms=buildPlatforms({...data,economics}),google=platforms.find(p=>p.id==="google_ads");
+  assert.equal(metric(google,"Estimated ROI"),"100% USD · 50% CAD");
+  assert.equal(google.columns.at(-1),"Estimated ROI");
+  assert.equal(google.rows[0].cells.at(-1),"100% USD");
+  const html=renderCommandCenter({...data,economics,economicsCsrf:"safe-token"});
+  assert.match(html,/Estimate advertising ROI/);assert.match(html,/Of every \$100 in sales/);
+  assert.match(html,/Vivid currently uses a 40% margin/);assert.match(html,/Estimated ROI<\/small><strong>100% USD · 50% CAD/);
+  assert.match(html,/name="csrf" value="safe-token"/);assert.match(html,/I'm not sure/);
+  assert.match(html,/not verified profit/);
 });
 test("drill-down preserves range and separates same campaign IDs across accounts",()=>{
   const list=renderCommandCenter({...data,platform:"google_ads"});
