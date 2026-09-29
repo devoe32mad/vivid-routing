@@ -1,6 +1,6 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict");
-const {dateRange,summarize,renderCommandCenter,recommendations}=require("../marketing-command-center");
+const {dateRange,summarize,renderCommandCenter,recommendations,intelligenceRecommendations}=require("../marketing-command-center");
 const {registerMarketingCommandCenterRoutes}=require("../marketing-command-center-routes");
 function harness({q,scope={organizationId:2},env={}}={}){
   const routes={};
@@ -74,6 +74,23 @@ test("connected LinkedIn evidence appears in the main command center",()=>{
   assert.match(setup,/Google Ads/);
   assert.doesNotMatch(setup,/LinkedIn Ads/);
   assert.doesNotMatch(setup,/Manage connection/);
+});
+test("AI recommendations identify customer, anonymous cohort and external evidence",()=>{
+  const scope={kind:"advertiser",userId:7};
+  const benchmark={available:true,organizationCount:12,campaignCount:34,confidence:"Medium",privacy:"Only aggregate distributions are shown.",aiInterpretation:{opportunityMetric:"conversionRate",opportunityPercentile:21,recommendation:"Improve the conversion path before increasing spend."}};
+  const items=intelligenceRecommendations([{id:1,name:"Offer",clicks:8,conversions:0}],benchmark,scope);
+  assert.equal(items.some(item=>item.source==="Vivid benchmark"),true);
+  assert.equal(items.some(item=>item.source==="External guidance"),true);
+  assert.equal(JSON.stringify(items).includes("12 organizations"),true);
+  assert.equal(JSON.stringify(items).includes("Only aggregate distributions"),true);
+});
+test("AI recommendation cards render evidence, confidence and limitations safely",()=>{
+  const html=renderCommandCenter({title:"Account",scope:{kind:"advertiser",userId:7},range:{from:"2026-09-01",to:"2026-09-22"},campaigns:[{id:1,name:"Offer",clicks:8,conversions:0}],squareStatus:"Not connected",aiVisible:true,benchmark:{available:true,organizationCount:12,campaignCount:34,confidence:"Medium",privacy:'<script>private</script>',aiInterpretation:{opportunityMetric:"conversionRate",opportunityPercentile:21,recommendation:"Improve the conversion path."}}});
+  assert.match(html,/AI performance recommendations/);
+  assert.match(html,/Why Vivid suggested this/);
+  assert.match(html,/Anonymous Vivid cohort/);
+  assert.match(html,/Open official source/);
+  assert.doesNotMatch(html,/<script>private/);
 });
 test("real PostgreSQL aggregation excludes other owners, organizations, test campaigns and out-of-period events",async()=>{
   const {PGlite}=require("@electric-sql/pglite"),db=new PGlite();

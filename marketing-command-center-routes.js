@@ -22,6 +22,7 @@ const {configuration:searchConsoleConfiguration,createReader:createSearchConsole
 const {dashboardEvidence:youtubeDashboardEvidence}=require("./youtube-analytics-store");
 const {configuration:youtubeConfiguration}=require("./youtube-analytics-readonly");
 const {createMarketingEconomicsStore}=require("./marketing-economics-store");
+const {loadVividBenchmark}=require("./vivid-benchmarks");
 function registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizationNav,requireLogin,requireOrganizationPermission,getOrganizationScope,env=process.env}) {
   const economicsStore=createMarketingEconomicsStore(q);
   async function loadCampaigns(scope,range) {
@@ -175,10 +176,12 @@ function registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizat
       searchConsoleEvidence=await searchConsoleDashboardEvidence(q,scope.userId,range);
     }
     if(canSelect&&!(linkedinEvidence?.connections||[]).length)try{const assignments=(await q("SELECT owner_user_id,dashboard_user_id,COUNT(*)::int connections FROM linkedin_ads_private_connections GROUP BY owner_user_id,dashboard_user_id ORDER BY owner_user_id,dashboard_user_id")).rows;console.log("linkedin_dashboard_assignment_mismatch "+JSON.stringify({selectedId,ownId,privateAdsAllowed:scope.privateAdsAllowed,assignments}));}catch(error){if(error.code!=="42P01"&&error.code!=="42703")throw error;}
+    let benchmark=null;
+    if(canPreviewAi(req.session)&&scope.privateAdsAllowed)try{const subject=campaigns.reduce((sum,c)=>({campaigns:sum.campaigns+1,scans:sum.scans+Number(c.scans||0),engagement:sum.engagement+Number(c.clicks||0),conversions:sum.conversions+Number(c.conversions||0),revenue:sum.revenue+Number(c.conversion_value||0)}),{campaigns:0,scans:0,engagement:0,conversions:0,revenue:0});benchmark=await loadVividBenchmark(q,{startDate:range.from,endDate:range.to,subject});}catch(error){console.warn("vivid_benchmark_unavailable "+JSON.stringify({code:error.code||"failed"}));}
     // Save only the account and dates resolved by the authorized dashboard route.
     req.session.marketingReturn={accountId:selectedId,from:range.from,to:range.to};
     res.set?.("Cache-Control","no-store");
-    res.send(page("Marketing Command Center",renderCommandCenter({aiVisible:canPreviewAi(req.session),title:"Your marketing, together",scope,range,campaigns,squareStatus:status,economics,economicsCsrf:req.session.marketingEconomicsCsrf,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",metaEvidence,metaEnabled,metaAutoSync:env.META_ADS_AUTO_SYNC!=="false",linkedinEvidence,linkedinEnabled,linkedinAutoSync:env.LINKEDIN_ADS_AUTO_SYNC!=="false",tiktokEvidence,tiktokEnabled,tiktokAutoSync:env.TIKTOK_ADS_AUTO_SYNC!=="false",redditEvidence,redditEnabled,redditAutoSync:env.REDDIT_ADS_AUTO_SYNC!=="false",pinterestEvidence,pinterestEnabled,pinterestAutoSync:env.PINTEREST_ADS_AUTO_SYNC!=="false",youtubeEvidence,youtubeEnabled,youtubeAutoSync:env.YOUTUBE_ANALYTICS_AUTO_SYNC!=="false",analyticsEvidence,analyticsEnabled,analyticsAutoSync:env.GOOGLE_ANALYTICS_AUTO_SYNC!=="false",searchConsoleEvidence,searchConsoleEnabled,searchConsoleAutoSync:env.GOOGLE_SEARCH_CONSOLE_AUTO_SYNC!=="false",platform:req.query.platform||"",campaign:req.query.campaign||""})));
+    res.send(page("Marketing Command Center",renderCommandCenter({aiVisible:canPreviewAi(req.session),title:"Your marketing, together",scope,range,campaigns,squareStatus:status,economics,economicsCsrf:req.session.marketingEconomicsCsrf,googleEvidence,googleEnabled,googleAutoSync:env.GOOGLE_ADS_AUTO_SYNC!=="false",metaEvidence,metaEnabled,metaAutoSync:env.META_ADS_AUTO_SYNC!=="false",linkedinEvidence,linkedinEnabled,linkedinAutoSync:env.LINKEDIN_ADS_AUTO_SYNC!=="false",tiktokEvidence,tiktokEnabled,tiktokAutoSync:env.TIKTOK_ADS_AUTO_SYNC!=="false",redditEvidence,redditEnabled,redditAutoSync:env.REDDIT_ADS_AUTO_SYNC!=="false",pinterestEvidence,pinterestEnabled,pinterestAutoSync:env.PINTEREST_ADS_AUTO_SYNC!=="false",youtubeEvidence,youtubeEnabled,youtubeAutoSync:env.YOUTUBE_ANALYTICS_AUTO_SYNC!=="false",analyticsEvidence,analyticsEnabled,analyticsAutoSync:env.GOOGLE_ANALYTICS_AUTO_SYNC!=="false",searchConsoleEvidence,searchConsoleEnabled,searchConsoleAutoSync:env.GOOGLE_SEARCH_CONSOLE_AUTO_SYNC!=="false",benchmark,platform:req.query.platform||"",campaign:req.query.campaign||""})));
   }));
   app.get("/org-marketing-command-center/advertiser/:advertiserId",requireOrganizationPermission("manage_advertisers"),handle(async(req,res,range)=>{
     if(["google_ads","meta","linkedin","tiktok","reddit","pinterest"].includes(req.query.platform))return res.status(403).send("Private advertising accounts are only available in their owner’s dashboard.");
@@ -189,8 +192,10 @@ function registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizat
       WHERE a.id=$1 AND a.organization_id=$2 AND COALESCE(a.is_active,true)=true`,[scope.advertiserId,scope.orgId])).rows[0];
     if(!advertiser)return res.status(404).send("Advertiser not found.");
     const campaigns=await loadCampaigns(scope,range);
+    let benchmark=null;
+    if(canPreviewAi(req.session,req))try{const subject=campaigns.reduce((sum,c)=>({campaigns:sum.campaigns+1,scans:sum.scans+Number(c.scans||0),engagement:sum.engagement+Number(c.clicks||0),conversions:sum.conversions+Number(c.conversions||0),revenue:sum.revenue+Number(c.conversion_value||0)}),{campaigns:0,scans:0,engagement:0,conversions:0,revenue:0});benchmark=await loadVividBenchmark(q,{startDate:range.from,endDate:range.to,subject});}catch(error){console.warn("vivid_benchmark_unavailable "+JSON.stringify({code:error.code||"failed"}));}
     res.send(orgPage("Marketing Command Center",organizationNav({organizationId:scope.orgId,organizationName:advertiser.organization_name,activePage:"ai-readiness",userName:(req.session.orgUser||req.session.user)?.name||""})+
-      renderCommandCenter({aiVisible:canPreviewAi(req.session,req),title:advertiser.name,scope,range,campaigns,squareStatus:"Only shared campaign conversions",platform:req.query.platform||"",campaign:req.query.campaign||""})));
+      renderCommandCenter({aiVisible:canPreviewAi(req.session,req),title:advertiser.name,scope,range,campaigns,squareStatus:"Only shared campaign conversions",benchmark,platform:req.query.platform||"",campaign:req.query.campaign||""})));
   }));
 }
 module.exports={registerMarketingCommandCenterRoutes};
