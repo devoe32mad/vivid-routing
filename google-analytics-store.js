@@ -1,5 +1,5 @@
 "use strict";
-const {seal,unseal,ConnectorError,importRange}=require("./google-analytics-readonly");
+const {seal,unseal,hash,ConnectorError,importRange}=require("./google-analytics-readonly");
 const SCHEMA=`
 CREATE TABLE IF NOT EXISTS google_analytics_private_connections(id BIGSERIAL PRIMARY KEY,owner_user_id BIGINT NOT NULL REFERENCES users(id),property_id TEXT NOT NULL,property_name TEXT NOT NULL,account_name TEXT NOT NULL DEFAULT '',token_ciphertext TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'connected',last_error TEXT NOT NULL DEFAULT '',last_synced_at TIMESTAMPTZ,last_from DATE,last_to DATE,next_sync_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),last_attempt_at TIMESTAMPTZ,sync_failures INTEGER NOT NULL DEFAULT 0,updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(owner_user_id,property_id));
 CREATE TABLE IF NOT EXISTS google_analytics_private_states(state_hash TEXT PRIMARY KEY,owner_user_id BIGINT NOT NULL REFERENCES users(id),expires_at TIMESTAMPTZ NOT NULL);
@@ -7,6 +7,17 @@ CREATE TABLE IF NOT EXISTS google_analytics_private_pending(owner_user_id BIGINT
 CREATE TABLE IF NOT EXISTS google_analytics_private_daily(connection_id BIGINT NOT NULL REFERENCES google_analytics_private_connections(id) ON DELETE CASCADE,evidence_date DATE NOT NULL,source TEXT NOT NULL,medium TEXT NOT NULL,sessions BIGINT NOT NULL,users BIGINT NOT NULL,engaged_sessions BIGINT NOT NULL,event_count BIGINT NOT NULL,key_events NUMERIC NOT NULL,revenue NUMERIC NOT NULL,payload_hash TEXT NOT NULL,imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),PRIMARY KEY(connection_id,evidence_date,source,medium));
 CREATE INDEX IF NOT EXISTS google_analytics_private_due_idx ON google_analytics_private_connections(next_sync_at) WHERE status='connected';`;
 const PUBLIC="id,property_id,property_name,account_name,status,last_error,last_synced_at,last_from::text,last_to::text,next_sync_at";
+function coalesceEvidence(rows){
+  const grouped=new Map();
+  for(const row of rows){
+    const key=[row.date,row.source,row.medium].join("\u0000"),current=grouped.get(key);
+    if(!current){grouped.set(key,{...row});continue;}
+    for(const field of ["sessions","users","engaged_sessions","event_count","key_events","revenue"])current[field]=Number(current[field]||0)+Number(row[field]||0);
+    const payload={date:current.date,source:current.source,medium:current.medium,sessions:current.sessions,users:current.users,engaged_sessions:current.engaged_sessions,event_count:current.event_count,key_events:current.key_events,revenue:current.revenue};
+    current.payload_hash=hash(JSON.stringify(payload));
+  }
+  return [...grouped.values()];
+}
 function createStore({pool,q,config,reader}){let schema;const ready=()=>schema||(schema=q(SCHEMA).catch(e=>{schema=null;throw e;}));const context=(u,p)=>`${u}:${p}`;
   async function tx(fn){const c=await pool.connect();try{await c.query("BEGIN");const out=await fn(c);await c.query("COMMIT");return out;}catch(e){await c.query("ROLLBACK");throw e;}finally{c.release();}}
   async function sync(userId,id,range,{dueOnly=false}={}){
@@ -21,7 +32,7 @@ function createStore({pool,q,config,reader}){let schema;const ready=()=>schema||
         let token=unseal(row.token_ciphertext,config.key,context(userId,row.property_id));
         if(token.expires_at<Date.now()+60000){stage="token_refresh";token=await reader.refresh(token.refresh_token);}
         stage="report_read";
-        const rows=await reader.report(token.access_token,row.property_id,range);
+        const rows=coalesceEvidence(await reader.report(token.access_token,row.property_id,range));
         stage="evidence_delete";
         await c.query("DELETE FROM google_analytics_private_daily WHERE connection_id=$1 AND evidence_date BETWEEN $2::date AND $3::date",[id,range.from,range.to]);
         for(let i=0;i<rows.length;i+=1000){stage="evidence_insert";await c.query(`INSERT INTO google_analytics_private_daily(connection_id,evidence_date,source,medium,sessions,users,engaged_sessions,event_count,key_events,revenue,payload_hash) SELECT $1,r.date::date,r.source,r.medium,r.sessions::bigint,r.users::bigint,r.engaged_sessions::bigint,r.event_count::bigint,r.key_events,r.revenue,r.payload_hash FROM jsonb_to_recordset($2::jsonb) AS r(date text,source text,medium text,sessions text,users text,engaged_sessions text,event_count text,key_events numeric,revenue numeric,payload_hash text)`,[id,JSON.stringify(rows.slice(i,i+1000))]);}
@@ -47,4 +58,4 @@ function createStore({pool,q,config,reader}){let schema;const ready=()=>schema||
     disconnect:(u,id)=>q("DELETE FROM google_analytics_private_connections WHERE id=$1 AND owner_user_id=$2",[id,u]),sync};
 }
 async function dashboardEvidence(q,userId,range){try{const connections=(await q(`SELECT ${PUBLIC} FROM google_analytics_private_connections WHERE owner_user_id=$1 ORDER BY property_name`,[userId])).rows;const rows=(await q(`SELECT d.connection_id,d.source,d.medium,SUM(d.sessions)::text sessions,SUM(d.users)::text users,SUM(d.engaged_sessions)::text engaged_sessions,SUM(d.event_count)::text event_count,SUM(d.key_events)::text key_events,SUM(d.revenue)::text revenue,MAX(d.imported_at) imported_at FROM google_analytics_private_daily d JOIN google_analytics_private_connections c ON c.id=d.connection_id WHERE c.owner_user_id=$1 AND d.evidence_date BETWEEN $2::date AND $3::date GROUP BY d.connection_id,d.source,d.medium ORDER BY sessions DESC`,[userId,range.from,range.to])).rows;return {connections,rows};}catch(e){if(e.code==="42P01")return {connections:[],rows:[]};throw e;}}
-module.exports={SCHEMA,createStore,dashboardEvidence};
+module.exports={SCHEMA,coalesceEvidence,createStore,dashboardEvidence};
