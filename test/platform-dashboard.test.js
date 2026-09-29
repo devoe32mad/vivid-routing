@@ -18,16 +18,38 @@ test("platform totals aggregate campaigns and preserve attribution/currency boun
   assert.equal(metric(square,"Matched purchases"),"3");assert.equal(metric(square,"Matched net value"),"120 USD");
   assert.equal(metric(google,"Impressions"),"1,000");assert.equal(metric(google,"Clicks"),"50");assert.equal(metric(google,"Click-through rate"),"5%");
   assert.equal(metric(google,"Spend"),"30 USD · 40 CAD");assert.equal(metric(google,"Reported conversions"),"6");
+  assert.equal(metric(google,"Reported ROAS"),"5x USD · 3.75x CAD");assert.equal(metric(google,"ROI"),"Add margin/cost data");
   assert.equal(google.campaignCount,2);assert.deepEqual(google.rows.map(r=>r.key),["1:99","2:99"]);
   assert.equal(google.rows[0].daily.length,1);assert.equal(google.rows[1].daily.length,1);
 });
 test("overview retains combined summary before uniform platform cards and removes inline campaign tables",()=>{
   const html=renderCommandCenter(data);
-  assert.ok(html.indexOf("Across your platforms")<html.indexOf("Your platforms"));
-  for(const label of ["Scans","Intent actions","Ad impressions","Ad clicks","Ad spend","Recorded conversions","Verified matched purchases","Google-reported conversions","Meta-reported purchases"])assert.ok(html.includes(label));
-  assert.equal((html.match(/data-platform=/g)||[]).length,5);
-  assert.match(html,/Recorded conversion value · USD<\/small><strong class="mcc-number">\$300.00/);
-  assert.doesNotMatch(html,/<table>/);assert.match(html,/not added again/);
+  assert.ok(html.indexOf("Performance snapshot")<html.indexOf("Your platforms"));
+  for(const label of ["Paid media","Website response","Vivid engagement","Scans","Intent actions","Impressions","Clicks","Spend","Reported ROAS","ROI","Recorded conversions"])assert.ok(html.includes(label));
+  assert.doesNotMatch(html,/Google-reported conversions|Meta-reported purchases/);
+  assert.equal((html.match(/data-platform=/g)||[]).length,4);
+  assert.doesNotMatch(html,/data-platform="square"/);
+  assert.ok(html.indexOf("Website response")<html.indexOf("Paid media"));
+  assert.match(html,/Recorded value<\/small><strong>\$300.00/);
+  assert.doesNotMatch(html,/<table>/);assert.match(html,/POS and sales verification are preserved outside this marketing-platform view/);
+});
+test("executive snapshot adds GA4 behavior without presenting it as verified revenue",()=>{
+  const analyticsEvidence={connections:[{id:3,property_name:"Vivid",status:"connected",last_synced_at:new Date()}],rows:[{connection_id:3,source:"linkedin",medium:"paid-social",sessions:9,users:9,engaged_sessions:2,event_count:31,key_events:1,revenue:25}]};
+  const html=renderCommandCenter({...data,analyticsEvidence,analyticsEnabled:true});
+  assert.match(html,/Sessions<\/small><strong>9/);
+  assert.match(html,/Engaged visits<\/small><strong>2/);
+  assert.match(html,/Key actions<\/small><strong>1/);
+  assert.match(html,/GA4-reported revenue<\/small><strong>\$25.00/);
+  assert.match(html,/POS and sales verification are preserved outside this marketing-platform view/);
+  assert.ok(html.indexOf("Website response")<html.indexOf("Paid media"));
+  const firstPlatform=html.match(/<article class="mcc-platform" data-platform="([^"]+)"/);
+  assert.equal(firstPlatform?.[1],"ga4");
+});
+test("paid media snapshot drills into the platform that supplied its evidence",()=>{
+  const metaEvidence={connections:[connection(4)],rows:[{connection_id:4,campaign_id:"5",campaign_name:"Meta",currency_code:"USD",impressions:10,clicks:2,cost_micros:1000000,purchases:0,leads:1,purchase_value:0}]};
+  const html=renderCommandCenter({...data,googleEvidence:null,googleEnabled:false,metaEvidence,metaEnabled:true});
+  const paid=html.match(/<a class="mcc-card mcc-summary-card" href="([^"]+)"><h3>Paid media<\/h3>/);
+  assert.ok(paid);assert.equal(new URL(paid[1].replaceAll("&amp;","&"),"https://example.com").searchParams.get("platform"),"meta");
 });
 test("drill-down preserves range and separates same campaign IDs across accounts",()=>{
   const list=renderCommandCenter({...data,platform:"google_ads"});
