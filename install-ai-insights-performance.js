@@ -59,10 +59,11 @@ const source = fs.readFileSync(target, "utf8");
 
 if (source.includes("const campaignAllocatedCosts = new Map(")) {
   console.log("AI insights performance optimization already installed.");
+  require("./install-performance-center");
   process.exit(0);
 }
 
 const updated = applyUnifiedPatch(source, patchText);
 fs.writeFileSync(target, updated);
 console.log("AI insights performance optimization installed.");
-
+require("./install-performance-center");

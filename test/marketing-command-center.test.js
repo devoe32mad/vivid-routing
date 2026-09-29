@@ -124,7 +124,7 @@ test("startup installers compose against the real server without starting it",()
   const fs=require('fs'),os=require('os'),path=require('path'),{execFileSync}=require('child_process');
   const root=path.resolve(__dirname,'..'),tmp=fs.mkdtempSync(path.join(os.tmpdir(),'vivid-command-center-'));
   try{
-    const installers=['install-public-marketplace-redirect.js','install-ai-insights-performance.js','install-vivid-intelligence.js','install-ai-readiness.js','install-marketplace-campaign-builder.js','install-google-ads-observation.js','install-marketing-command-center.js','install-google-ads-readonly.js'];
+    const installers=['install-public-marketplace-redirect.js','install-ai-insights-performance.js','install-performance-center.js','install-vivid-intelligence.js','install-ai-readiness.js','install-marketplace-campaign-builder.js','install-google-ads-observation.js','install-marketing-command-center.js','install-google-ads-readonly.js'];
     for(const file of ['server.js',...installers])fs.copyFileSync(path.join(root,file),path.join(tmp,file));
     for(const file of installers)execFileSync(process.execPath,[path.join(tmp,file)],{stdio:'pipe'});
     const source=fs.readFileSync(path.join(tmp,'server.js'),'utf8'),{install}=require('../install-marketing-command-center');

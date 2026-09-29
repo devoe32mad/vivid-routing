@@ -127,7 +127,7 @@ test("weekly AI delivery excludes other recipients before the limit and before c
 
 test("startup composition installs all renderer guards after session and remains idempotent",()=>{
   const root=path.resolve(__dirname,".."),tmp=fs.mkdtempSync(path.join(os.tmpdir(),"vivid-private-ai-"));
-  const installers=["install-public-marketplace-redirect.js","install-ai-insights-performance.js","install-vivid-intelligence.js","install-ai-readiness.js","install-marketplace-campaign-builder.js","install-google-ads-observation.js","install-marketing-command-center.js","install-google-ads-readonly.js","install-private-ai-preview.js"];
+  const installers=["install-public-marketplace-redirect.js","install-ai-insights-performance.js","install-performance-center.js","install-vivid-intelligence.js","install-ai-readiness.js","install-marketplace-campaign-builder.js","install-google-ads-observation.js","install-marketing-command-center.js","install-google-ads-readonly.js","install-private-ai-preview.js"];
   try{
     for(const file of ["server.js",...installers])fs.copyFileSync(path.join(root,file),path.join(tmp,file));
     for(let pass=0;pass<2;pass++){

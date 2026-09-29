@@ -1,0 +1,150 @@
+"use strict";
+
+const escapeHtml = value => String(value ?? "")
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;")
+  .replaceAll("'", "&#39;");
+
+const number = value => Number(value || 0).toLocaleString();
+const money = value => Number(value || 0).toLocaleString(undefined, {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+const percent = value => `${Number(value || 0).toFixed(1)}%`;
+
+function dateQuery(startDate, endDate) {
+  const params = new URLSearchParams();
+  if (startDate) params.set("startDate", startDate);
+  if (endDate) params.set("endDate", endDate);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+function card({ label, value, note, href, tone = "", cta = "See the data" }) {
+  return `<a class="pc-card ${escapeHtml(tone)}" href="${escapeHtml(href)}">
+    <span class="pc-label">${escapeHtml(label)}</span>
+    <strong class="pc-value">${escapeHtml(value)}</strong>
+    <span class="pc-note">${escapeHtml(note)}</span>
+    <span class="pc-link">${escapeHtml(cta)} <span aria-hidden="true">→</span></span>
+  </a>`;
+}
+
+function rankedCard({ eyebrow, title, facts, href, tone = "" }) {
+  return `<a class="pc-card pc-result ${escapeHtml(tone)}" href="${escapeHtml(href)}">
+    <span class="pc-label">${escapeHtml(eyebrow)}</span>
+    <strong class="pc-title">${escapeHtml(title)}</strong>
+    <span class="pc-note">${escapeHtml(facts)}</span>
+    <span class="pc-link">Open supporting data <span aria-hidden="true">→</span></span>
+  </a>`;
+}
+
+function insightHref(type) {
+  const label = String(type || "").toLowerCase();
+  if (label.includes("location")) return "/reports-location";
+  if (label.includes("placement")) return "/reports-qr";
+  return "/reports";
+}
+
+function renderPerformanceCenter(data = {}) {
+  const {
+    startDate,
+    endDate,
+    advertisingInvestment = 0,
+    conversionRevenue = 0,
+    roi = 0,
+    conversions = 0,
+    cac = 0,
+    intentRate = 0,
+    intent = 0,
+    scans = 0,
+    activeCampaigns = 0,
+    topFiveCampaigns = [],
+    topFiveAttentionCampaigns = [],
+    topFiveLocations = [],
+    topFivePlacements = [],
+    executiveInsights = []
+  } = data;
+  const range = dateQuery(startDate, endDate);
+  const hasInvestment = Number(advertisingInvestment) > 0;
+  const hasConversions = Number(conversions) > 0;
+  const outcomeLabel = hasConversions ? "Customer actions" : "Customer actions";
+  const topCampaign = topFiveCampaigns[0];
+  const attention = topFiveAttentionCampaigns[0];
+  const topLocation = topFiveLocations[0];
+  const topPlacement = topFivePlacements[0];
+
+  const insightCards = executiveInsights.slice(0, 4).map(insight => rankedCard({
+    eyebrow: "What Vivid noticed",
+    title: insight.type || "Performance signal",
+    facts: insight.text || "Open the supporting report for details.",
+    href: insightHref(insight.type),
+    tone: "pc-insight"
+  })).join("");
+
+  return `<style>
+    .pc-shell{max-width:1180px;margin:0 auto;padding:24px 18px 48px;color:#102b50}
+    .pc-hero{display:flex;justify-content:space-between;gap:22px;align-items:flex-start;margin-bottom:20px}
+    .pc-kicker{font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#1559c7}
+    .pc-hero h1{font-size:clamp(28px,4vw,42px);line-height:1.08;margin:6px 0 8px}
+    .pc-hero p{max-width:690px;color:#52667e;margin:0;line-height:1.55}
+    .pc-primary{display:inline-flex;align-items:center;background:#123a6d;color:#fff!important;text-decoration:none;font-weight:800;padding:11px 15px;border-radius:10px;white-space:nowrap}
+    .pc-filter{display:flex;align-items:end;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid #dbe4ef;padding:14px;border-radius:14px;margin:0 0 26px}
+    .pc-filter label{display:grid;gap:5px;font-size:12px;font-weight:800;color:#52667e}.pc-filter input{min-height:40px;border:1px solid #cbd7e6;border-radius:8px;padding:0 10px}.pc-filter button{min-height:40px;border:0;border-radius:8px;background:#123a6d;color:#fff;padding:0 15px;font-weight:800;cursor:pointer}
+    .pc-section{margin-top:28px}.pc-section-head{display:flex;justify-content:space-between;gap:16px;align-items:end;margin-bottom:12px}.pc-section h2{font-size:22px;margin:0}.pc-section-head p{color:#65778c;margin:0;font-size:14px}
+    .pc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+    .pc-card{min-height:146px;box-sizing:border-box;display:flex;flex-direction:column;padding:16px;border:1px solid #dbe4ef;border-radius:14px;background:#fff;color:#102b50!important;text-decoration:none;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease}
+    .pc-card:hover,.pc-card:focus-visible{transform:translateY(-2px);border-color:#78a7e8;box-shadow:0 8px 24px rgba(16,43,80,.09);outline:none}
+    .pc-label{font-size:12px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;color:#52667e}.pc-value{font-size:27px;line-height:1.1;margin:9px 0 6px}.pc-title{font-size:17px;line-height:1.3;margin:8px 0 7px}.pc-note{font-size:13px;line-height:1.4;color:#65778c}.pc-link{margin-top:auto;padding-top:12px;font-size:13px;font-weight:900;color:#1559c7}.pc-attention{border-left:4px solid #c2413b}.pc-good{border-left:4px solid #25875d}.pc-insight{background:#f7faff}.pc-result{min-height:160px}
+    .pc-help{margin-top:24px;padding:14px 16px;border-radius:12px;background:#edf4ff;color:#304d70;font-size:13px;line-height:1.5}.pc-help strong{color:#102b50}
+    @media(max-width:720px){.pc-hero{display:block}.pc-primary{margin-top:14px}.pc-section-head{display:block}.pc-section-head p{margin-top:5px}.pc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pc-card{min-height:138px;padding:14px}.pc-value{font-size:23px}}
+    @media(max-width:460px){.pc-grid{grid-template-columns:1fr}}
+  </style>
+  <main class="pc-shell">
+    <header class="pc-hero">
+      <div><div class="pc-kicker">Vivid Performance Center</div><h1>Know what is working—and what to do next.</h1><p>Small, clear answers based on your measured marketing results. Click any card to see the data behind it.</p></div>
+      <a class="pc-primary" href="/admin/marketing-command-center">View all marketing data →</a>
+    </header>
+    <form class="pc-filter" method="get">
+      <label>From<input type="date" name="startDate" value="${escapeHtml(startDate || "")}"></label>
+      <label>To<input type="date" name="endDate" value="${escapeHtml(endDate || "")}"></label>
+      <button type="submit">Update dates</button>
+    </form>
+
+    <section class="pc-section">
+      <div class="pc-section-head"><h2>What happened?</h2><p>${number(activeCampaigns)} active campaign${Number(activeCampaigns) === 1 ? "" : "s"} in this view</p></div>
+      <div class="pc-grid">
+        ${card({label:"Vivid placement cost",value:money(advertisingInvestment),note:"Cost assigned to Vivid placements",href:`/reports${range}`})}
+        ${card({label:"Recorded revenue",value:money(conversionRevenue),note:"Revenue recorded through Vivid",href:`/reports${range}`,tone:conversionRevenue > 0 ? "pc-good" : ""})}
+        ${card({label:"Return on investment",value:hasInvestment ? percent(roi) : "Not ready",note:"Revenue minus cost, divided by cost",href:`/reports${range}`,tone:hasInvestment && roi >= 0 ? "pc-good" : hasInvestment ? "pc-attention" : ""})}
+        ${card({label:outcomeLabel,value:number(conversions),note:"Tracked leads, purchases, or other goals",href:`/reports${range}`})}
+        ${card({label:"Cost per customer action",value:hasConversions ? money(cac) : "Not ready",note:"Placement cost divided by customer actions",href:`/reports${range}`})}
+        ${card({label:"Visitor interest rate",value:Number(scans) > 0 ? percent(intentRate) : "Not ready",note:`${number(intent)} meaningful actions from ${number(scans)} scans`,href:`/reports${range}`})}
+        ${card({label:"Digital & website results",value:"All channels",note:"Google, Meta, LinkedIn, GA4, AI traffic, and more",href:"/admin/marketing-command-center",cta:"Open Marketing Center"})}
+      </div>
+    </section>
+
+    <section class="pc-section">
+      <div class="pc-section-head"><h2>What worked?</h2><p>Your strongest measured results</p></div>
+      <div class="pc-grid">
+        ${topCampaign ? rankedCard({eyebrow:"Best campaign",title:topCampaign.name || "Unnamed campaign",facts:`${money(topCampaign.revenue)} recorded revenue · ${number(topCampaign.conversions)} customer actions`,href:`/admin/edit-campaign/${Number(topCampaign.id)}`,tone:"pc-good"}) : card({label:"Best campaign",value:"Not enough data",note:"Results will appear after activity is recorded",href:`/reports${range}`})}
+        ${topLocation ? rankedCard({eyebrow:"Best location",title:topLocation.name || "Unnamed location",facts:`${money(topLocation.revenue)} recorded revenue · ${number(topLocation.conversions)} customer actions`,href:"/reports-location",tone:"pc-good"}) : card({label:"Best location",value:"Not enough data",note:"Results will appear after activity is recorded",href:"/reports-location"})}
+        ${topPlacement ? rankedCard({eyebrow:"Best placement",title:topPlacement.name || "Unnamed placement",facts:`${money(topPlacement.revenue)} recorded revenue · ${number(topPlacement.conversions)} customer actions`,href:"/reports-qr",tone:"pc-good"}) : card({label:"Best placement",value:"Not enough data",note:"Results will appear after activity is recorded",href:"/reports-qr"})}
+      </div>
+    </section>
+
+    <section class="pc-section">
+      <div class="pc-section-head"><h2>What needs attention?</h2><p>Start here before spending more</p></div>
+      <div class="pc-grid">
+        ${attention ? rankedCard({eyebrow:"Review this campaign",title:attention.name || "Unnamed campaign",facts:`${money(attention.allocatedCost)} invested · ${money(attention.revenue)} recorded revenue`,href:`/admin/edit-campaign/${Number(attention.id)}`,tone:"pc-attention"}) : card({label:"Campaign check",value:"Nothing urgent",note:"No measured campaign currently meets the warning rules",href:`/reports${range}`,tone:"pc-good"})}
+        ${insightCards || card({label:"Vivid recommendation",value:"Keep measuring",note:"More activity is needed before Vivid can make a reliable suggestion",href:"/admin/marketing-command-center",cta:"Review all evidence"})}
+      </div>
+    </section>
+    <div class="pc-help"><strong>Plain-English definitions:</strong> ROI means how much came back after cost. “Not ready” means Vivid does not yet have enough cost or outcome data to calculate the number honestly. No campaign, bid, budget, or spending change is made without approval.</div>
+  </main>`;
+}
+
+module.exports = { renderPerformanceCenter };
