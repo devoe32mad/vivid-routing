@@ -27,7 +27,7 @@ if (!source.includes("renderPerformanceCenter({")) {
           roi,
           conversions,
           cac,
-          intentRate,
+          intentRate: scans > 0 ? (intent / scans) * 100 : 0,
           intent,
           scans,
           activeCampaigns,
