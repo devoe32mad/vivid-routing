@@ -7,7 +7,7 @@ const {buildPlatforms}=require("../marketing-platform-dashboard");
 const {install}=require("../install-meta-ads");
 const env={META_ADS_OBSERVATION_ENABLED:"true",META_ADS_APP_ID:"123456789",META_ADS_APP_SECRET:"secret",META_ADS_TOKEN_KEY:Buffer.alloc(32,4).toString("base64"),META_ADS_REDIRECT_URL:"https://vivid.example"+PATH+"/callback"};
 const config=configuration(env),period={from:"2026-09-01",to:"2026-09-24"},account={id:"act_123",name:"Meta account",currency:"USD",timezone_name:"America/New_York"};
-const raw=(id="9",date="2026-09-20")=>({campaign_id:id,campaign_name:"Campaign <script>",objective:"OUTCOME_SALES",date_start:date,date_stop:date,impressions:"100",clicks:"12",inline_link_clicks:"8",spend:"12.345678",actions:[{action_type:"lead",value:"2"},{action_type:"offsite_conversion.fb_pixel_purchase",value:"1"},{action_type:"omni_purchase",value:"99"}],action_values:[{action_type:"offsite_conversion.fb_pixel_purchase",value:"45.50"}]});
+const raw=(id="9",date="2026-09-20")=>({campaign_id:id,campaign_name:"Campaign <script>",objective:"OUTCOME_SALES",date_start:date,date_stop:date,impressions:"100",clicks:"12",inline_link_clicks:"8",spend:"12.345678",actions:[{action_type:"lead",value:"2"},{action_type:"offsite_conversion.fb_pixel_purchase",value:"1"},{action_type:"omni_purchase",value:"99"},{action_type:"post_reaction",value:"7"},{action_type:"comment",value:"3"},{action_type:"post",value:"2"},{action_type:"onsite_conversion.post_save",value:"4"}],action_values:[{action_type:"offsite_conversion.fb_pixel_purchase",value:"45.50"}]});
 const response=(data,status=200)=>({ok:status>=200&&status<300,status,json:async()=>data});
 async function database(){const db=new PGlite();await db.exec("CREATE TABLE users(id BIGINT PRIMARY KEY);INSERT INTO users VALUES(1),(2)");const q=(sql,params)=>params?db.query(sql,params):db.exec(sql).then(r=>r.at(-1));const pool={connect:async()=>({query:q,release(){}})};await db.exec(SCHEMA);return{db,q,pool};}
 async function connect(store,q,user=1,id="123"){const state=hash(`${user}:${id}`);await q("INSERT INTO meta_ads_private_states VALUES($1,$2,NOW()+INTERVAL '10 minutes')",[state,user]);return store.authorize(user,{hash:state},{access_token:"private",expires_at:Date.now()+86400000},[{...account,id:"act_"+id}]);}
@@ -24,7 +24,7 @@ test("Meta credentials are encrypted and bound to owner and account",()=>{
 });
 
 test("normalization keeps exact spend and does not double count purchase aliases",()=>{
-  const row=normalize([raw()],account,period)[0];assert.equal(row.cost_micros,"12345678");assert.equal(row.purchases,"1");assert.equal(row.leads,"2");assert.equal(row.purchase_value,"45.50");assert.equal(row.payload_hash.length,64);
+  const row=normalize([raw()],account,period)[0];assert.equal(row.cost_micros,"12345678");assert.equal(row.purchases,"1");assert.equal(row.leads,"2");assert.equal(row.reactions,"7");assert.equal(row.comments,"3");assert.equal(row.shares,"2");assert.equal(row.saves,"4");assert.equal(row.purchase_value,"45.50");assert.equal(row.payload_hash.length,64);
   for(const rows of [[raw(),raw()],[raw("9","2026-08-20")],[{...raw(),spend:"NaN"}],[{...raw(),actions:[{action_type:"lead",value:"1"},{action_type:"lead",value:"2"}]}]])assert.throws(()=>normalize(rows,account,period));
 });
 
@@ -49,8 +49,8 @@ test("private evidence is owner isolated and snapshot imports replace atomically
 });
 
 test("Meta renders as a consistent platform drill-down and remains separate from Google",()=>{
-  const evidence={connections:[{id:4,account_id:"123",account_name:"Account <img>",currency_code:"USD",account_timezone:"America/New_York",status:"connected",last_synced_at:new Date()}],rows:[{connection_id:4,campaign_id:"9",campaign_name:"Campaign <script>",objective:"SALES",currency_code:"USD",account_timezone:"America/New_York",impressions:"100",clicks:"12",link_clicks:"8",cost_micros:"12345678",purchases:"1",leads:"2",purchase_value:"45.5"}],daily:[]};
-  const platforms=buildPlatforms({scope:{kind:"advertiser",userId:1},range:period,campaigns:[],squareStatus:"Not connected",googleEvidence:null,googleEnabled:false,metaEvidence:evidence,metaEnabled:true});const meta=platforms.find(p=>p.id==="meta");assert.equal(meta.campaignCount,1);assert.equal(meta.rows[0].cells[7],"1");assert.equal(meta.rows[0].cells[8],"2");assert.equal(meta.rows[0].dailyKind,"meta");
+  const evidence={connections:[{id:4,account_id:"123",account_name:"Account <img>",currency_code:"USD",account_timezone:"America/New_York",status:"connected",last_synced_at:new Date()}],rows:[{connection_id:4,campaign_id:"9",campaign_name:"Campaign <script>",objective:"SALES",currency_code:"USD",account_timezone:"America/New_York",impressions:"100",clicks:"12",link_clicks:"8",reactions:"7",comments:"3",shares:"2",saves:"4",cost_micros:"12345678",purchases:"1",leads:"2",purchase_value:"45.5"}],daily:[]};
+  const platforms=buildPlatforms({scope:{kind:"advertiser",userId:1},range:period,campaigns:[],squareStatus:"Not connected",googleEvidence:null,googleEnabled:false,metaEvidence:evidence,metaEnabled:true});const meta=platforms.find(p=>p.id==="meta");assert.equal(meta.campaignCount,1);assert.equal(meta.rows[0].cells[4],"7");assert.equal(meta.rows[0].cells[6],"2");assert.equal(meta.rows[0].cells[11],"1");assert.equal(meta.rows[0].cells[12],"2");assert.equal(meta.rows[0].dailyKind,"meta");
 });
 
 test("installer composes before or after Google installer and is idempotent",()=>{const source='const { registerMarketingCommandCenterRoutes } = require("./marketing-command-center-routes");\nregisterMarketingCommandCenterRoutes({app});';const once=install(source),twice=install(once);assert.equal(once,twice);assert.match(once,/registerMetaAdsRoutes/);});
