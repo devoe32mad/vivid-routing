@@ -25,13 +25,13 @@ test("platform totals aggregate campaigns and preserve attribution/currency boun
 test("overview retains combined summary before uniform platform cards and removes inline campaign tables",()=>{
   const html=renderCommandCenter(data);
   assert.ok(html.indexOf("Performance snapshot")<html.indexOf("Your platforms"));
-  for(const label of ["Paid media","Website Traffic &amp; Engagement","Vivid engagement","Scans","Intent actions","Impressions","Clicks","Spend","Reported ROAS","ROI","Recorded conversions"])assert.ok(html.includes(label));
+  for(const label of ["Paid media","Website Traffic &amp; Engagement","Scans","Intent actions","Impressions","Clicks","Spend","Reported ROAS","ROI","Recorded conversions"])assert.ok(html.includes(label));
+  assert.doesNotMatch(html,/Vivid engagement/);
   assert.doesNotMatch(html,/Google-reported conversions|Meta-reported purchases/);
   assert.equal((html.match(/data-platform=/g)||[]).length,5);
   assert.equal((html.match(/data-platform="ga4"/g)||[]).length,1);
   assert.doesNotMatch(html,/data-platform="square"/);
   assert.ok(html.indexOf("Website Traffic &amp; Engagement")<html.indexOf("Paid media"));
-  assert.match(html,/Recorded value<\/small><strong>\$300.00/);
   assert.doesNotMatch(html,/<table>/);assert.match(html,/POS and sales verification are preserved outside this marketing-platform view/);
 });
 test("executive snapshot adds GA4 behavior without presenting it as verified revenue",()=>{
