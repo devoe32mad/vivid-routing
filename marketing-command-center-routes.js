@@ -17,12 +17,12 @@ const {dashboardEvidence:pinterestDashboardEvidence}=require("./pinterest-ads-st
 const {configuration:pinterestConfiguration}=require("./pinterest-ads-readonly");
 const {dashboardEvidence:analyticsDashboardEvidence}=require("./google-analytics-store");
 const {configuration:analyticsConfiguration}=require("./google-analytics-readonly");
-const {dashboardEvidence:searchConsoleDashboardEvidence}=require("./google-search-console-store");
-const {configuration:searchConsoleConfiguration}=require("./google-search-console-readonly");
+const {dashboardEvidence:searchConsoleDashboardEvidence,createStore:createSearchConsoleStore}=require("./google-search-console-store");
+const {configuration:searchConsoleConfiguration,createReader:createSearchConsoleReader}=require("./google-search-console-readonly");
 const {dashboardEvidence:youtubeDashboardEvidence}=require("./youtube-analytics-store");
 const {configuration:youtubeConfiguration}=require("./youtube-analytics-readonly");
 const {createMarketingEconomicsStore}=require("./marketing-economics-store");
-function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNav,requireLogin,requireOrganizationPermission,getOrganizationScope,env=process.env}) {
+function registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizationNav,requireLogin,requireOrganizationPermission,getOrganizationScope,env=process.env}) {
   const economicsStore=createMarketingEconomicsStore(q);
   async function loadCampaigns(scope,range) {
     const enterprise=scope.kind==="enterprise";
@@ -150,14 +150,14 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
     if(env.GOOGLE_ANALYTICS_ENABLED==="true"){
       try{analyticsConfiguration(env);analyticsEnabled=true;}catch{/* Keep setup unavailable until valid. */}
     }
-    let searchConsoleEnabled=false;
+    let searchConsoleEnabled=false,searchConsoleStore=null;
     if(env.GOOGLE_SEARCH_CONSOLE_ENABLED==="true"){
-      try{searchConsoleConfiguration(env);searchConsoleEnabled=true;}catch{/* Keep setup unavailable until valid. */}
+      try{const config=searchConsoleConfiguration(env);searchConsoleEnabled=true;if(pool)searchConsoleStore=createSearchConsoleStore({pool,q,config,reader:createSearchConsoleReader({config})});}catch{/* Keep setup unavailable until valid. */}
     }
     let youtubeEnabled=false;
     if(env.YOUTUBE_ANALYTICS_ENABLED==="true")try{youtubeConfiguration(env);youtubeEnabled=true;}catch{}
     req.session.marketingEconomicsCsrf||=crypto.randomBytes(32).toString("hex");
-    const [campaigns,status,economics,googleEvidence,metaEvidence,linkedinEvidence,tiktokEvidence,redditEvidence,pinterestEvidence,youtubeEvidence,analyticsEvidence,searchConsoleEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId,range),economicsStore.load(scope.userId),
+    let [campaigns,status,economics,googleEvidence,metaEvidence,linkedinEvidence,tiktokEvidence,redditEvidence,pinterestEvidence,youtubeEvidence,analyticsEvidence,searchConsoleEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId,range),economicsStore.load(scope.userId),
       googleEnabled&&scope.privateAdsAllowed?dashboardEvidence(q,scope.userId,range):Promise.resolve(null),
       metaEnabled&&scope.privateAdsAllowed?metaDashboardEvidence(q,scope.userId,range):Promise.resolve(null),
       linkedinDashboardEvidence(q,scope.userId,range),
@@ -167,6 +167,13 @@ function registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNa
       youtubeEnabled?youtubeDashboardEvidence(q,scope.userId,range):Promise.resolve(null),
       analyticsEnabled&&scope.privateAdsAllowed?analyticsDashboardEvidence(q,scope.userId,range):Promise.resolve(null),
       searchConsoleEnabled&&scope.privateAdsAllowed?searchConsoleDashboardEvidence(q,scope.userId,range):Promise.resolve(null)]);
+    if(searchConsoleStore&&scope.privateAdsAllowed&&searchConsoleEvidence?.connections?.length&&searchConsoleEvidence.summary.length<searchConsoleEvidence.connections.length){
+      await searchConsoleStore.ready();
+      for(const connection of searchConsoleEvidence.connections.filter(c=>c.status==="connected"&&!searchConsoleEvidence.summary.some(s=>String(s.connection_id)===String(c.id)))){
+        try{await searchConsoleStore.sync(scope.userId,connection.id,range);}catch(error){console.warn("google_search_console_selected_period_failure "+JSON.stringify({connectionId:String(connection.id),code:error.code||"failed",...(error.diagnostic||{})}));}
+      }
+      searchConsoleEvidence=await searchConsoleDashboardEvidence(q,scope.userId,range);
+    }
     if(canSelect&&!(linkedinEvidence?.connections||[]).length)try{const assignments=(await q("SELECT owner_user_id,dashboard_user_id,COUNT(*)::int connections FROM linkedin_ads_private_connections GROUP BY owner_user_id,dashboard_user_id ORDER BY owner_user_id,dashboard_user_id")).rows;console.log("linkedin_dashboard_assignment_mismatch "+JSON.stringify({selectedId,ownId,privateAdsAllowed:scope.privateAdsAllowed,assignments}));}catch(error){if(error.code!=="42P01"&&error.code!=="42703")throw error;}
     // Save only the account and dates resolved by the authorized dashboard route.
     req.session.marketingReturn={accountId:selectedId,from:range.from,to:range.to};

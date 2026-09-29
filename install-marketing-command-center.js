@@ -7,7 +7,7 @@ function install(source) {
     if(!source.includes(anchor))throw Error("Command Center import anchor missing");
     source=source.replace(anchor,anchor+"\n"+marker);
   }
-  const route="registerMarketingCommandCenterRoutes({app,q,page,orgPage,organizationNav,requireLogin,requireOrganizationPermission,getOrganizationScope});";
+  const route="registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizationNav,requireLogin,requireOrganizationPermission,getOrganizationScope});";
   const routeAnchor="registerGoogleAdsObservationRoutes({";
   if(!source.includes(route)){
     if(!source.includes(routeAnchor))throw Error("Command Center route anchor missing");
