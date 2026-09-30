@@ -65,8 +65,12 @@ async function loadPerformanceCenterInsights({q,userId,range,now=new Date()}){
     ["google_ads","Google Ads",google,"google-ads"],["meta","Meta Ads",meta,"meta-ads"],["linkedin","LinkedIn Ads",linkedin,"linkedin-ads"],
     ["tiktok","TikTok Ads",tiktok,"tiktok-ads"],["reddit","Reddit Ads",reddit,"reddit-ads"],["pinterest","Pinterest Ads",pinterest,"pinterest-ads"]
   ].map(([id,name,evidence,path])=>({id,name,evidence,href:(connectionId,r)=>`/admin/connectors/${path}/${connectionId}?from=${r.from}&to=${r.to}`}));
-  const paid=campaignRecommendations(sources,range,now)[0]||crossPlatformRecommendations(sources,range,now)[0]||empty("No reliable paid-media recommendation yet","Keep platform reporting connected and allow more delivery data to accumulate before changing spend.",`/admin/marketing-command-center?from=${range.from}&to=${range.to}&platform=paid_media`);
-  return{paid,website:websiteInsight(analytics,search,range),organic:organicInsight(analytics,youtube,range),ai:aiInsight(analytics,range)};
+  const paidItems=[...campaignRecommendations(sources,range,now),...crossPlatformRecommendations(sources,range,now)].slice(0,3);
+  const paid=paidItems.length?paidItems:[empty("No reliable paid-media recommendation yet","Keep platform reporting connected and allow more delivery data to accumulate before changing spend.",`/admin/marketing-command-center?from=${range.from}&to=${range.to}&platform=paid_media`)];
+  const websiteItems=websiteTrafficRecommendations(analytics||{},range).slice(0,2);
+  const websiteOverview=websiteInsight(analytics,search,range);
+  if(!websiteItems.some(item=>item.title===websiteOverview.title))websiteItems.push(websiteOverview);
+  return{paid,website:websiteItems.slice(0,3),organic:[organicInsight(analytics,youtube,range)],ai:[aiInsight(analytics,range)]};
 }
 
 module.exports={loadPerformanceCenterInsights,aiSource,organicMedium};

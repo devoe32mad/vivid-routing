@@ -15,10 +15,13 @@ test("classifies AI and organic traffic without treating paid traffic as organic
 
 test("renders inline segment findings and actions",()=>{
   const insight={title:"A measured finding",reason:"12 sessions and 4 engaged sessions.",action:"Review the landing page.",href:"/evidence"};
-  const html=renderPerformanceCenter({segmentInsights:{paid:insight,website:insight,organic:insight,ai:insight}});
+  const html=renderPerformanceCenter({segmentInsights:{paid:[insight],website:[insight],organic:[insight],ai:[insight]}});
   assert.equal((html.match(/A measured finding/g)||[]).length,4);
-  assert.match(html,/Current insight:/);
+  assert.match(html,/Insights/);
+  assert.match(html,/Recommendations/);
   assert.match(html,/12 sessions and 4 engaged sessions/);
-  assert.match(html,/Next step:/);
+  assert.match(html,/Review the landing page/);
+  assert.doesNotMatch(html,/Inspect evidence/);
+  assert.match(html,/View supporting data/);
   assert.match(html,/href="\/evidence"/);
 });
