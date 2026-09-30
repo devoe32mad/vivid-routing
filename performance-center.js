@@ -33,13 +33,16 @@ function marketingCenterHref(startDate, endDate, platform = "") {
   return `/admin/marketing-command-center${query ? `?${query}` : ""}`;
 }
 
-function segmentCard({label,title,question,checks,platform,startDate,endDate,tone}) {
-  return `<a class="pc-segment ${escapeHtml(tone || "")}" href="${escapeHtml(marketingCenterHref(startDate,endDate,platform))}">
+function segmentCard({label,title,question,checks,platform,startDate,endDate,tone,insight}) {
+  const href=insight?.href||marketingCenterHref(startDate,endDate,platform);
+  return `<a class="pc-segment ${escapeHtml(tone || "")}" href="${escapeHtml(href)}">
     <span class="pc-label">${escapeHtml(label)}</span>
     <strong class="pc-title">${escapeHtml(title)}</strong>
     <span class="pc-question">${escapeHtml(question)}</span>
-    <span class="pc-note"><b>Vivid checks:</b> ${escapeHtml(checks)}</span>
-    <span class="pc-link">View insights and evidence <span aria-hidden="true">→</span></span>
+    <span class="pc-note"><b>Current insight:</b> ${escapeHtml(insight?.title||"Vivid is checking your connected evidence.")}</span>
+    <span class="pc-finding">${escapeHtml(insight?.reason||checks)}</span>
+    <span class="pc-action"><b>Next step:</b> ${escapeHtml(insight?.action||"Open the supporting evidence before making a change.")}</span>
+    <span class="pc-link">Inspect evidence <span aria-hidden="true">→</span></span>
   </a>`;
 }
 
@@ -97,7 +100,8 @@ function renderPerformanceCenter(data = {}) {
     topFiveAttentionCampaigns = [],
     topFiveLocations = [],
     topFivePlacements = [],
-    executiveInsights = []
+    executiveInsights = [],
+    segmentInsights = {}
   } = data;
   const range = dateQuery(startDate, endDate);
   const hasInvestment = Number(advertisingInvestment) > 0;
@@ -137,7 +141,7 @@ function renderPerformanceCenter(data = {}) {
     .pc-card:hover,.pc-card:focus-visible,.pc-segment:hover,.pc-segment:focus-visible{transform:translateY(-2px);border-color:#78a7e8;box-shadow:0 8px 24px rgba(16,43,80,.09);outline:none}
     .pc-label{font-size:12px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;color:#52667e}.pc-value{font-size:27px;line-height:1.1;margin:9px 0 6px}.pc-title{font-size:17px;line-height:1.3;margin:8px 0 7px}.pc-note{font-size:13px;line-height:1.4;color:#65778c}.pc-action{display:block;margin-top:10px;padding-top:10px;border-top:1px solid #e4ebf4;font-size:13px;line-height:1.4;color:#304d70}.pc-link{margin-top:auto;padding-top:12px;font-size:13px;font-weight:900;color:#1559c7}.pc-attention{border-left:4px solid #c2413b}.pc-good{border-left:4px solid #25875d}.pc-insight{background:#f7faff}.pc-result{min-height:190px}
     .pc-help{margin-top:24px;padding:14px 16px;border-radius:12px;background:#edf4ff;color:#304d70;font-size:13px;line-height:1.5}.pc-help strong{color:#102b50}
-    .pc-segments{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.pc-segment{min-height:205px;box-sizing:border-box;display:flex;flex-direction:column;padding:17px;border:1px solid #dbe4ef;border-top:4px solid #1559c7;border-radius:14px;background:#fff;color:#102b50!important;text-decoration:none;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease}.pc-segment .pc-question{display:block;font-size:15px;font-weight:800;line-height:1.35;margin:0 0 12px}.pc-segment .pc-note{padding-top:11px;border-top:1px solid #e4ebf4}.pc-paid{border-top-color:#2563eb}.pc-website{border-top-color:#e37400}.pc-organic{border-top-color:#25875d}.pc-ai{border-top-color:#6d4aff}
+    .pc-segments{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.pc-segment{min-height:285px;box-sizing:border-box;display:flex;flex-direction:column;padding:17px;border:1px solid #dbe4ef;border-top:4px solid #1559c7;border-radius:14px;background:#fff;color:#102b50!important;text-decoration:none;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease}.pc-segment .pc-question{display:block;font-size:15px;font-weight:800;line-height:1.35;margin:0 0 12px}.pc-segment .pc-note{padding-top:11px;border-top:1px solid #e4ebf4}.pc-finding{display:block;font-size:13px;line-height:1.45;color:#52667e;margin-top:8px}.pc-paid{border-top-color:#2563eb}.pc-website{border-top-color:#e37400}.pc-organic{border-top-color:#25875d}.pc-ai{border-top-color:#6d4aff}
     @media(max-width:900px){.pc-segments{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:720px){.pc-hero{display:block}.pc-primary{margin-top:14px}.pc-section-head{display:block}.pc-section-head p{margin-top:5px}.pc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pc-card{min-height:138px;padding:14px}.pc-value{font-size:23px}}
     @media(max-width:460px){.pc-grid{grid-template-columns:1fr}}
   </style>
@@ -155,10 +159,10 @@ function renderPerformanceCenter(data = {}) {
     <section class="pc-section">
       <div class="pc-section-head"><h2>Choose what you want to improve</h2><p>Each area has its own insights, recommendations, and supporting evidence</p></div>
       <div class="pc-segments">
-        ${segmentCard({label:"Paid media",title:"Social & search advertising",question:"Are your ads producing useful traffic and outcomes?",checks:"spend, reach, clicks, conversions, ROAS, landing-page quality, and campaign comparisons",platform:"paid_media",startDate,endDate,tone:"pc-paid"})}
-        ${segmentCard({label:"Website",title:"Traffic & search performance",question:"What brought people to your site—and what did they do?",checks:"GA4 sessions, engagement, key actions, revenue, Search Console visibility, and landing pages",platform:"ga4",startDate,endDate,tone:"pc-website"})}
-        ${segmentCard({label:"Organic",title:"Unpaid content performance",question:"Which posts and videos earned attention without ad spend?",checks:"views, engagement, shares, saves, website visits, and key actions—without inventing ROI",platform:"organic",startDate,endDate,tone:"pc-organic"})}
-        ${segmentCard({label:"AI discovery",title:"AI-referred website traffic",question:"Are AI assistants helping people discover your business?",checks:"identifiable visits from ChatGPT, Perplexity, Claude, Copilot, engagement, and key actions",platform:"ai_traffic",startDate,endDate,tone:"pc-ai"})}
+        ${segmentCard({label:"Paid media",title:"Social & search advertising",question:"Are your ads producing useful traffic and outcomes?",checks:"spend, reach, clicks, conversions, ROAS, landing-page quality, and campaign comparisons",platform:"paid_media",startDate,endDate,tone:"pc-paid",insight:segmentInsights.paid})}
+        ${segmentCard({label:"Website",title:"Traffic & search performance",question:"What brought people to your site—and what did they do?",checks:"GA4 sessions, engagement, key actions, revenue, Search Console visibility, and landing pages",platform:"ga4",startDate,endDate,tone:"pc-website",insight:segmentInsights.website})}
+        ${segmentCard({label:"Organic",title:"Unpaid content performance",question:"Which posts and videos earned attention without ad spend?",checks:"views, engagement, shares, saves, website visits, and key actions—without inventing ROI",platform:"organic",startDate,endDate,tone:"pc-organic",insight:segmentInsights.organic})}
+        ${segmentCard({label:"AI discovery",title:"AI-referred website traffic",question:"Are AI assistants helping people discover your business?",checks:"identifiable visits from ChatGPT, Perplexity, Claude, Copilot, engagement, and key actions",platform:"ai_traffic",startDate,endDate,tone:"pc-ai",insight:segmentInsights.ai})}
       </div>
     </section>
 

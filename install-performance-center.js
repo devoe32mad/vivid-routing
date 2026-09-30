@@ -10,6 +10,10 @@ if (!source.includes('require("./performance-center")')) {
   if (!source.includes(marker)) throw new Error("Performance Center require marker not found.");
   source = source.replace(marker, `${marker}\nconst { renderPerformanceCenter } = require("./performance-center");`);
 }
+if (!source.includes('require("./performance-center-evidence")')) {
+  const marker = 'const { renderPerformanceCenter } = require("./performance-center");';
+  source = source.replace(marker, `${marker}\nconst { loadPerformanceCenterInsights } = require("./performance-center-evidence");`);
+}
 
 if (!source.includes("const performanceUserId =")) {
   const routeStart = source.indexOf('app.get("/admin/ai-insights"');
@@ -36,7 +40,17 @@ if (!source.includes("const performanceUserId =")) {
   if (!source.includes(eventScope)) throw new Error("Performance Center event-scope marker not found.");
   source = source.replace(eventScope, `    eventParams.push(performanceUserId);
     eventWhere.push(
-      \`c.user_id = $$\${eventParams.length}\`
+      \`(
+        c.user_id = $$\${eventParams.length}
+        OR EXISTS (
+          SELECT 1
+          FROM qr_campaigns performance_qc
+          JOIN qr_codes performance_qr ON performance_qr.id = performance_qc.qr_id
+          JOIN spaces performance_space ON performance_space.id = performance_qr.space_id
+          WHERE performance_qc.campaign_id = c.id
+            AND performance_space.user_id = $$\${eventParams.length}
+        )
+      )\`
     );`);
 
   for (const parameterName of ["campaignParams", "locationParams", "placementParams"]) {
@@ -54,12 +68,17 @@ if (!source.includes("renderPerformanceCenter({")) {
       page(
         "Performance Insights",
         \``;
-  const replacement = `    return res.send(
+  const replacement = `    const performanceRange = {
+      from: startDate || new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10),
+      to: endDate || new Date().toISOString().slice(0, 10)
+    };
+    const segmentInsights = await loadPerformanceCenterInsights({q,userId:performanceUserId,range:performanceRange});
+    return res.send(
       page(
         "AI Performance Center",
         renderPerformanceCenter({
-          startDate,
-          endDate,
+          startDate: performanceRange.from,
+          endDate: performanceRange.to,
           advertisingInvestment,
           conversionRevenue,
           roi,
@@ -74,6 +93,7 @@ if (!source.includes("renderPerformanceCenter({")) {
           topFiveLocations,
           topFivePlacements,
           executiveInsights
+          ,segmentInsights
         })
       )
     );
