@@ -107,9 +107,9 @@ function paidWebsite(rows,platform){
   return rows.filter(row=>pattern.test(String(row.source||""))&&/(paid|cpc|ppc)/i.test(String(row.medium||""))).reduce((total,row)=>({sessions:total.sessions+n(row.sessions),engaged:total.engaged+n(row.engaged_sessions),actions:total.actions+n(row.key_events),revenue:total.revenue+n(row.revenue)}),{sessions:0,engaged:0,actions:0,revenue:0});
 }
 
-function paidInsights(sources,range,now,analytics=null){
+function paidInsights(sources,range,now,analytics=null,economics=null){
   const href=`/admin/marketing-command-center?from=${range.from}&to=${range.to}&platform=paid_media`;
-  const generated=[...campaignRecommendations(sources,range,now),...crossPlatformRecommendations(sources,range,now)];
+  const generated=[...campaignRecommendations(sources,range,now,economics),...crossPlatformRecommendations(sources,range,now)];
   const rollups=sources.map(source=>{const rows=source.evidence?.rows||[];return{name:source.name,connections:(source.evidence?.connections||[]).length,campaigns:rows.length,impressions:sum(rows,"impressions"),clicks:sum(rows,"clicks"),conversions:rows.reduce((total,row)=>total+n(source.id==="meta"?row.purchases:row.conversions),0)};});
   const campaigns=sources.flatMap(source=>(source.evidence?.rows||[]).map(row=>({platform:source.name,name:row.campaign_name||"Unnamed campaign",impressions:n(row.impressions),clicks:n(row.clicks),conversions:n(source.id==="meta"?row.purchases:row.conversions),value:n(source.id==="meta"?row.purchase_value:source.id==="pinterest"?n(row.conversion_value_micros)/1e6:row.conversion_value)}))).sort((a,b)=>b.conversions-a.conversions||b.clicks-a.clicks||b.impressions-a.impressions);
   const connected=rollups.filter(item=>item.connections>0),delivery=rollups.filter(item=>item.impressions>0).sort((a,b)=>b.impressions-a.impressions),items=generated.slice(0,3);
@@ -163,7 +163,8 @@ async function loadPerformanceCenterInsights({q,userId,range,now=new Date()}){
     ["google_ads","Google Ads",google,"google-ads"],["meta","Meta Ads",meta,"meta-ads"],["linkedin","LinkedIn Ads",linkedin,"linkedin-ads"],
     ["tiktok","TikTok Ads",tiktok,"tiktok-ads"],["reddit","Reddit Ads",reddit,"reddit-ads"],["pinterest","Pinterest Ads",pinterest,"pinterest-ads"]
   ].map(([id,name,evidence,path])=>({id,name,evidence,href:(connectionId,r)=>`/admin/connectors/${path}/${connectionId}?from=${r.from}&to=${r.to}`}));
-  return{paid:paidInsights(sources,range,now,analytics),website:websiteInsights(analytics,search,range),organic:organicInsights(analytics,youtube,range),ai:aiInsights(analytics,range)};
+  const economics=await safe(async()=> (await q("SELECT gross_margin_pct::text FROM marketing_account_economics WHERE owner_user_id=$1",[userId])).rows[0]||null);
+  return{paid:paidInsights(sources,range,now,analytics,economics),website:websiteInsights(analytics,search,range),organic:organicInsights(analytics,youtube,range),ai:aiInsights(analytics,range)};
 }
 
 module.exports={loadPerformanceCenterInsights,aiSource,organicMedium,websiteInsights,organicInsights,aiInsights,paidInsights,paidWebsite};

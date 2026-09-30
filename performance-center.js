@@ -1,4 +1,5 @@
 "use strict";
+const {renderProjection}=require("./conservative-projection");
 
 const escapeHtml = value => String(value ?? "")
   .replaceAll("&", "&amp;")
@@ -49,8 +50,9 @@ function segmentCard({label,title,question,checks,platform,startDate,endDate,ton
     <strong class="pc-title">${escapeHtml(title)}</strong>
     <span class="pc-question">${escapeHtml(question)}</span>
     <div class="pc-next"><b>Do this next</b><strong>${escapeHtml(primary.title)}</strong><span>${escapeHtml(primary.reason)}</span><p>${escapeHtml(primary.action)}</p></div>
+    ${renderProjection(primary.projection)}
     ${testPlan}
-    <div class="pc-actions">${p?`<a class="pc-primary pc-prepare" href="/admin/ai-campaign-operator">Prepare this test →</a>`:""}<a class="pc-source" href="${escapeHtml(href)}">View supporting data →</a></div>
+    <div class="pc-actions">${p&&!primary.projection?`<a class="pc-primary pc-prepare" href="/admin/ai-campaign-operator">Prepare this test →</a>`:""}<a class="pc-source" href="${escapeHtml(href)}">View supporting data →</a></div>
     ${supporting?`<details class="pc-more"><summary>Show more recommendations</summary><ul>${supporting}</ul></details>`:""}
     ${(practiceList||inspirationList)?`<details class="pc-more"><summary>Best practices and outside examples</summary>${practiceList?`<div class="pc-list pc-practices"><b>External best practice</b><ul>${practiceList}</ul></div>`:""}${inspirationList?`<div class="pc-list pc-inspiration"><b>Outside inspiration</b><ul>${inspirationList}</ul></div>`:""}</details>`:""}
   </article>`;
