@@ -33,12 +33,13 @@ function card({ label, value, note, href, tone = "", cta = "See the data" }) {
   </a>`;
 }
 
-function rankedCard({ eyebrow, title, facts, href, tone = "" }) {
+function rankedCard({ eyebrow, title, facts, action = "Open the supporting data before making a change.", href, tone = "" }) {
   return `<a class="pc-card pc-result ${escapeHtml(tone)}" href="${escapeHtml(href)}">
     <span class="pc-label">${escapeHtml(eyebrow)}</span>
     <strong class="pc-title">${escapeHtml(title)}</strong>
     <span class="pc-note">${escapeHtml(facts)}</span>
-    <span class="pc-link">Open supporting data <span aria-hidden="true">→</span></span>
+    <span class="pc-action"><b>Next step:</b> ${escapeHtml(action)}</span>
+    <span class="pc-link">Inspect evidence <span aria-hidden="true">→</span></span>
   </a>`;
 }
 
@@ -47,6 +48,17 @@ function insightHref(type) {
   if (label.includes("location")) return "/reports-location";
   if (label.includes("placement")) return "/reports-qr";
   return "/reports";
+}
+
+function insightAction(type) {
+  const label = String(type || "").toLowerCase();
+  if (label.includes("risk")) return "Check tracking, the offer, and the conversion path before approving more spend.";
+  if (label.includes("conversion")) return "Find where visitors stop, then prepare one small test for approval.";
+  if (label.includes("location")) return "Compare this location with similar locations before repeating the placement.";
+  if (label.includes("placement")) return "Review the message and audience, then prepare a controlled repeat test.";
+  if (label.includes("revenue")) return "Open the revenue evidence and confirm it is tied to the measured campaign.";
+  if (label.includes("renewal")) return "Review the measured results before approving a renewal decision.";
+  return "Review the supporting data and prepare a controlled test; do not change spend yet.";
 }
 
 function renderPerformanceCenter(data = {}) {
@@ -78,9 +90,10 @@ function renderPerformanceCenter(data = {}) {
   const topPlacement = topFivePlacements[0];
 
   const insightCards = executiveInsights.slice(0, 4).map(insight => rankedCard({
-    eyebrow: "What Vivid noticed",
+    eyebrow: "AI recommendation · For review",
     title: insight.type || "Performance signal",
     facts: insight.text || "Open the supporting report for details.",
+    action: insightAction(insight.type),
     href: insightHref(insight.type),
     tone: "pc-insight"
   })).join("");
@@ -98,14 +111,14 @@ function renderPerformanceCenter(data = {}) {
     .pc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
     .pc-card{min-height:146px;box-sizing:border-box;display:flex;flex-direction:column;padding:16px;border:1px solid #dbe4ef;border-radius:14px;background:#fff;color:#102b50!important;text-decoration:none;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease}
     .pc-card:hover,.pc-card:focus-visible{transform:translateY(-2px);border-color:#78a7e8;box-shadow:0 8px 24px rgba(16,43,80,.09);outline:none}
-    .pc-label{font-size:12px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;color:#52667e}.pc-value{font-size:27px;line-height:1.1;margin:9px 0 6px}.pc-title{font-size:17px;line-height:1.3;margin:8px 0 7px}.pc-note{font-size:13px;line-height:1.4;color:#65778c}.pc-link{margin-top:auto;padding-top:12px;font-size:13px;font-weight:900;color:#1559c7}.pc-attention{border-left:4px solid #c2413b}.pc-good{border-left:4px solid #25875d}.pc-insight{background:#f7faff}.pc-result{min-height:160px}
+    .pc-label{font-size:12px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;color:#52667e}.pc-value{font-size:27px;line-height:1.1;margin:9px 0 6px}.pc-title{font-size:17px;line-height:1.3;margin:8px 0 7px}.pc-note{font-size:13px;line-height:1.4;color:#65778c}.pc-action{display:block;margin-top:10px;padding-top:10px;border-top:1px solid #e4ebf4;font-size:13px;line-height:1.4;color:#304d70}.pc-link{margin-top:auto;padding-top:12px;font-size:13px;font-weight:900;color:#1559c7}.pc-attention{border-left:4px solid #c2413b}.pc-good{border-left:4px solid #25875d}.pc-insight{background:#f7faff}.pc-result{min-height:190px}
     .pc-help{margin-top:24px;padding:14px 16px;border-radius:12px;background:#edf4ff;color:#304d70;font-size:13px;line-height:1.5}.pc-help strong{color:#102b50}
     @media(max-width:720px){.pc-hero{display:block}.pc-primary{margin-top:14px}.pc-section-head{display:block}.pc-section-head p{margin-top:5px}.pc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pc-card{min-height:138px;padding:14px}.pc-value{font-size:23px}}
     @media(max-width:460px){.pc-grid{grid-template-columns:1fr}}
   </style>
   <main class="pc-shell">
     <header class="pc-hero">
-      <div><div class="pc-kicker">Vivid Performance Center</div><h1>Know what is working—and what to do next.</h1><p>Small, clear answers based on your measured marketing results. Click any card to see the data behind it.</p></div>
+      <div><div class="pc-kicker">Vivid AI Performance Center</div><h1>Know what is working—and what to do next.</h1><p>Plain-English recommendations based on measured results. Every suggestion links to its supporting evidence, and nothing changes without your approval.</p></div>
       <a class="pc-primary" href="/admin/marketing-command-center">View all marketing data →</a>
     </header>
     <form class="pc-filter" method="get">
@@ -137,9 +150,9 @@ function renderPerformanceCenter(data = {}) {
     </section>
 
     <section class="pc-section">
-      <div class="pc-section-head"><h2>What needs attention?</h2><p>Start here before spending more</p></div>
+      <div class="pc-section-head"><h2>What should I do next?</h2><p>AI recommendations for review—not automatic changes</p></div>
       <div class="pc-grid">
-        ${attention ? rankedCard({eyebrow:"Review this campaign",title:attention.name || "Unnamed campaign",facts:`${money(attention.allocatedCost)} invested · ${money(attention.revenue)} recorded revenue`,href:`/admin/edit-campaign/${Number(attention.id)}`,tone:"pc-attention"}) : card({label:"Campaign check",value:"Nothing urgent",note:"No measured campaign currently meets the warning rules",href:`/reports${range}`,tone:"pc-good"})}
+        ${attention ? rankedCard({eyebrow:"High priority · Campaign review",title:attention.name || "Unnamed campaign",facts:`${money(attention.allocatedCost)} invested · ${money(attention.revenue)} recorded revenue`,action:"Verify tracking, the offer, and the conversion path before approving more spend.",href:`/admin/edit-campaign/${Number(attention.id)}`,tone:"pc-attention"}) : card({label:"Campaign check",value:"Nothing urgent",note:"No measured campaign currently meets the warning rules",href:`/reports${range}`,tone:"pc-good"})}
         ${insightCards || card({label:"Vivid recommendation",value:"Keep measuring",note:"More activity is needed before Vivid can make a reliable suggestion",href:"/admin/marketing-command-center",cta:"Review all evidence"})}
       </div>
     </section>

@@ -18,11 +18,19 @@ test("performance center uses compact clickable plain-English cards", () => {
   assert.match(html, /Know what is working—and what to do next/);
   assert.match(html, /What happened\?/);
   assert.match(html, /What worked\?/);
-  assert.match(html, /What needs attention\?/);
+  assert.match(html, /What should I do next\?/);
+  assert.match(html, /AI recommendation · For review/);
+  assert.match(html, /Next step:/);
+  assert.match(html, /Inspect evidence/);
   assert.match(html, /href="\/admin\/edit-campaign\/7"/);
   assert.match(html, /href="\/admin\/marketing-command-center"/);
   assert.match(html, /ROI means how much came back after cost/);
   assert.doesNotMatch(html, /Executive Performance/);
+});
+
+test("performance center startup installer is included in production start", () => {
+  const scripts = require("../package.json").scripts;
+  assert.match(scripts.start, /install-performance-center\.js/);
 });
 
 test("performance center explains missing calculations honestly", () => {
