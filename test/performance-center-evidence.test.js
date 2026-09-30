@@ -34,14 +34,24 @@ test("turns modest GA4 evidence into several honest recommendations",()=>{
     {source:"facebook",medium:"organic_social",sessions:"10",engaged_sessions:"2",key_events:"0"}
   ]},range={from:"2026-09-01",to:"2026-09-30"};
   const website=websiteInsights(analytics,null,range),organic=organicInsights(analytics,null,range),ai=aiInsights(analytics,range);
-  assert.equal(website.length,3);assert.match(website[1].title,/direct/i);assert.match(website[2].title,/no key actions/i);
-  assert.equal(organic.length,3);assert.match(organic[0].title,/28 website sessions/);
+  assert.equal(website.length,3);assert.match(website[1].title,/source.*unknown/i);assert.match(website[2].title,/leads or sales/i);
+  assert.equal(organic.length,3);assert.match(organic[0].title,/28 website visits/);
   assert.equal(ai.length,3);assert.match(ai[0].title,/48 identifiable visits/);assert.match(ai[1].title,/70\.8%/);
 });
 
 test("paid evidence produces directional insights below budget-decision thresholds",()=>{
-  const range={from:"2026-09-01",to:"2026-09-30"},sources=[{id:"google_ads",name:"Google Ads",evidence:{connections:[{id:1}],rows:[{impressions:"6",clicks:"0",conversions:"0"}]},href:()=>"/google"}];
+  const range={from:"2026-09-01",to:"2026-09-30"},sources=[{id:"google_ads",name:"Google Ads",evidence:{connections:[{id:1}],rows:[{campaign_name:"Local Search",impressions:"6",clicks:"0",conversions:"0"}]},href:()=>"/google"}];
   const items=paidInsights(sources,range,new Date("2026-09-30T12:00:00Z"));
-  assert.equal(items.length,3);assert.match(items[0].title,/connected/);assert.match(items[1].title,/most measured paid delivery/);assert.match(items[2].title,/No platform-reported conversions/);
+  assert.equal(items.length,3);assert.match(items[0].title,/Local Search/);assert.match(items[1].title,/attention but no recorded result/);assert.match(items[2].title,/watching 1 paid platform/);
   assert.ok(items.every(item=>item.action));
+});
+
+test("names the strongest campaign and recommends a specific cross-platform test",()=>{
+  const range={from:"2026-09-01",to:"2026-09-30"},sources=[
+    {id:"linkedin",name:"LinkedIn Ads",evidence:{connections:[{id:1}],rows:[{campaign_name:"Trade Show Decision Makers",impressions:"7876",clicks:"18",conversions:"0"}]},href:()=>"/linkedin"},
+    {id:"google_ads",name:"Google Ads",evidence:{connections:[{id:2}],rows:[{campaign_name:"Search Test",impressions:"44",clicks:"0",conversions:"0"}]},href:()=>"/google"}
+  ];
+  const items=paidInsights(sources,range,new Date("2026-09-30T12:00:00Z"));
+  assert.match(items[0].title,/Trade Show Decision Makers/);assert.match(items[0].reason,/7,876 views, 18 clicks/);
+  assert.match(items[1].title,/LinkedIn Ads approach on Google Ads/);assert.match(items[1].action,/same core offer and message/);
 });
