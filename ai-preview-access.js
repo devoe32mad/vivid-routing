@@ -21,6 +21,22 @@ function canPreviewAi(session, request = {}) {
   }
   return canPreviewAiActor(actor);
 }
+// Named viewers can read this page without gaining access to AI actions.
+const PERFORMANCE_VIEWERS = new Set(["jon@speaktopublic.com", "melissa.cohill@hexpol.com"]);
+function canViewPerformanceCenter(session) {
+  const actor = session?.orgUser || session?.user;
+  return canPreviewAiActor(actor) || Boolean(actor?.id && PERFORMANCE_VIEWERS.has(
+    String(actor.email || "").trim().toLowerCase()));
+}
+function isPerformanceCenterPath(value) {
+  let path = String(value || "").split(/[?#]/, 1)[0];
+  try { path = decodeURIComponent(path); } catch { return false; }
+  return /^\/admin\/ai-insights(?:\/|$)/i.test(path);
+}
+function withoutPerformanceCenterLinks(html) {
+  return html.replace(/<a\b[^>]*\bhref\s*=\s*(["'])(.*?)\1[^>]*>[\s\S]*?<\/a\s*>/gi,
+    (anchor, quote, href) => isPerformanceCenterPath(href) ? "" : anchor);
+}
 function aiPreviewEnabled() {
   return previewContext.getStore() === true;
 }
@@ -40,6 +56,9 @@ function withoutAiLinks(html) {
 }
 function aiPreviewMiddleware(req, res, next) {
   const allowed = canPreviewAi(req.session, req);
+  const performanceAllowed = canViewPerformanceCenter(req.session);
+  if (isPerformanceCenterPath(req.path) && (!performanceAllowed ||
+      (!allowed && !["GET", "HEAD"].includes(req.method)))) return res.status(404).send("Not found.");
   if (!allowed && isAiOnlyPath(req.path)) return res.status(404).send("Not found.");
   res.locals.aiPreview = allowed;
   {
@@ -48,10 +67,11 @@ function aiPreviewMiddleware(req, res, next) {
       const type = this.getHeader("Content-Type");
       if (typeof body === "string" && (!type || String(type).includes("text/html"))) {
         body = allowed ? addMarketingReturn(body, req) : withoutAiLinks(body);
+        if (!performanceAllowed) body = withoutPerformanceCenterLinks(body);
       }
       return send.call(this, body);
     };
   }
   return previewContext.run(allowed, next);
 }
-module.exports = {PREVIEW_EMAIL,canPreviewAiActor,canPreviewAi,aiPreviewEnabled,previewRenderer,isAiOnlyPath,withoutAiLinks,aiPreviewMiddleware};
+module.exports = {canViewPerformanceCenter,isPerformanceCenterPath,PREVIEW_EMAIL,canPreviewAiActor,canPreviewAi,aiPreviewEnabled,previewRenderer,isAiOnlyPath,withoutAiLinks,aiPreviewMiddleware};
