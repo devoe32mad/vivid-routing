@@ -14,7 +14,7 @@ test("classifies AI and organic traffic without treating paid traffic as organic
 });
 
 test("renders inline segment findings and actions",()=>{
-  const insight={title:"A measured finding",reason:"12 visits and 4 meaningful visits.",action:"Review the destination page.",href:"/evidence",bestPractice:"Match the page to the ad.",bestPracticeLabel:"Official guidance",bestPracticeHref:"https://example.com/guidance"};
+  const insight={title:"A measured finding",reason:"12 visits and 4 meaningful visits.",action:"Review the destination page.",href:"/evidence",bestPractice:"Match the page to the ad.",bestPracticeLabel:"Official guidance",bestPracticeHref:"https://example.com/guidance",outsideInspiration:[{label:"See a working example",href:"https://example.com/inspiration",note:"Use it as inspiration, not proof."}]};
   const html=renderPerformanceCenter({segmentInsights:{paid:[insight],website:[insight],organic:[insight],ai:[insight]}});
   assert.equal((html.match(/A measured finding/g)||[]).length,4);
   assert.match(html,/Insights/);
@@ -23,6 +23,9 @@ test("renders inline segment findings and actions",()=>{
   assert.match(html,/Review the destination page/);
   assert.match(html,/External best practice/);
   assert.match(html,/Official guidance/);
+  assert.match(html,/Outside inspiration/);
+  assert.match(html,/See a working example/);
+  assert.match(html,/Use it as inspiration, not proof/);
   assert.match(html,/target="_blank"/);
   assert.doesNotMatch(html,/Inspect evidence/);
   assert.match(html,/View supporting data/);
@@ -41,6 +44,9 @@ test("turns modest GA4 evidence into several honest recommendations",()=>{
   assert.equal(organic.length,3);assert.match(organic[0].title,/28 website visits/);
   assert.equal(ai.length,3);assert.match(ai[0].title,/48 identifiable website visits/);assert.match(ai[1].title,/70\.8%/);
   assert.ok([...website,...organic,...ai].every(item=>item.bestPractice&&item.bestPracticeHref));
+  assert.ok(website[0].outsideInspiration.some(item=>/Search performance/.test(item.label)));
+  assert.ok(website[0].outsideInspiration.some(item=>/submit a page/.test(item.label)));
+  assert.ok(organic[0].outsideInspiration.some(item=>/Google Trends/.test(item.note)));
 });
 
 test("paid evidence produces directional insights below budget-decision thresholds",()=>{
