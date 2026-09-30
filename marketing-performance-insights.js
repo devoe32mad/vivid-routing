@@ -1,4 +1,5 @@
 "use strict";
+const {conservativeProjection}=require("./conservative-projection");
 const {accountToday}=require("./google-ads-auto-sync");
 const numeric=value=>Number.isFinite(Number(value))?Number(value):0;
 const shift=(date,days)=>new Date(Date.parse(date)+days*86400000).toISOString().slice(0,10);
@@ -128,7 +129,7 @@ function websiteTrafficRecommendations({rows=[]}={},range){
   if(eligible.length>=2){const best=[...eligible].sort((a,b)=>b.engagementRate-a.engagementRate)[0],worst=[...eligible].sort((a,b)=>a.engagementRate-b.engagementRate)[0],difference=best.engagementRate-worst.engagementRate;if(difference>=0.15)items.push({source:"Website behavior",signal:"Traffic quality",priority:"Medium",confidence:best.sessions>=50&&worst.sessions>=50?"Medium":"Low",title:`Compare the landing experience for ${best.source} and ${worst.source}`,reason:`${(100*best.engagementRate).toFixed(1)}% of ${best.source} sessions were engaged versus ${(100*worst.engagementRate).toFixed(1)}% from ${worst.source}. Review offer-message match, page speed and audience intent before reallocating budget.`,evidence:[`${best.source} · ${best.sessions} sessions · ${(100*best.engagementRate).toFixed(1)}% engagement`,`${worst.source} · ${worst.sessions} sessions · ${(100*worst.engagementRate).toFixed(1)}% engagement`],limitation:"GA4 engagement is a website-quality signal, not verified sales or incremental lift.",action:`Prepare a landing-page and message comparison using the stronger ${best.source} experience as the test hypothesis.`,href:"/admin/connectors/google-analytics"});}
   return items.slice(0,4);
 }
-function campaignRecommendations(sources=[],range,now=new Date()){
+function campaignRecommendations(sources=[],range,now=new Date(),economics=null){
   const items=[];
   for(const source of sources){
     for(const connection of source.evidence?.connections||[]){
@@ -136,6 +137,25 @@ function campaignRecommendations(sources=[],range,now=new Date()){
       const rows=(source.evidence?.rows||[]).filter(row=>String(row.connection_id)===String(connection.id));
       const normalized=rows.map(row=>{const cost=numeric(row.cost_micros),clicks=numeric(row.clicks),impressions=numeric(row.impressions),conversions=numeric(source.id==="meta"?row.purchases:row.conversions),value=numeric(source.id==="meta"?row.purchase_value:source.id==="pinterest"?numeric(row.conversion_value_micros)/1e6:row.conversion_value);return{row,cost,clicks,impressions,conversions,value,cpc:clicks?cost/clicks:0,ctr:impressions?clicks/impressions:0,roas:cost?value/(cost/1e6):0};});
       const href=source.href(connection.id,range),currency=connection.currency_code||rows[0]?.currency_code||"USD";
+      // Require a covered, completed baseline and comparable campaigns in one account.
+      const days=(Date.parse(range.to)-Date.parse(range.from))/86400000+1;
+      const covered=connection.last_from&&connection.last_to&&connection.last_from<=range.from&&connection.last_to>=range.to;
+      const completed=range.to<accountToday(connection.account_timezone||"UTC",now);
+      if(covered&&completed&&days>=7){
+        const candidates=normalized.filter(c=>c.clicks>=30&&c.conversions>=5&&c.value>0&&c.cost>0&&c.row.campaign_id&&(c.row.currency_code||currency)===currency);
+        const winners=[...candidates].sort((a,b)=>b.roas-a.roas);
+        for(const winner of winners){
+          const objective=winner.row.objective||winner.row.channel;
+          const donor=candidates.filter(c=>c.row.campaign_id!==winner.row.campaign_id&&objective&&(c.row.objective||c.row.channel)===objective&&winner.roas>=c.roas*1.5).sort((a,b)=>a.roas-b.roas)[0];
+          if(!donor)continue;
+          const budget=Math.floor(Math.min(winner.cost,donor.cost)/1e6*0.10*100)/100;
+          const projection=conservativeProjection({spend:winner.cost/1e6,clicks:winner.clicks,conversions:winner.conversions,revenue:winner.value,budget,marginPct:economics?.gross_margin_pct});
+          if(!projection||projection.roas<=1||projection.roas<=donor.roas)continue;
+          Object.assign(projection,{currency,evidenceHref:href,fromCampaign:donor.row.campaign_name||String(donor.row.campaign_id),toCampaign:winner.row.campaign_name||String(winner.row.campaign_id),confidence:winner.conversions>=30&&donor.conversions>=30?"Medium":"Low",period:`${range.from}–${range.to}`,baselineSpend:winner.cost/1e6,baselineClicks:winner.clicks,baselineConversions:winner.conversions,baselineRevenue:winner.value});
+          items.push({source:source.name,signal:"Revenue test",priority:"High",confidence:projection.confidence,title:`Consider a limited budget test from ${projection.fromCampaign} to ${projection.toCampaign}`,reason:`${projection.toCampaign} reported ${winner.roas.toFixed(2)}× ROAS compared with ${donor.roas.toFixed(2)}× for ${projection.fromCampaign} in the same account, currency and campaign objective/channel.`,action:"Confirm that conversion values represent revenue and attribution settings match, then prepare the proposed test for approval.",limitation:"Platform-attributed value is not verified revenue. A stronger historical campaign can perform differently with additional budget.",href,projection,testPlan:{change:`Move ${budget.toFixed(2)} ${currency} from ${projection.fromCampaign} to ${projection.toCampaign}.`,where:`${source.name}: ${projection.toCampaign}.`,why:"The conservative scenario remains stronger than the source campaign’s reported ROAS.",timing:"Review after 14 days, allowing for the account’s conversion reporting delay.",success:"Compare revenue and ROAS with this projection and the source campaign baseline.",review:"Stop expansion if measured ROAS falls below the source campaign baseline; review tracking before drawing conclusions.",keep:"Keep total spend capped and all unrelated campaigns unchanged. Approval is required before any budget change."}});
+          break;
+        }
+      }
       const waste=normalized.filter(c=>c.clicks>=50&&c.cost>0&&c.conversions===0).sort((a,b)=>b.cost-a.cost)[0];
       if(waste)items.push({source:source.name,signal:"Outcome gap",priority:"High",confidence:waste.clicks>=100?"Medium":"Low",title:`Audit ${waste.row.campaign_name||"campaign"} before adding budget`,reason:`The campaign recorded ${waste.clicks} clicks and ${money(waste.cost,currency)} spend, with no positive platform-reported conversions for ${range.from}–${range.to}.`,evidence:[`${waste.impressions} impressions · ${waste.clicks} clicks`,`${money(waste.cost,currency)} spend · 0 reported conversions`],limitation:"A missing platform conversion can reflect tracking, attribution delay or an upper-funnel objective; it does not prove the spend was wasted.",action:"Verify the campaign objective, conversion event, UTMs and landing page before approving more spend.",href});
       const eligible=normalized.filter(c=>c.impressions>=1000&&c.clicks>=30&&c.cost>0);
