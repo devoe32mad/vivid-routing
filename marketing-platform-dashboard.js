@@ -1,4 +1,5 @@
 "use strict";
+const {returnEstimate}=require("./revenue-evidence");
 const {isAiTraffic,isUnpaidTraffic}=require("./traffic-classification");
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const n=value=>Number.isFinite(Number(value))?Number(value):0;
@@ -54,9 +55,9 @@ function returnMetrics(rows,valueKey,{valueMicros=false,marginPct=null}={}) {
     group.value+=n(row[valueKey])/(valueMicros?1e6:1);
     groups.set(code,group);
   }
-  const roas=[...groups].map(([code,group])=>group.spend?`${number(group.value/group.spend)}x ${code}`:`— ${code}`).join(" · ")||"—";
+  const roas=[...groups].map(([code,group])=>group.spend?`${number(returnEstimate({value:group.value,spend:group.spend}).roas)}x ${code}`:`— ${code}`).join(" · ")||"—";
   const hasSpend=[...groups.values()].some(group=>group.spend>0);
-  const roi=validMargin(marginPct)?[...groups].map(([code,group])=>group.spend?`${number(100*((group.value*Number(marginPct)/100)-group.spend)/group.spend)}% ${code}`:`— ${code}`).join(" · ")||"—":hasSpend?"Add margin below":"—";
+  const roi=validMargin(marginPct)?[...groups].map(([code,group])=>group.spend?`${number(returnEstimate({value:group.value,spend:group.spend,marginPct}).roi)}% ${code}`:`— ${code}`).join(" · ")||"—":hasSpend?"Add margin below":"—";
   return [["Reported ROAS",roas],[validMargin(marginPct)?"Estimated ROI":"ROI",roi]];
 }
 function googleMetrics(rows,marginPct=null) {
@@ -126,7 +127,7 @@ function buildPlatforms({scope,range,campaigns,squareStatus,economics=null,googl
   const platforms=[{
     id:"vivid",name:"Vivid",mark:"V",category:"Placements & engagement",status:"Live campaign records",available:true,
     campaignCount:campaigns.filter(c=>!c.is_archived).length,countLabel:"active campaigns",freshness:"Updated when you open this dashboard",metrics:vividMetrics(campaigns),
-    note:"Intent includes offer, map and destination actions. Recorded conversions include matched Square purchases; they are not added again. Dates use UTC. Test campaigns are excluded; archived campaign results remain in period totals.",
+    note:`Recorded value includes ${currency(total(campaigns,"square_value"),"USD")} verified matched Square sales and ${currency(total(campaigns,"conversion_value")-total(campaigns,"square_value"),"USD")} other conversion value, which may include assigned lead values. Square sales are already included, not added again; completed refunds reduce them and tax/tips may be included. Intent includes offer, map and destination actions. Dates use UTC. Test campaigns are excluded; archived campaign results remain in period totals.`,
     columns:["Scans","Intent actions","Intent rate","Recorded conversions","Scan-to-conversion rate","Recorded value · USD","Average conversion value · USD"],
     rows:campaigns.map(c=>({key:String(c.id),name:c.name,context:`Campaign ${c.id}${c.is_archived?" · Archived":""}`,cells:vividMetrics([c]).map(m=>m[1]),metrics:vividMetrics([c]),href:sourceHref(c.id,scope),action:"Open campaign workspace"}))
   },{

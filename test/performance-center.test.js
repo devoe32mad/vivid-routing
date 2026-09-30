@@ -33,7 +33,7 @@ test("performance center uses compact clickable plain-English cards", () => {
   assert.match(html, /Inspect evidence/);
   assert.match(html, /href="\/admin\/edit-campaign\/7"/);
   assert.match(html, /href="\/admin\/marketing-command-center\?from=2026-09-01&amp;to=2026-09-29"/);
-  assert.match(html, /ROI means how much came back after cost/);
+  assert.match(html, /ROAS divides value by advertising cost/);
   assert.doesNotMatch(html, /Executive Performance/);
 });
 

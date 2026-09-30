@@ -72,11 +72,13 @@ if (!source.includes("renderPerformanceCenter({")) {
       from: startDate || new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10),
       to: endDate || new Date().toISOString().slice(0, 10)
     };
+    const revenueEvidence = await require("./revenue-evidence").loadRevenueEvidence({q,userId:performanceUserId,range:performanceRange});
     const segmentInsights = await loadPerformanceCenterInsights({q,userId:performanceUserId,range:performanceRange});
     return res.send(
       page(
         "AI Performance Center",
         renderPerformanceCenter({
+          revenueEvidence,
           startDate: performanceRange.from,
           endDate: performanceRange.to,
           advertisingInvestment,
