@@ -54,7 +54,11 @@ test("AI read/write routes are closed and concurrent performance requests retain
     for(const actor of ["preview","platform"]){assert.equal((await fetch(url+"/admin/ai-readiness",{headers:{"x-test-actor":actor}})).status,200);}
     await Promise.all(["regular","preview","platform","org"].flatMap(actor=>["/admin/ai-insights","/org-performance","/reports","/admin/marketing-command-center","/admin/connectors/google-ads/1"].map(async route=>{
       const response=await fetch(url+route+"?ask=what+is+working",{headers:{"x-test-actor":actor}}),html=await response.text();
-      assert.equal(response.status,200);assert.match(html,/Impressions 100 · Clicks 10/);assert.match(html,/AI Performance Center/);assert.match(html,/href="\/reports"/);
+      if(route==="/admin/ai-insights" && !["preview","platform"].includes(actor)) {
+        assert.equal(response.status,404); return;
+      }
+      assert.equal(response.status,200);assert.match(html,/Impressions 100 · Clicks 10/);assert.match(html,/href="\/reports"/);
+      assert.equal(html.includes("AI Performance Center"),["preview","platform"].includes(actor));
       if(actor==="preview"||(actor==="platform"&&!route.startsWith("/org-"))){assert.match(html,/Ask Vivid/);assert.match(html,/AI Readiness/);}
       else{assert.doesNotMatch(html,/Ask Vivid|AI Readiness|ai-readiness/);}
     })));
