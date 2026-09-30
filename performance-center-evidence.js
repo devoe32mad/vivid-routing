@@ -1,4 +1,5 @@
 "use strict";
+const {adaptationRecommendations}=require("./campaign-adaptation");
 
 const {dashboardEvidence:googleEvidence}=require("./google-ads-readonly-store");
 const {dashboardEvidence:metaEvidence}=require("./meta-ads-store");
@@ -109,7 +110,7 @@ function paidWebsite(rows,platform){
 
 function paidInsights(sources,range,now,analytics=null,economics=null){
   const href=`/admin/marketing-command-center?from=${range.from}&to=${range.to}&platform=paid_media`;
-  const generated=[...campaignRecommendations(sources,range,now,economics),...crossPlatformRecommendations(sources,range,now)];
+  const generated=[...adaptationRecommendations(sources,range,now,economics),...campaignRecommendations(sources,range,now,economics),...crossPlatformRecommendations(sources,range,now)];
   const rollups=sources.map(source=>{const rows=source.evidence?.rows||[];return{name:source.name,connections:(source.evidence?.connections||[]).length,campaigns:rows.length,impressions:sum(rows,"impressions"),clicks:sum(rows,"clicks"),conversions:rows.reduce((total,row)=>total+n(source.id==="meta"?row.purchases:row.conversions),0)};});
   const campaigns=sources.flatMap(source=>(source.evidence?.rows||[]).map(row=>({platform:source.name,name:row.campaign_name||"Unnamed campaign",impressions:n(row.impressions),clicks:n(row.clicks),conversions:n(source.id==="meta"?row.purchases:row.conversions),value:n(source.id==="meta"?row.purchase_value:source.id==="pinterest"?n(row.conversion_value_micros)/1e6:row.conversion_value)}))).sort((a,b)=>b.conversions-a.conversions||b.clicks-a.clicks||b.impressions-a.impressions);
   const connected=rollups.filter(item=>item.connections>0),delivery=rollups.filter(item=>item.impressions>0).sort((a,b)=>b.impressions-a.impressions),items=generated.slice(0,3);
@@ -124,7 +125,7 @@ function paidInsights(sources,range,now,analytics=null,economics=null){
   if(items.length<3&&(totalClicks>0||totalImpressions>0))items.push({title:totalConversions?`${totalConversions.toLocaleString()} ad-platform results are visible`:"Paid campaigns produced attention but no recorded result",reason:totalConversions?"The ad platforms reported results, but they still need to be matched to real leads, purchases or revenue before judging return.":`${totalImpressions.toLocaleString()} views and ${totalClicks.toLocaleString()} clicks are visible, but no connected ad platform reported a lead, purchase or other result.`,action:"Connect the website action that matters—lead, call, demo or purchase—to each campaign before moving budget from one platform to another.",href});
   if(items.length<3&&connected.length)items.push({title:`Vivid is watching ${connected.length} paid platform${connected.length===1?"":"s"}`,reason:`${connected.reduce((total,item)=>total+item.connections,0)} ad accounts are connected, and ${delivery.length} platforms returned campaign activity for this period.`,action:"Keep the connections active. Vivid will strengthen campaign-to-campaign recommendations as clicks and business results accumulate.",href});
   const chosen=items.length?items.slice(0,3):[empty("No paid-account evidence is connected for this account","Connect at least one paid platform or select the account that owns the connection.",href)];
-  if(chosen[0]&&!chosen[0].testPlan&&leaderCampaign)chosen[0].testPlan=plan("Change one part of the leading campaign—its offer, headline or destination page.",`${leaderCampaign.name} on ${leaderCampaign.platform}.`,chosen[0].reason,"At least one chosen business result and a better visit-to-result rate.","Do not increase or move budget if 25 website visits produce no business result.");
+  if(chosen[0]&&!chosen[0].testPlan&&!chosen[0].adaptation&&leaderCampaign)chosen[0].testPlan=plan("Change one part of the leading campaign—its offer, headline or destination page.",`${leaderCampaign.name} on ${leaderCampaign.platform}.`,chosen[0].reason,"At least one chosen business result and a better visit-to-result rate.","Do not increase or move budget if 25 website visits produce no business result.");
   return withPractice(chosen,BEST_PRACTICES.paid);
 }
 

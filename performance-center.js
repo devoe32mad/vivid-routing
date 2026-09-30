@@ -1,4 +1,5 @@
 "use strict";
+const {renderAdaptation}=require("./campaign-adaptation");
 const {renderProjection}=require("./conservative-projection");
 
 const escapeHtml = value => String(value ?? "")
@@ -38,7 +39,7 @@ function segmentCard({label,title,question,checks,platform,startDate,endDate,ton
   const items=(Array.isArray(insights)?insights:[insights]).filter(Boolean).slice(0,3);
   const primary=items[0]||{title:"Still learning",reason:checks,action:"Keep the relevant connection active so Vivid can build a reliable recommendation."};
   const href=primary.href||marketingCenterHref(startDate,endDate,platform);
-  const supporting=items.slice(1).map(item=>`<li><b>${escapeHtml(item.title)}</b><span>${escapeHtml(item.reason)}</span><span><b>Next step:</b> ${escapeHtml(item.action||"Keep measuring before making a change.")}</span></li>`).join("");
+  const supporting=items.slice(1).map(item=>`<li><b>${escapeHtml(item.title)}</b><span>${escapeHtml(item.reason)}</span><span><b>Next step:</b> ${escapeHtml(item.action||"Keep measuring before making a change.")}</span>${renderAdaptation(item.adaptation)}${renderProjection(item.projection)}</li>`).join("");
   const p=primary.testPlan;
   const testPlan=p?`<div class="pc-plan"><b>Simple test plan</b><dl><dt>Change</dt><dd>${escapeHtml(p.change)}</dd><dt>Where</dt><dd>${escapeHtml(p.where)}</dd><dt>Why this</dt><dd>${escapeHtml(p.why)}</dd><dt>Review</dt><dd>${escapeHtml(p.timing)}</dd><dt>Success</dt><dd>${escapeHtml(p.success)}</dd><dt>Stop or rethink</dt><dd>${escapeHtml(p.review)}</dd><dt>Leave alone</dt><dd>${escapeHtml(p.keep)}</dd></dl></div>`:"";
   const practices=[...new Map(items.filter(item=>item.bestPractice).map(item=>[item.bestPracticeHref||item.bestPractice,{text:item.bestPractice,label:item.bestPracticeLabel||"Official guidance",href:item.bestPracticeHref}])).values()];
@@ -50,7 +51,7 @@ function segmentCard({label,title,question,checks,platform,startDate,endDate,ton
     <strong class="pc-title">${escapeHtml(title)}</strong>
     <span class="pc-question">${escapeHtml(question)}</span>
     <div class="pc-next"><b>Do this next</b><strong>${escapeHtml(primary.title)}</strong><span>${escapeHtml(primary.reason)}</span><p>${escapeHtml(primary.action)}</p></div>
-    ${renderProjection(primary.projection)}
+    ${renderAdaptation(primary.adaptation)}${renderProjection(primary.projection)}
     ${testPlan}
     <div class="pc-actions">${p&&!primary.projection?`<a class="pc-primary pc-prepare" href="/admin/ai-campaign-operator">Prepare this test →</a>`:""}<a class="pc-source" href="${escapeHtml(href)}">View supporting data →</a></div>
     ${supporting?`<details class="pc-more"><summary>Show more recommendations</summary><ul>${supporting}</ul></details>`:""}
