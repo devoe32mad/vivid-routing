@@ -397,7 +397,10 @@ async function start() {
     throw new Error("DATABASE_URL is required.");
   }
 
-  await seedMasonConcept();
+  if (process.argv.includes("--seed-only")) {
+    await seedMasonConcept();
+    return;
+  }
   installConceptProtection();
   require("./asset-bootstrap");
 }
