@@ -108,20 +108,23 @@ function installSales({app,q,owner,wrap,api,getConnection,csrf,root,sync}) {
     const row=await load(id), snap=row?.snapshot;
     const campaignFilter=String(req.query?.campaign || '');
     if(snap && campaignFilter){snap.payments=snap.payments.filter(p=>String(p.match?.campaign_id)===campaignFilter);}
-    const from=String(req.query?.from || ''),to=String(req.query?.to || '');
+    let range;
+    try { range = req.query?.period === 'all' ? {from:'',to:''} : require('./reporting-date-range').reportingDateRange(req.query); }
+    catch { return res.status(400).send('Choose a valid date range.'); }
+    const {from,to}=range;
     if([from,to].some(v=>v && (!/^\d{4}-\d{2}-\d{2}$/.test(v) || !Number.isFinite(Date.parse(v)))) || (from && to && from>to))return res.status(400).send('Choose a valid date range.');
     if(snap){snap.payments=snap.payments.filter(p=>(!from || p.created_at.slice(0,10)>=from) && (!to || p.created_at.slice(0,10)<=to));}
     if(req.query?.format==='csv'){
       res.set('Content-Disposition','attachment; filename="square-verified-sales.csv"');
       return res.type('text/csv').send(exportSales(snap || {payments:[],refunds:[]}));
     }
-    const reportQuery=new URLSearchParams({campaign:campaignFilter,from,to}).toString();
+    const reportQuery=new URLSearchParams({campaign:campaignFilter,from,to,...(req.query?.period === 'all' ? {period:'all'} : {})}).toString();
     const detailPage=Math.max(1,Number.parseInt(req.query?.page || '1',10)||1),pageSize=50;
     const action=`<section><form method="post" action="${root(id)}/sales/import"><input type="hidden" name="csrf" value="${esc(req.session.squareProductionCsrf)}"><button>Sync latest sales</button></form><p><small>Each Square payment is stored once. Later changes and refunds update its record; older imported sales remain in history.</small></p></section>`;
     const state=await sync.status(id);
     const syncMessage=!sync.enabled ? 'Automatic syncing is disabled.' : state?.status==='retry' ? 'The last sync failed. Vivid will retry automatically; reconnect Square if this persists.' : state?.status==='syncing' ? 'Sync in progress.' : 'Automatic sync checks for sales and refunds every five minutes.';
     let body=intro+`<section><h2>Sync status</h2><p>${esc(syncMessage)}</p><p>Last successful sync: ${state?.last_success ? esc(new Date(state.last_success).toISOString()) : 'Not yet'}</p><small>Refresh this page to see updated results. Manual import is also available.</small></section>`+action;
-    body+=`<section><form method="get"><input type="hidden" name="campaign" value="${esc(campaignFilter)}"><label>Payment date from (UTC) <input type="date" name="from" value="${esc(from)}"></label><label>Through <input type="date" name="to" value="${esc(to)}"></label><button>Filter sales</button></form><a href="${root(id)}/sales?${esc(reportQuery)}&format=csv">Export verified sales CSV</a> · <a href="${root(id)}/sales">All retained sales</a></section>`;
+    body+=`<section><form method="get"><input type="hidden" name="campaign" value="${esc(campaignFilter)}"><label>Payment date from (UTC) <input type="date" name="from" value="${esc(from)}"></label><label>Through <input type="date" name="to" value="${esc(to)}"></label><button>Filter sales</button></form><a href="${root(id)}/sales?${esc(reportQuery)}&format=csv">Export verified sales CSV</a> · <a href="${root(id)}/sales?period=all">All retained sales</a></section>`;
     if(!snap)body+='<section>No transactions imported yet. Import your Square live activity to begin.</section>';
     else {
       const totals={};
