@@ -180,7 +180,7 @@ function renderPerformanceCenter(data = {}) {
     </section>
 
     <section class="pc-section">
-      <div class="pc-section-head"><h2>Across all marketing</h2><p>${number(activeCampaigns)} active Vivid campaign${Number(activeCampaigns) === 1 ? "" : "s"} in the selected account</p></div>
+      <div class="pc-section-head"><h2>Across all marketing</h2><p>${number(activeCampaigns)} active Vivid campaign${Number(activeCampaigns) === 1 ? "" : "s"} in the selected account · Test campaigns excluded; history remains in Reports.</p></div>
       <div class="pc-grid">
         ${card({label:"Vivid placement cost",value:money(advertisingInvestment),note:"Cost assigned to Vivid placements",href:`/reports${range}`})}
         ${card({label:"Recorded revenue",value:money(conversionRevenue),note:"Revenue recorded through Vivid",href:`/reports${range}`,tone:conversionRevenue > 0 ? "pc-good" : ""})}

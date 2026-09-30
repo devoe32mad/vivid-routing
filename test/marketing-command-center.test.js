@@ -44,7 +44,7 @@ test("organic content is an accepted dashboard platform",async()=>{
 test("advertiser identity comes from session even for admin and ignores supplied owner",async()=>{
   const calls=[],run=harness({q:async(sql,params)=>{calls.push({sql,params});return {rows:[]};}});
   const res=await run(userPath,{session:{user:{id:7,role:"super_admin"}},query:{user_id:999,from:"2026-09-01",to:"2026-09-22"}});
-  const metrics=calls.find(c=>/WHERE c.user_id=\$1/.test(c.sql));
+  const metrics=calls.find(c=>/WHERE \(c.user_id=\$1/.test(c.sql));
   assert.equal(res.code,200);assert.ok(metrics);assert.deepEqual(metrics.params,[7,"2026-09-01","2026-09-22"]);assert.equal(calls.some(c=>(c.params||[]).includes(999)),false);
 });
 test("foreign advertiser is rejected before any metric or merchant reads",async()=>{

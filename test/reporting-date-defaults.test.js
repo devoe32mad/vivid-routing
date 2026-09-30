@@ -35,5 +35,5 @@ test('installer sets reporting dates before calculations and preserves campaign 
 });
 test('production startup applies defaults after other server installers', () => {
   const start=require('../package.json').scripts.start;
-  assert.match(start,/install-pool-error-handler.js && node install-reporting-date-defaults.js && node mca-marketplace-concept.js/);
+  assert.match(start,/install-pool-error-handler.js && node install-reporting-date-defaults.js && node install-performance-evidence-consistency.js && node mca-marketplace-concept.js/);
 });
