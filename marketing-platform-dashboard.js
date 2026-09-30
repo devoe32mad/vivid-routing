@@ -1,4 +1,5 @@
 "use strict";
+const {isAiTraffic,isUnpaidTraffic}=require("./traffic-classification");
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const n=value=>Number.isFinite(Number(value))?Number(value):0;
 const number=value=>n(value).toLocaleString("en-US",{maximumFractionDigits:2});
@@ -87,14 +88,9 @@ function pinterestMetrics(rows,marginPct=null) {
 function youtubeMetrics(rows){return [["Views",rows.length?number(total(rows,"views")):"—"],["Watch time",rows.length?number(total(rows,"watch_minutes"))+" min":"—"],["Likes",rows.length?number(total(rows,"likes")):"—"],["Comments",rows.length?number(total(rows,"comments")):"—"],["Shares",rows.length?number(total(rows,"shares")):"—"],["Subscribers gained",rows.length?number(total(rows,"subscribers_gained")):"—"]];}
 function analyticsMetrics(rows) {
   const sessions=total(rows,"sessions"),engaged=total(rows,"engaged_sessions");
-  const aiRows=rows.filter(row=>String(row.medium||"").toLowerCase()==="ai-assistant"||/(^|\.)chatgpt\.com$|perplexity|claude|copilot/i.test(String(row.source||"")));
+  const aiRows=rows.filter(isAiTraffic);
   return [["Visited · website sessions",rows.length?number(sessions):"—"],["Visitors",rows.length?number(total(rows,"users")):"—"],["Engaged · meaningful visits",rows.length?number(engaged):"—"],["Engagement rate",rate(engaged,sessions)],["AI-assistant visits",rows.length?number(total(aiRows,"sessions")):"—"],["Acted · key actions",rows.length?number(total(rows,"key_events")):"—"],["Purchased · GA4-reported revenue",rows.length?currency(total(rows,"revenue"),"USD"):"—"]];
 }
-const isAiTraffic=row=>String(row.medium||"").toLowerCase()==="ai-assistant"||/(^|\.)chatgpt\.com$|perplexity|claude|copilot/i.test(String(row.source||""));
-const isOrganicSocial=row=>{
-  const source=String(row.source||"").toLowerCase(),medium=String(row.medium||"").toLowerCase();
-  return medium==="organic_social"||(medium==="organic"&&!['google','bing','yahoo','duckduckgo'].includes(source));
-};
 const aiSourceName=row=>/chatgpt/i.test(String(row.source))?"ChatGPT":/perplexity/i.test(String(row.source))?"Perplexity":/claude/i.test(String(row.source))?"Claude":/copilot/i.test(String(row.source))?"Microsoft Copilot":analyticsSourceLabel(row.source,row.medium).replace(/ referrals$| paid traffic$/i,"");
 function aiTrafficMetrics(rows){
   const sessions=total(rows,"sessions"),engaged=total(rows,"engaged_sessions");
@@ -129,10 +125,10 @@ function buildPlatforms({scope,range,campaigns,squareStatus,economics=null,googl
   const matched=campaigns.filter(c=>n(c.square_conversions)>0);
   const platforms=[{
     id:"vivid",name:"Vivid",mark:"V",category:"Placements & engagement",status:"Live campaign records",available:true,
-    campaignCount:campaigns.length,countLabel:"campaigns",freshness:"Updated when you open this dashboard",metrics:vividMetrics(campaigns),
-    note:"Intent includes offer, map and destination actions. Recorded conversions include matched Square purchases; they are not added again. Dates use UTC.",
+    campaignCount:campaigns.filter(c=>!c.is_archived).length,countLabel:"active campaigns",freshness:"Updated when you open this dashboard",metrics:vividMetrics(campaigns),
+    note:"Intent includes offer, map and destination actions. Recorded conversions include matched Square purchases; they are not added again. Dates use UTC. Test campaigns are excluded; archived campaign results remain in period totals.",
     columns:["Scans","Intent actions","Intent rate","Recorded conversions","Scan-to-conversion rate","Recorded value · USD","Average conversion value · USD"],
-    rows:campaigns.map(c=>({key:String(c.id),name:c.name,context:`Campaign ${c.id}`,cells:vividMetrics([c]).map(m=>m[1]),metrics:vividMetrics([c]),href:sourceHref(c.id,scope),action:"Open campaign workspace"}))
+    rows:campaigns.map(c=>({key:String(c.id),name:c.name,context:`Campaign ${c.id}${c.is_archived?" · Archived":""}`,cells:vividMetrics([c]).map(m=>m[1]),metrics:vividMetrics([c]),href:sourceHref(c.id,scope),action:"Open campaign workspace"}))
   },{
     id:"square",name:"Square",mark:"S",category:"Campaign-attributed sales",status:square.label||"Not connected",available:Boolean(square.connected)||matched.length>0||scope.kind==="enterprise",
     campaignCount:matched.length,countLabel:"matched campaigns",freshness:square.connected?`Last sync: ${timestamp(square.lastSuccess)}`:"Based on recorded campaign conversions",metrics:[...(square.totals===null?[["Collected","—"],["Refunded","—"],["Net collected","—"]]:Array.isArray(square.totals)?[
@@ -141,7 +137,7 @@ function buildPlatforms({scope,range,campaigns,squareStatus,economics=null,googl
     ]:[]),...squareMetrics(matched)],
     note:"Collected and net collected cover all imported completed Square payments in the selected period, including tax and tips. They are not added to Vivid revenue. Campaign results below cover only attributed purchases. Completed USD purchases matched to Vivid campaigns, with refunds reflected in net value. This is a subset of Vivid conversions, not all merchant sales. Scans, intent and impressions are not Square metrics. Dates use UTC.",
     columns:["Matched purchases","Matched net value · USD"],
-    rows:matched.map(c=>({key:String(c.id),name:c.name,context:`Campaign ${c.id}`,cells:squareMetrics([c]).map(m=>m[1]),metrics:squareMetrics([c]),href:scope.kind==="advertiser"?`/integrations/square/production/customers/${scope.userId}/sales?${new URLSearchParams({from:range.from,to:range.to,campaign:String(c.id)})}`:sourceHref(c.id,scope),action:scope.kind==="advertiser"?"View matched payments & refunds":"Open shared campaign"})),
+    rows:matched.map(c=>({key:String(c.id),name:c.name,context:`Campaign ${c.id}${c.is_archived?" · Archived":""}`,cells:squareMetrics([c]).map(m=>m[1]),metrics:squareMetrics([c]),href:scope.kind==="advertiser"?`/integrations/square/production/customers/${scope.userId}/sales?${new URLSearchParams({from:range.from,to:range.to,campaign:String(c.id)})}`:sourceHref(c.id,scope),action:scope.kind==="advertiser"?"View matched payments & refunds":"Open shared campaign"})),
     manageHref:scope.kind==="advertiser"?`/integrations/square/production/customers/${scope.userId}${square.connected?"/sales":""}`:"",manageLabel:square.connected?"All merchant transactions":"Connect Square"
   }];
   if(scope.kind==="advertiser" && scope.privateAdsAllowed!==false) {
@@ -254,7 +250,7 @@ function buildPlatforms({scope,range,campaigns,squareStatus,economics=null,googl
   }
   if(scope.kind==="advertiser"&&scope.privateAdsAllowed!==false){
     const youtube=platforms.find(p=>p.id==="youtube");
-    const organicTraffic=(analyticsEvidence?.rows||[]).filter(isOrganicSocial),trafficGroups=new Map();
+    const organicTraffic=(analyticsEvidence?.rows||[]).filter(isUnpaidTraffic),trafficGroups=new Map();
     for(const row of organicTraffic){const key=`${row.connection_id}:${row.source}:${row.medium}`;if(!trafficGroups.has(key))trafficGroups.set(key,[]);trafficGroups.get(key).push(row);}
     const youtubeRaw=youtubeEvidence?.rows||[],contentItems=youtube?.campaignCount||0,views=total(youtubeRaw,"views"),engagements=total(youtubeRaw,"likes")+total(youtubeRaw,"comments")+total(youtubeRaw,"shares");
     const sessions=total(organicTraffic,"sessions"),engaged=total(organicTraffic,"engaged_sessions"),keyEvents=total(organicTraffic,"key_events");
@@ -262,7 +258,7 @@ function buildPlatforms({scope,range,campaigns,squareStatus,economics=null,googl
     if(youtube)rows.push({key:"youtube",name:"YouTube",context:`${contentItems} videos with activity · direct platform reporting`,metrics:youtubeMetrics(youtubeRaw),cells:[number(contentItems),youtubeRaw.length?number(views):"—",youtubeRaw.length?number(engagements):"—","—","—","—"],drillHref:dashboardHref(scope,range,"youtube"),action:"View videos and source evidence"});
     for(const [key,sourceRows] of trafficGroups){
       const row=sourceRows[0],sourceName=analyticsSourceLabel(row.source,row.medium),sourceSessions=total(sourceRows,"sessions"),sourceEngaged=total(sourceRows,"engaged_sessions");
-      rows.push({key:`traffic:${key}`,name:sourceName,context:"GA4 website behavior after an organic-social visit",metrics:analyticsMetrics(sourceRows),cells:["GA4 traffic source","—","—",number(sourceSessions),number(sourceEngaged),number(total(sourceRows,"key_events"))],drillHref:dashboardHref(scope,range,"ga4",key),action:"View GA4 source evidence"});
+      rows.push({key:`traffic:${key}`,name:sourceName,context:"GA4 website behavior after unpaid search, social or referral traffic",metrics:analyticsMetrics(sourceRows),cells:["GA4 traffic source","—","—",number(sourceSessions),number(sourceEngaged),number(total(sourceRows,"key_events"))],drillHref:dashboardHref(scope,range,"ga4",key),action:"View GA4 source evidence"});
     }
     const analyticsConnections=analyticsEvidence?.connections||[],available=Boolean((youtube?.accountCount||0)+analyticsConnections.length);
     platforms.push({id:"organic",name:"Organic Content",heading:"Organic Content Performance",mark:"O",category:"Unpaid posts, videos and website visits",available,
@@ -270,7 +266,7 @@ function buildPlatforms({scope,range,campaigns,squareStatus,economics=null,googl
       freshness:[youtube?.freshness,...analyticsConnections.map(c=>`${c.property_name}: ${timestamp(c.last_synced_at)}`)].filter(Boolean).join(" · ")||"No organic reporting connected",
       metrics:[["Content items",youtube?number(contentItems):"—"],["Views",youtubeRaw.length?number(views):"—"],["Engagements",youtubeRaw.length?number(engagements):"—"],["Website visits",organicTraffic.length?number(sessions):"—"],["Engaged visits",organicTraffic.length?number(engaged):"—"],["Key actions",organicTraffic.length?number(keyEvents):"—"]],
       cardNote:"No media spend reported. Website visits are also included in Website Performance totals.",
-      note:"Organic Content keeps unpaid activity separate from advertising. YouTube supplies direct video and engagement evidence. GA4 supplies website behavior from identifiable organic-social sources; it does not prove that a specific post caused a visit unless campaign tagging supports that link.",
+      note:"Organic Content keeps unpaid activity separate from advertising. YouTube supplies direct video and engagement evidence. GA4 supplies website behavior from unpaid search, social and referral sources; it does not prove that a specific post caused a visit unless campaign tagging supports that link.",
       columns:["Content / activity","Views","Engagements","Website visits","Engaged visits","Key actions"],rows,viewLabel:"View organic content performance"});
   }
   return platforms;

@@ -14,8 +14,7 @@ const {campaignRecommendations,crossPlatformRecommendations,websiteTrafficRecomm
 
 const n=value=>Number.isFinite(Number(value))?Number(value):0;
 const sum=(rows,key)=>rows.reduce((total,row)=>total+n(row[key]),0);
-const aiSource=value=>/(chatgpt|openai|perplexity|claude|anthropic|copilot|gemini|bard|you\.com|phind)/i.test(String(value||""));
-const organicMedium=value=>/(organic|organic_social|social|referral)/i.test(String(value||""))&&!/(paid|cpc|ppc)/i.test(String(value||""));
+const {aiSource,organicMedium,isAiTraffic,isUnpaidTraffic}=require("./traffic-classification");
 
 const BEST_PRACTICES={
   paid:{text:"Make the page people reach match the promise and next step in the ad.",label:"Google Ads landing-page guidance",href:"https://support.google.com/google-ads/answer/6238826?hl=en",inspiration:[
@@ -81,7 +80,7 @@ function websiteInsights(analytics,search,range){
 }
 
 function organicInsights(analytics,youtube,range){
-  const href=`/admin/marketing-command-center?from=${range.from}&to=${range.to}&platform=organic`,groups=ga4Groups(analytics?.rows||[],row=>organicMedium(row.medium)&&!aiSource(row.source)),items=[];
+  const href=`/admin/marketing-command-center?from=${range.from}&to=${range.to}&platform=organic`,groups=ga4Groups(analytics?.rows||[],isUnpaidTraffic),items=[];
   const sessions=groups.reduce((total,g)=>total+g.sessions,0),engaged=groups.reduce((total,g)=>total+g.engaged,0),actions=groups.reduce((total,g)=>total+g.keyEvents,0);
   const leader=groups[0];
   if(sessions){items.push({title:`Unpaid posts, search and referrals produced ${sessions.toLocaleString()} website visits`,reason:`${engaged.toLocaleString()} visitors showed meaningful interest (${(100*engaged/sessions).toFixed(1)}%), but ${actions.toLocaleString()} leads, purchases or other results were recorded.`,action:actions?"Repeat the topic and call to action from the unpaid source that produced the most business results.":"Publish one follow-up to the strongest identifiable unpaid source and use a trackable link to one clear next step.",href,testPlan:plan("Create one follow-up post or page around the strongest topic and include a trackable link with one clear next step.",leader?.label||"Your strongest identifiable unpaid source.",`${sessions.toLocaleString()} unpaid visits produced ${engaged.toLocaleString()} meaningful visits, but the exact winning post still needs trackable links to be identified.`,"More meaningful visits than the current unpaid average and at least one chosen business result.","If 25 visits produce no business result, change the offer or destination—not merely the wording of another post.","Do not assign ROI to unpaid content; keep paid budgets unchanged.")});}
@@ -92,7 +91,7 @@ function organicInsights(analytics,youtube,range){
 }
 
 function aiInsights(analytics,range){
-  const href=`/admin/marketing-command-center?from=${range.from}&to=${range.to}&platform=ai_traffic`,allRows=analytics?.rows||[],groups=ga4Groups(allRows,row=>aiSource(row.source)),items=[];
+  const href=`/admin/marketing-command-center?from=${range.from}&to=${range.to}&platform=ai_traffic`,allRows=analytics?.rows||[],groups=ga4Groups(allRows,isAiTraffic),items=[];
   const sessions=groups.reduce((total,g)=>total+g.sessions,0),engaged=groups.reduce((total,g)=>total+g.engaged,0),actions=groups.reduce((total,g)=>total+g.keyEvents,0),allSessions=sum(allRows,"sessions");
   if(!sessions)return withPractice([aiInsight(analytics,range)],BEST_PRACTICES.ai);
   items.push({title:`AI assistants brought ${sessions.toLocaleString()} identifiable website visits`,reason:`That is ${allSessions?(100*sessions/allSessions).toFixed(1):"0.0"}% of all website visits. These visits are already included in the Website total and are not counted twice.`,action:"Improve one page that answers a common buyer question, adds proof and gives the visitor one obvious next step.",href,testPlan:plan("Strengthen one buyer-answer page with a direct answer, proof point and one clear next step.","The page receiving the most AI-referred visits; Vivid needs landing-page data before it can name it.",`${sessions.toLocaleString()} identifiable AI visits show discovery, but ${actions.toLocaleString()} chosen business results were recorded.`,"At least one chosen business result and an AI-visit engagement rate above the current baseline.","If 25 AI-referred visits produce no result, improve the offer or next step before adding more content.","Keep other pages unchanged and remember these visits are already included in Website totals.")});
@@ -131,7 +130,7 @@ function paidInsights(sources,range,now,analytics=null,economics=null){
 
 function organicInsight(analytics,youtube,range){
   const rows=analytics?.rows||[];
-  const best=strongestGa4(rows,row=>organicMedium(row.medium)&&!aiSource(row.source));
+  const best=strongestGa4(rows,isUnpaidTraffic);
   const videos=youtube?.rows||[];
   const views=sum(videos,"views"),engagement=sum(videos,"likes")+sum(videos,"comments")+sum(videos,"shares");
   if(best)return{priority:"Opportunity",confidence:best.sessions>=20?"Medium":"Early signal",title:`${best.label} brought the most identifiable unpaid website traffic`,reason:`It brought ${best.sessions.toLocaleString()} website visits. ${best.engaged.toLocaleString()} visitors showed meaningful interest, and ${best.keyEvents.toLocaleString()} leads, calls, purchases or other chosen results were recorded.`,action:"Find the post or page behind these visits. If it produced a business result, repeat its topic and next step in one small content test.",href:`/admin/marketing-command-center?from=${range.from}&to=${range.to}&platform=organic`};
@@ -140,7 +139,7 @@ function organicInsight(analytics,youtube,range){
 }
 
 function aiInsight(analytics,range){
-  const best=strongestGa4(analytics?.rows||[],row=>aiSource(row.source));
+  const best=strongestGa4(analytics?.rows||[],isAiTraffic);
   if(!best)return empty("No identifiable AI-referred visits yet","Keep website reporting connected. Vivid will watch identifiable visits from ChatGPT, Perplexity, Claude, Copilot, Gemini and other AI assistants.",`/admin/marketing-command-center?from=${range.from}&to=${range.to}&platform=ai_traffic`);
   const rate=best.sessions?100*best.engaged/best.sessions:0;
   return{priority:"Discovery signal",confidence:best.sessions>=20?"Medium":"Early signal",title:`${best.label} is the leading identifiable AI source`,reason:`It brought ${best.sessions.toLocaleString()} website visits. ${best.engaged.toLocaleString()} visitors showed meaningful interest (${rate.toFixed(1)}%), and ${best.keyEvents.toLocaleString()} leads, calls, purchases or other chosen results were recorded. These visits are also included in Website totals.`,action:"Review the pages these visitors reached. Improve the clearest page that answers a buyer's question and gives them an obvious next step.",href:`/admin/marketing-command-center?from=${range.from}&to=${range.to}&platform=ai_traffic`};

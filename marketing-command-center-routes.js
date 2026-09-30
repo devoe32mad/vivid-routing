@@ -1,4 +1,5 @@
 "use strict";
+const {performanceCampaignScope}=require("./performance-campaign-scope");
 const crypto=require("node:crypto");
 const {amounts}=require("./square-production-sales");
 const {canPreviewAi}=require("./ai-preview-access");
@@ -31,7 +32,7 @@ function registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizat
     const first=enterprise?3:2;
     // Ownership is fixed server-side, including for platform administrators.
     // Square projections are a subset of Vivid events, never another source total.
-    return (await q(`SELECT c.id,c.name,
+    return (await q(`SELECT c.id,c.name,COALESCE((to_jsonb(c)->>'is_archived')::boolean,false) AS is_archived,
       COUNT(e.id) FILTER(WHERE e.type='scan')::int scans,
       COUNT(e.id) FILTER(WHERE e.type IN('offer','maps','waze','destination_click'))::int clicks,
       COUNT(e.id) FILTER(WHERE e.type='conversion')::int conversions,
@@ -40,7 +41,7 @@ function registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizat
       COALESCE(SUM(e.value) FILTER(WHERE e.type='conversion' AND to_jsonb(e)->>'square_payment_key' IS NOT NULL),0) square_value
       FROM campaigns c LEFT JOIN events e ON e.campaign_id=c.id
       AND e.created_at >= $${first}::date AND e.created_at < ($${first+1}::date + INTERVAL '1 day')
-      WHERE ${enterprise?"c.organization_id=$1 AND c.advertiser_id=$2":"c.user_id=$1"} AND COALESCE(c.is_test,false)=false
+      WHERE ${enterprise?"c.organization_id=$1 AND c.advertiser_id=$2 AND COALESCE(c.is_test,false)=false":performanceCampaignScope()}
       GROUP BY c.id,c.name ORDER BY conversions DESC,clicks DESC,c.id`,params)).rows;
   }
   async function squareStatus(id,range) {
