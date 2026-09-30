@@ -74,11 +74,11 @@ test("organic content is a no-ROI rollup with platform and evidence drill-downs"
   assert.equal(metric(organic,"Content items"),"1");
   assert.equal(metric(organic,"Views"),"100");
   assert.equal(metric(organic,"Engagements"),"12");
-  assert.equal(metric(organic,"Website visits"),"12");
-  assert.equal(metric(organic,"Engaged visits"),"8");
-  assert.equal(metric(organic,"Key actions"),"2");
+  assert.equal(metric(organic,"Website visits"),"42");
+  assert.equal(metric(organic,"Engaged visits"),"23");
+  assert.equal(metric(organic,"Key actions"),"3");
   assert.equal(organic.metrics.some(([label])=>/ROI|ROAS|Spend/i.test(label)),false);
-  assert.deepEqual(organic.rows.map(row=>row.name),["YouTube","Organic Facebook"]);
+  assert.deepEqual(organic.rows.map(row=>row.name),["YouTube","Organic Facebook","Google organic search"]);
   assert.match(organic.rows[0].drillHref,/platform=youtube/);
   assert.match(organic.rows[1].drillHref,/platform=ga4&campaign=3%3Afacebook%3Aorganic_social/);
   const html=renderCommandCenter({...data,analyticsEvidence,analyticsEnabled:true,youtubeEvidence,youtubeEnabled:true});

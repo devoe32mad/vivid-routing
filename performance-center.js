@@ -1,4 +1,5 @@
 "use strict";
+const {returnEstimate}=require("./revenue-evidence");
 const {renderAdaptation}=require("./campaign-adaptation");
 const {renderProjection}=require("./conservative-projection");
 
@@ -102,7 +103,7 @@ function renderPerformanceCenter(data = {}) {
     endDate,
     advertisingInvestment = 0,
     conversionRevenue = 0,
-    roi = 0,
+    revenueEvidence = null,
     conversions = 0,
     cac = 0,
     intentRate = 0,
@@ -118,6 +119,9 @@ function renderPerformanceCenter(data = {}) {
   } = data;
   const range = dateQuery(startDate, endDate);
   const hasInvestment = Number(advertisingInvestment) > 0;
+  const returns = returnEstimate({value:Number(conversionRevenue),spend:Number(advertisingInvestment),marginPct:segmentInsights.economics?.gross_margin_pct});
+  const valueNote = revenueEvidence ? `${money(revenueEvidence.verifiedSales)} verified matched Square sales; ${money(revenueEvidence.otherValue)} other conversion value (may include assigned lead values). Square sales are already included, not added again.` : "May include assigned lead values; sales verification unavailable.";
+  const profitNote = revenueEvidence && revenueEvidence.verifiedCount>0 && revenueEvidence.unverifiedCount===0 && returns.roi!==null ? `Estimated profit ROI: ${returns.roi.toFixed(1)}%, using your supplied margin. Excludes other business expenses.` : "Profit ROI requires verified sales and a supplied margin; assigned values are not profit.";
   const hasConversions = Number(conversions) > 0;
   const outcomeLabel = hasConversions ? "Customer actions" : "Customer actions";
   const topCampaign = topFiveCampaigns[0];
@@ -132,8 +136,8 @@ function renderPerformanceCenter(data = {}) {
   ));
   const insightCards = distinctInsights.slice(0, 4).map(insight => rankedCard({
     eyebrow: "AI recommendation · For review",
-    title: insight.type || "Performance signal",
-    facts: insight.text || "Open the supporting report for details.",
+    title: String(insight.type || "Performance signal").replace(/revenue/gi,"Conversion value"),
+    facts: String(insight.text || "Open the supporting report for details.").replace(/conversion revenue|revenue/gi,"recorded conversion value").replace(/\bROI\b/g,"value-based return before product costs"),
     action: insightAction(insight.type),
     href: insightHref(insight.type),
     tone: "pc-insight"
@@ -183,8 +187,8 @@ function renderPerformanceCenter(data = {}) {
       <div class="pc-section-head"><h2>Across all marketing</h2><p>${number(activeCampaigns)} active Vivid campaign${Number(activeCampaigns) === 1 ? "" : "s"} in the selected account · Test campaigns excluded; history remains in Reports.</p></div>
       <div class="pc-grid">
         ${card({label:"Vivid placement cost",value:money(advertisingInvestment),note:"Cost assigned to Vivid placements",href:`/reports${range}`})}
-        ${card({label:"Recorded revenue",value:money(conversionRevenue),note:"Revenue recorded through Vivid",href:`/reports${range}`,tone:conversionRevenue > 0 ? "pc-good" : ""})}
-        ${card({label:"Return on investment",value:hasInvestment ? percent(roi) : "Not ready",note:"Revenue minus cost, divided by cost",href:`/reports${range}`,tone:hasInvestment && roi >= 0 ? "pc-good" : hasInvestment ? "pc-attention" : ""})}
+        ${card({label:"Recorded conversion value",value:money(conversionRevenue),note:valueNote,href:`/reports${range}`,tone:conversionRevenue > 0 ? "pc-good" : ""})}
+        ${card({label:"Recorded-value ROAS",value:returns.roas!==null ? returns.roas.toFixed(2)+"×" : "Not ready",note:"Recorded conversion value divided by placement cost. "+profitNote,href:`/reports${range}`})}
         ${card({label:outcomeLabel,value:number(conversions),note:"Tracked leads, purchases, or other goals",href:`/reports${range}`})}
         ${card({label:"Cost per customer action",value:hasConversions ? money(cac) : "Not ready",note:"Placement cost divided by customer actions",href:`/reports${range}`})}
         ${card({label:"Visitor interest rate",value:Number(scans) > 0 ? percent(intentRate) : "Not ready",note:`${number(intent)} meaningful actions from ${number(scans)} scans`,href:`/reports${range}`})}
@@ -195,20 +199,20 @@ function renderPerformanceCenter(data = {}) {
     <section class="pc-section">
       <div class="pc-section-head"><h2>What worked?</h2><p>Your strongest measured results</p></div>
       <div class="pc-grid">
-        ${topCampaign ? rankedCard({eyebrow:"Best campaign",title:topCampaign.name || "Unnamed campaign",facts:`${money(topCampaign.revenue)} recorded revenue · ${number(topCampaign.conversions)} customer actions`,href:`/admin/edit-campaign/${Number(topCampaign.id)}`,tone:"pc-good"}) : card({label:"Best campaign",value:"Not enough data",note:"Results will appear after activity is recorded",href:`/reports${range}`})}
-        ${topLocation ? rankedCard({eyebrow:"Best location",title:topLocation.name || "Unnamed location",facts:`${money(topLocation.revenue)} recorded revenue · ${number(topLocation.conversions)} customer actions`,href:"/reports-location",tone:"pc-good"}) : card({label:"Best location",value:"Not enough data",note:"Results will appear after activity is recorded",href:"/reports-location"})}
-        ${topPlacement ? rankedCard({eyebrow:"Best placement",title:topPlacement.name || "Unnamed placement",facts:`${money(topPlacement.revenue)} recorded revenue · ${number(topPlacement.conversions)} customer actions`,href:"/reports-qr",tone:"pc-good"}) : card({label:"Best placement",value:"Not enough data",note:"Results will appear after activity is recorded",href:"/reports-qr"})}
+        ${topCampaign ? rankedCard({eyebrow:"Best campaign",title:topCampaign.name || "Unnamed campaign",facts:`${money(topCampaign.revenue)} recorded conversion value · ${number(topCampaign.conversions)} customer actions`,href:`/admin/edit-campaign/${Number(topCampaign.id)}`,tone:"pc-good"}) : card({label:"Best campaign",value:"Not enough data",note:"Results will appear after activity is recorded",href:`/reports${range}`})}
+        ${topLocation ? rankedCard({eyebrow:"Best location",title:topLocation.name || "Unnamed location",facts:`${money(topLocation.revenue)} recorded conversion value · ${number(topLocation.conversions)} customer actions`,href:"/reports-location",tone:"pc-good"}) : card({label:"Best location",value:"Not enough data",note:"Results will appear after activity is recorded",href:"/reports-location"})}
+        ${topPlacement ? rankedCard({eyebrow:"Best placement",title:topPlacement.name || "Unnamed placement",facts:`${money(topPlacement.revenue)} recorded conversion value · ${number(topPlacement.conversions)} customer actions`,href:"/reports-qr",tone:"pc-good"}) : card({label:"Best placement",value:"Not enough data",note:"Results will appear after activity is recorded",href:"/reports-qr"})}
       </div>
     </section>
 
     <section class="pc-section">
       <div class="pc-section-head"><h2>What should I do next?</h2><p>AI recommendations for review—not automatic changes</p></div>
       <div class="pc-grid">
-        ${attention ? rankedCard({eyebrow:"High priority · Campaign review",title:attention.name || "Unnamed campaign",facts:`${money(attention.allocatedCost)} invested · ${money(attention.revenue)} recorded revenue`,action:"Verify tracking, the offer, and the conversion path before approving more spend.",href:`/admin/edit-campaign/${Number(attention.id)}`,tone:"pc-attention"}) : card({label:"Campaign check",value:"Nothing urgent",note:"No measured campaign currently meets the warning rules",href:`/reports${range}`,tone:"pc-good"})}
+        ${attention ? rankedCard({eyebrow:"High priority · Campaign review",title:attention.name || "Unnamed campaign",facts:`${money(attention.allocatedCost)} invested · ${money(attention.revenue)} recorded conversion value`,action:"Verify tracking, the offer, and the conversion path before approving more spend.",href:`/admin/edit-campaign/${Number(attention.id)}`,tone:"pc-attention"}) : card({label:"Campaign check",value:"Nothing urgent",note:"No measured campaign currently meets the warning rules",href:`/reports${range}`,tone:"pc-good"})}
         ${insightCards || card({label:"Vivid recommendation",value:"Keep measuring",note:"More activity is needed before Vivid can make a reliable suggestion",href:"/admin/marketing-command-center",cta:"Review all evidence"})}
       </div>
     </section>
-    <div class="pc-help"><strong>Plain-English definitions:</strong> ROI means how much came back after cost. “Not ready” means Vivid does not yet have enough cost or outcome data to calculate the number honestly. No campaign, bid, budget, or spending change is made without approval.</div>
+    <div class="pc-help"><strong>Plain-English definitions:</strong> ROAS divides value by advertising cost. Profit ROI applies a supplied margin to sales, subtracts advertising cost, then divides by advertising cost. Verified Square sales are completed, matched payments less completed refunds and can include tax and tips. Other recorded values may be assigned lead values; they are not verified sales. “Not ready” means Vivid does not yet have enough cost or outcome data to calculate the number honestly. No campaign, bid, budget, or spending change is made without approval.</div>
   </main>`;
 }
 

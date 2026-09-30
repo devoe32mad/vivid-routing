@@ -164,7 +164,7 @@ async function loadPerformanceCenterInsights({q,userId,range,now=new Date()}){
     ["tiktok","TikTok Ads",tiktok,"tiktok-ads"],["reddit","Reddit Ads",reddit,"reddit-ads"],["pinterest","Pinterest Ads",pinterest,"pinterest-ads"]
   ].map(([id,name,evidence,path])=>({id,name,evidence,href:(connectionId,r)=>`/admin/connectors/${path}/${connectionId}?from=${r.from}&to=${r.to}`}));
   const economics=await safe(async()=> (await q("SELECT gross_margin_pct::text FROM marketing_account_economics WHERE owner_user_id=$1",[userId])).rows[0]||null);
-  return{paid:paidInsights(sources,range,now,analytics,economics),website:websiteInsights(analytics,search,range),organic:organicInsights(analytics,youtube,range),ai:aiInsights(analytics,range)};
+  return{economics,paid:paidInsights(sources,range,now,analytics,economics),website:websiteInsights(analytics,search,range),organic:organicInsights(analytics,youtube,range),ai:aiInsights(analytics,range)};
 }
 
 module.exports={loadPerformanceCenterInsights,aiSource,organicMedium,websiteInsights,organicInsights,aiInsights,paidInsights,paidWebsite};
