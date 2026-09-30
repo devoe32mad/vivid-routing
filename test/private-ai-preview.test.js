@@ -27,7 +27,7 @@ test("AI read/write routes are closed and concurrent performance requests retain
   for(const route of ["/admin/ai-insights","/org-performance","/reports","/admin/marketing-command-center","/admin/connectors/google-ads/1"]){
     app.get(route,async(req,res)=>{
       await new Promise(resolve=>setTimeout(resolve,req.get("x-test-actor")==="preview"?5:1));
-      res.send('<a href="/reports">Reports</a><a href="/admin/ai-insights">Performance Insights</a><a href="/admin/ai-readiness"><span>AI Readiness</span></a><h1>Impressions 100 · Clicks 10</h1>'+render());
+      res.send('<a href="/reports">Reports</a><a href="/admin/ai-insights">AI Performance Center</a><a href="/admin/ai-readiness"><span>AI Readiness</span></a><h1>Impressions 100 · Clicks 10</h1>'+render());
     });
   }
   const server=app.listen(0,"127.0.0.1");
@@ -54,7 +54,7 @@ test("AI read/write routes are closed and concurrent performance requests retain
     for(const actor of ["preview","platform"]){assert.equal((await fetch(url+"/admin/ai-readiness",{headers:{"x-test-actor":actor}})).status,200);}
     await Promise.all(["regular","preview","platform","org"].flatMap(actor=>["/admin/ai-insights","/org-performance","/reports","/admin/marketing-command-center","/admin/connectors/google-ads/1"].map(async route=>{
       const response=await fetch(url+route+"?ask=what+is+working",{headers:{"x-test-actor":actor}}),html=await response.text();
-      assert.equal(response.status,200);assert.match(html,/Impressions 100 · Clicks 10/);assert.match(html,/Performance Insights/);assert.match(html,/href="\/reports"/);
+      assert.equal(response.status,200);assert.match(html,/Impressions 100 · Clicks 10/);assert.match(html,/AI Performance Center/);assert.match(html,/href="\/reports"/);
       if(actor==="preview"||(actor==="platform"&&!route.startsWith("/org-"))){assert.match(html,/Ask Vivid/);assert.match(html,/AI Readiness/);}
       else{assert.doesNotMatch(html,/Ask Vivid|AI Readiness|ai-readiness/);}
     })));
@@ -139,7 +139,7 @@ test("startup composition installs all renderer guards after session and remains
     assert.ok(source.indexOf("app.use(aiPreviewMiddleware)")>source.indexOf("session({"));
     assert.ok(source.indexOf("app.use(aiPreviewMiddleware)")<source.indexOf('app.get("/admin/ai-insights"'));
     for(const name of RENDERERS)assert.ok(source.includes(`const ${name} = previewRenderer(${name}Unrestricted);`));
-    assert.match(source,/Performance Insights/);assert.match(source,/EXECUTIVE PERFORMANCE TOTALS/);
+    assert.match(source,/AI Performance Center/);assert.match(source,/EXECUTIVE PERFORMANCE TOTALS/);
     assert.doesNotMatch(source,/>AI Insights<\/a>/);
     assert.equal((source.match(/\$\{aiPreviewEnabled\(\)\?`<!--/g)||[]).length,2);
   } finally {fs.rmSync(tmp,{recursive:true,force:true});}

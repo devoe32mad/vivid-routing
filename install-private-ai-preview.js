@@ -29,9 +29,10 @@ app.use(aiPreviewMiddleware);
     source = source.slice(0,start) + '${aiPreviewEnabled()?`' + source.slice(start,end) + '`:""}' + source.slice(end);
   }
   return source.replace(anchor, block + anchor)
-    .replaceAll("Run Reports and AI Insights", "Run Reports and Performance Insights")
-    .replaceAll("Reports & AI Insights", "Reports & Performance Insights")
-    .replaceAll('>AI Insights</a>', '>Performance Insights</a>');
+    .replaceAll("Run Reports and AI Insights", "Run Reports and AI Performance Center")
+    .replaceAll("Reports & AI Insights", "Reports & AI Performance Center")
+    .replaceAll('>AI Insights</a>', '>AI Performance Center</a>')
+    .replaceAll('>Performance Insights</a>', '>AI Performance Center</a>');
 }
 if (require.main === module) {
   const file = path.join(__dirname, "server.js");
