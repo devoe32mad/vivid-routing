@@ -16,6 +16,7 @@ function installUserContext(source){
 }
 // Preserve date filters without duplicating the tenant parameter in overview links.
 function install(source) {
+  source = require("./org-date-filter-context").install(source);
   source = installUserContext(source);
   const marker = "// Organization overview links keep a single organization_id.";
   if (source.includes(marker)) return source;
