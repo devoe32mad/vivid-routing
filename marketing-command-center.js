@@ -26,7 +26,7 @@ const CONNECTORS = [
 const esc = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const n = value => Number.isFinite(Number(value)) ? Number(value) : 0;
 function dateRange(query={}, now=new Date()) {
-  const from=query.from || new Date(now.getTime()-29*86400000).toISOString().slice(0,10), to=query.to || now.toISOString().slice(0,10);
+  const {from,to}=require("./reporting-date-range").reportingDateRange(query,now);
   const valid=x=>typeof x==="string" && /^\d{4}-\d{2}-\d{2}$/.test(x) && Number.isFinite(Date.parse(x)) && new Date(x).toISOString().slice(0,10)===x;
   if(!valid(from)||!valid(to)||from>to||Date.parse(to)-Date.parse(from)>366*86400000) throw Error("Choose a valid date range of up to 367 days.");
   return {from,to};
