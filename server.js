@@ -83418,6 +83418,10 @@ ORDER BY o.name
         </table>
       </div>
     `));
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
 
   } catch (err) {
     res.status(500).send("ORGANIZATIONS ERROR: " + err.message);
