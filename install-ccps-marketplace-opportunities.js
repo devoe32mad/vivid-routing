@@ -67,7 +67,7 @@ const schools = [
         description: "Company logo and advertisement displayed on the Gulf Coast High School home gymnasium scoreboards. The school advertises exposure across 125+ home events, performing arts activity, and additional leased events. Published sponsorship cost: $7,500.",
         category: "Athletics Sponsorship",
         price: 7500,
-        annual: null,
+        annual: 7500,
         unit: "sponsorship",
         order: 1
       },
@@ -76,7 +76,7 @@ const schools = [
         description: "Company logo and advertisement displayed on event tickets at Gulf Coast High School. The school advertises exposure across 125+ home events, performing arts activity, and additional leased events. Published sponsorship cost: $7,500.",
         category: "Athletics Sponsorship",
         price: 7500,
-        annual: null,
+        annual: 7500,
         unit: "sponsorship",
         order: 2
       },
@@ -85,7 +85,7 @@ const schools = [
         description: "4 ft x 6 ft Gulf Coast High School banner sponsorship with exposure connected to soccer, lacrosse, football, band activity, and other school events. Published sponsorship cost: $750.",
         category: "Athletics Sponsorship",
         price: 750,
-        annual: null,
+        annual: 750,
         unit: "sponsorship",
         order: 3
       },
@@ -94,7 +94,7 @@ const schools = [
         description: "20-second commercial displayed on the Gulf Coast High School gymnasium LED video board, including volleyball and basketball events and other school activity. Published sponsorship cost: $2,500.",
         category: "Athletics Sponsorship",
         price: 2500,
-        annual: null,
+        annual: 2500,
         unit: "sponsorship",
         order: 4
       }
