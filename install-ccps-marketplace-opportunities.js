@@ -124,10 +124,13 @@ async function run() {
       throw new Error("CCPS installer stopped: organization 13 does not exist.");
     }
 
-    const orgName = String(orgResult.rows[0].name || "").toLowerCase();
-    if (!(orgName.includes("collier") && (orgName.includes("school") || orgName.includes("public")))) {
+    const orgName = String(orgResult.rows[0].name || "").trim().toLowerCase();
+    const isCcps =
+      orgName === "ccps" ||
+      (orgName.includes("collier") && (orgName.includes("school") || orgName.includes("public")));
+    if (!isCcps) {
       throw new Error(
-        `CCPS installer stopped: organization 13 is "${orgResult.rows[0].name}", not a recognized Collier County school organization.`
+        `CCPS installer stopped: organization 13 is "${orgResult.rows[0].name}", not a recognized CCPS organization.`
       );
     }
 
