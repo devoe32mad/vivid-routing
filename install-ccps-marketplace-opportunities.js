@@ -244,8 +244,30 @@ async function run() {
       }
     }
 
+
+    const archivedOpportunities = await client.query(
+      `UPDATE organization_opportunities
+          SET is_active = false,
+              updated_at = CURRENT_TIMESTAMP
+        WHERE organization_id = $1
+          AND id < 147
+          AND is_active = true
+        RETURNING id, title`,
+      [ORG_ID]
+    );
+
+    const hiddenExampleLocations = await client.query(
+      `UPDATE spaces
+          SET is_archived = true
+        WHERE organization_id = $1
+          AND LOWER(TRIM(name)) = 'example location'
+          AND COALESCE(is_archived, false) = false
+        RETURNING id, name`,
+      [ORG_ID]
+    );
+
     await client.query("COMMIT");
-    console.log("CCPS MARKETPLACE OPPORTUNITIES:", JSON.stringify({ created, skipped }));
+    console.log("CCPS MARKETPLACE OPPORTUNITIES:", JSON.stringify({ created, skipped, archived: archivedOpportunities.rows, hiddenLocations: hiddenExampleLocations.rows }));
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
