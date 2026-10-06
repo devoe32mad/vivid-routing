@@ -1,6 +1,9 @@
 "use strict";
 
 const crypto = require("node:crypto");
+const { Resend } = require("resend");
+const resend = new Resend(process.env.RESEND_API_KEY);
+const BASE_URL = process.env.BASE_URL || "https://vivid-routing-production.up.railway.app";
 
 const PLAN_BASIC = "basic";
 const PLAN_PERFORMANCE = "performance";
@@ -535,6 +538,51 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
         RETURNING spp.qr_id
       `,[Number(req.body.qr_id),userId]);
       if(!result.rows.length)return res.status(404).send("Placement not found or already upgraded.");
+
+      const upgradeDetail=(await q(`
+        SELECT
+          ar.id AS request_id,
+          ar.email AS advertiser_email,
+          ar.business_name,
+          s.name AS placement_name,
+          s.location AS placement_location,
+          qr.name AS qr_name
+        FROM organization_advertising_requests ar
+        JOIN qr_codes qr ON qr.id=ar.created_qr_id
+        JOIN spaces s ON s.id=qr.space_id
+        WHERE ar.created_qr_id=$1
+          AND ar.status='Approved'
+        ORDER BY ar.id DESC
+        LIMIT 1
+      `,[Number(req.body.qr_id)])).rows[0];
+
+      if(upgradeDetail){
+        try{
+          const advertiser=upgradeDetail.business_name || upgradeDetail.advertiser_email || "Advertiser";
+          const placement=upgradeDetail.placement_name || upgradeDetail.qr_name || ("QR "+Number(req.body.qr_id));
+          const requestId=Number(upgradeDetail.request_id);
+          const { error }=await resend.emails.send({
+            from:"Vivid <notifications@vividspots.com>",
+            to:"mike@vividspots.com",
+            replyTo:"mike@vividspots.com",
+            subject:`Vivid Performance upgrade requested — ${advertiser}`,
+            html:`<div style="font-family:Arial,sans-serif;line-height:1.5;color:#17304f">
+              <h2>Vivid Performance upgrade requested</h2>
+              <p><strong>Advertiser:</strong> ${esc(advertiser)}</p>
+              <p><strong>Email:</strong> ${esc(upgradeDetail.advertiser_email||"—")}</p>
+              <p><strong>Placement:</strong> ${esc(placement)}</p>
+              <p><strong>Location:</strong> ${esc(upgradeDetail.placement_location||"—")}</p>
+              <p><strong>Request ID:</strong> ${requestId}</p>
+              <p><a href="${BASE_URL}/admin/sponsorship-performance?request_id=${requestId}">Review sponsorship</a></p>
+            </div>`
+          });
+          if(error) console.error("SPONSORSHIP UPGRADE EMAIL ERROR",error);
+          else console.log("SPONSORSHIP UPGRADE EMAIL SENT",{requestId,to:"mike@vividspots.com"});
+        }catch(emailError){
+          console.error("SPONSORSHIP UPGRADE EMAIL EXCEPTION",emailError);
+        }
+      }
+
       const reqRow=(await q(`
         SELECT ar.id
         FROM organization_advertising_requests ar
