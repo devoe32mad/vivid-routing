@@ -4,7 +4,7 @@ const fs=require("fs");
 const path=require("path");
 
 function install(source){
-  const importLine='const { attachBasicPlanToMarketplaceQr, basicQrRestricted, basicCampaignRestricted, initialMarketplaceCampaignAllowed, completeBasicMarketplaceSetup } = require("./sponsorship-performance-plan");';
+  const importLine='const { attachBasicPlanToMarketplaceQr, basicQrRestricted, basicCampaignRestricted, initialMarketplaceCampaignAllowed, completeBasicMarketplaceSetup, completeBasicMarketplaceSetupFromQr } = require("./sponsorship-performance-plan");';
   const routeAnchor='app.get(\n  "/admin/edit-campaign/:campaignId",';
 
   if(!source.includes(importLine)){
@@ -46,15 +46,11 @@ app.use(async (req,res,next)=>{
       const source=req.method==="POST" ? req.body : req.query;
       if(
         source?.qr_id &&
-        source?.campaign_id &&
-        source?.marketplace_request_id &&
         await basicQrRestricted(q,req.session.user.id,source.qr_id)
       ){
-        const completed=await completeBasicMarketplaceSetup(q,{
+        const completed=await completeBasicMarketplaceSetupFromQr(q,{
           userId:req.session.user.id,
-          qrId:source.qr_id,
-          campaignId:source.campaign_id,
-          marketplaceRequestId:source.marketplace_request_id
+          qrId:source.qr_id
         });
         if(completed){
           return res.redirect(303,"/admin/marketing-command-center");
@@ -66,15 +62,11 @@ app.use(async (req,res,next)=>{
       requestPath==="/admin/schedule" &&
       req.method==="GET" &&
       req.query?.qr_id &&
-      req.query?.campaign_id &&
-      req.query?.marketplace_request_id &&
       await basicQrRestricted(q,req.session.user.id,req.query.qr_id)
     ){
-      const completed=await completeBasicMarketplaceSetup(q,{
+      const completed=await completeBasicMarketplaceSetupFromQr(q,{
         userId:req.session.user.id,
-        qrId:req.query.qr_id,
-        campaignId:req.query.campaign_id,
-        marketplaceRequestId:req.query.marketplace_request_id
+        qrId:req.query.qr_id
       });
       if(completed){
         return res.redirect(303,"/admin/marketing-command-center");
