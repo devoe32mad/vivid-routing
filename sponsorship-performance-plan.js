@@ -73,6 +73,10 @@ async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[]) {
     FROM sponsorship_performance_plans spp
     JOIN qr_codes qr ON qr.id=spp.qr_id
     JOIN spaces s ON s.id=qr.space_id
+    JOIN organization_advertising_requests ar
+      ON ar.created_qr_id=qr.id
+     AND ar.created_vivid_user_id=$1
+     AND ar.status='Approved'
     LEFT JOIN qr_campaigns qc
       ON qc.qr_id=qr.id AND COALESCE(qc.is_active,true)=true
     LEFT JOIN campaigns c ON c.id=qc.campaign_id
@@ -81,8 +85,7 @@ async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[]) {
       AND e.type='scan'
       AND e.created_at >= $2::date
       AND e.created_at < ($3::date + INTERVAL '1 day')
-    WHERE s.user_id=$1
-      AND spp.status <> 'cancelled'
+    WHERE spp.status <> 'cancelled'
     GROUP BY
       qr.id,qr.name,qr.description,s.name,s.location,
       spp.plan,spp.monthly_price,spp.status,spp.upgrade_requested_at,
@@ -124,7 +127,7 @@ function renderBasicSponsorshipDashboard({title="Your sponsorship performance",r
 .sp-url{overflow-wrap:anywhere;font-size:13px;color:#52667e}@media(max-width:650px){.sp-lock ul{columns:1}}
 </style>
 <main class="sp-basic">
-<section class="sp-hero"><small>CCPS SPONSORSHIP · BASIC PERFORMANCE</small><h1>${esc(title)}</h1>
+<section class="sp-hero"><small>SPONSORSHIP · BASIC PERFORMANCE</small><h1>${esc(title)}</h1>
 <p>Your sponsorship includes a unique Vivid QR code and spot-level scan reporting. CCPS also receives placement-level engagement visibility.</p></section>
 <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:18px 0">
 <label>From<br><input type="date" name="from" value="${esc(range.from)}" required></label>
@@ -164,10 +167,12 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin}) {
             upgrade_requested_at=CURRENT_TIMESTAMP,
             updated_at=CURRENT_TIMESTAMP
         FROM qr_codes qr
-        JOIN spaces s ON s.id=qr.space_id
+        JOIN organization_advertising_requests ar
+          ON ar.created_qr_id=qr.id
+         AND ar.created_vivid_user_id=$2
+         AND ar.status='Approved'
         WHERE spp.qr_id=qr.id
           AND spp.qr_id=$1
-          AND s.user_id=$2
           AND spp.plan='basic'
           AND spp.status='active'
         RETURNING spp.qr_id
@@ -185,5 +190,22 @@ module.exports={
   PLAN_BASIC,PLAN_PERFORMANCE,MONTHLY_PRICE,
   ensureSchema,attachBasicPlanToMarketplaceQr,
   loadAdvertiserSponsorshipState,renderBasicSponsorshipDashboard,
-  registerSponsorshipPerformanceRoutes
+  registerSponsorshipPerformanceRoutes,
+  async isBasicSponsorshipAdvertiser(q,userId) {
+    if(!validId(userId)) return false;
+    await ensureSchema(q);
+    const row=(await q(`
+      SELECT 1
+      FROM sponsorship_performance_plans spp
+      JOIN qr_codes qr ON qr.id=spp.qr_id
+      JOIN organization_advertising_requests ar
+        ON ar.created_qr_id=qr.id
+       AND ar.created_vivid_user_id=$1
+       AND ar.status='Approved'
+      WHERE spp.plan='basic'
+        AND spp.status IN ('active','upgrade_requested')
+      LIMIT 1
+    `,[Number(userId)])).rows[0];
+    return Boolean(row);
+  }
 };
