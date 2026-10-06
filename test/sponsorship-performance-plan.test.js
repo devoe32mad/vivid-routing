@@ -1,4 +1,5 @@
 "use strict";
+// Basic everyday sponsorship regression coverage.
 
 const test=require("node:test");
 const assert=require("node:assert/strict");
