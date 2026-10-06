@@ -212,6 +212,42 @@ ${item.plan===PLAN_PERFORMANCE && item.status==="active"
 </section></main>`;
 }
 
+async function sessionHasBasicSponsorship(q,sessionUser={}) {
+  await ensureSchema(q);
+  const primaryId=Number(sessionUser.login_user_id||sessionUser.id||0);
+  const secondaryId=Number(sessionUser.id||0);
+  const email=String(sessionUser.email||"").trim().toLowerCase();
+
+  const row=(await q(`
+    SELECT 1
+    FROM organization_advertising_requests ar
+    LEFT JOIN users u ON u.id=ar.created_vivid_user_id
+    LEFT JOIN sponsorship_performance_plans spp ON spp.qr_id=ar.created_qr_id
+    WHERE ar.status='Approved'
+      AND ar.created_qr_id IS NOT NULL
+      AND COALESCE(spp.plan,'basic')='basic'
+      AND COALESCE(spp.status,'active') IN ('active','upgrade_requested')
+      AND (
+        ($1::int > 0 AND ar.created_vivid_user_id=$1)
+        OR ($2::int > 0 AND u.advertiser_customer_id=$2)
+        OR (
+          NULLIF($3::text,'') IS NOT NULL
+          AND (
+            LOWER(TRIM(ar.email))=$3
+            OR LOWER(TRIM(u.email))=$3
+          )
+        )
+      )
+    LIMIT 1
+  `,[
+    Number.isSafeInteger(primaryId)&&primaryId>0?primaryId:0,
+    Number.isSafeInteger(secondaryId)&&secondaryId>0?secondaryId:0,
+    email
+  ])).rows[0];
+
+  return Boolean(row);
+}
+
 async function basicRestrictionApplies(q,userId) {
   if(!validId(userId)) return false;
   await ensureSchema(q);
@@ -510,6 +546,7 @@ module.exports={
   ensureSchema,attachBasicPlanToMarketplaceQr,
   loadAdvertiserSponsorshipState,renderBasicSponsorshipDashboard,
   registerSponsorshipPerformanceRoutes,
+  sessionHasBasicSponsorship,
   basicRestrictionApplies,basicQrRestricted,basicCampaignRestricted,initialMarketplaceCampaignAllowed,completeBasicMarketplaceSetup,
   async isBasicSponsorshipAdvertiser(q,userId) {
     if(!validId(userId)) return false;
