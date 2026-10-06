@@ -75,6 +75,7 @@ async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[],userEm
       c.name AS campaign_name,
       COUNT(e.id) FILTER (WHERE e.type='scan')::int AS scans
     FROM organization_advertising_requests ar
+    LEFT JOIN users owner_user ON owner_user.id=ar.created_vivid_user_id
     JOIN qr_codes qr ON qr.id=ar.created_qr_id
     JOIN spaces s ON s.id=qr.space_id
     LEFT JOIN sponsorship_performance_plans spp ON spp.qr_id=qr.id
@@ -95,9 +96,13 @@ async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[],userEm
           AND ar.id=$6
           AND (
             ar.created_vivid_user_id=$1
+            OR owner_user.advertiser_customer_id=$1
             OR (
               NULLIF(TRIM($2::text),'') IS NOT NULL
-              AND LOWER(TRIM(ar.email))=LOWER(TRIM($2::text))
+              AND (
+                LOWER(TRIM(ar.email))=LOWER(TRIM($2::text))
+                OR LOWER(TRIM(owner_user.email))=LOWER(TRIM($2::text))
+              )
             )
           )
         )
@@ -105,9 +110,13 @@ async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[],userEm
           $6::int = 0
           AND (
             ar.created_vivid_user_id=$1
+            OR owner_user.advertiser_customer_id=$1
             OR (
               NULLIF(TRIM($2::text),'') IS NOT NULL
-              AND LOWER(TRIM(ar.email))=LOWER(TRIM($2::text))
+              AND (
+                LOWER(TRIM(ar.email))=LOWER(TRIM($2::text))
+                OR LOWER(TRIM(owner_user.email))=LOWER(TRIM($2::text))
+              )
             )
           )
         )
@@ -115,6 +124,7 @@ async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[],userEm
       AND COALESCE(spp.status,'active') <> 'cancelled'
     GROUP BY
       ar.id,ar.organization_id,ar.created_vivid_user_id,ar.email,
+      owner_user.advertiser_customer_id,owner_user.email,
       qr.id,qr.name,qr.description,s.name,s.location,
       spp.plan,spp.monthly_price,spp.status,spp.upgrade_requested_at,
       qc.campaign_id,c.name
