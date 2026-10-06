@@ -11974,6 +11974,19 @@ await client.query(
   }
 );
 app.get("/org-login", (req, res) => {
+  const requestedReturnTo =
+    String(req.query.return_to || "").trim();
+
+  const safeReturnTo =
+    /^\/org-advertising-request\/\d+\?organization_id=\d+$/.test(
+      requestedReturnTo
+    )
+      ? requestedReturnTo
+      : "";
+
+  const requestedOrganizationId =
+    Number(req.query.organization_id);
+
   res.send(orgPage("Organization Login", `
     <div class="topbar">
       <div class="brand">Vivid Organizations</div>
@@ -11983,6 +11996,12 @@ app.get("/org-login", (req, res) => {
 
     <div class="wrap">
       <form method="POST" action="/org-login">
+        ${safeReturnTo
+          ? `<input type="hidden" name="return_to" value="${escapeHtml(safeReturnTo)}">`
+          : ""}
+        ${Number.isInteger(requestedOrganizationId) && requestedOrganizationId > 0
+          ? `<input type="hidden" name="organization_id" value="${requestedOrganizationId}">`
+          : ""}
         <label>Email</label>
         <input name="email" type="email" required />
 
@@ -12047,8 +12066,45 @@ if (result.rows.length === 0) {
   `);
 }
 
+const requestedOrganizationId =
+  Number(req.body.organization_id);
+
+const requestedReturnTo =
+  String(req.body.return_to || "").trim();
+
+const safeReturnTo =
+  /^\/org-advertising-request\/\d+\?organization_id=\d+$/.test(
+    requestedReturnTo
+  )
+    ? requestedReturnTo
+    : "";
+
+const selectedUser =
+  Number.isInteger(requestedOrganizationId) &&
+  requestedOrganizationId > 0
+    ? result.rows.find(
+        row =>
+          Number(row.organization_id) ===
+          requestedOrganizationId
+      )
+    : (
+        result.rows.length === 1
+          ? result.rows[0]
+          : null
+      );
+
+if (!selectedUser) {
+  return res.status(403).send(`
+    Your account does not have active access to the organization for this request.
+    <br><br>
+    Please contact the organization administrator if you need access.
+    <br><br>
+    <a href="/org-login">Back to Organization Login</a>
+  `);
+}
+
 const storedPassword =
-  result.rows[0].stored_password;
+  selectedUser.stored_password;
 
 const passwordMatches =
   isHashedPassword(storedPassword)
@@ -12100,16 +12156,22 @@ if (!isHashedPassword(storedPassword)) {
       We are intentionally not guessing when duplicate organization
       memberships exist.
     */
-    if (result.rows.length > 1) {
+    if (
+      result.rows.length > 1 &&
+      !(
+        Number.isInteger(requestedOrganizationId) &&
+        requestedOrganizationId > 0
+      )
+    ) {
       return res.status(409).send(`
         This user is connected to more than one active organization.
-        The organization memberships must be corrected before login.
+        Open the request link again so Vivid can select the correct organization.
         <br><br>
         <a href="/org-login">Back to Organization Login</a>
       `);
     }
 
-    const user = result.rows[0];
+    const user = selectedUser;
 delete req.session.user;
     req.session.orgUser = {
       id: user.user_id,
@@ -12119,6 +12181,21 @@ delete req.session.user;
       organization_name: user.organization_name,
       organization_role: user.organization_role
     };
+
+if (safeReturnTo) {
+  return req.session.save(
+    err => {
+      if (err) {
+        console.error("ORG LOGIN RETURN SESSION ERROR:", err);
+        return res.status(500).send(
+          "Unable to open the requested advertising review."
+        );
+      }
+
+      return res.redirect(303, safeReturnTo);
+    }
+  );
+}
 
   /*
   Organization-level admins land on their
@@ -58743,10 +58820,9 @@ app.get(
       }
 
       let organizationId = null;
+      const requestedOrganizationId =
+        Number(req.query.organization_id);
 
-      /*
-        Organization Portal access.
-      */
       if (
         req.session.orgUser?.organization_id
       ) {
@@ -58755,22 +58831,105 @@ app.get(
         );
       }
 
-      /*
-        Super Admin access.
-      */
       if (
         !organizationId &&
-        req.session.user?.role ===
-          "super_admin"
+        ["super_admin","admin"].includes(
+          String(req.session.user?.role || "")
+            .trim()
+            .toLowerCase()
+        )
       ) {
-        organizationId = Number(
-          req.query.organization_id
+        organizationId =
+          requestedOrganizationId;
+      }
+
+      if (
+        !organizationId &&
+        req.session.user &&
+        Number.isInteger(requestedOrganizationId) &&
+        requestedOrganizationId > 0
+      ) {
+        const loginUserId = Number(
+          req.session.user.login_user_id ||
+          req.session.user.id
+        );
+
+        const membershipResult = await q(
+          `
+            SELECT
+              u.id AS user_id,
+              u.email,
+              o.id AS organization_id,
+              o.name AS organization_name,
+              ou.role AS organization_role
+            FROM organization_users ou
+            JOIN users u
+              ON u.id = ou.user_id
+            JOIN organizations o
+              ON o.id = ou.organization_id
+            WHERE ou.user_id = $1
+              AND ou.organization_id = $2
+              AND COALESCE(ou.is_active,true) = true
+              AND COALESCE(o.is_active,true) = true
+              AND COALESCE(u.account_status,'active') = 'active'
+            LIMIT 1
+          `,
+          [
+            loginUserId,
+            requestedOrganizationId
+          ]
+        );
+
+        const membership =
+          membershipResult.rows[0] || null;
+
+        if (membership) {
+          req.session.platformUser = {
+            ...req.session.user
+          };
+
+          req.session.orgUser = {
+            id: membership.user_id,
+            email: membership.email,
+            organization_id:
+              membership.organization_id,
+            organization_name:
+              membership.organization_name,
+            organization_role:
+              membership.organization_role
+          };
+
+          delete req.session.user;
+
+          organizationId =
+            Number(membership.organization_id);
+        }
+      }
+
+      if (
+        !organizationId &&
+        !req.session.user &&
+        !req.session.orgUser &&
+        Number.isInteger(requestedOrganizationId) &&
+        requestedOrganizationId > 0
+      ) {
+        const returnTo =
+          `/org-advertising-request/${requestId}?organization_id=${requestedOrganizationId}`;
+
+        return res.redirect(
+          303,
+          `/org-login?organization_id=${requestedOrganizationId}&return_to=${encodeURIComponent(returnTo)}`
         );
       }
 
       if (
         !Number.isInteger(organizationId) ||
-        organizationId <= 0
+        organizationId <= 0 ||
+        (
+          Number.isInteger(requestedOrganizationId) &&
+          requestedOrganizationId > 0 &&
+          organizationId !== requestedOrganizationId
+        )
       ) {
         return res.status(403).send(
           "Advertising Request access denied."
