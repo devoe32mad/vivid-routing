@@ -220,6 +220,80 @@ async function basicCampaignRestricted(q,userId,campaignId) {
   return Boolean(row);
 }
 
+async function initialMarketplaceCampaignAllowed(q,userId,qrId,marketplaceRequestId) {
+  if(!validId(userId)||!validId(qrId)||!validId(marketplaceRequestId)) return false;
+  const row=(await q(`
+    SELECT 1
+    FROM organization_advertising_requests ar
+    WHERE ar.id=$1
+      AND ar.created_vivid_user_id=$2
+      AND ar.created_qr_id=$3
+      AND ar.status='Approved'
+      AND ar.created_campaign_id IS NULL
+    LIMIT 1
+  `,[Number(marketplaceRequestId),Number(userId),Number(qrId)])).rows[0];
+  return Boolean(row);
+}
+
+async function completeBasicMarketplaceSetup(q,{userId,qrId,campaignId,marketplaceRequestId}) {
+  if(!validId(userId)||!validId(qrId)||!validId(campaignId)||!validId(marketplaceRequestId)) return false;
+  await ensureSchema(q);
+
+  const approved=(await q(`
+    SELECT id
+    FROM organization_advertising_requests
+    WHERE id=$1
+      AND created_vivid_user_id=$2
+      AND created_qr_id=$3
+      AND status='Approved'
+    LIMIT 1
+  `,[Number(marketplaceRequestId),Number(userId),Number(qrId)])).rows[0];
+
+  if(!approved) return false;
+
+  await q(`
+    INSERT INTO qr_campaigns (
+      qr_id,campaign_id,is_active,assigned_at,started_at,ended_at
+    )
+    SELECT $1,$2,true,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,NULL
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM qr_campaigns
+      WHERE qr_id=$1
+        AND campaign_id=$2
+        AND COALESCE(is_active,true)=true
+    )
+  `,[Number(qrId),Number(campaignId)]);
+
+  await q(`
+    UPDATE organization_advertising_requests
+    SET created_campaign_id=$1,
+        setup_status='Complete',
+        setup_completed_at=COALESCE(setup_completed_at,CURRENT_TIMESTAMP),
+        updated_at=CURRENT_TIMESTAMP
+    WHERE id=$2
+      AND created_vivid_user_id=$3
+      AND created_qr_id=$4
+      AND status='Approved'
+  `,[
+    Number(campaignId),
+    Number(marketplaceRequestId),
+    Number(userId),
+    Number(qrId)
+  ]);
+
+  await q(`
+    UPDATE contracts
+    SET qr_id=$1,
+        status='Active',
+        activated_at=COALESCE(activated_at,CURRENT_TIMESTAMP),
+        updated_at=CURRENT_TIMESTAMP
+    WHERE advertising_request_id=$2
+  `,[Number(qrId),Number(marketplaceRequestId)]);
+
+  return true;
+}
+
 function registerSponsorshipPerformanceRoutes({app,q,requireLogin}) {
   app.post("/admin/sponsorship-performance/upgrade",requireLogin,async(req,res)=>{
     try{
@@ -258,7 +332,7 @@ module.exports={
   ensureSchema,attachBasicPlanToMarketplaceQr,
   loadAdvertiserSponsorshipState,renderBasicSponsorshipDashboard,
   registerSponsorshipPerformanceRoutes,
-  basicRestrictionApplies,basicQrRestricted,basicCampaignRestricted,
+  basicRestrictionApplies,basicQrRestricted,basicCampaignRestricted,initialMarketplaceCampaignAllowed,completeBasicMarketplaceSetup,
   async isBasicSponsorshipAdvertiser(q,userId) {
     if(!validId(userId)) return false;
     await ensureSchema(q);

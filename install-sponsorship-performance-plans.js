@@ -4,7 +4,7 @@ const fs=require("fs");
 const path=require("path");
 
 function install(source){
-  const importLine='const { attachBasicPlanToMarketplaceQr, basicQrRestricted, basicCampaignRestricted } = require("./sponsorship-performance-plan");';
+  const importLine='const { attachBasicPlanToMarketplaceQr, basicQrRestricted, basicCampaignRestricted, initialMarketplaceCampaignAllowed, completeBasicMarketplaceSetup } = require("./sponsorship-performance-plan");';
   const routeAnchor='app.get(\n  "/admin/edit-campaign/:campaignId",';
 
   if(!source.includes(importLine)){
@@ -40,14 +40,34 @@ app.use(async (req,res,next)=>{
     }
 
     const isCampaignWrite=requestPath==="/admin/new-campaign" && req.method==="POST";
-    const isScheduleWrite=(
+    const isQrControlWrite=(
+      requestPath==="/admin/assign" ||
       requestPath==="/admin/schedule" ||
+      requestPath==="/admin/bulk-schedule" ||
       requestPath==="/admin/event-calendar" ||
       requestPath==="/admin/event-calendar/import"
     ) && req.method==="POST";
 
     if(
-      (isCampaignWrite || isScheduleWrite) &&
+      isCampaignWrite &&
+      req.body?.qr_id &&
+      await basicQrRestricted(q,req.session.user.id,req.body.qr_id)
+    ){
+      const allowedInitialSetup=await initialMarketplaceCampaignAllowed(
+        q,
+        req.session.user.id,
+        req.body.qr_id,
+        req.body?.marketplace_request_id
+      );
+      if(!allowedInitialSetup){
+        return res.status(403).send(
+          "Vivid Performance is required to change this sponsorship campaign."
+        );
+      }
+    }
+
+    if(
+      isQrControlWrite &&
       req.body?.qr_id &&
       await basicQrRestricted(q,req.session.user.id,req.body.qr_id)
     ){
@@ -69,23 +89,22 @@ app.use(async (req,res,next)=>{
     source=source.slice(0,guardPos)+guard+"\n"+source.slice(guardPos);
   }
 
-  const marker="// SPONSORSHIP_PERFORMANCE_MARKETPLACE_DEFAULT";
-  if(source.includes(marker))return source;
-
-  const campaignAnchor=`const campaignId =
+  const planMarker="// SPONSORSHIP_PERFORMANCE_MARKETPLACE_DEFAULT";
+  if(!source.includes(planMarker)){
+    const campaignAnchor=`const campaignId =
   Number(campaignInsertResult.rows[0].id);
 if (
   Number.isInteger(marketplaceRequestId) &&
   marketplaceRequestId > 0
 ) {`;
 
-  if(!source.includes(campaignAnchor)){
-    throw new Error("Marketplace campaign creation anchor not found.");
-  }
+    if(!source.includes(campaignAnchor)){
+      throw new Error("Marketplace campaign creation anchor not found.");
+    }
 
-  const replacement=`const campaignId =
+    const replacement=`const campaignId =
   Number(campaignInsertResult.rows[0].id);
-${marker}
+${planMarker}
 if (
   Number.isInteger(marketplaceRequestId) &&
   marketplaceRequestId > 0 &&
@@ -103,7 +122,72 @@ if (
   marketplaceRequestId > 0
 ) {`;
 
-  return source.replace(campaignAnchor,replacement);
+    source=source.replace(campaignAnchor,replacement);
+  }
+
+  const autoMarker="// SPONSORSHIP_BASIC_AUTO_EVERYDAY";
+  if(!source.includes(autoMarker)){
+    const successStart=`    res.send(successPage(
+      "Campaign Created Successfully",
+      "Your campaign has been saved.",
+      "Assign this campaign to a QR code.",
+      [
+        {
+  label: "Assign Campaign",
+  href:
+    \`/admin/assign\` +
+    \`?marketplace_request_id=\${marketplaceRequestId}\` +
+    \`&qr_id=\${requestedQrId}\` +
+    \`&campaign_id=\${campaignId}\`
+},
+        { label: "Back to My Setup", href: "/my-setup" },
+        { label: "Dashboard", href: "/dashboard" }
+      ]
+    ));`;
+
+    if(!source.includes(successStart)){
+      throw new Error("Campaign success response anchor not found.");
+    }
+
+    source=source.replace(successStart,`${autoMarker}
+    if (
+      Number.isInteger(marketplaceRequestId) &&
+      marketplaceRequestId > 0 &&
+      Number.isInteger(requestedQrId) &&
+      requestedQrId > 0
+    ) {
+      await completeBasicMarketplaceSetup(q,{
+        userId,
+        qrId: requestedQrId,
+        campaignId,
+        marketplaceRequestId
+      });
+
+      return res.send(successPage(
+        "Sponsorship Setup Complete",
+        "Your sponsorship is active and runs every day using the destination you selected.",
+        "Basic includes QR scan reporting. Upgrade to Vivid Performance to change campaigns, rotate offers, schedule by day or time, or track deeper business outcomes.",
+        [
+          { label: "View Sponsorship Performance", href: "/admin/marketing-command-center" },
+          { label: "Test QR", href: "/r/" + requestedQrId, target: "_blank" },
+          { label: "Back to My Setup", href: "/my-setup" }
+        ]
+      ));
+    }
+
+    res.send(successPage(
+      "Campaign Created Successfully",
+      "Your campaign has been saved.",
+      "Assign this campaign to a QR code.",
+      [
+        { label: "Assign Campaign", href: "/admin/assign" },
+        { label: "Back to My Setup", href: "/my-setup" },
+        { label: "Dashboard", href: "/dashboard" }
+      ]
+    ));`);
+  }
+
+  return source;
 }
 
 if(require.main===module){
