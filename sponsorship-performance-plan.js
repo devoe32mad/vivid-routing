@@ -327,7 +327,7 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
           qr_id,plan,monthly_price,status,activated_at,created_at,updated_at
         )
         SELECT DISTINCT
-          ar.created_qr_id,'basic',$2,'active',
+          ar.created_qr_id,'basic',$2::numeric,'active',
           CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
         FROM organization_advertising_requests ar
         JOIN qr_codes qr ON qr.id=ar.created_qr_id
