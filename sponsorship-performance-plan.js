@@ -155,7 +155,7 @@ async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[],userEm
   };
 }
 
-function renderBasicSponsorshipDashboard({title="Your sponsorship performance",range,placements=[],csrf="",upgradeRequested=false}) {
+function renderBasicSponsorshipDashboard({title="Your sponsorship performance",range,placements=[],csrf="",upgradeRequested=false,isPlatformAdmin=false}) {
   const grouped=new Map();
   for(const row of placements) {
     if(!grouped.has(Number(row.qr_id))) grouped.set(Number(row.qr_id),{...row,scans:0,campaigns:[]});
@@ -206,7 +206,7 @@ ${item.campaigns.length?`<p class="sp-muted">Campaign: ${esc([...new Set(item.ca
 ${item.plan===PLAN_PERFORMANCE && item.status==="active"
 ? `<p><strong>Vivid Performance active · $35/month</strong></p>`
 : item.status==="upgrade_requested"
-? '<p><strong>Vivid Performance upgrade requested.</strong></p>'
+? `<p><strong>Vivid Performance upgrade requested.</strong></p>${isPlatformAdmin?`<form method="post" action="/admin/sponsorship-performance/activate" style="margin-top:12px"><input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="qr_id" value="${Number(item.qr_id)}"><button type="submit">Activate Vivid Performance</button></form>`:""}`
 : `<form method="post" action="/admin/sponsorship-performance/upgrade">
 <input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="qr_id" value="${Number(item.qr_id)}">
 <button type="submit">Request Vivid Performance Upgrade — $35/month</button>
@@ -504,12 +504,85 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
         range,
         placements:state.rows,
         csrf:req.session.sponsorshipPerformanceCsrf,
-        upgradeRequested:req.query.upgrade==="requested"
+        upgradeRequested:req.query.upgrade==="requested",
+        isPlatformAdmin
       });
       return res.send(typeof page==="function"?page("Sponsorship Performance",body):body);
     }catch(error){
       console.error("SPONSORSHIP PERFORMANCE DASHBOARD ERROR",error);
       return res.status(500).send("Unable to load sponsorship performance. Please try again.");
+    }
+  });
+
+  app.post("/admin/sponsorship-performance/activate",requireLogin,async(req,res)=>{
+    try{
+      const role=String(req.session?.user?.role||"").trim().toLowerCase();
+      if(!["admin","super_admin"].includes(role))return res.status(403).send("Vivid administrator access required.");
+      if(!validId(req.body?.qr_id))return res.status(400).send("Valid placement required.");
+
+      const expected=String(req.session.sponsorshipPerformanceCsrf||""),provided=String(req.body?.csrf||"");
+      const a=Buffer.from(expected),b=Buffer.from(provided);
+      if(!expected||a.length!==b.length||!crypto.timingSafeEqual(a,b))return res.status(403).send("Reload the sponsorship dashboard and try again.");
+
+      await ensureSchema(q);
+      const activation=(await q(`
+        UPDATE sponsorship_performance_plans spp
+        SET plan='performance',
+            status='active',
+            activated_at=CURRENT_TIMESTAMP,
+            upgrade_requested_at=NULL,
+            updated_at=CURRENT_TIMESTAMP
+        WHERE spp.qr_id=$1
+          AND spp.plan='basic'
+          AND spp.status='upgrade_requested'
+        RETURNING spp.qr_id
+      `,[Number(req.body.qr_id)])).rows[0];
+
+      if(!activation)return res.status(404).send("This placement is not waiting for activation.");
+
+      const detail=(await q(`
+        SELECT
+          ar.id AS request_id,
+          ar.email AS advertiser_email,
+          ar.business_name,
+          s.name AS placement_name,
+          s.location AS placement_location
+        FROM organization_advertising_requests ar
+        JOIN qr_codes qr ON qr.id=ar.created_qr_id
+        JOIN spaces s ON s.id=qr.space_id
+        WHERE ar.created_qr_id=$1
+          AND ar.status='Approved'
+        ORDER BY ar.id DESC
+        LIMIT 1
+      `,[Number(req.body.qr_id)])).rows[0];
+
+      if(detail?.advertiser_email){
+        try{
+          const advertiser=detail.business_name||detail.advertiser_email;
+          const {error}=await resend.emails.send({
+            from:"Vivid <notifications@vividspots.com>",
+            to:detail.advertiser_email,
+            replyTo:"mike@vividspots.com",
+            subject:"Vivid Performance is now active",
+            html:`<div style="font-family:Arial,sans-serif;line-height:1.5;color:#17304f">
+              <h2>Vivid Performance is now active</h2>
+              <p>${esc(advertiser)}, your Vivid Performance upgrade is active for <strong>${esc(detail.placement_name||"your sponsorship placement")}</strong>.</p>
+              <p>You can now access the deeper performance view, including website activity, conversions, attributed revenue and ROI.</p>
+              <p><a href="${BASE_URL}/admin/sponsorship-performance?request_id=${Number(detail.request_id)}">Open Sponsorship Performance</a></p>
+            </div>`
+          });
+          if(error)console.error("SPONSORSHIP ACTIVATION EMAIL ERROR",error);
+          else console.log("SPONSORSHIP ACTIVATION EMAIL SENT",{requestId:Number(detail.request_id),to:detail.advertiser_email});
+        }catch(emailError){
+          console.error("SPONSORSHIP ACTIVATION EMAIL EXCEPTION",emailError);
+        }
+      }
+
+      const suffix=detail?.request_id?"?request_id="+Number(detail.request_id)+"&activated=1":"?activated=1";
+      return res.redirect(303,"/admin/sponsorship-performance"+suffix);
+    }catch(error){
+      console.error("SPONSORSHIP PERFORMANCE ACTIVATE ERROR",error);
+      return res.status(500).send("Unable to activate Vivid Performance. Please try again.");
     }
   });
 
