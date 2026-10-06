@@ -234,7 +234,7 @@ if (
   if(!source.includes(dedicatedMarker)){
     source=source
       .replaceAll('return res.redirect(303,"/admin/marketing-command-center");','return res.redirect(303,"/admin/sponsorship-performance");')
-      .replaceAll('{ label: "View Sponsorship Performance", href: "/admin/marketing-command-center" }','{ label: "View Sponsorship Performance", href: "/admin/sponsorship-performance" }');
+      .replaceAll('{ label: "View Sponsorship Performance", href: "/admin/marketing-command-center" }','{ label: "View Sponsorship Performance", href: "/admin/sponsorship-performance?request_id=" + marketplaceRequestId }');
     source += "\n// SPONSORSHIP_BASIC_DEDICATED_DASHBOARD_V3\n";
   }
 
