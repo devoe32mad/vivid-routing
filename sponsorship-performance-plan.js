@@ -294,6 +294,38 @@ async function completeBasicMarketplaceSetup(q,{userId,qrId,campaignId,marketpla
   return true;
 }
 
+async function completeBasicMarketplaceSetupFromQr(q,{userId,qrId}) {
+  if(!validId(userId)||!validId(qrId)) return false;
+  await ensureSchema(q);
+
+  const row=(await q(`
+    SELECT
+      ar.id AS marketplace_request_id,
+      ar.created_campaign_id AS campaign_id
+    FROM organization_advertising_requests ar
+    JOIN sponsorship_performance_plans spp
+      ON spp.qr_id=ar.created_qr_id
+    WHERE ar.created_vivid_user_id=$1
+      AND ar.created_qr_id=$2
+      AND ar.status='Approved'
+      AND ar.created_campaign_id IS NOT NULL
+      AND ar.created_campaign_id > 0
+      AND spp.plan='basic'
+      AND spp.status IN ('active','upgrade_requested')
+    ORDER BY ar.id DESC
+    LIMIT 1
+  `,[Number(userId),Number(qrId)])).rows[0];
+
+  if(!row) return false;
+
+  return completeBasicMarketplaceSetup(q,{
+    userId,
+    qrId,
+    campaignId:Number(row.campaign_id),
+    marketplaceRequestId:Number(row.marketplace_request_id)
+  });
+}
+
 function registerSponsorshipPerformanceRoutes({app,q,requireLogin}) {
   app.post("/admin/sponsorship-performance/upgrade",requireLogin,async(req,res)=>{
     try{
@@ -332,7 +364,7 @@ module.exports={
   ensureSchema,attachBasicPlanToMarketplaceQr,
   loadAdvertiserSponsorshipState,renderBasicSponsorshipDashboard,
   registerSponsorshipPerformanceRoutes,
-  basicRestrictionApplies,basicQrRestricted,basicCampaignRestricted,initialMarketplaceCampaignAllowed,completeBasicMarketplaceSetup,
+  basicRestrictionApplies,basicQrRestricted,basicCampaignRestricted,initialMarketplaceCampaignAllowed,completeBasicMarketplaceSetup,completeBasicMarketplaceSetupFromQr,
   async isBasicSponsorshipAdvertiser(q,userId) {
     if(!validId(userId)) return false;
     await ensureSchema(q);
