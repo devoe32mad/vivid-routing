@@ -170,7 +170,7 @@ function registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizat
     // enrolled in Basic or Vivid Performance.
     const campaigns=await loadCampaigns(scope,range);
     const sponsorshipState=await loadAdvertiserSponsorshipState(q,selectedId,range,campaigns);
-    if(sponsorshipState.basicOnly){
+    if(sponsorshipState.sponsorshipOnly){
       req.session.sponsorshipPerformanceCsrf||=crypto.randomBytes(32).toString("hex");
       res.set?.("Cache-Control","no-store");
       return res.send(page("Sponsorship Performance",renderBasicSponsorshipDashboard({
