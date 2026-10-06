@@ -4,8 +4,10 @@ const {createSync} = require('./square-production-sync');
 const BASE = 'https://connect.squareup.com';
 const {installSales, SALES_SCOPES, page} = require('./square-production-sales');
 const SCOPES = SALES_SCOPES;
+const BILLING_SCOPES = 'ITEMS_READ ITEMS_WRITE SUBSCRIPTIONS_READ SUBSCRIPTIONS_WRITE ORDERS_READ ORDERS_WRITE PAYMENTS_WRITE';
 const {installCheckout,CHECKOUT_SCOPES}=require('./square-production-checkout');
 const {installInstore}=require('./square-production-instore');
+const {installVividSubscriptions}=require('./square-vivid-subscriptions');
 const PATH = '/integrations/square/production';
 function equal(a, b) {
   return typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) &&
@@ -84,7 +86,7 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
     const id = Number(req.params.customerId);
     const customer = await q("SELECT id FROM users WHERE id=$1 AND role=\'customer\'", [id]);
     if (!customer.rows.length) return res.status(404).send('Advertiser not found.');
-    const requestedScopes=req.body.checkout==='true' ? SCOPES+' '+CHECKOUT_SCOPES : SCOPES;
+    const requestedScopes=req.body.billing==='true' ? SCOPES+' '+CHECKOUT_SCOPES+' '+BILLING_SCOPES : req.body.checkout==='true' ? SCOPES+' '+CHECKOUT_SCOPES : SCOPES;
     const state = crypto.randomBytes(32).toString('hex');
     req.session.squareProductionPending = {state, customerId:id, userId:req.session.user.id, scopes:requestedScopes, until:Date.now()+600000};
     await q('DELETE FROM square_production_states WHERE expires_at < NOW()');
@@ -146,6 +148,7 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
   sync.start(syncSales);
   installCheckout({app,q,owner,wrap,api,getConnection,csrf,root,origin:new URL(config.redirect).origin});
   installInstore({app,q,owner,wrap,api,getConnection,csrf,root,redemptions,origin:new URL(config.redirect).origin});
+  installVividSubscriptions({app,q,api,getConnection,origin:new URL(config.redirect).origin,env});
   app.get(PATH + '/customers/:customerId/locations', owner, wrap(async (req, res) => {
     const id = Number(req.params.customerId), connection = await getConnection(id);
     if (!connection) return res.status(409).send('Connect a Square live account first.');
@@ -169,7 +172,7 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
     res.redirect(root(id));
   }));
 }
-module.exports = {install, configuration, seal, unseal, equal};
+module.exports = {install, configuration, seal, unseal, equal, BILLING_SCOPES};
 
 
 
