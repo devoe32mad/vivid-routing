@@ -54,45 +54,62 @@ async function attachBasicPlanToMarketplaceQr(q,{qrId,marketplaceRequestId,userI
   return result.rows.length > 0;
 }
 
-async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[]) {
+async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[],userEmail="") {
   await ensureSchema(q);
   const rows=(await q(`
     SELECT
+      ar.id AS request_id,
+      ar.organization_id,
+      ar.created_vivid_user_id,
+      ar.email AS request_email,
       qr.id AS qr_id,
       qr.name AS qr_name,
       qr.description AS destination_url,
       s.name AS space_name,
       s.location,
-      spp.plan,
-      spp.monthly_price,
-      spp.status,
+      COALESCE(spp.plan,'basic') AS plan,
+      COALESCE(spp.monthly_price,$5::numeric) AS monthly_price,
+      COALESCE(spp.status,'active') AS status,
       spp.upgrade_requested_at,
       qc.campaign_id,
       c.name AS campaign_name,
       COUNT(e.id) FILTER (WHERE e.type='scan')::int AS scans
-    FROM sponsorship_performance_plans spp
-    JOIN qr_codes qr ON qr.id=spp.qr_id
+    FROM organization_advertising_requests ar
+    JOIN qr_codes qr ON qr.id=ar.created_qr_id
     JOIN spaces s ON s.id=qr.space_id
-    JOIN organization_advertising_requests ar
-      ON ar.created_qr_id=qr.id
-     AND ar.created_vivid_user_id=$1
-     AND ar.status='Approved'
+    LEFT JOIN sponsorship_performance_plans spp ON spp.qr_id=qr.id
     LEFT JOIN qr_campaigns qc
       ON qc.qr_id=qr.id AND COALESCE(qc.is_active,true)=true
     LEFT JOIN campaigns c ON c.id=qc.campaign_id
     LEFT JOIN events e
-      ON e.campaign_id=c.id
-      AND e.qr_id=qr.id
+      ON e.qr_id=qr.id
+      AND (qc.campaign_id IS NULL OR e.campaign_id=qc.campaign_id)
       AND e.type='scan'
-      AND e.created_at >= $2::date
-      AND e.created_at < ($3::date + INTERVAL '1 day')
-    WHERE spp.status <> 'cancelled'
+      AND e.created_at >= $3::date
+      AND e.created_at < ($4::date + INTERVAL '1 day')
+    WHERE ar.status='Approved'
+      AND ar.created_qr_id IS NOT NULL
+      AND (
+        ar.created_vivid_user_id=$1
+        OR (
+          NULLIF(TRIM($2::text),'') IS NOT NULL
+          AND LOWER(TRIM(ar.email))=LOWER(TRIM($2::text))
+        )
+      )
+      AND COALESCE(spp.status,'active') <> 'cancelled'
     GROUP BY
+      ar.id,ar.organization_id,ar.created_vivid_user_id,ar.email,
       qr.id,qr.name,qr.description,s.name,s.location,
       spp.plan,spp.monthly_price,spp.status,spp.upgrade_requested_at,
       qc.campaign_id,c.name
-    ORDER BY qr.id,qc.campaign_id
-  `,[Number(userId),range.from,range.to])).rows;
+    ORDER BY ar.id DESC,qr.id,qc.campaign_id
+  `,[
+    Number(userId),
+    String(userEmail||""),
+    range.from,
+    range.to,
+    MONTHLY_PRICE
+  ])).rows;
 
   const explicitCampaignIds=new Set(rows.filter(r=>validId(r.campaign_id)).map(r=>Number(r.campaign_id)));
   const hasLegacyCampaigns=(campaigns||[]).some(c=>!explicitCampaignIds.has(Number(c.id)));
@@ -103,8 +120,8 @@ async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[]) {
     hasLegacyCampaigns,
     hasPerformance,
     hasBasic,
-    sponsorshipOnly: rows.length > 0 && !hasLegacyCampaigns,
-    basicOnly: hasBasic && !hasPerformance && !hasLegacyCampaigns
+    sponsorshipOnly: rows.length > 0,
+    basicOnly: rows.length > 0 && !hasPerformance
   };
 }
 
@@ -123,42 +140,48 @@ function renderBasicSponsorshipDashboard({title="Your sponsorship performance",r
   }
   const items=[...grouped.values()];
   const totalScans=items.reduce((sum,item)=>sum+Number(item.scans||0),0);
+  const locked=(label)=>`<div class="sp-card sp-locked"><span class="sp-muted">${esc(label)}</span><div class="sp-upgrade">Upgrade</div><small>Available with Vivid Performance</small></div>`;
   return `<style>
 .sp-basic{max-width:1050px;margin:28px auto;padding:0 20px 50px;color:#122b49;font:15px/1.5 system-ui,sans-serif}
 .sp-hero{background:#102b50;color:#fff;border-radius:18px;padding:26px}.sp-hero h1{margin:5px 0 8px;font-size:30px}
-.sp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:18px}
+.sp-grid,.sp-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:18px}
 .sp-card{border:1px solid #d9e2ed;border-radius:14px;background:#fff;padding:18px}.sp-card h3{margin:3px 0 8px}
-.sp-metric{font-size:34px;font-weight:850;color:#1559c7}.sp-muted{color:#60748b}.sp-lock{margin-top:22px;border:1px solid #b9cbe1;background:#f7fbff;border-radius:16px;padding:20px}
-.sp-lock ul{columns:2;gap:28px}.sp-lock button{background:#1559c7;color:#fff;border:0;border-radius:9px;padding:11px 15px;font-weight:800;cursor:pointer}
-.sp-url{overflow-wrap:anywhere;font-size:13px;color:#52667e}@media(max-width:650px){.sp-lock ul{columns:1}}
+.sp-metric{font-size:34px;font-weight:850;color:#1559c7}.sp-muted{color:#60748b}
+.sp-locked{background:#f8fafc}.sp-upgrade{font-size:24px;font-weight:850;color:#1559c7;margin:8px 0 3px}
+.sp-lock{margin-top:22px;border:1px solid #b9cbe1;background:#f7fbff;border-radius:16px;padding:20px}
+.sp-lock button{background:#1559c7;color:#fff;border:0;border-radius:9px;padding:11px 15px;font-weight:800;cursor:pointer}
+.sp-url{overflow-wrap:anywhere;font-size:13px;color:#52667e}
 </style>
 <main class="sp-basic">
-<section class="sp-hero"><small>SPONSORSHIP · BASIC PERFORMANCE</small><h1>${esc(title)}</h1>
-<p>Your sponsorship includes a unique Vivid QR code and spot-level scan reporting. CCPS also receives placement-level engagement visibility.</p></section>
+<section class="sp-hero"><small>SPONSORSHIP · BASIC</small><h1>${esc(title)}</h1>
+<p>See how many people engage with your physical placement. Deeper website activity, conversions, revenue and ROI are available with Vivid Performance.</p></section>
 <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:18px 0">
 <label>From<br><input type="date" name="from" value="${esc(range.from)}" required></label>
 <label>To<br><input type="date" name="to" value="${esc(range.to)}" required></label>
 <button style="padding:8px 12px">Update period</button></form>
-<section class="sp-card"><span class="sp-muted">Total scans in selected period</span><div class="sp-metric">${totalScans.toLocaleString("en-US")}</div>
-<p class="sp-muted">Scan counts show engagement with your physical placements. They do not by themselves show what visitors did after the scan.</p></section>
+<section class="sp-metrics">
+<div class="sp-card"><span class="sp-muted">Scans</span><div class="sp-metric">${totalScans.toLocaleString("en-US")}</div><small>Included with Basic</small></div>
+${locked("Website activity")}
+${locked("Conversions")}
+${locked("Attributed revenue")}
+${locked("ROI")}
+</section>
 <section class="sp-grid">${items.map(item=>`<article class="sp-card">
 <small class="sp-muted">${esc(item.space_name||"Placement")}</small><h3>${esc(item.qr_name||"Sponsorship placement")}</h3>
 <div class="sp-metric">${Number(item.scans||0).toLocaleString("en-US")}</div><strong>Scans</strong>
 ${item.destination_url?`<p class="sp-url"><strong>Current destination:</strong><br>${esc(item.destination_url)}</p>`:""}
 ${item.campaigns.length?`<p class="sp-muted">Campaign: ${esc([...new Set(item.campaigns)].join(" · "))}</p>`:""}
 ${item.plan===PLAN_PERFORMANCE && item.status==="active"
-? `<p><strong>Vivid Performance active · $35/month</strong></p>${item.campaign_id?`<p><a href="/admin/view-campaign/${Number(item.campaign_id)}">Open performance reporting and campaign controls →</a></p>`:""}`
+? `<p><strong>Vivid Performance active · $35/month</strong></p>`
 : item.status==="upgrade_requested"
 ? '<p><strong>Vivid Performance upgrade requested.</strong></p>'
 : `<form method="post" action="/admin/sponsorship-performance/upgrade">
 <input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="qr_id" value="${Number(item.qr_id)}">
-<button type="submit" style="background:#1559c7;color:#fff;border:0;border-radius:8px;padding:9px 12px;font-weight:800">Add Vivid Performance — $35/month</button>
+<button type="submit">Upgrade to Vivid Performance — $35/month</button>
 </form>`}
 </article>`).join("")}</section>
-<section class="sp-lock"><h2 style="margin-top:0">Want to know what happens after the scan?</h2>
-<p><strong>Vivid Performance — $35/month per placement</strong> unlocks the business-outcome layer while keeping the same physical QR code.</p>
-<ul><li>Website activity after the scan</li><li>Offer and CTA activity</li><li>Leads and conversions</li><li>Attributed revenue</li><li>ROI reporting</li><li>Performance recommendations</li><li>Dynamic campaign/offer changes</li><li>Campaign comparison over time</li></ul>
-<p class="sp-muted">Basic placement tracking remains included. An upgrade request does not activate billing until Vivid completes the subscription setup.</p>
+<section class="sp-lock"><h2 style="margin-top:0">Unlock the full performance view</h2>
+<p>Vivid Performance adds website activity after the scan, CTA activity, leads, conversions, attributed revenue, ROI, recommendations and campaign controls.</p>
 </section></main>`;
 }
 
@@ -337,7 +360,7 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
         ON CONFLICT (qr_id) DO NOTHING
       `,[userId,MONTHLY_PRICE]);
 
-      const state=await loadAdvertiserSponsorshipState(q,userId,range,[]);
+      const state=await loadAdvertiserSponsorshipState(q,userId,range,[],sessionUser.email||"");
       if(!state.rows.length){
         return res.status(404).send("No active sponsorship placements were found for this account.");
       }
