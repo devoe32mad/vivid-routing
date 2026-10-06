@@ -294,7 +294,38 @@ async function completeBasicMarketplaceSetup(q,{userId,qrId,campaignId,marketpla
   return true;
 }
 
-function registerSponsorshipPerformanceRoutes({app,q,requireLogin}) {
+function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
+  app.get("/admin/sponsorship-performance",requireLogin,async(req,res)=>{
+    try{
+      const userId=Number(req.session?.user?.id);
+      if(!validId(userId))return res.status(403).send("Account required.");
+      const iso=/^\\d{4}-\\d{2}-\\d{2}$/;
+      const today=new Date();
+      const to=iso.test(String(req.query?.to||""))?String(req.query.to):today.toISOString().slice(0,10);
+      const fromDate=new Date(to+"T00:00:00Z");
+      fromDate.setUTCDate(fromDate.getUTCDate()-29);
+      const from=iso.test(String(req.query?.from||""))?String(req.query.from):fromDate.toISOString().slice(0,10);
+      const range={from,to};
+      const state=await loadAdvertiserSponsorshipState(q,userId,range,[]);
+      if(!state.rows.length){
+        return res.status(404).send("No active sponsorship placements were found for this account.");
+      }
+      req.session.sponsorshipPerformanceCsrf||=crypto.randomBytes(32).toString("hex");
+      res.set?.("Cache-Control","no-store");
+      const body=renderBasicSponsorshipDashboard({
+        title:"Your sponsorship performance",
+        range,
+        placements:state.rows,
+        csrf:req.session.sponsorshipPerformanceCsrf,
+        upgradeRequested:req.query.upgrade==="requested"
+      });
+      return res.send(typeof page==="function"?page("Sponsorship Performance",body):body);
+    }catch(error){
+      console.error("SPONSORSHIP PERFORMANCE DASHBOARD ERROR",error);
+      return res.status(500).send("Unable to load sponsorship performance. Please try again.");
+    }
+  });
+
   app.post("/admin/sponsorship-performance/upgrade",requireLogin,async(req,res)=>{
     try{
       if(!validId(req.session?.user?.id)||!validId(req.body?.qr_id))return res.status(400).send("Valid placement required.");
@@ -319,7 +350,7 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin}) {
         RETURNING spp.qr_id
       `,[Number(req.body.qr_id),Number(req.session.user.id)]);
       if(!result.rows.length)return res.status(404).send("Placement not found or already upgraded.");
-      return res.redirect(303,"/admin/marketing-command-center?upgrade=requested");
+      return res.redirect(303,"/admin/sponsorship-performance?upgrade=requested");
     }catch(error){
       console.error("SPONSORSHIP PERFORMANCE UPGRADE ERROR",error);
       return res.status(500).send("Unable to request the upgrade. Please try again.");
