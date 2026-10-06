@@ -5,17 +5,18 @@ const path=require("path");
 
 function install(source){
   const importLine='const { attachBasicPlanToMarketplaceQr, basicRestrictionApplies, basicQrRestricted, basicCampaignRestricted } = require("./sponsorship-performance-plan");';
-  const importAnchor='const crypto = require("crypto");';
+  const routeAnchor='app.get(\\n  "/admin/edit-campaign/:campaignId",';
   if(!source.includes(importLine)){
-    if(!source.includes(importAnchor))throw new Error("Sponsorship performance import anchor not found.");
-    source=source.replace(importAnchor,importAnchor+"\n"+importLine);
+    const routePos=source.indexOf(routeAnchor);
+    if(routePos<0)throw new Error("Campaign edit route anchor not found for sponsorship import.");
+    source=source.slice(0,routePos)+importLine+"\\n"+source.slice(routePos);
   }
 
   const marker="// SPONSORSHIP_PERFORMANCE_MARKETPLACE_DEFAULT";
 
   const guardMarker="// SPONSORSHIP_PERFORMANCE_ROUTE_GUARD";
   if(!source.includes(guardMarker)){
-    const guardAnchor='app.get(\\n  "/admin/edit-campaign/:campaignId",';
+    const guardAnchor=routeAnchor;
     const guardPos=source.indexOf(guardAnchor);
     if(guardPos<0)throw new Error("Campaign edit route anchor not found for sponsorship guard.");
     const guard=guardMarker + "\\n" +
