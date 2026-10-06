@@ -307,7 +307,8 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
       });
     }
     try{
-      const userId=Number(req.session?.user?.id);
+      const sessionUser=req.session?.user||{};
+      const userId=Number(sessionUser.login_user_id||sessionUser.id);
       if(!validId(userId))return res.status(403).send("Account required.");
       const iso=/^\\d{4}-\\d{2}-\\d{2}$/;
       const today=new Date();
@@ -316,6 +317,26 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
       fromDate.setUTCDate(fromDate.getUTCDate()-29);
       const from=iso.test(String(req.query?.from||""))?String(req.query.from):fromDate.toISOString().slice(0,10);
       const range={from,to};
+
+      // Repair any approved marketplace sponsorship that reached QR creation
+      // before the Basic plan row was attached (including legacy test-account
+      // ID mismatches between advertiser/customer id and login user id).
+      await ensureSchema(q);
+      await q(`
+        INSERT INTO sponsorship_performance_plans (
+          qr_id,plan,monthly_price,status,activated_at,created_at,updated_at
+        )
+        SELECT DISTINCT
+          ar.created_qr_id,'basic',$2,'active',
+          CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+        FROM organization_advertising_requests ar
+        JOIN qr_codes qr ON qr.id=ar.created_qr_id
+        WHERE ar.created_vivid_user_id=$1
+          AND ar.status='Approved'
+          AND ar.created_qr_id IS NOT NULL
+        ON CONFLICT (qr_id) DO NOTHING
+      `,[userId,MONTHLY_PRICE]);
+
       const state=await loadAdvertiserSponsorshipState(q,userId,range,[]);
       if(!state.rows.length){
         return res.status(404).send("No active sponsorship placements were found for this account.");
@@ -338,7 +359,8 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
 
   app.post("/admin/sponsorship-performance/upgrade",requireLogin,async(req,res)=>{
     try{
-      if(!validId(req.session?.user?.id)||!validId(req.body?.qr_id))return res.status(400).send("Valid placement required.");
+      const userId=Number(req.session?.user?.login_user_id||req.session?.user?.id);
+      if(!validId(userId)||!validId(req.body?.qr_id))return res.status(400).send("Valid placement required.");
       const expected=String(req.session.sponsorshipPerformanceCsrf||""),provided=String(req.body?.csrf||"");
       const a=Buffer.from(expected),b=Buffer.from(provided);
       if(!expected||a.length!==b.length||!crypto.timingSafeEqual(a,b))return res.status(403).send("Reload your sponsorship dashboard and try again.");
@@ -358,7 +380,7 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
           AND spp.plan='basic'
           AND spp.status='active'
         RETURNING spp.qr_id
-      `,[Number(req.body.qr_id),Number(req.session.user.id)]);
+      `,[Number(req.body.qr_id),userId]);
       if(!result.rows.length)return res.status(404).send("Placement not found or already upgraded.");
       return res.redirect(303,"/admin/sponsorship-performance?upgrade=requested");
     }catch(error){
