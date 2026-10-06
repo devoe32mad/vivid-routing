@@ -359,6 +359,7 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
     try{
       const sessionUser=req.session?.user||{};
       const userId=Number(sessionUser.login_user_id||sessionUser.id);
+      const isPlatformAdmin=["admin","super_admin","platform"].includes(String(sessionUser.role||sessionUser.user_role||"").toLowerCase());
       if(!validId(userId))return res.status(403).send("Account required.");
       const iso=/^\\d{4}-\\d{2}-\\d{2}$/;
       const today=new Date();
@@ -392,7 +393,62 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
         ON CONFLICT (qr_id) DO NOTHING
       `,[userId,MONTHLY_PRICE]);
 
-      const state=await loadAdvertiserSponsorshipState(q,userId,range,[],sessionUser.email||"",requestedRequestId);
+      let state=await loadAdvertiserSponsorshipState(q,userId,range,[],sessionUser.email||"",requestedRequestId);
+
+      // Platform/admin support users may inspect an exact approved sponsorship
+      // by request ID without being treated as the advertiser owner.
+      if(!state.rows.length && isPlatformAdmin && validId(requestedRequestId)){
+        const rows=(await q(`
+          SELECT
+            ar.id AS request_id,
+            ar.organization_id,
+            ar.created_vivid_user_id,
+            ar.email AS request_email,
+            qr.id AS qr_id,
+            qr.name AS qr_name,
+            qr.description AS destination_url,
+            s.name AS space_name,
+            s.location,
+            COALESCE(spp.plan,'basic') AS plan,
+            COALESCE(spp.monthly_price,$4::numeric) AS monthly_price,
+            COALESCE(spp.status,'active') AS status,
+            spp.upgrade_requested_at,
+            qc.campaign_id,
+            c.name AS campaign_name,
+            COUNT(e.id) FILTER (WHERE e.type='scan')::int AS scans
+          FROM organization_advertising_requests ar
+          JOIN qr_codes qr ON qr.id=ar.created_qr_id
+          JOIN spaces s ON s.id=qr.space_id
+          LEFT JOIN sponsorship_performance_plans spp ON spp.qr_id=qr.id
+          LEFT JOIN qr_campaigns qc ON qc.qr_id=qr.id AND COALESCE(qc.is_active,true)=true
+          LEFT JOIN campaigns c ON c.id=qc.campaign_id
+          LEFT JOIN events e
+            ON e.qr_id=qr.id
+            AND (qc.campaign_id IS NULL OR e.campaign_id=qc.campaign_id)
+            AND e.type='scan'
+            AND e.created_at >= $2::date
+            AND e.created_at < ($3::date + INTERVAL '1 day')
+          WHERE ar.id=$1
+            AND ar.status='Approved'
+            AND ar.created_qr_id IS NOT NULL
+            AND COALESCE(spp.status,'active') <> 'cancelled'
+          GROUP BY
+            ar.id,ar.organization_id,ar.created_vivid_user_id,ar.email,
+            qr.id,qr.name,qr.description,s.name,s.location,
+            spp.plan,spp.monthly_price,spp.status,spp.upgrade_requested_at,
+            qc.campaign_id,c.name
+          ORDER BY qr.id,qc.campaign_id
+        `,[Number(requestedRequestId),range.from,range.to,MONTHLY_PRICE])).rows;
+        state={
+          rows,
+          hasLegacyCampaigns:false,
+          hasPerformance:rows.some(r=>r.plan===PLAN_PERFORMANCE && r.status==="active"),
+          hasBasic:rows.some(r=>r.plan===PLAN_BASIC && r.status!=="cancelled"),
+          sponsorshipOnly:rows.length>0,
+          basicOnly:rows.length>0 && !rows.some(r=>r.plan===PLAN_PERFORMANCE && r.status==="active")
+        };
+      }
+
       if(!state.rows.length){
         return res.status(404).send(
           requestedRequestId
