@@ -103,6 +103,7 @@ async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[]) {
     hasLegacyCampaigns,
     hasPerformance,
     hasBasic,
+    sponsorshipOnly: rows.length > 0 && !hasLegacyCampaigns,
     basicOnly: hasBasic && !hasPerformance && !hasLegacyCampaigns
   };
 }
@@ -115,6 +116,10 @@ function renderBasicSponsorshipDashboard({title="Your sponsorship performance",r
     item.scans+=Number(row.scans||0);
     if(row.campaign_name) item.campaigns.push(row.campaign_name);
     if(row.status==="upgrade_requested") item.status="upgrade_requested";
+    if(row.plan===PLAN_PERFORMANCE && row.status==="active") {
+      item.plan=PLAN_PERFORMANCE;
+      item.status="active";
+    }
   }
   const items=[...grouped.values()];
   const totalScans=items.reduce((sum,item)=>sum+Number(item.scans||0),0);
@@ -141,8 +146,11 @@ function renderBasicSponsorshipDashboard({title="Your sponsorship performance",r
 <div class="sp-metric">${Number(item.scans||0).toLocaleString("en-US")}</div><strong>Scans</strong>
 ${item.destination_url?`<p class="sp-url"><strong>Current destination:</strong><br>${esc(item.destination_url)}</p>`:""}
 ${item.campaigns.length?`<p class="sp-muted">Campaign: ${esc([...new Set(item.campaigns)].join(" · "))}</p>`:""}
-${item.status==="upgrade_requested"?'<p><strong>Vivid Performance upgrade requested.</strong></p>':`
-<form method="post" action="/admin/sponsorship-performance/upgrade">
+${item.plan===PLAN_PERFORMANCE && item.status==="active"
+? `<p><strong>Vivid Performance active · $35/month</strong></p>${item.campaign_id?`<p><a href="/admin/view-campaign/${Number(item.campaign_id)}">Open performance reporting and campaign controls →</a></p>`:""}`
+: item.status==="upgrade_requested"
+? '<p><strong>Vivid Performance upgrade requested.</strong></p>'
+: `<form method="post" action="/admin/sponsorship-performance/upgrade">
 <input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="qr_id" value="${Number(item.qr_id)}">
 <button type="submit" style="background:#1559c7;color:#fff;border:0;border-radius:8px;padding:9px 12px;font-weight:800">Add Vivid Performance — $35/month</button>
 </form>`}
