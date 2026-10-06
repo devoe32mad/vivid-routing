@@ -153,6 +153,37 @@ ${item.status==="upgrade_requested"?'<p><strong>Vivid Performance upgrade reques
 </section></main>`;
 }
 
+async function basicRestrictionApplies(q,userId) {
+  if(!validId(userId)) return false;
+  await ensureSchema(q);
+  const rows=(await q(`
+    SELECT spp.plan,spp.status,qc.campaign_id
+    FROM sponsorship_performance_plans spp
+    JOIN qr_codes qr ON qr.id=spp.qr_id
+    JOIN organization_advertising_requests ar
+      ON ar.created_qr_id=qr.id
+     AND ar.created_vivid_user_id=$1
+     AND ar.status='Approved'
+    LEFT JOIN qr_campaigns qc
+      ON qc.qr_id=qr.id
+     AND COALESCE(qc.is_active,true)=true
+    WHERE spp.status <> 'cancelled'
+  `,[Number(userId)])).rows;
+  if(!rows.length) return false;
+  if(rows.some(row=>row.plan===PLAN_PERFORMANCE && row.status==="active")) return false;
+
+  const plannedCampaignIds=new Set(rows.filter(row=>validId(row.campaign_id)).map(row=>Number(row.campaign_id)));
+  const legacy=(await q(`
+    SELECT c.id
+    FROM campaigns c
+    WHERE c.user_id=$1
+      AND COALESCE(c.is_test,false)=false
+      AND NOT (c.id = ANY($2::int[]))
+    LIMIT 1
+  `,[Number(userId),[...plannedCampaignIds]])).rows;
+  return rows.some(row=>row.plan===PLAN_BASIC) && legacy.length===0;
+}
+
 function registerSponsorshipPerformanceRoutes({app,q,requireLogin}) {
   app.post("/admin/sponsorship-performance/upgrade",requireLogin,async(req,res)=>{
     try{
@@ -191,6 +222,7 @@ module.exports={
   ensureSchema,attachBasicPlanToMarketplaceQr,
   loadAdvertiserSponsorshipState,renderBasicSponsorshipDashboard,
   registerSponsorshipPerformanceRoutes,
+  basicRestrictionApplies,
   async isBasicSponsorshipAdvertiser(q,userId) {
     if(!validId(userId)) return false;
     await ensureSchema(q);
