@@ -39,6 +39,25 @@ app.use(async (req,res,next)=>{
       ));
     }
 
+    if(
+      requestPath==="/admin/schedule" &&
+      req.method==="GET" &&
+      req.query?.qr_id &&
+      req.query?.campaign_id &&
+      req.query?.marketplace_request_id &&
+      await basicQrRestricted(q,req.session.user.id,req.query.qr_id)
+    ){
+      const completed=await completeBasicMarketplaceSetup(q,{
+        userId:req.session.user.id,
+        qrId:req.query.qr_id,
+        campaignId:req.query.campaign_id,
+        marketplaceRequestId:req.query.marketplace_request_id
+      });
+      if(completed){
+        return res.redirect(303,"/admin/marketing-command-center");
+      }
+    }
+
     const isCampaignWrite=requestPath==="/admin/new-campaign" && req.method==="POST";
     const isQrControlWrite=(
       requestPath==="/admin/assign" ||
