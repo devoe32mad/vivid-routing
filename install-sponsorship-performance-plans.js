@@ -4,7 +4,7 @@ const fs=require("fs");
 const path=require("path");
 
 function install(source){
-  const importLine='const { attachBasicPlanToMarketplaceQr, basicQrRestricted, basicCampaignRestricted, initialMarketplaceCampaignAllowed, completeBasicMarketplaceSetup } = require("./sponsorship-performance-plan");';
+  const importLine='const { attachBasicPlanToMarketplaceQr, sessionHasBasicSponsorship, basicQrRestricted, basicCampaignRestricted, initialMarketplaceCampaignAllowed, completeBasicMarketplaceSetup } = require("./sponsorship-performance-plan");';
   const routeAnchor='app.get(\n  "/admin/edit-campaign/:campaignId",';
 
   if(!source.includes(importLine)){
@@ -24,6 +24,24 @@ app.use(async (req,res,next)=>{
     if(!req.session?.user || req.session.user.role==="super_admin") return next();
 
     const requestPath=String(req.path||"");
+
+    const basicLockedRoutes=new Set([
+      "/reports",
+      "/reports-qr",
+      "/reports-location",
+      "/admin/reports",
+      "/admin/archived-campaigns",
+      "/admin/ai-insights",
+      "/admin/weekly-ai-report",
+      "/admin/ai-approval-center",
+      "/admin/ai-readiness"
+    ]);
+    if(
+      basicLockedRoutes.has(requestPath) &&
+      await sessionHasBasicSponsorship(q,req.session.user)
+    ){
+      return res.redirect(303,"/admin/sponsorship-performance");
+    }
     const campaignMatch=requestPath.match(/^\\/admin\\/(?:edit-campaign|view-campaign)\\/(\\d+)$/);
     const websiteMatch=requestPath.match(/^\\/admin\\/campaign\\/(\\d+)\\/website-pages$/);
     const campaignId=campaignMatch
