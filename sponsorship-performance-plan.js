@@ -295,7 +295,17 @@ async function completeBasicMarketplaceSetup(q,{userId,qrId,campaignId,marketpla
 }
 
 function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
-  app.get("/admin/sponsorship-performance",requireLogin,async(req,res)=>{
+  app.get("/admin/sponsorship-performance",async(req,res)=>{
+    if(!req.session?.user){
+      req.session.afterLoginReturn="/admin/sponsorship-performance";
+      return req.session.save(err=>{
+        if(err){
+          console.error("SPONSORSHIP RETURN SESSION ERROR",err);
+          return res.status(500).send("Unable to preserve sponsorship destination.");
+        }
+        return res.redirect(302,"/login");
+      });
+    }
     try{
       const userId=Number(req.session?.user?.id);
       if(!validId(userId))return res.status(403).send("Account required.");
