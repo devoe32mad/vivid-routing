@@ -54,7 +54,7 @@ async function attachBasicPlanToMarketplaceQr(q,{qrId,marketplaceRequestId,userI
   return result.rows.length > 0;
 }
 
-async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[],userEmail="") {
+async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[],userEmail="",requestId=0) {
   await ensureSchema(q);
   const rows=(await q(`
     SELECT
@@ -90,10 +90,26 @@ async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[],userEm
     WHERE ar.status='Approved'
       AND ar.created_qr_id IS NOT NULL
       AND (
-        ar.created_vivid_user_id=$1
+        (
+          $6::int > 0
+          AND ar.id=$6
+          AND (
+            ar.created_vivid_user_id=$1
+            OR (
+              NULLIF(TRIM($2::text),'') IS NOT NULL
+              AND LOWER(TRIM(ar.email))=LOWER(TRIM($2::text))
+            )
+          )
+        )
         OR (
-          NULLIF(TRIM($2::text),'') IS NOT NULL
-          AND LOWER(TRIM(ar.email))=LOWER(TRIM($2::text))
+          $6::int = 0
+          AND (
+            ar.created_vivid_user_id=$1
+            OR (
+              NULLIF(TRIM($2::text),'') IS NOT NULL
+              AND LOWER(TRIM(ar.email))=LOWER(TRIM($2::text))
+            )
+          )
         )
       )
       AND COALESCE(spp.status,'active') <> 'cancelled'
@@ -108,7 +124,8 @@ async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[],userEm
     String(userEmail||""),
     range.from,
     range.to,
-    MONTHLY_PRICE
+    MONTHLY_PRICE,
+    validId(requestId)?Number(requestId):0
   ])).rows;
 
   const explicitCampaignIds=new Set(rows.filter(r=>validId(r.campaign_id)).map(r=>Number(r.campaign_id)));
@@ -340,6 +357,11 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
       fromDate.setUTCDate(fromDate.getUTCDate()-29);
       const from=iso.test(String(req.query?.from||""))?String(req.query.from):fromDate.toISOString().slice(0,10);
       const range={from,to};
+      const requestedRequestId=Number(
+        req.query?.request_id ||
+        req.session?.marketplaceSetup?.request_id ||
+        0
+      );
 
       // Repair any approved marketplace sponsorship that reached QR creation
       // before the Basic plan row was attached (including legacy test-account
@@ -360,9 +382,13 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
         ON CONFLICT (qr_id) DO NOTHING
       `,[userId,MONTHLY_PRICE]);
 
-      const state=await loadAdvertiserSponsorshipState(q,userId,range,[],sessionUser.email||"");
+      const state=await loadAdvertiserSponsorshipState(q,userId,range,[],sessionUser.email||"",requestedRequestId);
       if(!state.rows.length){
-        return res.status(404).send("No active sponsorship placements were found for this account.");
+        return res.status(404).send(
+          requestedRequestId
+            ? "This approved sponsorship could not be matched to your signed-in account."
+            : "No active sponsorship placements were found for this account."
+        );
       }
       req.session.sponsorshipPerformanceCsrf||=crypto.randomBytes(32).toString("hex");
       res.set?.("Cache-Control","no-store");
