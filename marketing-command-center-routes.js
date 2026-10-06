@@ -24,8 +24,14 @@ const {dashboardEvidence:youtubeDashboardEvidence}=require("./youtube-analytics-
 const {configuration:youtubeConfiguration}=require("./youtube-analytics-readonly");
 const {createMarketingEconomicsStore}=require("./marketing-economics-store");
 const {loadVividBenchmark}=require("./vivid-benchmarks");
+const {
+  loadAdvertiserSponsorshipState,
+  renderBasicSponsorshipDashboard,
+  registerSponsorshipPerformanceRoutes
+}=require("./sponsorship-performance-plan");
 function registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizationNav,requireLogin,requireOrganizationPermission,getOrganizationScope,env=process.env}) {
   const economicsStore=createMarketingEconomicsStore(q);
+  registerSponsorshipPerformanceRoutes({app,q,requireLogin});
   async function loadCampaigns(scope,range) {
     const enterprise=scope.kind==="enterprise";
     const params=enterprise?[scope.orgId,scope.advertiserId,range.from,range.to]:[scope.userId,range.from,range.to];
@@ -158,8 +164,26 @@ function registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizat
     }
     let youtubeEnabled=false;
     if(env.YOUTUBE_ANALYTICS_ENABLED==="true")try{youtubeConfiguration(env);youtubeEnabled=true;}catch{}
+
+    // Sponsorship plans are opt-in and placement-specific. Existing advertiser
+    // accounts remain unchanged unless a marketplace-created QR is explicitly
+    // enrolled in Basic or Vivid Performance.
+    const campaigns=await loadCampaigns(scope,range);
+    const sponsorshipState=await loadAdvertiserSponsorshipState(q,selectedId,range,campaigns);
+    if(sponsorshipState.sponsorshipOnly){
+      req.session.sponsorshipPerformanceCsrf||=crypto.randomBytes(32).toString("hex");
+      res.set?.("Cache-Control","no-store");
+      return res.send(page("Sponsorship Performance",renderBasicSponsorshipDashboard({
+        title:"Your sponsorship performance",
+        range,
+        placements:sponsorshipState.rows,
+        csrf:req.session.sponsorshipPerformanceCsrf,
+        upgradeRequested:req.query.upgrade==="requested"
+      })));
+    }
+
     req.session.marketingEconomicsCsrf||=crypto.randomBytes(32).toString("hex");
-    let [campaigns,status,economics,googleEvidence,metaEvidence,linkedinEvidence,tiktokEvidence,redditEvidence,pinterestEvidence,youtubeEvidence,analyticsEvidence,searchConsoleEvidence]=await Promise.all([loadCampaigns(scope,range),squareStatus(scope.userId,range),economicsStore.load(scope.userId),
+    let [status,economics,googleEvidence,metaEvidence,linkedinEvidence,tiktokEvidence,redditEvidence,pinterestEvidence,youtubeEvidence,analyticsEvidence,searchConsoleEvidence]=await Promise.all([squareStatus(scope.userId,range),economicsStore.load(scope.userId),
       googleEnabled&&scope.privateAdsAllowed?dashboardEvidence(q,scope.userId,range):Promise.resolve(null),
       metaEnabled&&scope.privateAdsAllowed?metaDashboardEvidence(q,scope.userId,range):Promise.resolve(null),
       linkedinDashboardEvidence(q,scope.userId,range),
