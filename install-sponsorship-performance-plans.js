@@ -40,6 +40,29 @@ app.use(async (req,res,next)=>{
     }
 
     if(
+      requestPath==="/admin/assign" &&
+      (req.method==="GET" || req.method==="POST")
+    ){
+      const source=req.method==="POST" ? req.body : req.query;
+      if(
+        source?.qr_id &&
+        source?.campaign_id &&
+        source?.marketplace_request_id &&
+        await basicQrRestricted(q,req.session.user.id,source.qr_id)
+      ){
+        const completed=await completeBasicMarketplaceSetup(q,{
+          userId:req.session.user.id,
+          qrId:source.qr_id,
+          campaignId:source.campaign_id,
+          marketplaceRequestId:source.marketplace_request_id
+        });
+        if(completed){
+          return res.redirect(303,"/admin/marketing-command-center");
+        }
+      }
+    }
+
+    if(
       requestPath==="/admin/schedule" &&
       req.method==="GET" &&
       req.query?.qr_id &&
