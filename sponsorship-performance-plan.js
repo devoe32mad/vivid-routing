@@ -167,7 +167,8 @@ function renderBasicSponsorshipDashboard({title="Your sponsorship performance",r
   }
   const items=[...grouped.values()];
   const totalScans=items.reduce((sum,item)=>sum+Number(item.scans||0),0);
-  const locked=(label)=>`<div class="sp-card sp-locked"><span class="sp-muted">${esc(label)}</span><div class="sp-upgrade">Upgrade</div><small>Available with Vivid Performance</small></div>`;
+  const anyUpgradeRequested=upgradeRequested||items.some(item=>item.status==="upgrade_requested");
+  const locked=(label)=>`<div class="sp-card sp-locked"><span class="sp-muted">${esc(label)}</span><div class="sp-upgrade">${anyUpgradeRequested?"Upgrade requested":"Upgrade"}</div><small>${anyUpgradeRequested?"Vivid will complete activation":"Available with Vivid Performance"}</small></div>`;
   return `<style>
 .sp-basic{max-width:1050px;margin:28px auto;padding:0 20px 50px;color:#122b49;font:15px/1.5 system-ui,sans-serif}
 .sp-hero{background:#102b50;color:#fff;border-radius:18px;padding:26px}.sp-hero h1{margin:5px 0 8px;font-size:30px}
@@ -182,6 +183,7 @@ function renderBasicSponsorshipDashboard({title="Your sponsorship performance",r
 <main class="sp-basic">
 <section class="sp-hero"><small>SPONSORSHIP · BASIC</small><h1>${esc(title)}</h1>
 <p>See how many people engage with your physical placement. Deeper website activity, conversions, revenue and ROI are available with Vivid Performance.</p></section>
+${anyUpgradeRequested?`<section class="sp-card" style="margin-top:18px;border-color:#8fb3df;background:#f3f8ff"><strong>Vivid Performance upgrade requested.</strong><p style="margin-bottom:0">Your request has been received. Basic scan reporting remains active while Vivid completes the Performance activation.</p></section>`:""}
 <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:18px 0">
 <label>From<br><input type="date" name="from" value="${esc(range.from)}" required></label>
 <label>To<br><input type="date" name="to" value="${esc(range.to)}" required></label>
@@ -204,7 +206,7 @@ ${item.plan===PLAN_PERFORMANCE && item.status==="active"
 ? '<p><strong>Vivid Performance upgrade requested.</strong></p>'
 : `<form method="post" action="/admin/sponsorship-performance/upgrade">
 <input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="qr_id" value="${Number(item.qr_id)}">
-<button type="submit">Upgrade to Vivid Performance — $35/month</button>
+<button type="submit">Request Vivid Performance Upgrade — $35/month</button>
 </form>`}
 </article>`).join("")}</section>
 <section class="sp-lock"><h2 style="margin-top:0">Unlock the full performance view</h2>
@@ -533,7 +535,18 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
         RETURNING spp.qr_id
       `,[Number(req.body.qr_id),userId]);
       if(!result.rows.length)return res.status(404).send("Placement not found or already upgraded.");
-      return res.redirect(303,"/admin/sponsorship-performance?upgrade=requested");
+      const reqRow=(await q(`
+        SELECT ar.id
+        FROM organization_advertising_requests ar
+        WHERE ar.created_qr_id=$1
+          AND ar.status='Approved'
+        ORDER BY ar.id DESC
+        LIMIT 1
+      `,[Number(req.body.qr_id)])).rows[0];
+      const suffix=reqRow?.id
+        ? "?request_id="+Number(reqRow.id)+"&upgrade=requested"
+        : "?upgrade=requested";
+      return res.redirect(303,"/admin/sponsorship-performance"+suffix);
     }catch(error){
       console.error("SPONSORSHIP PERFORMANCE UPGRADE ERROR",error);
       return res.status(500).send("Unable to request the upgrade. Please try again.");
