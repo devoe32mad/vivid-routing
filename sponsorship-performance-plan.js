@@ -82,6 +82,7 @@ async function loadAdvertiserSponsorshipState(q,userId,range,campaigns=[]) {
     LEFT JOIN campaigns c ON c.id=qc.campaign_id
     LEFT JOIN events e
       ON e.campaign_id=c.id
+      AND e.qr_id=qr.id
       AND e.type='scan'
       AND e.created_at >= $2::date
       AND e.created_at < ($3::date + INTERVAL '1 day')
