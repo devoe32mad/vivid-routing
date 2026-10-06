@@ -31,7 +31,7 @@ const {
 }=require("./sponsorship-performance-plan");
 function registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizationNav,requireLogin,requireOrganizationPermission,getOrganizationScope,env=process.env}) {
   const economicsStore=createMarketingEconomicsStore(q);
-  registerSponsorshipPerformanceRoutes({app,q,requireLogin});
+  registerSponsorshipPerformanceRoutes({app,q,requireLogin,page});
   async function loadCampaigns(scope,range) {
     const enterprise=scope.kind==="enterprise";
     const params=enterprise?[scope.orgId,scope.advertiserId,range.from,range.to]:[scope.userId,range.from,range.to];
