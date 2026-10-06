@@ -107,3 +107,87 @@ test("real database preserves per-spot Basic and Performance entitlements",async
     await db.close();
   }
 });
+
+
+test("Basic marketplace setup auto-assigns everyday without a schedule",async()=>{
+  const {PGlite}=require("@electric-sql/pglite");
+  const db=new PGlite();
+  try{
+    await db.exec(`
+      CREATE TABLE users(id INT PRIMARY KEY);
+      CREATE TABLE spaces(id INT PRIMARY KEY,user_id INT);
+      CREATE TABLE qr_codes(id INT PRIMARY KEY,space_id INT);
+      CREATE TABLE campaigns(id INT PRIMARY KEY,user_id INT);
+      CREATE TABLE qr_campaigns(
+        id SERIAL PRIMARY KEY,
+        qr_id INT,
+        campaign_id INT,
+        is_active BOOLEAN DEFAULT true,
+        assigned_at TIMESTAMPTZ,
+        started_at TIMESTAMPTZ,
+        ended_at TIMESTAMPTZ
+      );
+      CREATE TABLE organization_advertising_requests(
+        id INT PRIMARY KEY,
+        created_qr_id INT,
+        created_vivid_user_id INT,
+        created_campaign_id INT,
+        status TEXT,
+        setup_status TEXT,
+        setup_completed_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ
+      );
+      CREATE TABLE contracts(
+        id SERIAL PRIMARY KEY,
+        advertising_request_id INT,
+        qr_id INT,
+        status TEXT,
+        activated_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ
+      );
+      CREATE TABLE campaign_schedules(
+        id SERIAL PRIMARY KEY,
+        qr_id INT,
+        campaign_id INT
+      );
+
+      INSERT INTO users VALUES(7);
+      INSERT INTO spaces VALUES(1,99);
+      INSERT INTO qr_codes VALUES(10,1);
+      INSERT INTO campaigns VALUES(55,7);
+      INSERT INTO organization_advertising_requests
+        (id,created_qr_id,created_vivid_user_id,status,setup_status)
+      VALUES(52,10,7,'Approved','Campaign Created');
+      INSERT INTO contracts(advertising_request_id,status)
+      VALUES(52,'Draft');
+    `);
+
+    const q=(sql,args=[])=>db.query(sql,args);
+    const plan=require("../sponsorship-performance-plan");
+    await plan.ensureSchema(q);
+    await q("INSERT INTO sponsorship_performance_plans(qr_id,plan,status) VALUES(10,'basic','active')");
+
+    assert.equal(await plan.completeBasicMarketplaceSetup(q,{
+      userId:7,qrId:10,campaignId:55,marketplaceRequestId:52
+    }),true);
+
+    const assignment=(await q("SELECT * FROM qr_campaigns WHERE qr_id=10 AND campaign_id=55")).rows;
+    assert.equal(assignment.length,1);
+    assert.equal(assignment[0].is_active,true);
+
+    const schedules=(await q("SELECT * FROM campaign_schedules WHERE qr_id=10")).rows;
+    assert.equal(schedules.length,0);
+
+    const request=(await q("SELECT created_campaign_id,setup_status,setup_completed_at FROM organization_advertising_requests WHERE id=52")).rows[0];
+    assert.equal(Number(request.created_campaign_id),55);
+    assert.equal(request.setup_status,"Complete");
+    assert.ok(request.setup_completed_at);
+
+    const contract=(await q("SELECT qr_id,status,activated_at FROM contracts WHERE advertising_request_id=52")).rows[0];
+    assert.equal(Number(contract.qr_id),10);
+    assert.equal(contract.status,"Active");
+    assert.ok(contract.activated_at);
+  } finally {
+    await db.close();
+  }
+});
