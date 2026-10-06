@@ -229,6 +229,15 @@ if (
     ));`);
   }
 
+
+  const dedicatedMarker="// SPONSORSHIP_BASIC_DEDICATED_DASHBOARD_V3";
+  if(!source.includes(dedicatedMarker)){
+    source=source
+      .replaceAll('return res.redirect(303,"/admin/marketing-command-center");','return res.redirect(303,"/admin/sponsorship-performance");')
+      .replaceAll('{ label: "View Sponsorship Performance", href: "/admin/marketing-command-center" }','{ label: "View Sponsorship Performance", href: "/admin/sponsorship-performance" }');
+    source += "\n// SPONSORSHIP_BASIC_DEDICATED_DASHBOARD_V3\n";
+  }
+
   return source;
 }
 
