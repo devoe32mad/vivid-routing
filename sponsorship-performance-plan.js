@@ -157,32 +157,59 @@ ${item.status==="upgrade_requested"?'<p><strong>Vivid Performance upgrade reques
 async function basicRestrictionApplies(q,userId) {
   if(!validId(userId)) return false;
   await ensureSchema(q);
-  const rows=(await q(`
-    SELECT spp.plan,spp.status,qc.campaign_id
+  const row=(await q(`
+    SELECT 1
     FROM sponsorship_performance_plans spp
     JOIN qr_codes qr ON qr.id=spp.qr_id
     JOIN organization_advertising_requests ar
       ON ar.created_qr_id=qr.id
      AND ar.created_vivid_user_id=$1
      AND ar.status='Approved'
-    LEFT JOIN qr_campaigns qc
-      ON qc.qr_id=qr.id
-     AND COALESCE(qc.is_active,true)=true
-    WHERE spp.status <> 'cancelled'
-  `,[Number(userId)])).rows;
-  if(!rows.length) return false;
-  if(rows.some(row=>row.plan===PLAN_PERFORMANCE && row.status==="active")) return false;
-
-  const plannedCampaignIds=new Set(rows.filter(row=>validId(row.campaign_id)).map(row=>Number(row.campaign_id)));
-  const legacy=(await q(`
-    SELECT c.id
-    FROM campaigns c
-    WHERE c.user_id=$1
-      AND COALESCE(c.is_test,false)=false
-      AND NOT (c.id = ANY($2::int[]))
+    WHERE spp.plan='basic'
+      AND spp.status IN ('active','upgrade_requested')
     LIMIT 1
-  `,[Number(userId),[...plannedCampaignIds]])).rows;
-  return rows.some(row=>row.plan===PLAN_BASIC) && legacy.length===0;
+  `,[Number(userId)])).rows[0];
+  return Boolean(row);
+}
+
+async function basicQrRestricted(q,userId,qrId) {
+  if(!validId(userId)||!validId(qrId)) return false;
+  await ensureSchema(q);
+  const row=(await q(`
+    SELECT 1
+    FROM sponsorship_performance_plans spp
+    JOIN qr_codes qr ON qr.id=spp.qr_id
+    JOIN organization_advertising_requests ar
+      ON ar.created_qr_id=qr.id
+     AND ar.created_vivid_user_id=$1
+     AND ar.status='Approved'
+    WHERE spp.qr_id=$2
+      AND spp.plan='basic'
+      AND spp.status IN ('active','upgrade_requested')
+    LIMIT 1
+  `,[Number(userId),Number(qrId)])).rows[0];
+  return Boolean(row);
+}
+
+async function basicCampaignRestricted(q,userId,campaignId) {
+  if(!validId(userId)||!validId(campaignId)) return false;
+  await ensureSchema(q);
+  const row=(await q(`
+    SELECT 1
+    FROM qr_campaigns qc
+    JOIN sponsorship_performance_plans spp ON spp.qr_id=qc.qr_id
+    JOIN qr_codes qr ON qr.id=spp.qr_id
+    JOIN organization_advertising_requests ar
+      ON ar.created_qr_id=qr.id
+     AND ar.created_vivid_user_id=$1
+     AND ar.status='Approved'
+    WHERE qc.campaign_id=$2
+      AND COALESCE(qc.is_active,true)=true
+      AND spp.plan='basic'
+      AND spp.status IN ('active','upgrade_requested')
+    LIMIT 1
+  `,[Number(userId),Number(campaignId)])).rows[0];
+  return Boolean(row);
 }
 
 function registerSponsorshipPerformanceRoutes({app,q,requireLogin}) {
@@ -223,7 +250,7 @@ module.exports={
   ensureSchema,attachBasicPlanToMarketplaceQr,
   loadAdvertiserSponsorshipState,renderBasicSponsorshipDashboard,
   registerSponsorshipPerformanceRoutes,
-  basicRestrictionApplies,
+  basicRestrictionApplies,basicQrRestricted,basicCampaignRestricted,
   async isBasicSponsorshipAdvertiser(q,userId) {
     if(!validId(userId)) return false;
     await ensureSchema(q);
