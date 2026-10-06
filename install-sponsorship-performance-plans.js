@@ -4,7 +4,7 @@ const fs=require("fs");
 const path=require("path");
 
 function install(source){
-  const importLine='const { attachBasicPlanToMarketplaceQr, basicQrRestricted, basicCampaignRestricted } = require("./sponsorship-performance-plan");';
+  const importLine='const { attachBasicPlanToMarketplaceQr, basicQrRestricted, basicCampaignRestricted, initialMarketplaceCampaignAllowed } = require("./sponsorship-performance-plan");';
   const routeAnchor='app.get(\n  "/admin/edit-campaign/:campaignId",';
 
   if(!source.includes(importLine)){
@@ -47,12 +47,30 @@ app.use(async (req,res,next)=>{
     ) && req.method==="POST";
 
     if(
-      (isCampaignWrite || isScheduleWrite) &&
+      isCampaignWrite &&
+      req.body?.qr_id &&
+      await basicQrRestricted(q,req.session.user.id,req.body.qr_id)
+    ){
+      const allowedInitialSetup=await initialMarketplaceCampaignAllowed(
+        q,
+        req.session.user.id,
+        req.body.qr_id,
+        req.body?.marketplace_request_id
+      );
+      if(!allowedInitialSetup){
+        return res.status(403).send(
+          "Vivid Performance is required to change this sponsorship campaign."
+        );
+      }
+    }
+
+    if(
+      isScheduleWrite &&
       req.body?.qr_id &&
       await basicQrRestricted(q,req.session.user.id,req.body.qr_id)
     ){
       return res.status(403).send(
-        "Vivid Performance is required to change or schedule this sponsorship placement."
+        "Vivid Performance is required to schedule this sponsorship placement."
       );
     }
 
