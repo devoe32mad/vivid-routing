@@ -127,38 +127,6 @@ if (
 
   const autoMarker="// SPONSORSHIP_BASIC_AUTO_EVERYDAY";
   if(!source.includes(autoMarker)){
-    const afterRequestUpdate=`  );
-}
-/*
-  Express may return one destination as a string
-  and multiple destinations as an array.
-*/`;
-
-    if(!source.includes(afterRequestUpdate)){
-      throw new Error("Marketplace campaign post-update anchor not found.");
-    }
-
-    source=source.replace(afterRequestUpdate,`  );
-
-${autoMarker}
-if (
-  Number.isInteger(marketplaceRequestId) &&
-  marketplaceRequestId > 0 &&
-  Number.isInteger(requestedQrId) &&
-  requestedQrId > 0
-) {
-  await completeBasicMarketplaceSetup(q,{
-    userId,
-    qrId: requestedQrId,
-    campaignId,
-    marketplaceRequestId
-  });
-}
-/*
-  Express may return one destination as a string
-  and multiple destinations as an array.
-*/`);
-
     const successStart=`    res.send(successPage(
       "Campaign Created Successfully",
       "Your campaign has been saved.",
@@ -181,12 +149,20 @@ if (
       throw new Error("Campaign success response anchor not found.");
     }
 
-    source=source.replace(successStart,`    if (
+    source=source.replace(successStart,`${autoMarker}
+    if (
       Number.isInteger(marketplaceRequestId) &&
       marketplaceRequestId > 0 &&
       Number.isInteger(requestedQrId) &&
       requestedQrId > 0
     ) {
+      await completeBasicMarketplaceSetup(q,{
+        userId,
+        qrId: requestedQrId,
+        campaignId,
+        marketplaceRequestId
+      });
+
       return res.send(successPage(
         "Sponsorship Setup Complete",
         "Your sponsorship is active and runs every day using the destination you selected.",
