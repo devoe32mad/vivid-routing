@@ -43,7 +43,7 @@ async function attachBasicPlanToMarketplaceQr(q,{qrId,marketplaceRequestId,userI
       qr.id, 'basic', $4, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
     FROM qr_codes qr
     JOIN organization_advertising_requests ar
-      ON ar.id = $2
+      ON ar.created_qr_id = qr.id
     WHERE qr.id = $1
       AND ar.id = $2
       AND ar.created_vivid_user_id = $3
