@@ -184,6 +184,7 @@ function renderBasicSponsorshipDashboard({title="Your sponsorship performance",r
 .sp-url{overflow-wrap:anywhere;font-size:13px;color:#52667e}
 </style>
 <main class="sp-basic">
+${isPlatformAdmin?'<p><a href="/admin/sponsorship-performance/billing">Set up Square subscription billing</a></p>':""}
 <section class="sp-hero"><small>SPONSORSHIP · BASIC</small><h1>${esc(title)}</h1>
 <p>See how many people engage with your physical placement. Deeper website activity, conversions, revenue and ROI are available with Vivid Performance.</p></section>
 ${anyUpgradeRequested?`<section class="sp-card" style="margin-top:18px;border-color:#8fb3df;background:#f3f8ff"><strong>Vivid Performance upgrade requested.</strong><p style="margin-bottom:0">Your request has been received. Basic scan reporting remains active while Vivid completes the Performance activation.</p></section>`:""}

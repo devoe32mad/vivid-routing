@@ -2,8 +2,9 @@
 
 const crypto=require("node:crypto");
 
-const PRICE_CENTS=3500;
+const PRICE_CENTS=3650;
 const PLAN_NAME="Vivid Performance";
+const CHECKOUT_ACTIVATION_READY=false;
 
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const validId=v=>Number.isSafeInteger(Number(v))&&Number(v)>0;
@@ -44,7 +45,17 @@ function installVividSubscriptions({app,q,api,getConnection,origin,env=process.e
   app.post("/admin/sponsorship-performance/subscribe",async(req,res)=>{
     try{
       if(!req.session?.user)return res.status(401).send("Sign in to Vivid first.");
+      const expected=req.session.sponsorshipPerformanceCsrf;
+      const provided=req.body?.csrf;
+      if(typeof expected!=="string"||!expected||typeof provided!=="string"||
+        Buffer.byteLength(expected)!==Buffer.byteLength(provided)||
+        !crypto.timingSafeEqual(Buffer.from(expected),Buffer.from(provided))){
+        return res.status(403).send("Reload your sponsorship dashboard and try again.");
+      }
       if(!validId(req.body?.qr_id))return res.status(400).send("Valid placement required.");
+      // The payment-confirmed activation path is not implemented yet. Never
+      // collect recurring payments merely because someone sets the plan IDs.
+      if(!CHECKOUT_ACTIVATION_READY)return res.status(503).send("Vivid Performance checkout is not live yet. Your upgrade request remains available to Vivid.");
       if(!configured())return res.status(503).send("Vivid Performance billing is not configured yet.");
 
       const userId=Number(req.session.user.login_user_id||req.session.user.id);

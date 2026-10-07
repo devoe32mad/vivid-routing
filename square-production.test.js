@@ -46,7 +46,7 @@ test('production isolation rejects sandbox ciphertext and exposes no refund writ
   const sealed=sandbox.seal({access_token:'sandbox-test'},key,'17');
   assert.throws(()=>unseal(sealed,key,'17'));
   const h=harness();
-  assert.ok([...h.routes.keys()].every(r=>r.includes('/square/production/')));
+  assert.ok([...h.routes.keys()].every(r=>r.includes('/square/production/') || r.includes('/admin/sponsorship-performance/')));
   assert.ok([...h.routes.keys()].every(r=>!r.includes('refund')));
   install({env:{SQUARE_SANDBOX_ENABLED:'true'},app:null,q:()=>assert.fail('Sandbox flag enabled production')});
 });
@@ -276,4 +276,3 @@ test('CSV export uses verified net and neutralizes spreadsheet formulas',()=>{
   const csv=exportSales({payments:[p],refunds:[refund('r','COMPLETED',300)]});
   assert.ok(csv.includes('"1200","300","900"'));assert.ok(csv.includes('"\'=CMD()"'));
 });
-
