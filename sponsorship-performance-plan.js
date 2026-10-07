@@ -398,6 +398,7 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
         return res.redirect(302,"/login");
       });
     }
+    if(!["admin","super_admin","platform"].includes(req.session.user.role))return res.redirect(303,"/reports");
     try{
       const sessionUser=req.session?.user||{};
       const userId=Number(sessionUser.login_user_id||sessionUser.id);
@@ -589,7 +590,7 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
 
   app.post("/admin/sponsorship-performance/upgrade",requireLogin,async(req,res)=>{
     try{
-      const userId=Number(req.session?.user?.login_user_id||req.session?.user?.id);
+      const userId=Number(req.session?.user?.id);
       if(!validId(userId)||!validId(req.body?.qr_id))return res.status(400).send("Valid placement required.");
       const expected=String(req.session.sponsorshipPerformanceCsrf||""),provided=String(req.body?.csrf||"");
       const a=Buffer.from(expected),b=Buffer.from(provided);
@@ -603,14 +604,15 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
         FROM qr_codes qr
         JOIN organization_advertising_requests ar
           ON ar.created_qr_id=qr.id
-         AND ar.created_vivid_user_id=$2
+         AND (ar.created_vivid_user_id=$2 OR ar.created_vivid_user_id=$3
+           OR EXISTS (SELECT 1 FROM users owner WHERE owner.id=ar.created_vivid_user_id AND owner.advertiser_customer_id=$2))
          AND ar.status='Approved'
         WHERE spp.qr_id=qr.id
           AND spp.qr_id=$1
           AND spp.plan='basic'
           AND spp.status='active'
         RETURNING spp.qr_id
-      `,[Number(req.body.qr_id),userId]);
+      `,[Number(req.body.qr_id),userId,Number(req.session.user.login_user_id||userId)]);
       if(!result.rows.length)return res.status(404).send("Placement not found or already upgraded.");
 
       const upgradeDetail=(await q(`
@@ -657,18 +659,7 @@ function registerSponsorshipPerformanceRoutes({app,q,requireLogin,page}) {
         }
       }
 
-      const reqRow=(await q(`
-        SELECT ar.id
-        FROM organization_advertising_requests ar
-        WHERE ar.created_qr_id=$1
-          AND ar.status='Approved'
-        ORDER BY ar.id DESC
-        LIMIT 1
-      `,[Number(req.body.qr_id)])).rows[0];
-      const suffix=reqRow?.id
-        ? "?request_id="+Number(reqRow.id)+"&upgrade=requested"
-        : "?upgrade=requested";
-      return res.redirect(303,"/admin/sponsorship-performance"+suffix);
+      return res.redirect(303,require("./report-performance-upgrade").reportReturn(req.body?.return_to));
     }catch(error){
       console.error("SPONSORSHIP PERFORMANCE UPGRADE ERROR",error);
       return res.status(500).send("Unable to request the upgrade. Please try again.");

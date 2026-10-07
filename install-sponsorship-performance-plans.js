@@ -256,7 +256,7 @@ if (
     source += "\n// SPONSORSHIP_BASIC_DEDICATED_DASHBOARD_V3\n";
   }
 
-  return source;
+  return require("./install-report-performance-upgrade").install(source);
 }
 
 if(require.main===module){

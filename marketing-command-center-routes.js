@@ -171,15 +171,7 @@ function registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizat
     const campaigns=await loadCampaigns(scope,range);
     const sponsorshipState=await loadAdvertiserSponsorshipState(q,selectedId,range,campaigns);
     if(sponsorshipState.sponsorshipOnly){
-      req.session.sponsorshipPerformanceCsrf||=crypto.randomBytes(32).toString("hex");
-      res.set?.("Cache-Control","no-store");
-      return res.send(page("Sponsorship Performance",renderBasicSponsorshipDashboard({
-        title:"Your sponsorship performance",
-        range,
-        placements:sponsorshipState.rows,
-        csrf:req.session.sponsorshipPerformanceCsrf,
-        upgradeRequested:req.query.upgrade==="requested"
-      })));
+      return res.redirect(303,"/reports");
     }
 
     req.session.marketingEconomicsCsrf||=crypto.randomBytes(32).toString("hex");
