@@ -49,7 +49,7 @@ function installBillingSetup({app, q, ready, api, getConnection, env}) {
       }
       return res.type("html").send(page("Vivid Performance billing setup", `<section><h1>Vivid Performance billing setup</h1>
         <p><strong>Customer subscription checkout is not live.</strong> Payment-confirmed activation and final pricing must be verified before enabling checkout.</p>
-        <p>Proposed monthly pricing per placement: Vivid Performance $35.00 + processing fee $1.50 = $36.50. The separate fee still requires confirmation for this recurring payment method.</p>
+        <p>Vivid Performance: $36.50/month per placement, processing included. No separate processing fee.</p>
         <h2>Connected Square accounts</h2><ul>${connections.map(c => `<li><a href="${PATH}?customer_id=${Number(c.customer_id)}">${esc(c.email || "Customer " + c.customer_id)}</a> — merchant ${esc(c.merchant_id)}</li>`).join("") || "<li>No Square production accounts are connected. Connect Vivid Spots through its advertiser account's Square integration first.</li>"}</ul>
         ${detail}<h2>Current configuration</h2><p>Billing customer ID: ${esc(env.SQUARE_VIVID_BILLING_CUSTOMER_ID || "Not set")}<br>Plan variation ID: ${esc(env.SQUARE_VIVID_PERFORMANCE_PLAN_VARIATION_ID || "Not set")}</p></section>`));
     } catch (_) {
