@@ -2,7 +2,7 @@
 
 const crypto=require("node:crypto");
 
-const PRICE_CENTS=3500;
+const PRICE_CENTS=3650;
 const PLAN_NAME="Vivid Performance";
 const CHECKOUT_ACTIVATION_READY=false;
 
