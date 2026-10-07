@@ -4,7 +4,7 @@ const {createSync} = require('./square-production-sync');
 const BASE = 'https://connect.squareup.com';
 const {installSales, SALES_SCOPES, page} = require('./square-production-sales');
 const SCOPES = SALES_SCOPES;
-const BILLING_SCOPES = 'ITEMS_READ ITEMS_WRITE SUBSCRIPTIONS_READ SUBSCRIPTIONS_WRITE ORDERS_READ ORDERS_WRITE PAYMENTS_WRITE';
+const {installBillingSetup, BILLING_SCOPES} = require('./square-vivid-billing-setup');
 const {installCheckout,CHECKOUT_SCOPES}=require('./square-production-checkout');
 const {installInstore}=require('./square-production-instore');
 const {installVividSubscriptions}=require('./square-vivid-subscriptions');
@@ -119,7 +119,9 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
       VALUES($1,$2,$3,$4) ON CONFLICT(customer_id) DO UPDATE SET merchant_id=EXCLUDED.merchant_id,
       token_ciphertext=EXCLUDED.token_ciphertext,expires_at=EXCLUDED.expires_at,updated_at=NOW()`,
     [pending.customerId, token.merchant_id, seal({...token,vivid_scopes:pending.scopes || SCOPES}, config.key, String(pending.customerId)), token.expires_at]);
-    res.redirect(root(pending.customerId)+(pending.scopes?.includes('ORDERS_WRITE') ? '/checkout' : ''));
+    res.redirect(pending.scopes?.includes('SUBSCRIPTIONS_READ')
+      ? '/admin/sponsorship-performance/billing?customer_id='+pending.customerId
+      : root(pending.customerId)+(pending.scopes?.includes('ORDERS_WRITE') ? '/checkout' : ''));
   }));
   const getConnection = async id => {
     const result = await q('SELECT * FROM square_production_connections WHERE customer_id=$1', [id]);
@@ -149,6 +151,7 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
   installCheckout({app,q,owner,wrap,api,getConnection,csrf,root,origin:new URL(config.redirect).origin});
   installInstore({app,q,owner,wrap,api,getConnection,csrf,root,redemptions,origin:new URL(config.redirect).origin});
   installVividSubscriptions({app,q,api,getConnection,origin:new URL(config.redirect).origin,env});
+  installBillingSetup({app,q,ready,api,getConnection,env});
   app.get(PATH + '/customers/:customerId/locations', owner, wrap(async (req, res) => {
     const id = Number(req.params.customerId), connection = await getConnection(id);
     if (!connection) return res.status(409).send('Connect a Square live account first.');
@@ -173,7 +176,6 @@ function install({app, q, requireAdvertiserCustomerManager, env = process.env, f
   }));
 }
 module.exports = {install, configuration, seal, unseal, equal, BILLING_SCOPES};
-
 
 
 
