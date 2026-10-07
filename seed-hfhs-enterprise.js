@@ -172,7 +172,7 @@ async function seed(client){
         suggested_term_length,suggested_term_unit,status,display_order,is_active,photo_data,photo_mime_type,created_at,updated_at)
         VALUES($1,$2,$3,$4,$5,$6,$7,$7,$8,$9,$10,'Available',$11,true,$12,$13,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
         RETURNING id`,[
-          org,location.id,program.id,o.title,`${NOTICE}\n\n${o.description}`,o.category,o.price,o.unit,o.term,o.termUnit,i+1,photo,"image/svg+xml"
+          org,location.id,program.id,o.title,`${NOTICE}\n\n${o.description}`,o.category,(o.price ?? 0),o.unit,o.term,o.termUnit,i+1,photo,"image/svg+xml"
         ]);
       manifest.opportunities.push({id:Number(r.rows[0].id),program:o.program,title:o.title,price:o.price});
     }
@@ -260,7 +260,7 @@ async function main(){
 }
 
 if(require.main===module) main().catch(error=>{
+  // Demo data must never prevent the production application from starting.
   console.error("HFHS ENTERPRISE DEMO ERROR:",error);
-  process.exitCode=1;
 });
 module.exports={KEY,EMAIL,ORG_NAME,SLUG,START,END,programs,opportunities,measured,buildEvents,seed};
