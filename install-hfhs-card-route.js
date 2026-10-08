@@ -11,5 +11,5 @@ function install(source){
  const line=`${MARKER}\nrequire("./hfhs-marketplace-route")(app,{q,escapeHtml});\n`;
  return source.slice(0,appGet)+line+source.slice(appGet);
 }
-if(require.main===module){try{const f=path.join(__dirname,"server.js"),s=fs.readFileSync(f,"utf8"),n=require("./hfhs-demo-setup-scope").install(install(s));if(n!==s)fs.writeFileSync(f,n);console.log("HFHS card route installed.");}catch(e){console.error("HFHS card route install skipped:",e.message);}}
+if(require.main===module){try{const f=path.join(__dirname,"server.js"),s=fs.readFileSync(f,"utf8"),n=require("./install-hfhs-report-scope").install(require("./hfhs-demo-setup-scope").install(install(s)));if(n!==s)fs.writeFileSync(f,n);console.log("HFHS card route installed.");}catch(e){console.error("HFHS card route install skipped:",e.message);}}
 module.exports={install};
