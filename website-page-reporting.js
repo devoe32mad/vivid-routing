@@ -65,7 +65,8 @@ async function load({q,user,query={},allTime=false}) {
     // must not become empty website-tracking entries merely because they exist.
     for(const p of observed.values())pages.push({...p,campaign_id:Number(c.id),campaign_name:c.name,advertiser:c.advertiser});
   }
-  return {filters:f,campaigns,rows,pages,total:rows.reduce((sum,r)=>sum+Number(r.visits),0)};
+  const entitlement=await require("./report-performance-upgrade").load({q,req:{session:{user}}});
+  return require("./report-performance-upgrade").filterWebsiteReport({filters:f,campaigns,rows,pages,total:rows.reduce((sum,r)=>sum+Number(r.visits),0)},entitlement);
 }
 function count(report,key,id){
   const total=report.rows.filter(r=>Number(r[key])===Number(id)).reduce((n,r)=>n+Number(r.visits),0);
@@ -73,6 +74,7 @@ function count(report,key,id){
 }
 const stamp=value=>value?new Date(value).toISOString().replace("T"," ").slice(0,19)+" UTC":"—";
 function renderSection(report){
+  if(report.basicMetricsHidden&&!report.campaigns.length)return '<section id="website-page-visits"><h2>Website Page Visits</h2><p>— Available with Vivid Performance.</p></section>';
   const query=new URLSearchParams({...report.filters,...(!report.filters.start_date||!report.filters.end_date?{all_time:"1"}:{})}).toString();
   return `<section id="website-page-visits"><h2>Website Page Visits</h2>
     <p>Page Visits recorded: <strong>${report.total||"—"}</strong></p><p>${note}</p>

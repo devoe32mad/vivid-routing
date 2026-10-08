@@ -23,7 +23,7 @@ async function load({q,req}){
     JOIN spaces s ON s.id=qr.space_id
     JOIN organization_advertising_requests ar ON ar.created_qr_id=qr.id AND ar.status='Approved'
     LEFT JOIN users owner ON owner.id=ar.created_vivid_user_id
-    LEFT JOIN qr_campaigns qc ON qc.qr_id=qr.id AND COALESCE(qc.is_active,true)=true
+    LEFT JOIN qr_campaigns qc ON qc.qr_id=qr.id
     WHERE spp.plan='basic' AND spp.status IN ('active','upgrade_requested')
       AND (ar.created_vivid_user_id=$1 OR ar.created_vivid_user_id=$2 OR owner.advertiser_customer_id=$2)
     ORDER BY qr.id,qc.campaign_id
@@ -43,5 +43,24 @@ function render(state,key,id){
     </form>`}
   </div>`).join("");
 }
-function intro(state){return state.rows?.length?'<p style="margin:16px 0">Basic includes scan reporting. <strong>Vivid Performance — $35/month per placement</strong> adds website activity, conversions, revenue, ROI and campaign scheduling. Request an upgrade beside your placement below.</p>':"";}
-module.exports={load,render,intro,reportReturn};
+function intro(state){return state.rows?.length?'<p style="margin:16px 0">Basic includes scans; other performance metrics show a dash until upgraded. <strong>Vivid Performance — $35/month per placement</strong> adds website activity, conversions, revenue, ROI and campaign scheduling. Request an upgrade beside your placement below.</p>':"";}
+// Mixed aggregates containing a Basic placement must not expose that placement's
+// paid metrics. Performance-only rows and platform administrators remain unchanged.
+function restricted(state,key,id){return (state.rows||[]).some(r=>Number(r[key])===Number(id));}
+function maskRow(state,key,id,scanIndex,html){
+  if(!restricted(state,key,id))return html;
+  let index=0;
+  return html.replace(/<td\b[^>]*>[\s\S]*?<\/td>/g,cell=>{
+    if(index++<=scanIndex)return cell;
+    return '<td style="text-align:center;" aria-label="Available with Vivid Performance">—</td>';
+  });
+}
+function filterWebsiteReport(report,state){
+  const denied=new Set((state.rows||[]).map(r=>Number(r.campaign_id)).filter(n=>n>0));
+  if(!denied.size)return report;
+  const rows=report.rows.filter(r=>!denied.has(Number(r.campaign_id)));
+  const pages=report.pages.filter(r=>!denied.has(Number(r.campaign_id)));
+  const campaigns=report.campaigns.filter(r=>!denied.has(Number(r.id)));
+  return {...report,rows,pages,campaigns,basicMetricsHidden:report.campaigns.some(r=>denied.has(Number(r.id))),total:rows.reduce((n,r)=>n+Number(r.visits),0)};
+}
+module.exports={load,render,intro,reportReturn,restricted,maskRow,filterWebsiteReport};
