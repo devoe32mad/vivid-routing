@@ -58056,18 +58056,22 @@ const pipelineTotals = locationPipelineRows.reduce((totals, location) => {
   return totals;
 }, { pipeline: 0, available: 0, pending: 0, advertisers: 0 });
 
+const pipelineWholeDollars = value => Number(value || 0).toLocaleString("en-US", {
+  style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0
+});
+
 const pipelineSummaryCards = [
-  ["Pipeline Value", money(pipelineTotals.pipeline)],
-  ["Available", money(pipelineTotals.available)],
-  ["Pending", money(pipelineTotals.pending)],
+  ["Pipeline Value", pipelineWholeDollars(pipelineTotals.pipeline)],
+  ["Available", pipelineWholeDollars(pipelineTotals.available)],
+  ["Pending", pipelineWholeDollars(pipelineTotals.pending)],
   ["Active", "—"],
   ["Advertisers", pipelineTotals.advertisers.toLocaleString()],
   ["Renewals (90d)", "—"],
   ["Renewal Value", "—"]
 ].map(([label, value]) => `
-  <a href="#revenue-by-location" style="display:block;text-align:center;background:#fff;border:1px solid #dce5dd;border-radius:18px;padding:22px;text-decoration:none;color:#173f2a;box-shadow:0 8px 22px rgba(0,0,0,.06);">
-    <div style="font-size:14px;color:#65776b;">${label}</div>
-    <strong style="display:block;font-size:26px;margin-top:10px;">${value}</strong>
+  <a href="#revenue-by-location" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;box-sizing:border-box;min-width:0;background:#fff;border:1px solid #dce5dd;border-radius:18px;padding:22px;text-decoration:none;color:#173f2a;box-shadow:0 8px 22px rgba(0,0,0,.06);">
+    <div style="width:100%;text-align:center;font-size:14px;color:#65776b;">${label}</div>
+    <strong style="display:block;width:100%;text-align:center;font-size:26px;margin-top:10px;white-space:nowrap;">${value}</strong>
   </a>
 `).join("");
 
