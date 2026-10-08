@@ -321,7 +321,11 @@ body{margin:0;background:#f5f7fa;color:#17324d;font-family:Arial,Helvetica,sans-
             <div class="cat">${escapeHtml(o.category||heading)}</div>
             <h3>${escapeHtml(o.title)}</h3>
             <p>${escapeHtml(String(o.description||"").split("\\n")[0])}</p>
-            <div class="bottom"><strong>${price}</strong><b>View opportunity →</b></div>
+            <div class="mini-meta">
+              <span>${price}</span>
+              <span>Request online</span>
+            </div>
+            <div class="bottom"><strong>View details</strong><b>Continue →</b></div>
           </div>
         </a>`;
       }).join("");
@@ -335,6 +339,12 @@ body{margin:0;background:#f5f7fa;color:#17324d;font-family:Arial,Helvetica,sans-
       .hero{background:linear-gradient(120deg,#092f57,#155d92);color:#fff;padding:38px 5vw}.hero>div,.wrap{max-width:1280px;margin:auto}
       .hero h1{font-size:clamp(32px,4vw,48px);margin:4px 0 9px}.hero p{max-width:900px;color:#e6f1fa;font-size:17px;line-height:1.55}
       .wrap{padding:34px 28px 60px}.count{font-weight:800;color:#425a6f;margin-bottom:18px}
+      .event-tools{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 26px}
+      .tool-btn{appearance:none;border:1px solid #bfd0df;background:#fff;color:#174d78;border-radius:9px;padding:10px 14px;font-weight:800;cursor:pointer}
+      .tool-btn:hover{background:#f2f7fb}
+      .journey{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:0 0 26px}
+      .journey-step{background:#fff;border:1px solid #dce5ed;border-radius:11px;padding:13px;font-size:13px;color:#4f667a}
+      .journey-step b{display:block;color:#173f64;margin-bottom:4px}
       .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
       .card{background:#fff;border:1px solid #dbe4ed;border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;box-shadow:0 4px 16px rgba(17,48,82,.07);display:flex;flex-direction:column}
       .card:hover{transform:translateY(-2px);box-shadow:0 10px 25px rgba(17,48,82,.13)}
@@ -342,12 +352,44 @@ body{margin:0;background:#f5f7fa;color:#17324d;font-family:Arial,Helvetica,sans-
       .photo span{position:absolute;right:10px;top:10px;background:#e8f6ef;color:#16724a;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:900}
       .body{padding:17px;display:flex;flex-direction:column;flex:1}.cat{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:900;color:#477ca8}
       h3{font-size:21px;line-height:1.25;margin:7px 0 10px}.body p{font-size:14px;line-height:1.52;color:#627487;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+      .mini-meta{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px}.mini-meta span{background:#f2f6fa;border-radius:999px;padding:6px 8px;font-size:11px;font-weight:800;color:#486279}
       .bottom{margin-top:auto;border-top:1px solid #e8edf2;padding-top:13px;display:flex;justify-content:space-between;gap:10px}.bottom strong{color:#123f69}.bottom b{font-size:12px;color:#1768a7}
-      @media(max-width:1050px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:640px){.grid{grid-template-columns:1fr}.wrap{padding-left:16px;padding-right:16px}}
+      .performance{margin-top:34px;background:#0f3f69;color:#fff;border-radius:16px;padding:24px}
+      .performance h2{margin:0 0 8px}.performance p{color:#dcecf8;max-width:900px;line-height:1.55}
+      .metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:18px}.metric{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.15);border-radius:11px;padding:14px}.metric b{display:block;font-size:22px}.metric span{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#d5e7f5}
+      @media(max-width:1050px){.grid{grid-template-columns:repeat(2,1fr)}.journey{grid-template-columns:repeat(2,1fr)}.metrics{grid-template-columns:repeat(2,1fr)}}@media(max-width:640px){.grid{grid-template-columns:1fr}.wrap{padding-left:16px;padding-right:16px}.journey{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}}
       </style></head><body>
       <div class="top"><a href="/advertise/henry-ford-health-demo">← Henry Ford Health Sponsorship Marketplace</a></div>
       <div class="hero"><div><div style="font-size:12px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#c7e3f5">Available Sponsorship Inventory</div><h1>${escapeHtml(heading)}</h1><p>${escapeHtml(intro)}</p></div></div>
-      <main class="wrap"><div class="count">${rows.length} sponsorship opportunities available for this event</div><div class="grid">${cards}</div></main>
+      <main class="wrap">
+        <div class="event-tools">
+          <button class="tool-btn" type="button" onclick="navigator.clipboard.writeText(location.href)">Copy Event Link</button>
+          <button class="tool-btn" type="button" onclick="navigator.share ? navigator.share({title:document.title,url:location.href}) : navigator.clipboard.writeText(location.href)">Share Event</button>
+        </div>
+
+        <div class="journey">
+          <div class="journey-step"><b>1. Browse</b>Review available sponsorship inventory.</div>
+          <div class="journey-step"><b>2. Select</b>Choose the opportunity that fits.</div>
+          <div class="journey-step"><b>3. Onboard</b>Submit company details and assets.</div>
+          <div class="journey-step"><b>4. Fulfill</b>HFHS manages sponsor deliverables.</div>
+          <div class="journey-step"><b>5. Measure</b>Review post-event performance.</div>
+        </div>
+
+        <div class="count">${rows.length} sponsorship opportunities available for this event</div>
+        <div class="grid">${cards}</div>
+
+        <section class="performance">
+          <h2>What sponsors can receive after activation</h2>
+          <p>Vivid connects the sponsorship record to measurable engagement so HFHS can provide a clearer post-event performance summary and support the renewal conversation.</p>
+          <div class="metrics">
+            <div class="metric"><b>Scans</b><span>Physical engagement</span></div>
+            <div class="metric"><b>Clicks</b><span>Destination activity</span></div>
+            <div class="metric"><b>Actions</b><span>Qualified response</span></div>
+            <div class="metric"><b>Value</b><span>Attributed outcome</span></div>
+            <div class="metric"><b>ROI</b><span>Performance view</span></div>
+          </div>
+        </section>
+      </main>
       </body></html>`);
     } catch(error) {
       console.error("HFHS LOCATION MARKETPLACE ERROR:",error);
