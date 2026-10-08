@@ -113,6 +113,46 @@ module.exports = function installOrgInventoryHierarchy(
         return out;
       };
 
+      const revenueTotals = items => {
+        const out = {
+          available:0,
+          pending:0,
+          sold:0,
+          total:0
+        };
+
+        items.forEach(item => {
+          const value = Number(
+            item.price ??
+            item.annual_price ??
+            0
+          ) || 0;
+
+          out.total += value;
+
+          const key =
+            String(
+              item.status || "Available"
+            )
+              .trim()
+              .toLowerCase();
+
+          if (key === "available") {
+            out.available += value;
+          } else if (key === "pending") {
+            out.pending += value;
+          } else if (
+            key === "sold" ||
+            key === "approved" ||
+            key === "closed"
+          ) {
+            out.sold += value;
+          }
+        });
+
+        return out;
+      };
+
       const statusSummary = c =>
         '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;">' +
         '<span style="background:#DCFCE7;color:#166534;padding:6px 9px;border-radius:999px;font-size:11px;font-weight:bold;">' + c.available + ' Available</span>' +
@@ -120,10 +160,56 @@ module.exports = function installOrgInventoryHierarchy(
         '<span style="background:#FEE2E2;color:#991B1B;padding:6px 9px;border-radius:999px;font-size:11px;font-weight:bold;">' + c.sold + ' Sold</span>' +
         '</div>';
 
+      const revenueSummary = totals =>
+        '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px;">' +
+        '<div style="background:#f7faf6;border:1px solid #e4ece4;border-radius:10px;padding:9px;">' +
+        '<div style="font-size:10px;color:#65776b;">Available Revenue</div>' +
+        '<div style="font-size:14px;font-weight:bold;color:#166534;margin-top:3px;">' + money(totals.available) + '</div>' +
+        '</div>' +
+        '<div style="background:#fffaf0;border:1px solid #f4e4ba;border-radius:10px;padding:9px;">' +
+        '<div style="font-size:10px;color:#65776b;">Pending Revenue</div>' +
+        '<div style="font-size:14px;font-weight:bold;color:#92400E;margin-top:3px;">' + money(totals.pending) + '</div>' +
+        '</div>' +
+        '<div style="background:#fff5f5;border:1px solid #f3d6d6;border-radius:10px;padding:9px;">' +
+        '<div style="font-size:10px;color:#65776b;">Sold Revenue</div>' +
+        '<div style="font-size:14px;font-weight:bold;color:#991B1B;margin-top:3px;">' + money(totals.sold) + '</div>' +
+        '</div>' +
+        '</div>';
+
       const queryStatus =
         selectedStatus !== "All"
           ? "&status=" + encodeURIComponent(selectedStatus)
           : "";
+
+      const overallCounts =
+        counts(opportunities);
+
+      const overallRevenue =
+        revenueTotals(opportunities);
+
+      const topSummary =
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:22px;">' +
+        '<div class="marketplace-card" style="margin:0;border:1px solid #dfe8e0;">' +
+        '<div style="font-size:11px;color:#65776b;">Available Revenue</div>' +
+        '<div style="font-size:26px;font-weight:bold;color:#166534;margin-top:6px;">' + money(overallRevenue.available) + '</div>' +
+        '<div style="font-size:12px;color:#65776b;margin-top:5px;">' + overallCounts.available + ' opportunities</div>' +
+        '</div>' +
+        '<div class="marketplace-card" style="margin:0;border:1px solid #eadfbd;">' +
+        '<div style="font-size:11px;color:#65776b;">Pending Revenue</div>' +
+        '<div style="font-size:26px;font-weight:bold;color:#92400E;margin-top:6px;">' + money(overallRevenue.pending) + '</div>' +
+        '<div style="font-size:12px;color:#65776b;margin-top:5px;">' + overallCounts.pending + ' opportunities</div>' +
+        '</div>' +
+        '<div class="marketplace-card" style="margin:0;border:1px solid #ecd5d5;">' +
+        '<div style="font-size:11px;color:#65776b;">Sold Revenue</div>' +
+        '<div style="font-size:26px;font-weight:bold;color:#991B1B;margin-top:6px;">' + money(overallRevenue.sold) + '</div>' +
+        '<div style="font-size:12px;color:#65776b;margin-top:5px;">' + overallCounts.sold + ' opportunities</div>' +
+        '</div>' +
+        '<div class="marketplace-card" style="margin:0;border:1px solid #dfe4ea;">' +
+        '<div style="font-size:11px;color:#65776b;">Total Inventory Value</div>' +
+        '<div style="font-size:26px;font-weight:bold;color:#173f64;margin-top:6px;">' + money(overallRevenue.total) + '</div>' +
+        '<div style="font-size:12px;color:#65776b;margin-top:5px;">Current filtered view</div>' +
+        '</div>' +
+        '</div>';
 
       let heading = "Event Types";
       let subheading = "Choose a type of event to manage its events and sponsorship inventory.";
@@ -149,6 +235,7 @@ module.exports = function installOrgInventoryHierarchy(
 
         cards = Array.from(groups.values()).map(group => {
           const c = counts(group.items);
+          const r = revenueTotals(group.items);
           const eventCount = new Set(group.items.map(x => Number(x.space_id))).size;
           const href =
             "/org-marketplace?organization_id=" +
@@ -166,6 +253,7 @@ module.exports = function installOrgInventoryHierarchy(
             ' · ' + group.items.length + ' opportunit' + (group.items.length === 1 ? 'y' : 'ies') +
             '</div>' +
             statusSummary(c) +
+            revenueSummary(r) +
             '<div style="margin-top:18px;padding-top:13px;border-top:1px solid #e7eee7;color:#176b3a;font-size:12px;font-weight:bold;">View Events →</div>' +
             '</div></a>';
         }).join("");
@@ -195,6 +283,7 @@ module.exports = function installOrgInventoryHierarchy(
 
         cards = Array.from(groups.values()).map(event => {
           const c = counts(event.items);
+          const r = revenueTotals(event.items);
           const date = event.date
             ? new Date(event.date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"})
             : "";
@@ -215,6 +304,7 @@ module.exports = function installOrgInventoryHierarchy(
             (event.location ? '<div style="font-size:13px;color:#65776b;">' + escapeHtml(event.location) + '</div>' : '') +
             '<div style="color:#65776b;font-size:13px;margin-top:8px;">' + event.items.length + ' sponsorship opportunit' + (event.items.length === 1 ? 'y' : 'ies') + '</div>' +
             statusSummary(c) +
+            revenueSummary(r) +
             '<div style="margin-top:18px;padding-top:13px;border-top:1px solid #e7eee7;color:#176b3a;font-size:12px;font-weight:bold;">Manage Opportunities →</div>' +
             '</div></a>';
         }).join("");
@@ -285,6 +375,7 @@ module.exports = function installOrgInventoryHierarchy(
         publicLink +
         '<a class="marketplace-btn secondary" href="/org-organization/' + organizationId + '?organization_id=' + organizationId + '">Back to Overview</a>' +
         '</div></div>' +
+        topSummary +
         '<div class="marketplace-card" style="margin-bottom:24px;">' +
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px;">' + breadcrumb + '</div>' +
         '<h2 style="margin:0 0 6px;">' + escapeHtml(heading) + '</h2>' +
