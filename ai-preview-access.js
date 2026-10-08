@@ -1,6 +1,6 @@
 "use strict";
 const {AsyncLocalStorage} = require("node:async_hooks");
-const {addMarketingReturn} = require("./marketing-return-navigation");
+const {addMarketingEntry,addMarketingReturn} = require("./marketing-return-navigation");
 const previewContext = new AsyncLocalStorage();
 const PREVIEW_EMAIL = "testtest@test.com";
 
@@ -68,6 +68,7 @@ function aiPreviewMiddleware(req, res, next) {
       if (typeof body === "string" && (!type || String(type).includes("text/html"))) {
         body = allowed ? addMarketingReturn(body, req) : withoutAiLinks(body);
         if (!performanceAllowed) body = withoutPerformanceCenterLinks(body);
+        body = addMarketingEntry(body, req);
       }
       return send.call(this, body);
     };

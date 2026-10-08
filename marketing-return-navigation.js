@@ -1,5 +1,16 @@
 "use strict";
 const dashboard = "/admin/marketing-command-center";
+// Customers explicitly enabled for the standalone marketing workspace.
+const marketingCustomers = new Set([39]);
+function addMarketingEntry(html, req) {
+  const actor = req.session?.user;
+  if (req.session?.orgUser || /^\/org-/i.test(String(req.path || "")) ||
+      actor?.role !== "customer" || !marketingCustomers.has(Number(actor.id)) ||
+      html.includes('id="marketing-command-center-nav"')) return html;
+  const link = `<a id="marketing-command-center-nav" href="${dashboard}" style="color:white;text-decoration:none;font-weight:bold;">Marketing Command Center</a>`;
+  return html.replace(/<a\b[^>]*\bhref="\/my-setup"[^>]*>[\s\S]*?<\/a\s*>/i,
+    anchor => anchor + "\n" + link);
+}
 const id = value => Number.isSafeInteger(Number(value)) && Number(value) > 0 ? Number(value) : null;
 function validDate(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
@@ -24,4 +35,4 @@ function addMarketingReturn(html, req) {
   const nav = `<nav id="marketing-return-nav" aria-label="Return to dashboard" style="position:sticky;top:12px;z-index:20;margin:0 0 18px;width:fit-content;max-width:100%"><a href="${href}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#102b50;color:#fff;font-weight:700;text-decoration:none;box-shadow:0 2px 8px #102b5026">← Marketing Command Center</a></nav>`;
   return html.replace(/<main\b[^>]*>/i, main => main + nav);
 }
-module.exports = {addMarketingReturn};
+module.exports = {addMarketingEntry,addMarketingReturn};
