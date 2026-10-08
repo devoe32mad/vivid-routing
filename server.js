@@ -89630,6 +89630,140 @@ app.get(
                 action="/admin/edit-campaign/${campaign.id}"
               >
 
+                ${ 
+  marketplaceRequest
+    ? `
+        <div
+          class="card"
+          style="
+            border-left:5px solid #2f7d46;
+          "
+        >
+          <div style="
+            font-size:12px;
+            font-weight:bold;
+            letter-spacing:.08em;
+            text-transform:uppercase;
+            color:#2f7d46;
+            margin-bottom:7px;
+          ">
+            Sponsorship Request Connected
+          </div>
+
+          <h2 style="margin:0 0 8px;">
+            Your information is already here
+          </h2>
+
+          <p style="
+            color:#65776b;
+            line-height:1.55;
+            margin:0 0 18px;
+          ">
+            Vivid carried these details forward from your
+            approved Marketplace sponsorship request.
+          </p>
+
+          <div style="
+            display:grid;
+            grid-template-columns:
+              repeat(auto-fit,minmax(210px,1fr));
+            gap:14px;
+          ">
+            <div>
+              <div class="label">Organization</div>
+              <strong>${escapeHtml(marketplaceRequest.organization_name || "")}</strong>
+            </div>
+
+            <div>
+              <div class="label">Event</div>
+              <strong>${escapeHtml(marketplaceRequest.event_name || "")}</strong>
+            </div>
+
+            <div>
+              <div class="label">Sponsorship</div>
+              <strong>${escapeHtml(marketplaceRequest.opportunity_name || "")}</strong>
+            </div>
+
+            <div>
+              <div class="label">Investment</div>
+              <strong>
+                ${
+                  Number(marketplaceRequest.price || 0) > 0
+                    ? money(marketplaceRequest.price)
+                    : escapeHtml(marketplaceRequest.pricing_unit || "Custom")
+                }
+              </strong>
+            </div>
+
+            <div>
+              <div class="label">Business</div>
+              <strong>${escapeHtml(marketplaceRequest.business_name || "")}</strong>
+            </div>
+
+            <div>
+              <div class="label">Contact</div>
+              <strong>${escapeHtml(marketplaceRequest.contact_name || "")}</strong>
+              <div style="
+                color:#65776b;
+                font-size:12px;
+                margin-top:3px;
+              ">
+                ${escapeHtml(marketplaceRequest.email || "")}
+                ${
+                  marketplaceRequest.phone
+                    ? " · " + escapeHtml(marketplaceRequest.phone)
+                    : ""
+                }
+              </div>
+            </div>
+
+            ${
+              marketplaceRequest.website
+                ? `
+                    <div>
+                      <div class="label">Website</div>
+                      <strong>${escapeHtml(marketplaceRequest.website)}</strong>
+                    </div>
+                  `
+                : ""
+            }
+
+            ${
+              marketplaceRequest.business_category
+                ? `
+                    <div>
+                      <div class="label">Business Category</div>
+                      <strong>${escapeHtml(marketplaceRequest.business_category)}</strong>
+                    </div>
+                  `
+                : ""
+            }
+          </div>
+
+          ${
+            marketplaceRequest.campaign_notes
+              ? `
+                  <div style="
+                    margin-top:18px;
+                    padding-top:14px;
+                    border-top:1px solid #e1e9e2;
+                  ">
+                    <div class="label">Sponsor Notes</div>
+                    <div style="
+                      color:#52645a;
+                      line-height:1.55;
+                    ">
+                      ${escapeHtml(marketplaceRequest.campaign_notes)}
+                    </div>
+                  </div>
+                `
+              : ""
+          }
+        </div>
+      `
+    : ""
+}
+
                 <div class="card">
                   <h2 style="margin-top:0;">
                     Campaign Information
@@ -90528,9 +90662,26 @@ if (
     `
       SELECT
         ar.id AS request_id,
+        ar.organization_id,
+        ar.opportunity_id,
+
         ar.business_name,
+        ar.contact_name,
+        ar.email,
+        ar.phone,
+        ar.website,
+        ar.business_category,
+
         ar.campaign_name,
         ar.destination_url,
+        ar.campaign_notes,
+
+        ar.opportunity_name,
+        ar.price,
+        ar.pricing_unit,
+
+        o.name AS organization_name,
+        s.name AS event_name,
 
         c.start_date,
         c.end_date,
@@ -90539,6 +90690,13 @@ if (
         q.name AS qr_name
 
       FROM organization_advertising_requests ar
+
+      JOIN organizations o
+        ON o.id = ar.organization_id
+
+      JOIN spaces s
+        ON s.id = ar.location_id
+       AND s.organization_id = ar.organization_id
 
       LEFT JOIN contracts c
         ON c.id = ar.created_contract_id
@@ -91432,10 +91590,34 @@ if (
 ) {
   await q(
     `
+      UPDATE campaigns c
+      SET
+        organization_id =
+          ar.organization_id,
+        organization_request_id =
+          ar.id,
+        organization_opportunity_id =
+          ar.opportunity_id
+      FROM organization_advertising_requests ar
+      WHERE c.id = $1
+        AND ar.id = $2
+        AND ar.created_vivid_user_id = $3
+        AND ar.status = 'Approved'
+    `,
+    [
+      campaignId,
+      marketplaceRequestId,
+      userId
+    ]
+  );
+
+  await q(
+    `
       UPDATE organization_advertising_requests
       SET
         created_campaign_id = $1,
-        setup_status = 'Campaign Created'
+        setup_status = 'Campaign Created',
+        updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
         AND created_vivid_user_id = $3
         AND status = 'Approved'
