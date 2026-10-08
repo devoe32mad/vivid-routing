@@ -37252,6 +37252,8 @@ app.get(
 
                   body:
                     `
+                      <h3>Sponsorship Amount</h3><p>Each advertiser card shows the value of linked signed, active, completed or expired contracts matching the selected locations and dates. This is contract value, not confirmed payment received. A dash means no matching contract value is available. Revenue Generated shows campaign conversion revenue separately.</p>
+
 
                       <h3>
                         Advertiser Overview
@@ -37326,6 +37328,8 @@ app.get(
 
                   body:
                     `
+                      <h3>Inventory Hierarchy</h3><p>Drill down from Event Type to Actual Event to Sponsorship Opportunities. Summary figures show inventory value and Available, Pending and Sold counts and values at each level. Existing opportunity controls and public marketplace links remain available.</p>
+
 
                       <h3>
                         All Locations
@@ -37369,10 +37373,10 @@ app.get(
                       </h3>
 
                       <p>
-                        Advertising opportunities may be
-                        marked Available, Reserved, or
-                        Unavailable depending on their
-                        current sales status.
+                        Available, Pending and Sold badges use
+                        matching colors in the inventory and
+                        public marketplace to show each
+                        opportunity's current sales status.
                       </p>
 
                       <h3>
@@ -37407,6 +37411,8 @@ app.get(
 
                   body:
                     `
+                      <h3>Sponsor Setup</h3><p>Marketplace details carry into sponsor setup, including the selected organization, event, opportunity, pricing, contact details and campaign information. Review the Sponsorship Request Connected summary before completing setup.</p>
+
 
                       <h3>
                         Requests by Location
@@ -37635,6 +37641,8 @@ app.get(
 
                   body:
                     `
+                      <h3>Pipeline Summary</h3><p>The top cards total the figures in the location cards below, using the same permitted locations and selected location filter. Pipeline Value includes all active inventory; Available and Pending are portions of that value, not additional revenue. Advertisers are summed across locations, so one advertiser can count in more than one location. Active, Renewals (90d) and Renewal Value remain dashes until those figures are available. Select a summary card to move to the location cards, then open a location for detail.</p>
+
 
                       <h3>
                         Available Revenue
@@ -58040,6 +58048,29 @@ ORDER BY
 const locationPipelineRows =
   locationPipelineResult.rows;
 
+const pipelineTotals = locationPipelineRows.reduce((totals, location) => {
+  totals.pipeline += Number(location.pipeline_value || 0);
+  totals.available += Number(location.available_revenue || 0);
+  totals.pending += Number(location.pending_revenue || 0);
+  totals.advertisers += Number(location.advertiser_count || 0);
+  return totals;
+}, { pipeline: 0, available: 0, pending: 0, advertisers: 0 });
+
+const pipelineSummaryCards = [
+  ["Pipeline Value", money(pipelineTotals.pipeline)],
+  ["Available", money(pipelineTotals.available)],
+  ["Pending", money(pipelineTotals.pending)],
+  ["Active", "—"],
+  ["Advertisers", pipelineTotals.advertisers.toLocaleString()],
+  ["Renewals (90d)", "—"],
+  ["Renewal Value", "—"]
+].map(([label, value]) => `
+  <a href="#revenue-by-location" style="display:block;background:#fff;border:1px solid #dce5dd;border-radius:18px;padding:22px;text-decoration:none;color:#173f2a;box-shadow:0 8px 22px rgba(0,0,0,.06);">
+    <div style="font-size:14px;color:#65776b;">${label}</div>
+    <strong style="display:block;font-size:26px;margin-top:10px;">${value}</strong>
+  </a>
+`).join("");
+
 const locationPipelineCards =
   locationPipelineRows.length === 0
     ? `
@@ -58236,7 +58267,18 @@ const locationPipelineCards =
 
             <div class="wrap">
 
-  <div style="
+  <section aria-label="Revenue Pipeline Summary" style="margin-bottom:28px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:12px;">
+      <h2 style="margin:0;color:#173f2a;">Pipeline Summary</h2>
+      <a href="/org-help?organization_id=${organizationId}#revenue-pipeline">Help</a>
+    </div>
+    <p style="color:#65776b;margin:0 0 16px;">Totals across the location cards below. Advertisers are summed by location; the same advertiser may appear in more than one location. Dashes indicate figures not yet available.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;">
+      ${pipelineSummaryCards}
+    </div>
+  </section>
+
+  <div id="revenue-by-location" style="
     margin-bottom:18px;
   ">
     <h2 style="
