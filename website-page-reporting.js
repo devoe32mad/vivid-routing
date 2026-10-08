@@ -77,7 +77,7 @@ async function load({q,user,query={},allTime=false}) {
 }
 function count(report,key,id){
   const total=report.rows.filter(r=>Number(r[key])===Number(id)).reduce((n,r)=>n+Number(r.visits),0);
-  return total||"—";
+  return total||(report.hfhsDemo ? 0 : "—");
 }
 const stamp=value=>value?new Date(value).toISOString().replace("T"," ").slice(0,19)+" UTC":"—";
 function renderSection(report){
