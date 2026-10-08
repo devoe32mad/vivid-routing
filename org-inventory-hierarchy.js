@@ -11,7 +11,7 @@ module.exports = function installOrgInventoryHierarchy(
     statusBadge
   }
 ) {
-  app.get("/org-marketplace-hierarchy", async (req, res) => {
+  app.get("/org-marketplace", async (req, res) => {
     try {
       const scope = await getOrganizationScope(req);
       const organizationId = scope.organizationId;
@@ -151,7 +151,7 @@ module.exports = function installOrgInventoryHierarchy(
           const c = counts(group.items);
           const eventCount = new Set(group.items.map(x => Number(x.space_id))).size;
           const href =
-            "/org-marketplace-hierarchy?organization_id=" +
+            "/org-marketplace?organization_id=" +
             organizationId +
             "&program_id=" +
             group.id +
@@ -174,7 +174,7 @@ module.exports = function installOrgInventoryHierarchy(
         heading = selectedProgram ? selectedProgram.name : "Events";
         subheading = "Choose an actual event to manage the sponsorship opportunities inside it.";
         breadcrumb =
-          '<a href="/org-marketplace-hierarchy?organization_id=' + organizationId + '" style="color:#176b3a;text-decoration:none;font-weight:bold;">Advertising Inventory</a>' +
+          '<a href="/org-marketplace?organization_id=' + organizationId + '" style="color:#176b3a;text-decoration:none;font-weight:bold;">Advertising Inventory</a>' +
           '<span>›</span><strong style="color:#073b22;">' + escapeHtml(heading) + '</strong>';
 
         const groups = new Map();
@@ -199,7 +199,7 @@ module.exports = function installOrgInventoryHierarchy(
             ? new Date(event.date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"})
             : "";
           const href =
-            "/org-marketplace-hierarchy?organization_id=" +
+            "/org-marketplace?organization_id=" +
             organizationId +
             "&program_id=" +
             selectedProgramId +
@@ -224,9 +224,9 @@ module.exports = function installOrgInventoryHierarchy(
         heading = selectedEvent ? selectedEvent.name : "Sponsorship Opportunities";
         subheading = "Manage the sponsorship opportunities available for this event.";
         breadcrumb =
-          '<a href="/org-marketplace-hierarchy?organization_id=' + organizationId + '" style="color:#176b3a;text-decoration:none;font-weight:bold;">Advertising Inventory</a>' +
+          '<a href="/org-marketplace?organization_id=' + organizationId + '" style="color:#176b3a;text-decoration:none;font-weight:bold;">Advertising Inventory</a>' +
           '<span>›</span>' +
-          '<a href="/org-marketplace-hierarchy?organization_id=' + organizationId + '&program_id=' + selectedProgramId + '" style="color:#176b3a;text-decoration:none;font-weight:bold;">' +
+          '<a href="/org-marketplace?organization_id=' + organizationId + '&program_id=' + selectedProgramId + '" style="color:#176b3a;text-decoration:none;font-weight:bold;">' +
           escapeHtml(selectedProgram ? selectedProgram.name : "Event Type") +
           '</a><span>›</span><strong style="color:#073b22;">' + escapeHtml(heading) + '</strong>';
 
