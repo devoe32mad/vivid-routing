@@ -304,7 +304,7 @@ async function main(){
             `UPDATE organization_opportunities
                 SET program_id=$4,description=$5,category=$6,price=$7,annual_price=$7,
                     pricing_unit=$8,suggested_term_length=1,suggested_term_unit='Event',
-                    status='Available',display_order=$9,is_active=true,updated_at=CURRENT_TIMESTAMP
+                    status=COALESCE(status,'Available'),display_order=$9,is_active=true,updated_at=CURRENT_TIMESTAMP
               WHERE id=$1 AND organization_id=$2 AND space_id=$3`,
             [existing.rows[0].id,orgId,spaceId,programId,opp.description,opp.category,opp.price,opp.unit,opp.order]
           );
@@ -322,6 +322,7 @@ async function main(){
 
     await client.query("COMMIT");
     console.log("HFHS EVENT INVENTORY HIERARCHY: loaded",EVENTS.length,"events.");
+    await require("./seed-hfhs-linked-demo").main();
   }catch(e){
     if(client){try{await client.query("ROLLBACK");}catch(_){}}
     console.error("HFHS EVENT INVENTORY HIERARCHY ERROR:",e.message);
