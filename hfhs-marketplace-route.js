@@ -93,6 +93,178 @@ module.exports = function registerHfhsMarketplace(app, deps) {
   }
 
 
+
+  app.get("/advertise/henry-ford-health-demo/program/:programId", async (req, res) => {
+    try {
+      const programId = Number(req.params.programId);
+      if (!Number.isInteger(programId) || programId <= 0) {
+        return res.status(400).send("Invalid sponsorship category.");
+      }
+
+      const orgResult = await q(
+        "SELECT id,name FROM organizations WHERE slug=$1 AND COALESCE(is_active,true)=true LIMIT 1",
+        ["henry-ford-health-demo"]
+      );
+      if (!orgResult.rows.length) return res.status(404).send("Marketplace not found.");
+      const org = orgResult.rows[0];
+
+      const programResult = await q(
+        `SELECT id,name,description
+           FROM organization_programs
+          WHERE id=$1
+            AND organization_id=$2
+            AND COALESCE(is_active,true)=true
+          LIMIT 1`,
+        [programId, org.id]
+      );
+      if (!programResult.rows.length) return res.status(404).send("Sponsorship category not found.");
+      const program = programResult.rows[0];
+
+      const eventsResult = await q(
+        `SELECT
+            s.id AS space_id,
+            s.name AS event_name,
+            s.location AS event_location,
+            s.description AS event_description,
+            s.live_date AS event_date,
+            COUNT(oo.id)::int AS opportunity_count
+          FROM spaces s
+          JOIN organization_opportunities oo
+            ON oo.space_id=s.id
+           AND oo.program_id=$2
+          WHERE s.organization_id=$1
+            AND COALESCE(s.is_archived,false)=false
+            AND COALESCE(oo.is_active,true)=true
+            AND oo.status='Available'
+          GROUP BY s.id,s.name,s.location,s.description,s.live_date
+          ORDER BY COALESCE(s.live_date,'9999-12-31'::date),s.name`,
+        [org.id, programId]
+      );
+
+      const formatEventDate = value => {
+        if (!value) return "";
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return "";
+        return d.toLocaleDateString("en-US", {
+          month:"long",
+          day:"numeric",
+          year:"numeric",
+          timeZone:"UTC"
+        });
+      };
+
+      const eventCards = eventsResult.rows.map(event => {
+        const url =
+          "/advertise/henry-ford-health-demo/location/" +
+          Number(event.space_id) +
+          "?program_id=" +
+          programId;
+
+        const dateLabel = formatEventDate(event.event_date);
+        const imageTitle = event.event_name || program.name;
+
+        return `
+          <a class="event-card" href="${url}">
+            <div class="event-photo">
+              <img
+                src="${imageFor(imageTitle)}"
+                alt=""
+                style="object-fit:${imageFit(imageTitle)};object-position:${imagePosition(imageTitle)};"
+              >
+              <div class="event-shade"></div>
+              <div class="event-count">
+                ${Number(event.opportunity_count || 0)} sponsorship options
+              </div>
+            </div>
+
+            <div class="event-body">
+              <div class="event-kicker">
+                ${escapeHtml(program.name)}
+              </div>
+
+              <h2>${escapeHtml(event.event_name)}</h2>
+
+              ${dateLabel ? `<div class="event-meta">${escapeHtml(dateLabel)}</div>` : ""}
+              ${event.event_location ? `<div class="event-meta">${escapeHtml(event.event_location)}</div>` : ""}
+
+              <p>
+                ${escapeHtml(event.event_description || "")}
+              </p>
+
+              <div class="event-action">
+                View sponsorship opportunities →
+              </div>
+            </div>
+          </a>
+        `;
+      }).join("");
+
+      res.set("X-Robots-Tag","noindex, nofollow, noarchive");
+
+      return res.send(`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(program.name)} | Henry Ford Health Vivid Demo</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f5f7fa;color:#17324d;font-family:Arial,Helvetica,sans-serif}
+.top{background:#fff;border-bottom:1px solid #dce4ec;padding:18px 5vw}
+.top a{text-decoration:none;color:#125ca8;font-weight:900}
+.hero{background:linear-gradient(120deg,#092f57,#155d92);color:#fff;padding:42px 5vw}
+.hero>div,.wrap{max-width:1280px;margin:auto}
+.hero-kicker{font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#c7e3f5}
+.hero h1{font-size:clamp(34px,5vw,52px);margin:7px 0 10px}
+.hero p{max-width:900px;font-size:17px;line-height:1.6;color:#e7f2fa}
+.wrap{padding:38px 28px 70px}
+.helper{font-size:18px;color:#5f7285;line-height:1.55;max-width:900px;margin:0 0 22px}
+.event-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+.event-card{display:block;background:#fff;border:1px solid #dbe4ed;border-radius:16px;overflow:hidden;text-decoration:none;color:inherit;box-shadow:0 6px 20px rgba(17,48,82,.08);transition:.18s ease}
+.event-card:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(17,48,82,.14)}
+.event-photo{height:230px;position:relative;overflow:hidden;background:#eef3f7}
+.event-photo img{width:100%;height:100%;display:block}
+.event-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,30,53,0) 35%,rgba(6,30,53,.55) 100%)}
+.event-count{position:absolute;right:14px;top:14px;background:rgba(255,255,255,.94);color:#15577f;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:900}
+.event-body{padding:20px}
+.event-kicker{font-size:11px;letter-spacing:.09em;text-transform:uppercase;font-weight:900;color:#4c7da6}
+.event-body h2{font-size:25px;line-height:1.2;margin:7px 0 10px;color:#183e62}
+.event-meta{font-size:13px;color:#4f667b;margin:3px 0}
+.event-body p{font-size:14px;line-height:1.55;color:#627487;margin:13px 0 18px}
+.event-action{border-top:1px solid #e8edf2;padding-top:14px;color:#1768a7;font-size:13px;font-weight:900}
+@media(max-width:800px){.event-grid{grid-template-columns:1fr}.event-photo{height:220px}.wrap{padding-left:16px;padding-right:16px}}
+</style>
+</head>
+<body>
+  <div class="top">
+    <a href="/advertise/henry-ford-health-demo">← All sponsorship categories</a>
+  </div>
+
+  <div class="hero">
+    <div>
+      <div class="hero-kicker">Choose an event</div>
+      <h1>${escapeHtml(program.name)}</h1>
+      <p>${escapeHtml(program.description || "")}</p>
+    </div>
+  </div>
+
+  <main class="wrap">
+    <p class="helper">
+      Select a specific Henry Ford Health event or program to view the sponsorship inventory available within it.
+    </p>
+
+    <div class="event-grid">
+      ${eventCards || "<p>No events are currently loaded in this category.</p>"}
+    </div>
+  </main>
+</body>
+</html>`);
+    } catch (error) {
+      console.error("HFHS EVENT BROWSER ERROR:", error);
+      return res.status(500).send("Unable to load HFHS events.");
+    }
+  });
+
   app.get("/advertise/henry-ford-health-demo/location/:locationId", async (req, res) => {
     try {
       const locationId=Number(req.params.locationId);
@@ -174,8 +346,8 @@ module.exports = function registerHfhsMarketplace(app, deps) {
       @media(max-width:1050px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:640px){.grid{grid-template-columns:1fr}.wrap{padding-left:16px;padding-right:16px}}
       </style></head><body>
       <div class="top"><a href="/advertise/henry-ford-health-demo">← Henry Ford Health Sponsorship Marketplace</a></div>
-      <div class="hero"><div><div style="font-size:12px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#c7e3f5">Sponsorship Opportunities</div><h1>${escapeHtml(heading)}</h1><p>${escapeHtml(intro)}</p></div></div>
-      <main class="wrap"><div class="count">${rows.length} sponsorship opportunities available</div><div class="grid">${cards}</div></main>
+      <div class="hero"><div><div style="font-size:12px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#c7e3f5">Available Sponsorship Inventory</div><h1>${escapeHtml(heading)}</h1><p>${escapeHtml(intro)}</p></div></div>
+      <main class="wrap"><div class="count">${rows.length} sponsorship opportunities available for this event</div><div class="grid">${cards}</div></main>
       </body></html>`);
     } catch(error) {
       console.error("HFHS LOCATION MARKETPLACE ERROR:",error);
@@ -243,7 +415,7 @@ module.exports = function registerHfhsMarketplace(app, deps) {
 
       const tiles=result.rows.map(row=>{
         const title=displayName(row.program_name);
-        const url="/advertise/henry-ford-health-demo/location/"+Number(row.space_id)+"?program_id="+Number(row.program_id);
+        const url="/advertise/henry-ford-health-demo/program/"+Number(row.program_id);
         const count=Number(row.opportunity_count||0);
         return `<a class="category-card" href="${url}">
           <div class="category-photo">
