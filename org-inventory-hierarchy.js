@@ -60,6 +60,27 @@ module.exports = function installOrgInventoryHierarchy(
         ? requestedStatus
         : "All";
 
+      // HFHS sold inventory follows placements activated through the marketplace.
+      const inventoryStatus = organization.slug === "henry-ford-health-demo"
+        ? `CASE WHEN LOWER(TRIM(oo.status)) IN ('sold','approved','closed') OR EXISTS (
+            SELECT 1 FROM organization_advertising_requests ar
+            JOIN qr_campaigns qc ON qc.qr_id=ar.created_qr_id
+              AND qc.campaign_id=ar.created_campaign_id
+              AND COALESCE(qc.is_active,true)=true
+            JOIN campaigns c ON c.id=qc.campaign_id
+              AND c.organization_id=ar.organization_id
+              AND COALESCE(c.is_archived,false)=false
+            JOIN qr_codes qr ON qr.id=qc.qr_id
+              AND qr.space_id=oo.space_id
+              AND COALESCE(qr.is_active,true)=true
+              AND COALESCE(qr.is_archived,false)=false
+            WHERE ar.organization_id=oo.organization_id
+              AND ar.opportunity_id=oo.id
+              AND ar.location_id=oo.space_id
+              AND ar.status='Approved'
+          ) THEN 'Sold' ELSE oo.status END`
+        : "oo.status";
+
       const params = [organizationId, allowedLocationIds];
       let where = "";
 
@@ -75,11 +96,11 @@ module.exports = function installOrgInventoryHierarchy(
 
       if (selectedStatus !== "All") {
         params.push(selectedStatus);
-        where += " AND oo.status=$" + params.length;
+        where += " AND (" + inventoryStatus + ")=$" + params.length;
       }
 
       const opportunityResult = await q(
-        "SELECT oo.id,oo.space_id,oo.program_id,oo.title,oo.description,oo.category,oo.price,oo.annual_price,oo.pricing_unit,oo.status,oo.display_order,oo.photo_data IS NOT NULL AS has_photo,p.name AS program_name,s.name AS event_name,s.location AS event_location,s.live_date AS event_date FROM organization_opportunities oo JOIN spaces s ON s.id=oo.space_id AND s.organization_id=oo.organization_id LEFT JOIN organization_programs p ON p.id=oo.program_id AND p.organization_id=oo.organization_id WHERE oo.organization_id=$1 AND oo.space_id=ANY($2::int[]) AND COALESCE(oo.is_active,true)=true AND COALESCE(s.is_archived,false)=false" + where + " ORDER BY p.display_order,p.name,COALESCE(s.live_date,'9999-12-31'::date),s.name,oo.display_order,oo.title",
+        "SELECT oo.id,oo.space_id,oo.program_id,oo.title,oo.description,oo.category,oo.price,oo.annual_price,oo.pricing_unit," + inventoryStatus + " AS status,oo.display_order,oo.photo_data IS NOT NULL AS has_photo,p.name AS program_name,s.name AS event_name,s.location AS event_location,s.live_date AS event_date FROM organization_opportunities oo JOIN spaces s ON s.id=oo.space_id AND s.organization_id=oo.organization_id LEFT JOIN organization_programs p ON p.id=oo.program_id AND p.organization_id=oo.organization_id WHERE oo.organization_id=$1 AND oo.space_id=ANY($2::int[]) AND COALESCE(oo.is_active,true)=true AND COALESCE(s.is_archived,false)=false" + where + " ORDER BY p.display_order,p.name,COALESCE(s.live_date,'9999-12-31'::date),s.name,oo.display_order,oo.title",
         params
       );
 
