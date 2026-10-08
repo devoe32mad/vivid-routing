@@ -20403,6 +20403,16 @@ min-height:220px;
     </div>
   </div>
 
+  <div>
+    <div style="font-size:10px;color:#65776b;">
+      Conversions
+    </div>
+
+    <div style="font-size:16px;font-weight:bold;">
+      ${Number(location.conversions || 0).toLocaleString()}
+    </div>
+  </div>
+
   <div style="grid-column:1/-1;">
     <div style="font-size:10px;color:#65776b;">
       Revenue Generated
@@ -20742,7 +20752,29 @@ style="text-decoration:none;color:inherit;display:block;"
     </div>
   </a>
 
-  
+  <a
+    href="/org-performance?organization_id=${org.id}${dateQueryString ? `&${dateQueryString}` : ""}"
+    style="text-decoration:none;color:inherit;"
+  >
+    <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
+      <div style="font-size:13px;color:#65776b;">Scans</div>
+      <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+        ${totals.scans.toLocaleString()}
+      </div>
+    </div>
+  </a>
+
+  <a
+    href="/org-performance?organization_id=${org.id}${dateQueryString ? `&${dateQueryString}` : ""}"
+    style="text-decoration:none;color:inherit;"
+  >
+    <div class="card" style="margin:0;height:100%;box-sizing:border-box;">
+      <div style="font-size:13px;color:#65776b;">Conversions</div>
+      <div style="font-size:30px;font-weight:bold;margin-top:7px;">
+        ${totals.conversions.toLocaleString()}
+      </div>
+    </div>
+  </a>
 
 </div>
 
