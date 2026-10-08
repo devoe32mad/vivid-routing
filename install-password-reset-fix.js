@@ -2,7 +2,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const MARKER = "// PASSWORD_RESET_TOKEN_VALIDITY_V2";
+const MARKER = "PASSWORD_RESET_TOKEN_VALIDITY_V2";
 
 function install(source) {
   if (source.includes(MARKER)) return source;
@@ -24,7 +24,7 @@ function install(source) {
 
   if (next.includes(getNeedle)) {
     next = next.replace(getNeedle, `AND prt.expires_at > CURRENT_TIMESTAMP
-           ${MARKER}`);
+           -- -- ${MARKER}`);
     changed++;
   }
 
