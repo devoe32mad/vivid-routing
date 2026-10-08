@@ -60355,6 +60355,30 @@ let vividUserWasCreated = false;
           newUserResult.rows[0].id;
         vividUserWasCreated = true;
       }
+// Connect approved marketplace sponsors to the existing organization CRM.
+// The transaction lock prevents simultaneous approvals from creating duplicates.
+await client.query(
+  "SELECT pg_advisory_xact_lock(hashtext($1))",
+  [`marketplace-advertiser:${organizationId}:${String(advertisingRequest.business_name).trim().toLowerCase()}`]
+);
+const sponsorLookup = await client.query(
+  `SELECT id FROM advertisers WHERE organization_id=$1
+   AND LOWER(TRIM(name))=LOWER(TRIM($2)) ORDER BY id LIMIT 1`,
+  [organizationId, advertisingRequest.business_name]
+);
+let sponsorAdvertiserId = sponsorLookup.rows[0]?.id;
+if (!sponsorAdvertiserId) {
+  const sponsorInsert = await client.query(
+    `INSERT INTO advertisers
+      (customer_id,organization_id,name,contact_name,contact_email,contact_phone,website,relationship_status,is_active)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,'Active',true) RETURNING id`,
+    [vividUserId,organizationId,advertisingRequest.business_name,
+     advertisingRequest.contact_name,advertisingRequest.email,
+     advertisingRequest.phone,advertisingRequest.website || null]
+  );
+  sponsorAdvertiserId = sponsorInsert.rows[0].id;
+}
+
 const existingContractResult =
   await client.query(
     `
@@ -60415,7 +60439,7 @@ if (!contractId) {
         VALUES (
           $1,
           $2,
-          NULL,
+          $12,
           $3,
           $4,
           $5,
@@ -60454,13 +60478,19 @@ if (!contractId) {
         contractStartDate,
         contractEndDate,
         contractValue,
-        billingFrequency
+        billingFrequency,
+        sponsorAdvertiserId
       ]
     );
 
   contractId =
     createdContractResult.rows[0].id;
 }
+await client.query(
+  `UPDATE contracts SET advertiser_id=$1, updated_at=CURRENT_TIMESTAMP
+   WHERE id=$2 AND organization_id=$3 AND advertiser_id IS NULL`,
+  [sponsorAdvertiserId,contractId,organizationId]
+);
       /*
         Generate a secure setup token.
 
