@@ -5,11 +5,62 @@ module.exports = function registerHfhsMarketplace(app, deps) {
   const escapeHtml = deps.escapeHtml;
   function imageFor(title) {
     const v = String(title || "").toLowerCase();
-    if (v.includes("pink ball") || v.includes("medallion")) return "https://www.henryford.com/-/media/project/hfhs/henryford/calendar/fundraising-events/pink-ball/pink-ball-save-the-date-2026-lg.jpg?extension=webp&hash=B07D8ABE8535DAC3CB9C7E6D024B691E";
-    if (v.includes("conference") || v.includes("lanyard") || v.includes("networking break")) return "https://www.henryford.com/-/media/project/hfhs/henryford/images/content-images/henry-ford/hcp/med-ed/residencies-wyn/emergency-medicine/didactics-lecture.jpg?extension=webp&hash=D74BB9D42AE45836AA5351B5B2B8B70E";
-    if (v.includes("cme") || v.includes("symposium") || v.includes("reception") || v.includes("oncology")) return "https://www.henryford.com/-/media/project/hfhs/henryford/images/content-images/henry-ford/hcp/med-ed/residencies-wyn/emergency-medicine/didactics-practice.jpg?extension=webp&hash=C179435DEE8CA1677135921C0FB559D7";
-    if (v.includes("community") || v.includes("screening") || v.includes("wellness") || v.includes("mobile health") || v.includes("family health")) return "https://www.henryford.com/-/media/project/hfhs/henryford/news/2026/hhdetroit.jpg?extension=webp&h=450&hash=131FAC73E953D0035031AB8FF9C52BB2&iar=0&w=600";
-    return "https://www.henryford.com/-/media/project/hfhs/henryford/images/content-images/henry-ford/campaign/future-of-health/foh-cta-hospital-groundbreaking.jpg?extension=webp&h=496&hash=FCB62CB7564B3DD9FCF631556419144C&iar=0&w=747";
+
+    // Fundraising / gala
+    if (v.includes("pink ball")) {
+      return "https://www.henryford.com/-/media/project/hfhs/henryford/calendar/fundraising-events/pink-ball/pink-ball-save-the-date-2026-lg.jpg?extension=webp&hash=B07D8ABE8535DAC3CB9C7E6D024B691E";
+    }
+    if (v.includes("medallion")) {
+      return "https://visitorlando.widen.net/content/h67zmuxgug/jpeg/182240-bonnet-creek-ballroom-event1.jpg?color=ffffffff&crop=true&h=1252&position=c&q=80&quality=80&u=kggsuk";
+    }
+
+    // Trade-show / conference exhibitor cards
+    if (
+      v.includes("obesity symposium") ||
+      v.includes("advanced endoscopy") ||
+      v.includes("sinus and nasal") ||
+      v.includes("cancer research symposium")
+    ) {
+      return "https://www.henryford.com/-/media/project/hfhs/henryford/images/content-images/henry-ford/hcp/med-ed/residencies-wyn/emergency-medicine/didactics-lecture.jpg?extension=webp&hash=D74BB9D42AE45836AA5351B5B2B8B70E";
+    }
+
+    // CME / medical education
+    if (
+      v.includes("breast oncology") ||
+      v.includes("motown women") ||
+      v.includes("thoracic cancer") ||
+      v.includes("gu cancer")
+    ) {
+      return "https://www.henryford.com/-/media/project/hfhs/henryford/images/content-images/henry-ford/hcp/med-ed/residencies-wyn/emergency-medicine/didactics-practice.jpg?extension=webp&hash=C179435DEE8CA1677135921C0FB559D7";
+    }
+
+    // Golf outings
+    if (
+      v.includes("warren golf") ||
+      v.includes("providence golf") ||
+      v.includes("hospice golf") ||
+      v.includes("rochester golf")
+    ) {
+      return "https://www.lantheus.com/assets/lantheus-golf2025-8-1536x1024.jpg";
+    }
+
+    // Destination Grand is a premium gala / fundraising experience
+    if (v.includes("destination grand ball")) {
+      return "https://images.squarespace-cdn.com/content/v1/5f053e64617861499e8324ad/198757a7-fc25-4cb2-82ca-82961d0d044c/9118-guardsmen-250222.jpg";
+    }
+
+    // Future of Health uses an actual HFHS development image
+    if (v.includes("future of health")) {
+      return "https://www.henryford.com/-/media/project/hfhs/henryford/images/content-images/henry-ford/campaign/future-of-health/foh-cta-hospital-groundbreaking.jpg?extension=webp&h=496&hash=FCB62CB7564B3DD9FCF631556419144C&iar=0&w=747";
+    }
+
+    // Ambassador Club / M1 Concourse
+    if (v.includes("ambassador club")) {
+      return "https://www.autodromodimodena.it/file/1920x0/servizi_agenzie/eventi_aziendali/modena_eventi-incentive5.jpg";
+    }
+
+    // Safe healthcare fallback
+    return "https://www.henryford.com/-/media/project/hfhs/henryford/news/2026/hhdetroit.jpg?extension=webp&h=450&hash=131FAC73E953D0035031AB8FF9C52BB2&iar=0&w=600";
   }
 
   app.get("/advertise/henry-ford-health-demo", async (req, res) => {
