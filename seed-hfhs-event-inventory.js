@@ -323,6 +323,7 @@ async function main(){
     await client.query("COMMIT");
     console.log("HFHS EVENT INVENTORY HIERARCHY: loaded",EVENTS.length,"events.");
     await require("./seed-hfhs-linked-demo").main();
+    await require("./restore-hfhs-demo-history").main();
   }catch(e){
     if(client){try{await client.query("ROLLBACK");}catch(_){}}
     console.error("HFHS EVENT INVENTORY HIERARCHY ERROR:",e.message);
