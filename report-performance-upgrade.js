@@ -18,6 +18,7 @@ async function load({q,req}){
   const user=req.session?.user;
   if(!user||["super_admin","admin","platform"].includes(user.role))return {rows:[]};
   const hfhsScope=await require("./hfhs-demo-setup-scope").reportScope(q,user);
+  if(hfhsScope)return {rows:[],hfhsScope,hideUpgrade:true,returnTo:reportReturn(req.originalUrl)};
   let rows=(await q(`
     SELECT DISTINCT qr.id AS qr_id,qr.name AS qr_name,qr.space_id AS location_id,
       s.name AS location_name,qc.campaign_id,spp.status
@@ -64,7 +65,7 @@ function filterWebsiteReport(report,state){
   if(state.hfhsScope){
     const filter=(rows,key)=>require("./hfhs-demo-setup-scope").scopedRows(rows,state.hfhsScope,"campaignIds",key);
     const rows=filter(report.rows,'campaign_id');
-    report={...report,rows,pages:filter(report.pages,'campaign_id'),campaigns:filter(report.campaigns,'id'),total:rows.reduce((n,r)=>n+Number(r.visits),0)};
+    report={...report,hfhsDemo:true,rows,pages:filter(report.pages,'campaign_id'),campaigns:filter(report.campaigns,'id'),total:rows.reduce((n,r)=>n+Number(r.visits),0)};
   }
   const denied=new Set((state.rows||[]).map(r=>Number(r.campaign_id)).filter(n=>n>0));
   if(!denied.size)return report;
