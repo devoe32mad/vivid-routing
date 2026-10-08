@@ -24,13 +24,13 @@ function install(source) {
 
   if (next.includes(getNeedle)) {
     next = next.replace(getNeedle, `AND prt.expires_at > CURRENT_TIMESTAMP
-           -- -- ${MARKER}`);
+           -- ${MARKER}`);
     changed++;
   }
 
   if (next.includes(postNeedle)) {
     next = next.replace(postNeedle, `AND prt.expires_at > CURRENT_TIMESTAMP
-  ${MARKER}`);
+  -- ${MARKER}`);
     changed++;
   }
 
