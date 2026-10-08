@@ -60,8 +60,8 @@ async function seed(client) {
       await client.query(`INSERT INTO organization_advertising_requests(organization_id,location_id,opportunity_id,business_name,contact_name,email,phone,
         campaign_name,destination_url,campaign_notes,opportunity_name,price,pricing_unit,suggested_term_length,suggested_term_unit,status,setup_status,
         created_vivid_user_id,created_location_id,created_contract_id,created_qr_id,created_campaign_id,approved_at,submitted_at)
-        VALUES($1,$2,$3,$4,'Vivid Demo','michaelandrewdevoe@gmail.com','DEMO',$5,'https://example.com/hfhs-demo',$6,$7,$8,'Per Event',1,'Event',
-        'Approved','Campaign Created',$9,$2,$10,$11,$12,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`,
+        VALUES($1,$2::integer,$3,$4,'Vivid Demo','michaelandrewdevoe@gmail.com','DEMO',$5,'https://example.com/hfhs-demo',$6,$7,$8,'Per Event',1,'Event',
+        'Approved','Campaign Created',$9,$2::integer,$10,$11,$12,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`,
         [org,opp.space_id,opp.id,sponsor,name,NOTICE,title,price,owner,contract,qr,campaign]);
       await client.query("UPDATE organization_opportunities SET status='Sold',qr_id=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND organization_id=$3",[opp.id,qr,org]);
       manifest.placements.push({event,title,price,opportunityId:opp.id,qrId:qr,campaignId:campaign,contractId:contract});
@@ -79,5 +79,5 @@ async function main(){
   try{client=await pool.connect();console.log("HFHS LINKED DEMO:",JSON.stringify(await seed(client)));}
   finally{if(client)client.release();await pool.end();}
 }
-if(require.main===module)main().catch(e=>console.error("HFHS LINKED DEMO ERROR:",e.message));
+if(require.main===module)main().catch(e=>console.error("HFHS LINKED DEMO ERROR:",e.message,e.detail||""));
 module.exports={seed,main,PICKS,KEY};
