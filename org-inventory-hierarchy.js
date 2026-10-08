@@ -161,7 +161,7 @@ module.exports = function installOrgInventoryHierarchy(
         '</div>';
 
       const revenueSummary = totals =>
-        '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px;">' +
+        '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px;">' +
         '<div style="background:#f7faf6;border:1px solid #e4ece4;border-radius:10px;padding:9px;">' +
         '<div style="font-size:10px;color:#65776b;">Available Revenue</div>' +
         '<div style="font-size:14px;font-weight:bold;color:#166534;margin-top:3px;">' + money(totals.available) + '</div>' +
@@ -173,6 +173,10 @@ module.exports = function installOrgInventoryHierarchy(
         '<div style="background:#fff5f5;border:1px solid #f3d6d6;border-radius:10px;padding:9px;">' +
         '<div style="font-size:10px;color:#65776b;">Sold Revenue</div>' +
         '<div style="font-size:14px;font-weight:bold;color:#991B1B;margin-top:3px;">' + money(totals.sold) + '</div>' +
+        '</div>' +
+        '<div style="background:#f4f7fa;border:1px solid #dfe4ea;border-radius:10px;padding:9px;">' +
+        '<div style="font-size:10px;color:#65776b;">Total Inventory Value</div>' +
+        '<div style="font-size:14px;font-weight:bold;color:#173f64;margin-top:3px;">' + money(totals.total) + '</div>' +
         '</div>' +
         '</div>';
 
@@ -253,6 +257,7 @@ module.exports = function installOrgInventoryHierarchy(
             ' · ' + group.items.length + ' opportunit' + (group.items.length === 1 ? 'y' : 'ies') +
             '</div>' +
             statusSummary(c) +
+            '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#7a8b98;font-weight:bold;margin-top:14px;">Revenue Summary</div>' +
             revenueSummary(r) +
             '<div style="margin-top:18px;padding-top:13px;border-top:1px solid #e7eee7;color:#176b3a;font-size:12px;font-weight:bold;">View Events →</div>' +
             '</div></a>';
@@ -304,6 +309,7 @@ module.exports = function installOrgInventoryHierarchy(
             (event.location ? '<div style="font-size:13px;color:#65776b;">' + escapeHtml(event.location) + '</div>' : '') +
             '<div style="color:#65776b;font-size:13px;margin-top:8px;">' + event.items.length + ' sponsorship opportunit' + (event.items.length === 1 ? 'y' : 'ies') + '</div>' +
             statusSummary(c) +
+            '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#7a8b98;font-weight:bold;margin-top:14px;">Revenue Summary</div>' +
             revenueSummary(r) +
             '<div style="margin-top:18px;padding-top:13px;border-top:1px solid #e7eee7;color:#176b3a;font-size:12px;font-weight:bold;">Manage Opportunities →</div>' +
             '</div></a>';
