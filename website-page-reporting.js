@@ -17,7 +17,7 @@ function filters(query={},allTime=false) {
     return String(value);
   };
   const f={start_date:date(query.start_date||query.startDate||query.start||query.from||(allTime?"":today)),end_date:date(query.end_date||query.endDate||query.end||query.to||(allTime?"":today)),
-    campaign_id:id(query.campaign_id||query.campaignId||query.campaign),qr_id:id(query.qr_id||query.qrId||query.qr),location_id:id(query.location_id),status:String(query.status||"all").toLowerCase()};
+    campaign_id:id(query.campaign_id||query.campaignId||query.campaign),qr_id:id(query.qr_id||query.qrId||query.qr),location_id:id(query.location_id),status:String(query.status||"all").toLowerCase(),status_scope:["qr","location"].includes(query.status_scope)?query.status_scope:"campaign"};
   if(f.start_date&&f.end_date&&f.start_date>f.end_date)throw Object.assign(Error("Start date must be on or before end date."),{status:400});
   if(!["all","active","archived"].includes(f.status))throw Object.assign(Error("Use a valid campaign status."),{status:400});
   return f;
@@ -32,13 +32,18 @@ async function load({q,user,query={},allTime=false}) {
   const campaigns=(await q(`SELECT c.id,c.name,c.advertiser FROM campaigns c
     WHERE ($1::boolean OR c.user_id=$2)
       AND ($3::text='' OR c.id=NULLIF($3,'')::int)
-      AND ($4::text='all' OR ($4='archived')=COALESCE(c.is_archived,false))
+      AND ($4::text='all' OR ($7::text='campaign' AND ($4='archived')=COALESCE(c.is_archived,false))
+        OR ($7::text IN ('qr','location') AND EXISTS (
+          SELECT 1 FROM qr_codes sq JOIN spaces ss ON ss.id=sq.space_id
+          WHERE ($4='archived')=CASE WHEN $7='qr' THEN COALESCE(sq.is_archived,false) ELSE COALESCE(ss.is_archived,false) END
+            AND (EXISTS (SELECT 1 FROM qr_campaigns sc WHERE sc.qr_id=sq.id AND sc.campaign_id=c.id)
+              OR EXISTS (SELECT 1 FROM campaign_website_visits sv WHERE sv.qr_id=sq.id AND sv.campaign_id=c.id)))))
       AND (($5::text='' AND $6::text='') OR EXISTS (
         SELECT 1 FROM qr_codes qr WHERE ($5::text='' OR qr.id=NULLIF($5,'')::int)
           AND ($6::text='' OR qr.space_id=NULLIF($6,'')::int)
           AND (EXISTS (SELECT 1 FROM qr_campaigns qc WHERE qc.qr_id=qr.id AND qc.campaign_id=c.id)
             OR EXISTS (SELECT 1 FROM campaign_website_visits v WHERE v.qr_id=qr.id AND v.campaign_id=c.id))))
-    ORDER BY c.advertiser,c.name,c.id`,[admin,Number(user.id),f.campaign_id,f.status,f.qr_id,f.location_id])).rows;
+    ORDER BY c.advertiser,c.name,c.id`,[admin,Number(user.id),f.campaign_id,f.status,f.qr_id,f.location_id,f.status_scope])).rows;
   const rows=campaigns.length?(await q(`SELECT v.campaign_id,v.qr_id,qr.space_id AS location_id,v.page_url,
       MAX(v.page_name) AS page_name,COUNT(*)::int AS visits,MAX(v.created_at) AS last_visit
     FROM campaign_website_visits v JOIN campaigns c ON c.id=v.campaign_id JOIN qr_codes qr ON qr.id=v.qr_id
@@ -47,8 +52,10 @@ async function load({q,user,query={},allTime=false}) {
       AND ($5::text='' OR v.created_at < ((NULLIF($5,'')::date+1)::timestamp AT TIME ZONE 'UTC'))
       AND ($6::text='' OR v.qr_id=NULLIF($6,'')::int)
       AND ($7::text='' OR qr.space_id=NULLIF($7,'')::int)
+      AND ($8::text='all' OR $9::text='campaign' OR ($8='archived')=CASE WHEN $9='qr' THEN COALESCE(qr.is_archived,false)
+        ELSE (SELECT COALESCE(s.is_archived,false) FROM spaces s WHERE s.id=qr.space_id) END)
     GROUP BY v.campaign_id,v.qr_id,qr.space_id,v.page_url ORDER BY v.campaign_id,v.page_url`,
-    [campaigns.map(c=>c.id),admin,Number(user.id),f.start_date,f.end_date,f.qr_id,f.location_id])).rows:[];
+    [campaigns.map(c=>c.id),admin,Number(user.id),f.start_date,f.end_date,f.qr_id,f.location_id,f.status,f.status_scope])).rows:[];
   const pages=[];
   for(const c of campaigns){
     const observed=new Map();
