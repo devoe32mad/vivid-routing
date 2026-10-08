@@ -9,6 +9,8 @@ function reportReturn(value){
     if(u.origin!=="https://vivid.invalid"||!paths.has(u.pathname))return "/reports";
     const out=new URLSearchParams();
     for(const key of ["start_date","end_date"]){const v=u.searchParams.get(key);if(/^\d{4}-\d{2}-\d{2}$/.test(v||""))out.set(key,v);}
+    const status=u.searchParams.get("status");
+    if(["active","archived","all"].includes(status))out.set("status",status);
     return u.pathname+(out.size?"?"+out:"");
   }catch{return "/reports";}
 }

@@ -10,7 +10,7 @@ function route(source,anchor,edit){
 }
 function install(source){
   const marker="// WEBSITE_PAGE_REPORTS_AND_EXPORTS";
-  if(source.includes(marker))return require("./install-basic-report-metrics").install(source);
+  if(source.includes(marker))return require("./install-report-status-filter").install(require("./install-basic-report-metrics").install(source));
   const registration='require("./website-page-tracking").registerWebsitePageTracking({app,q,page,requireLogin,express});';
   source=once(source,registration,registration+'\n'+marker+'\nrequire("./website-page-reporting").register({app,q,requireLogin});');
   const load=(query,allTime=false)=>`    const websitePages = await require("./website-page-reporting").load({q,user:req.session.user,query:${query},allTime:${allTime}});\n`;
@@ -45,6 +45,6 @@ function install(source){
     part=once(part,'      doc.end();','      require("./website-page-reporting").appendPdf(doc,websitePages);\n      doc.end();');
     return part;
   });
-  return require("./install-basic-report-metrics").install(source);
+  return require("./install-report-status-filter").install(require("./install-basic-report-metrics").install(source));
 }
 module.exports={install};
