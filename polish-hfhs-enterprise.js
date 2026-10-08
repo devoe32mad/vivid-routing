@@ -90,6 +90,69 @@ const COPY = {
   }
 };
 
+const EXTRA_CARDS = [
+  {
+    programName:"Fundraising & Events",
+    title:"The Medallion — Program Book Advertising",
+    description:"A real Henry Ford Health advertising opportunity drawn from the 2026 Medallion sponsorship materials. This example shows how program-book inventory can move from emailed artwork and manual coordination into a Vivid card with specifications, deadline tracking, creative upload, fulfillment status, and post-event sponsor reporting.",
+    category:"Fundraising Event Advertising",
+    price:800,
+    annualPrice:800,
+    pricingUnit:"Full-page Color",
+    termLength:1,
+    termUnit:"Issue",
+    displayOrder:4
+  },
+  {
+    programName:"Trade Shows & Conferences",
+    title:"Networking Break Sponsor",
+    description:"An illustrative conference sponsorship for a high-traffic networking break. Vivid can present the opportunity, collect sponsor assets, manage fulfillment, connect signage or QR engagement to follow-up actions, and provide a post-event performance summary.",
+    category:"Conference Sponsorship",
+    price:0,
+    annualPrice:0,
+    pricingUnit:"Custom",
+    termLength:1,
+    termUnit:"Event",
+    displayOrder:4
+  },
+  {
+    programName:"CME & Medical Education",
+    title:"Breast Oncology Symposium — Exhibitor",
+    description:"A research-based example using Henry Ford Health's current 2026 CME calendar. The Annual Henry Ford Health Breast Oncology Symposium is open to exhibitors; Vivid could turn that participation into a clear marketplace card with exhibitor onboarding, creative and compliance requirements, fulfillment tracking, and measurable engagement.",
+    category:"CME Exhibitor",
+    price:2000,
+    annualPrice:2000,
+    pricingUnit:"Starting At",
+    termLength:1,
+    termUnit:"Event",
+    displayOrder:4
+  },
+  {
+    programName:"Community & Health Activations",
+    title:"Family Health Fair Sponsor",
+    description:"An illustrative community-facing sponsorship designed for family wellness, education, screenings, and outreach. Vivid can connect the physical activation to measurable registration, content engagement, and other approved follow-up actions while keeping sponsor fulfillment in one place.",
+    category:"Community Health",
+    price:0,
+    annualPrice:0,
+    pricingUnit:"Custom",
+    termLength:1,
+    termUnit:"Event",
+    displayOrder:4
+  },
+  {
+    programName:"Sports & Strategic Partnerships",
+    title:"Pistons Fit — Community Activation",
+    description:"An illustrative strategic-partnership card based on Henry Ford Health's public-facing sports and community health relationships. Vivid can show how an individual activation is packaged and measured while rolling performance into the broader partnership portfolio.",
+    category:"Sports & Strategic Partnerships",
+    price:0,
+    annualPrice:0,
+    pricingUnit:"Custom",
+    termLength:1,
+    termUnit:"Activation",
+    displayOrder:4
+  }
+];
+
 async function polish(client) {
   const fixture = await client.query(
     "SELECT organization_id, manifest FROM vivid_evaluation_fixtures WHERE fixture_key=$1 LIMIT 1",
@@ -148,6 +211,57 @@ async function polish(client) {
       if (result.rows.length !== 1) {
         throw new Error(`HFHS POLISH: expected one available opportunity for "${title}", found ${result.rows.length}.`);
       }
+    }
+
+
+    // HFHS POLISH EXTRA CARDS
+    for (const card of EXTRA_CARDS) {
+      const programResult = await client.query(
+        `SELECT id FROM organization_programs
+          WHERE organization_id=$1 AND name=$2
+          LIMIT 1`,
+        [orgId, card.programName]
+      );
+      if (!programResult.rows.length) {
+        throw new Error(`HFHS POLISH: program not found for "${card.title}".`);
+      }
+      const programId = Number(programResult.rows[0].id);
+
+      const spaceResult = await client.query(
+        `SELECT id FROM spaces
+          WHERE organization_id=$1
+          ORDER BY CASE
+            WHEN LOWER(name) LIKE '%' || LOWER($2) || '%' THEN 0
+            ELSE 1
+          END, id
+          LIMIT 1`,
+        [orgId, card.programName.replace(" & "," ")]
+      );
+      if (!spaceResult.rows.length) {
+        throw new Error(`HFHS POLISH: location not found for "${card.title}".`);
+      }
+      const spaceId = Number(spaceResult.rows[0].id);
+
+      await client.query(
+        `INSERT INTO organization_opportunities(
+           organization_id,space_id,program_id,title,description,category,
+           price,annual_price,pricing_unit,suggested_term_length,suggested_term_unit,
+           status,display_order,is_active,created_at,updated_at
+         )
+         SELECT
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
+           'Available',$12,true,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+         WHERE NOT EXISTS(
+           SELECT 1 FROM organization_opportunities
+           WHERE organization_id=$1
+             AND LOWER(TRIM(title))=LOWER(TRIM($4))
+         )`,
+        [
+          orgId,spaceId,programId,card.title,card.description,card.category,
+          card.price,card.annualPrice,card.pricingUnit,card.termLength,card.termUnit,
+          card.displayOrder
+        ]
+      );
     }
 
     await client.query("COMMIT");
