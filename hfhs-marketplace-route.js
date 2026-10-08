@@ -92,6 +92,97 @@ module.exports = function registerHfhsMarketplace(app, deps) {
     return "cover";
   }
 
+
+  app.get("/advertise/henry-ford-health-demo/location/:locationId", async (req, res) => {
+    try {
+      const locationId=Number(req.params.locationId);
+      const programId=Number(req.query.program_id);
+      if(!Number.isInteger(locationId)||locationId<=0) return res.status(400).send("Invalid location.");
+
+      const orgResult=await q(
+        "SELECT id,name FROM organizations WHERE slug=$1 AND COALESCE(is_active,true)=true LIMIT 1",
+        ["henry-ford-health-demo"]
+      );
+      if(!orgResult.rows.length) return res.status(404).send("Marketplace not found.");
+      const org=orgResult.rows[0];
+
+      const locationResult=await q(
+        "SELECT id,name,location FROM spaces WHERE id=$1 AND organization_id=$2 AND COALESCE(is_archived,false)=false LIMIT 1",
+        [locationId,org.id]
+      );
+      if(!locationResult.rows.length) return res.status(404).send("Opportunity group not found.");
+      const location=locationResult.rows[0];
+
+      const params=[org.id,locationId];
+      let programWhere="";
+      if(Number.isInteger(programId)&&programId>0){programWhere=" AND oo.program_id=$3";params.push(programId);}
+
+      const result=await q(
+        `SELECT oo.id,oo.title,oo.description,oo.category,oo.price,oo.pricing_unit,oo.status,oo.display_order,
+                oo.space_id,oo.program_id,op.name AS program_name,op.description AS program_description
+           FROM organization_opportunities oo
+           JOIN organization_programs op ON op.id=oo.program_id
+          WHERE oo.organization_id=$1
+            AND oo.space_id=$2
+            AND COALESCE(oo.is_active,true)=true
+            AND oo.status='Available'
+            ${programWhere}
+          ORDER BY COALESCE(oo.display_order,999),oo.id`,
+        params
+      );
+
+      const rows=result.rows;
+      const heading=rows[0]?.program_name || location.name;
+      const intro=rows[0]?.program_description || "";
+      const cards=rows.map(o=>{
+        const n=Number(o.price);
+        const price=Number.isFinite(n)&&n>0
+          ? n.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0})
+          : "Custom";
+        const url="/advertise/henry-ford-health-demo/location/"+Number(o.space_id)+"/opportunity/"+Number(o.id);
+        return `<a class="card" href="${url}">
+          <div class="photo">
+            <img src="${imageFor(o.title)}" alt="" style="object-fit:${imageFit(o.title)};object-position:${imagePosition(o.title)};">
+            <span>Available</span>
+          </div>
+          <div class="body">
+            <div class="cat">${escapeHtml(o.category||heading)}</div>
+            <h3>${escapeHtml(o.title)}</h3>
+            <p>${escapeHtml(String(o.description||"").split("\\n")[0])}</p>
+            <div class="bottom"><strong>${price}</strong><b>View opportunity →</b></div>
+          </div>
+        </a>`;
+      }).join("");
+
+      res.set("X-Robots-Tag","noindex, nofollow, noarchive");
+      return res.send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>${escapeHtml(heading)} | Henry Ford Health Vivid Demo</title>
+      <style>
+      *{box-sizing:border-box}body{margin:0;background:#f5f7fa;color:#17324d;font-family:Arial,Helvetica,sans-serif}
+      .top{background:#fff;border-bottom:1px solid #dce4ec;padding:18px 5vw}.top a{text-decoration:none;color:#125ca8;font-weight:900}
+      .hero{background:linear-gradient(120deg,#092f57,#155d92);color:#fff;padding:38px 5vw}.hero>div,.wrap{max-width:1280px;margin:auto}
+      .hero h1{font-size:clamp(32px,4vw,48px);margin:4px 0 9px}.hero p{max-width:900px;color:#e6f1fa;font-size:17px;line-height:1.55}
+      .wrap{padding:34px 28px 60px}.count{font-weight:800;color:#425a6f;margin-bottom:18px}
+      .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+      .card{background:#fff;border:1px solid #dbe4ed;border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;box-shadow:0 4px 16px rgba(17,48,82,.07);display:flex;flex-direction:column}
+      .card:hover{transform:translateY(-2px);box-shadow:0 10px 25px rgba(17,48,82,.13)}
+      .photo{height:190px;position:relative;overflow:hidden;background:#eef3f7}.photo img{width:100%;height:100%;display:block}
+      .photo span{position:absolute;right:10px;top:10px;background:#e8f6ef;color:#16724a;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:900}
+      .body{padding:17px;display:flex;flex-direction:column;flex:1}.cat{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:900;color:#477ca8}
+      h3{font-size:21px;line-height:1.25;margin:7px 0 10px}.body p{font-size:14px;line-height:1.52;color:#627487;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+      .bottom{margin-top:auto;border-top:1px solid #e8edf2;padding-top:13px;display:flex;justify-content:space-between;gap:10px}.bottom strong{color:#123f69}.bottom b{font-size:12px;color:#1768a7}
+      @media(max-width:1050px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:640px){.grid{grid-template-columns:1fr}.wrap{padding-left:16px;padding-right:16px}}
+      </style></head><body>
+      <div class="top"><a href="/advertise/henry-ford-health-demo">← Henry Ford Health Sponsorship Marketplace</a></div>
+      <div class="hero"><div><div style="font-size:12px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#c7e3f5">Sponsorship Opportunities</div><h1>${escapeHtml(heading)}</h1><p>${escapeHtml(intro)}</p></div></div>
+      <main class="wrap"><div class="count">${rows.length} sponsorship opportunities available</div><div class="grid">${cards}</div></main>
+      </body></html>`);
+    } catch(error) {
+      console.error("HFHS LOCATION MARKETPLACE ERROR:",error);
+      return res.status(500).send("Unable to load HFHS sponsorship opportunities.");
+    }
+  });
+
   app.get("/advertise/henry-ford-health-demo", async (req, res) => {
     try {
       const orgResult = await q("SELECT id,name,public_heading FROM organizations WHERE slug=$1 AND COALESCE(is_active,true)=true LIMIT 1", ["henry-ford-health-demo"]);
@@ -113,7 +204,7 @@ module.exports = function registerHfhsMarketplace(app, deps) {
         const cards = section.items.slice(0,4).map(o => {
           const n = Number(o.price);
           const price = Number.isFinite(n) && n > 0 ? n.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}) : "Custom";
-          const url = "/advertise/henry-ford-health-demo/location/" + Number(o.space_id) + "?program_id=" + Number(o.program_id);
+          const url = "/advertise/henry-ford-health-demo/location/" + Number(o.space_id) + "/opportunity/" + Number(o.id);
           return `<a class="card" href="${url}"><div class="photo"><img src="${imageFor(o.title)}" alt="" style="object-fit:${imageFit(o.title)};object-position:${imagePosition(o.title)};"><span>Available</span></div><div class="body"><div class="cat">${escapeHtml(o.category || section.name)}</div><h3>${escapeHtml(o.title)}</h3><p>${escapeHtml(String(o.description || "").split("\\n")[0])}</p><div class="bottom"><strong>${price}</strong><b>View opportunity →</b></div></div></a>`;
         }).join("");
         return `<section><h2>${escapeHtml(section.name)}</h2><p class="intro">${escapeHtml(section.description)}</p><div class="grid">${cards}</div></section>`;
