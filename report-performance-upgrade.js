@@ -17,7 +17,8 @@ function reportReturn(value){
 async function load({q,req}){
   const user=req.session?.user;
   if(!user||["super_admin","admin","platform"].includes(user.role))return {rows:[]};
-  const rows=(await q(`
+  const hfhsScope=await require("./hfhs-demo-setup-scope").reportScope(q,user);
+  let rows=(await q(`
     SELECT DISTINCT qr.id AS qr_id,qr.name AS qr_name,qr.space_id AS location_id,
       s.name AS location_name,qc.campaign_id,spp.status
     FROM sponsorship_performance_plans spp
@@ -30,10 +31,12 @@ async function load({q,req}){
       AND (ar.created_vivid_user_id=$1 OR ar.created_vivid_user_id=$2 OR owner.advertiser_customer_id=$2)
     ORDER BY qr.id,qc.campaign_id
   `,[Number(user.login_user_id||user.id),Number(user.id)])).rows;
+  rows=require("./hfhs-demo-setup-scope").scopedRows(rows,hfhsScope,"qrIds","qr_id");
   if(rows.length)req.session.sponsorshipPerformanceCsrf||=crypto.randomBytes(32).toString("hex");
-  return {rows,csrf:req.session.sponsorshipPerformanceCsrf,returnTo:reportReturn(req.originalUrl)};
+  return {rows,hfhsScope,hideUpgrade:Boolean(hfhsScope),csrf:req.session.sponsorshipPerformanceCsrf,returnTo:reportReturn(req.originalUrl)};
 }
 function render(state,key,id){
+  if(state.hideUpgrade)return "";
   const rows=[...new Map((state.rows||[]).filter(r=>Number(r[key])===Number(id)).map(r=>[r.qr_id,r])).values()];
   return rows.map(r=>`<div style="margin-top:10px;font-size:13px;white-space:normal;text-align:left">
     ${key!=="qr_id"?`<div>${esc(r.qr_name)} · ${esc(r.location_name)}</div>`:""}
@@ -45,7 +48,7 @@ function render(state,key,id){
     </form>`}
   </div>`).join("");
 }
-function intro(state){return state.rows?.length?'<p style="margin:16px 0">Basic includes scans; other performance metrics show a dash until upgraded. <strong>Vivid Performance — $35/month per placement</strong> adds website activity, conversions, revenue, ROI and campaign scheduling. Request an upgrade beside your placement below.</p>':"";}
+function intro(state){return !state.hideUpgrade && state.rows?.length?'<p style="margin:16px 0">Basic includes scans; other performance metrics show a dash until upgraded. <strong>Vivid Performance — $35/month per placement</strong> adds website activity, conversions, revenue, ROI and campaign scheduling. Request an upgrade beside your placement below.</p>':"";}
 // Mixed aggregates containing a Basic placement must not expose that placement's
 // paid metrics. Performance-only rows and platform administrators remain unchanged.
 function restricted(state,key,id){return (state.rows||[]).some(r=>Number(r[key])===Number(id));}
@@ -58,6 +61,11 @@ function maskRow(state,key,id,scanIndex,html){
   });
 }
 function filterWebsiteReport(report,state){
+  if(state.hfhsScope){
+    const filter=(rows,key)=>require("./hfhs-demo-setup-scope").scopedRows(rows,state.hfhsScope,"campaignIds",key);
+    const rows=filter(report.rows,'campaign_id');
+    report={...report,rows,pages:filter(report.pages,'campaign_id'),campaigns:filter(report.campaigns,'id'),total:rows.reduce((n,r)=>n+Number(r.visits),0)};
+  }
   const denied=new Set((state.rows||[]).map(r=>Number(r.campaign_id)).filter(n=>n>0));
   if(!denied.size)return report;
   const rows=report.rows.filter(r=>!denied.has(Number(r.campaign_id)));
