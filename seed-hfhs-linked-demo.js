@@ -9,12 +9,24 @@ const PICKS = [
   ["Annual Breast Oncology Symposium", "CME Exhibit Booth", "Demo Sponsor — Medical Education", 2000],
   ["5th Annual Motown Women's Heart Symposium", "CME Exhibit Booth", "Demo Sponsor — Heart Health", 2000]
 ];
+async function reconcile(client,org) {
+    // Align the pre-existing walkthrough placement as well as the new demo placements.
+    await client.query(`UPDATE organization_opportunities oo SET status='Sold',updated_at=CURRENT_TIMESTAMP
+      WHERE oo.organization_id=$1 AND oo.status IS DISTINCT FROM 'Sold'
+        AND EXISTS (SELECT 1 FROM organizations o WHERE o.id=oo.organization_id AND o.slug='henry-ford-health-demo') AND EXISTS (
+        SELECT 1 FROM organization_advertising_requests ar
+        JOIN qr_campaigns qc ON qc.qr_id=ar.created_qr_id AND qc.campaign_id=ar.created_campaign_id AND COALESCE(qc.is_active,true)=true
+        JOIN qr_codes qr ON qr.id=qc.qr_id AND qr.space_id=oo.space_id AND COALESCE(qr.is_archived,false)=false
+        JOIN campaigns c ON c.id=qc.campaign_id AND c.organization_id=oo.organization_id AND COALESCE(c.is_archived,false)=false
+        WHERE ar.organization_id=oo.organization_id AND ar.opportunity_id=oo.id AND LOWER(ar.status)='approved'
+      )`,[org]);
+}
 async function seed(client) {
   await client.query("BEGIN");
   try {
     await client.query("SELECT pg_advisory_xact_lock(2026100802)");
     const prior = await client.query("SELECT manifest FROM vivid_evaluation_fixtures WHERE fixture_key=$1", [KEY]);
-    if (prior.rows.length) { await client.query("COMMIT"); return {alreadyLoaded:true,...prior.rows[0].manifest}; }
+    if (prior.rows.length) { await reconcile(client,prior.rows[0].manifest.organizationId); await client.query("COMMIT"); return {alreadyLoaded:true,...prior.rows[0].manifest}; }
     const orgs = await client.query(`SELECT o.id,o.customer_id FROM organizations o JOIN users u ON u.id=o.customer_id
       WHERE o.slug='henry-ford-health-demo' AND LOWER(TRIM(u.email))='michaelandrewdevoe@gmail.com'`);
     if(orgs.rows.length!==1) throw new Error("HFHS demo owner identity mismatch");
@@ -55,6 +67,7 @@ async function seed(client) {
       manifest.placements.push({event,title,price,opportunityId:opp.id,qrId:qr,campaignId:campaign,contractId:contract});
       manifest.addedValue+=price;
     }
+    await reconcile(client,org);
     await client.query("INSERT INTO vivid_evaluation_fixtures(fixture_key,organization_id,manifest) VALUES($1,$2,$3::jsonb)",[KEY,org,JSON.stringify(manifest)]);
     await client.query("COMMIT"); return manifest;
   } catch(error) { await client.query("ROLLBACK"); throw error; }
