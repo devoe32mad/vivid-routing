@@ -14,8 +14,8 @@ const number = value => Number(value || 0).toLocaleString();
 const money = value => Number(value || 0).toLocaleString(undefined, {
   style: "currency",
   currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0
 });
 const percent = value => `${Number(value || 0).toFixed(1)}%`;
 

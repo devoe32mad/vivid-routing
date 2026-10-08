@@ -309,7 +309,7 @@ body{margin:0;background:#f5f7fa;color:#17324d;font-family:Arial,Helvetica,sans-
       const cards=rows.map(o=>{
         const n=Number(o.price);
         const price=Number.isFinite(n)&&n>0
-          ? n.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0})
+          ? n.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits: 0, minimumFractionDigits: 0})
           : "Custom";
         const url="/advertise/henry-ford-health-demo/location/"+Number(o.space_id)+"/opportunity/"+Number(o.id);
         return `<a class="card" href="${url}">

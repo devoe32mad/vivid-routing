@@ -4,7 +4,7 @@ const {accountToday}=require("./google-ads-auto-sync");
 const n=value=>Number.isFinite(Number(value))?Number(value):0;
 const esc=value=>String(value??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;");
 const goal=value=>/lead/i.test(value)?"leads":/purchase|sales|conversion/i.test(value)?"conversions":/traffic|click|visit/i.test(value)?"traffic":/awareness|reach|video/i.test(value)?"awareness":"unknown";
-const money=(value,currency)=>`${value.toFixed(2)} ${currency}`;
+const money=(value,currency)=>`${value.toLocaleString("en-US",{maximumFractionDigits:0})} ${currency}`;
 
 function campaignEvidence(sources,range,now){
   const campaigns=[];

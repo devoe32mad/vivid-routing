@@ -4,7 +4,7 @@ const {isAiTraffic,isUnpaidTraffic}=require("./traffic-classification");
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const n=value=>Number.isFinite(Number(value))?Number(value):0;
 const number=value=>n(value).toLocaleString("en-US",{maximumFractionDigits:2});
-const currency=(value,code)=>`${number(value)} ${code}`;
+const currency=(value,code)=>`${n(value).toLocaleString("en-US",{maximumFractionDigits:0})} ${code}`;
 const total=(rows,key)=>rows.reduce((s,r)=>s+n(r[key]),0);
 const rate=(a,b,suffix="%")=>b?number(100*a/b)+suffix:"—";
 const timestamp=value=>value&&Number.isFinite(new Date(value).getTime())?new Date(value).toISOString().replace("T"," ").replace(/\.\d+Z$/," UTC"):"Not yet";

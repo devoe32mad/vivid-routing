@@ -7,7 +7,7 @@ const sum=rows=>rows.reduce((t,r)=>{
   for(const key of ["impressions","clicks","cost_micros","conversions","conversion_value"])t[key]+=numeric(r[key]);
   return t;
 },{impressions:0,clicks:0,cost_micros:0,conversions:0,conversion_value:0});
-const money=(micros,currency)=>`${(micros/1e6).toFixed(2)} ${currency}`;
+const money=(micros,currency)=>`${(micros/1e6).toLocaleString("en-US",{maximumFractionDigits:0})} ${currency}`;
 function googleRecommendations({connections=[],daily=[]}={},range,now=new Date()) {
   const items=[];
   for(const c of connections) {
@@ -115,7 +115,7 @@ function crossPlatformRecommendations(sources=[],range,now=new Date()) {
     const outcomePeers=peers.filter(item=>item.totals.conversions>=2&&item.totals.value>0);
     if(outcomePeers.length>=2){
       const best=[...outcomePeers].sort((a,b)=>b.roas-a.roas)[0],worst=[...outcomePeers].sort((a,b)=>a.roas-b.roas)[0];
-      if(best.id!==worst.id&&best.roas>=Math.max(1.5,worst.roas*1.5))items.push({source:"Cross-platform",signal:"Reported return",priority:"High",confidence:"Medium",title:`Test ${best.source}’s stronger offer across another channel`,reason:`${best.source} reports ${best.roas.toFixed(2)}x ROAS from ${best.totals.conversions} conversions, compared with ${worst.roas.toFixed(2)}x on ${worst.source}. Preserve the stronger offer and run a limited cross-channel test rather than moving the full budget.`,evidence:[`${best.source} · ${money(best.totals.cost_micros,currency)} spend · ${best.totals.conversions} reported conversions · ${best.totals.value.toFixed(2)} ${currency} reported value`,`${worst.source} · ${money(worst.totals.cost_micros,currency)} spend · ${worst.totals.conversions} reported conversions · ${worst.totals.value.toFixed(2)} ${currency} reported value`],limitation:"Platform-reported conversions can overlap and are not verified profit. Different audiences and attribution windows can affect ROAS.",action:`Prepare a small approved test of the ${best.source} offer on ${worst.source}; keep existing campaigns unchanged while measuring the result.`,href:best.href});
+      if(best.id!==worst.id&&best.roas>=Math.max(1.5,worst.roas*1.5))items.push({source:"Cross-platform",signal:"Reported return",priority:"High",confidence:"Medium",title:`Test ${best.source}’s stronger offer across another channel`,reason:`${best.source} reports ${best.roas.toFixed(2)}x ROAS from ${best.totals.conversions} conversions, compared with ${worst.roas.toFixed(2)}x on ${worst.source}. Preserve the stronger offer and run a limited cross-channel test rather than moving the full budget.`,evidence:[`${best.source} · ${money(best.totals.cost_micros,currency)} spend · ${best.totals.conversions} reported conversions · ${best.totals.value.toLocaleString("en-US",{maximumFractionDigits:0})} ${currency} reported value`,`${worst.source} · ${money(worst.totals.cost_micros,currency)} spend · ${worst.totals.conversions} reported conversions · ${worst.totals.value.toLocaleString("en-US",{maximumFractionDigits:0})} ${currency} reported value`],limitation:"Platform-reported conversions can overlap and are not verified profit. Different audiences and attribution windows can affect ROAS.",action:`Prepare a small approved test of the ${best.source} offer on ${worst.source}; keep existing campaigns unchanged while measuring the result.`,href:best.href});
     }
   }
   return items.sort((a,b)=>({High:3,Medium:2,Low:1}[b.priority]||0)-({High:3,Medium:2,Low:1}[a.priority]||0)).slice(0,6);

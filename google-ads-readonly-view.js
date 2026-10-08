@@ -2,7 +2,7 @@
 const PATH = "/admin/connectors/google-ads";
 const {googleRecommendations,sum}=require("./marketing-performance-insights");
 const esc = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const amount = (value,currency) => `${Number(value || 0).toLocaleString("en-US",{maximumFractionDigits:2})} ${esc(currency)}`;
+const amount = (value,currency) => `${Number(value || 0).toLocaleString("en-US",{maximumFractionDigits:0})} ${esc(currency)}`;
 const when = value => value ? esc(new Date(value).toISOString()) : "Never";
 function syncStatus(c,autoSync=true) {
   if(!autoSync)return "Automatic sync disabled by administrator · manual refresh available";

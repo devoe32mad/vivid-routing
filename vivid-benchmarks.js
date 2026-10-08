@@ -192,7 +192,7 @@ const LABELS = {
 
 function formatMetric(key, value) {
   if (key === "attributedValuePerCampaign") {
-    return number(value).toLocaleString("en-US", { style: "currency", currency: "USD" });
+    return number(value).toLocaleString("en-US", { style: "currency", currency: "USD" , minimumFractionDigits: 0, maximumFractionDigits: 0});
   }
   if (key === "engagementRate" || key === "conversionRate") {
     return `${number(value).toFixed(1)}%`;

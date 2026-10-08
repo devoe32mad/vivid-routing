@@ -39,7 +39,7 @@ function campaignTotals(snapshot) {
   }
   return [...groups.values()];
 }
-const format = (amount,currency) => {const f=new Intl.NumberFormat('en-US',{style:'currency',currency});return f.format(amount / 10**f.resolvedOptions().maximumFractionDigits);};
+const format = (amount,currency) => {const f=new Intl.NumberFormat('en-US',{style:'currency',currency});return new Intl.NumberFormat('en-US',{style:'currency',currency,minimumFractionDigits:0,maximumFractionDigits:0}).format(amount / 10**f.resolvedOptions().maximumFractionDigits);};
 function csvCell(value){const x=String(value??'');return '"'+(/^[=+@\-\t\r]/.test(x) ? "'"+x : x).replace(/"/g,'""')+'"';}
 function exportSales(snapshot){
   const rows=[['Payment ID','Created UTC','Currency','Status','Collected minor units','Refunded minor units','Net minor units','Campaign ID','Campaign','Vivid click ID','Scan ID','QR ID']];

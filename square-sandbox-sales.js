@@ -36,7 +36,7 @@ function campaignTotals(snapshot) {
   }
   return [...groups.values()];
 }
-const format = (amount,currency) => new Intl.NumberFormat('en-US',{style:'currency',currency}).format(amount / (currency==='JPY' ? 1 : 100));
+const format = (amount,currency) => new Intl.NumberFormat('en-US',{style:'currency',currency, minimumFractionDigits: 0, maximumFractionDigits: 0}).format(amount / (currency==='JPY' ? 1 : 100));
 function page(title,body) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} | Vivid Spots</title><style>body{margin:0;background:#f3f6fa;color:#14243c;font:16px/1.5 system-ui,sans-serif}main{max-width:1120px;margin:40px auto;padding:24px}h1{margin:8px 0}a{color:#165ca8}section,.notice{background:white;border:1px solid #d9e2ed;border-radius:12px;padding:20px;margin:18px 0}button{background:#153659;color:white;border:0;border-radius:7px;padding:12px 20px;font:inherit;cursor:pointer}.badge{font-size:13px;font-weight:700;letter-spacing:.08em;color:#6a4914}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:12px;border-bottom:1px solid #e2e8ef;vertical-align:top}.scroll{overflow:auto}summary{cursor:pointer;font-weight:600}dl{display:grid;grid-template-columns:minmax(100px,180px) 1fr;gap:8px}dd{margin:0;overflow-wrap:anywhere}small{color:#4c6077}code{overflow-wrap:anywhere}@media(max-width:600px){main{margin:0;padding:16px}dl{display:block}dd{margin-bottom:12px}}</style></head><body><main><div class="badge">VIVID SPOTS · SQUARE SANDBOX</div><h1>${esc(title)}</h1>${body}</main></body></html>`;
 }

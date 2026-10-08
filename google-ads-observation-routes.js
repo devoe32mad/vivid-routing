@@ -3,7 +3,7 @@
 const { validateConnectionInput, formatCustomerId, evidenceSummary, createStateToken, safeConnectionState } = require("./google-ads-observation");
 
 function esc(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function money(value){return Number(value||0).toLocaleString("en-US",{style:"currency",currency:"USD"});}
+function money(value){return Number(value||0).toLocaleString("en-US",{style:"currency",currency:"USD", minimumFractionDigits: 0, maximumFractionDigits: 0});}
 
 function renderGoogleAdsObservation({ organization, advertiser, connection, evidence=[], syncs=[], configured=false, saved=false, error="" }) {
   const state=safeConnectionState(connection?.status), summary=evidenceSummary(evidence);

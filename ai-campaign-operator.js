@@ -6,7 +6,7 @@ function escapeHtml(value) {
 
 function money(value) {
   const amount = Number(value);
-  return Number.isFinite(amount) ? amount.toLocaleString("en-US",{style:"currency",currency:"USD"}) : "$0.00";
+  return Number.isFinite(amount) ? amount.toLocaleString("en-US",{style:"currency",currency:"USD", minimumFractionDigits: 0, maximumFractionDigits: 0}) : "$0.00";
 }
 
 function rate(numerator, denominator) {

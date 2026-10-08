@@ -702,8 +702,8 @@ if (!reminderDays) {
                   ).toLocaleString(
                     "en-US",
                     {
-                      minimumFractionDigits:2,
-                      maximumFractionDigits:2
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0
                     }
                   )}
                 </strong>
@@ -1493,8 +1493,8 @@ app.get(
                   ).toLocaleString(
                     "en-US",
                     {
-                      minimumFractionDigits:2,
-                      maximumFractionDigits:2
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0
                     }
                   )}
                 </strong>
@@ -1653,8 +1653,8 @@ async function ensureCampaignTestModeSchema() {
 
 function money(n) {
   return "$" + Number(n || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
   });
 }
 
@@ -17218,7 +17218,7 @@ const organizationUser =
             {
               style: "currency",
               currency: "USD"
-            }
+            , minimumFractionDigits: 0, maximumFractionDigits: 0}
           );
 
       const numberValue = value =>
@@ -19011,7 +19011,7 @@ const reportLocationOptions = [
             {
               style: "currency",
               currency: "USD"
-            }
+            , minimumFractionDigits: 0, maximumFractionDigits: 0}
           );
 
       const formatNumber = value =>
@@ -23561,8 +23561,8 @@ const filteredContracts =
       Number(value || 0).toLocaleString(
         "en-US",
         {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
         }
       );
 
@@ -24442,8 +24442,8 @@ const contractDocuments =
         Number(value || 0).toLocaleString(
           "en-US",
           {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
           }
         );
 
@@ -26568,8 +26568,8 @@ if (
           .toLocaleString(
             "en-US",
             {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0
             }
           );
 
@@ -27294,8 +27294,8 @@ if (
             .toLocaleString(
               "en-US",
               {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
               }
             );
 
@@ -28297,8 +28297,8 @@ const revenueAtRisk90 =
         Number(value || 0).toLocaleString(
           "en-US",
           {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
           }
         );
 
@@ -32337,6 +32337,25 @@ const advertiserLocationOptions = [
           )
         )
       )
+
+    UNION
+
+    SELECT DISTINCT
+      LOWER(TRIM(a.name)) AS advertiser_key,
+      TRIM(a.name) AS advertiser_name,
+      NULL::integer AS campaign_id,
+      NULL::integer AS qr_id,
+      s.id AS location_id
+    FROM contracts contract
+    JOIN advertisers a ON a.id = contract.advertiser_id
+      AND a.organization_id = contract.organization_id
+    JOIN spaces s ON s.id = contract.location_id
+      AND s.organization_id = contract.organization_id
+    WHERE contract.organization_id = $1
+      AND s.id = ANY($4::int[])
+      AND COALESCE(s.is_archived, false) = false
+      AND NULLIF(TRIM(a.name), '') IS NOT NULL
+      AND LOWER(COALESCE(contract.status, 'active')) NOT IN ('cancelled', 'inactive', 'closed lost')
   ),
 
   advertiser_relationships AS (
@@ -33072,7 +33091,7 @@ ${advertiserSummaryCard(
                             </h2>
 
               <div style="color:#65776b;">
-                Advertisers connected to Vivid campaigns inside this organization.
+                Advertisers and sponsors connected to campaigns or contracts inside this organization.
               </div>
             </div>
 
@@ -33095,7 +33114,7 @@ ${advertiserSummaryCard(
                   <h3>No advertisers found</h3>
 
                   <p>
-                    No Vivid advertisers are currently connected to this organization.
+                    No advertisers or sponsors with matching campaigns or contracts were found for the locations available to you.
                   </p>
                 </div>
               `}
@@ -37252,6 +37271,7 @@ app.get(
 
                   body:
                     `
+                      <h3>Sponsors Before Campaign Launch</h3><p>Sponsors with existing contracts appear even before a campaign starts. Open their card to use the existing relationship notes, follow-ups, activity and contract tools. Reporting dates filter campaign activity; contract relationships remain accessible for the locations available to you.</p>
                       <h3>Sponsorship Amount</h3><p>Each advertiser card shows the value of linked signed, active, completed or expired contracts matching the selected locations and dates. This is contract value, not confirmed payment received. A dash means no matching contract value is available. Revenue Generated shows campaign conversion revenue separately.</p>
 
 
@@ -43010,6 +43030,11 @@ app.get(
         return res.status(403).send("Access denied");
       }
 
+      const advertiserScope = await getOrganizationScope(req, organizationId);
+      const contractLocationIds = advertiserScope.selectedLocationId
+        ? [advertiserScope.selectedLocationId]
+        : advertiserScope.allowedLocationIds;
+
       const organizationResult = await q(`
         SELECT
           id,
@@ -43506,6 +43531,22 @@ const advertiserTasks =
                 )
               )
             )
+
+          UNION
+
+          SELECT DISTINCT TRIM(a.name) AS advertiser_name,
+            NULL::integer AS campaign_id, NULL::integer AS qr_id,
+            s.id AS location_id
+          FROM contracts contract
+          JOIN advertisers a ON a.id = contract.advertiser_id
+            AND a.organization_id = contract.organization_id
+          JOIN spaces s ON s.id = contract.location_id
+            AND s.organization_id = contract.organization_id
+          WHERE contract.organization_id = $1
+            AND LOWER(TRIM(a.name)) = $2
+            AND s.id = ANY($5::int[])
+            AND COALESCE(s.is_archived, false) = false
+            AND LOWER(COALESCE(contract.status, 'active')) NOT IN ('cancelled', 'inactive', 'closed lost')
         )
 
         SELECT
@@ -43519,7 +43560,8 @@ const advertiserTasks =
         organizationId,
         advertiserKey,
         fromDate,
-        toDate
+        toDate,
+        contractLocationIds
       ]);
 
       const advertiser = advertiserResult.rows[0];
@@ -54642,8 +54684,8 @@ app.get(
           .toLocaleString(
             "en-US",
             {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0
             }
           );
 
@@ -67764,7 +67806,7 @@ app.get(
               Number.isInteger(amount)
                 ? 0
                 : 2
-          }
+          , minimumFractionDigits: 0}
         ).format(amount);
       };
 
@@ -69354,7 +69396,7 @@ app.get(
               Number.isInteger(amount)
                 ? 0
                 : 2
-          }
+          , minimumFractionDigits: 0}
         ).format(amount);
       };
 
@@ -70270,7 +70312,7 @@ app.get(
               Number.isInteger(amount)
                 ? 0
                 : 2
-          }
+          , minimumFractionDigits: 0}
         ).format(amount);
       };
 
@@ -71676,7 +71718,7 @@ const normalizeWebsiteUrl = value => {
               Number.isInteger(amount)
                 ? 0
                 : 2
-          }
+          , minimumFractionDigits: 0}
         ).format(amount);
       };
 
@@ -73247,8 +73289,8 @@ const requestPriceText =
         {
           style: "currency",
           currency: "USD",
-          maximumFractionDigits: 2
-        }
+          maximumFractionDigits: 0
+        , minimumFractionDigits: 0}
       ).format(requestPrice)
     : "Contact for pricing";
 
@@ -73962,7 +74004,7 @@ const cost =
 }
       const cpm = qr.annual_impressions ? (cost / Number(qr.annual_impressions)) * 1000 : 0;
       const intentRate = scans ? (intent / scans) * 100 : 0;
-      qrTable += `<tr><td><a href="/qr-admin/${qr.qr_id}">${qr.qr_name || "QR " + qr.qr_id}</a></td><td>${qr.space_name || ""}</td><td>${qr.location || ""}</td><td>${Number(qr.annual_impressions || 0).toLocaleString()}</td><td>${scans}</td><td>${row.maps_clicks || 0}</td><td>${row.offer_clicks || 0}</td><td>${row.waze_clicks || 0}</td><td>${pct(intentRate)}</td><td>${customers}</td><td>${money(revenue)}</td><td>${money(cost)}</td><td>${money(cac)}</td><td>$${cpm.toFixed(2)}</td><td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td></tr>`;
+      qrTable += `<tr><td><a href="/qr-admin/${qr.qr_id}">${qr.qr_name || "QR " + qr.qr_id}</a></td><td>${qr.space_name || ""}</td><td>${qr.location || ""}</td><td>${Number(qr.annual_impressions || 0).toLocaleString()}</td><td>${scans}</td><td>${row.maps_clicks || 0}</td><td>${row.offer_clicks || 0}</td><td>${row.waze_clicks || 0}</td><td>${pct(intentRate)}</td><td>${customers}</td><td>${money(revenue)}</td><td>${money(cost)}</td><td>${money(cac)}</td><td>$${cpm.toLocaleString("en-US", {maximumFractionDigits:0})}</td><td class="${roi >= 0 ? "good" : "bad"}">${pct(roi)}</td></tr>`;
     }
 
     let campaignTable = "";
@@ -76335,7 +76377,7 @@ for (const s of schedules.rows) {
 <td>${a.campaign_name || ""}</td>
 <td>${dateLabel(a.effective_start_date)}</td>
 <td>${Number(a.assignment_days ?? 0)}</td>
-<td>$${Number(a.allocated_cost ?? 0).toFixed(2)}</td>
+<td>$${Number(a.allocated_cost ?? 0).toLocaleString("en-US", {maximumFractionDigits:0})}</td>
 <td>
 ${a.is_active
 ? '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Active</span>'
