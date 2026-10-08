@@ -30241,6 +30241,15 @@ min-height:220px;
 
         <div>
           <div style="font-size:10px;color:#65776b;">
+            Conversions
+          </div>
+          <div style="font-size:16px;font-weight:bold;">
+            ${Number(qr.conversions || 0).toLocaleString()}
+          </div>
+        </div>
+
+        <div style="grid-column:1/-1;">
+          <div style="font-size:10px;color:#65776b;">
             Revenue Generated
           </div>
           <div style="font-size:16px;font-weight:bold;">
@@ -30398,9 +30407,14 @@ ${orgDateFilterForm({
                 </div>
               </div>
 
-            
-
-              
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Conversions
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${totals.conversions.toLocaleString()}
+                </div>
+              </div>
 
               <div class="card" style="margin:0;">
                 <div style="font-size:12px;color:#65776b;">
