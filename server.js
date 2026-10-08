@@ -60598,6 +60598,18 @@ console.log(
     }
   }
 );
+require("./org-inventory-hierarchy")(
+  app,
+  {
+    q,
+    getOrganizationScope,
+    marketplacePage,
+    escapeHtml,
+    money,
+    statusBadge
+  }
+);
+
 app.get(
   "/org-marketplace",
   async (req, res) => {
