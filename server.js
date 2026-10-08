@@ -32500,6 +32500,18 @@ const advertiserLocationOptions = [
     )::numeric AS revenue_generated,
 
     ac.advertiser_id,
+    (
+      SELECT SUM(contract.total_contract_value)
+      FROM contracts contract
+      WHERE contract.organization_id = $1
+        AND contract.advertiser_id = ac.advertiser_id
+        AND contract.location_id = ANY($4::int[])
+        AND LOWER(COALESCE(contract.status, 'active')) IN ('active', 'completed', 'expired', 'signed')
+        AND (NULLIF($2, '') IS NULL OR contract.end_date IS NULL
+             OR contract.end_date >= NULLIF($2, '')::date)
+        AND (NULLIF($3, '') IS NULL OR contract.start_date IS NULL
+             OR contract.start_date <= NULLIF($3, '')::date)
+    ) AS sponsorship_amount,
     ac.account_owner,
 
     COALESCE(
@@ -32661,6 +32673,14 @@ summary.conversions += Number(
               <div style="font-size:16px;font-weight:bold;">
                 ${Number(advertiser.scans || 0).toLocaleString()}
               </div>
+            </div>
+
+            <div style="grid-column:1/-1;" title="Total value of linked signed, active, completed or expired contracts matching the selected locations and period. Payment collection is not confirmed by contract value.">
+              <div style="font-size:10px;color:#65776b;">Sponsorship Amount</div>
+              <div style="font-size:18px;font-weight:bold;">
+                ${advertiser.sponsorship_amount == null ? "—" : money(advertiser.sponsorship_amount)}
+              </div>
+              <div style="font-size:10px;color:#65776b;">Contract value</div>
             </div>
 
             <div style="grid-column:1/-1;">
