@@ -380,6 +380,20 @@ module.exports = function installOrgInventoryHierarchy(
           '<p style="color:#65776b;margin-bottom:0;">No sponsorship inventory is available in this view.</p></div>';
       }
 
+      const statusFilter = selectedLocationId
+        ? '<nav aria-label="Filter sponsorship opportunities by status" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">' +
+          ["All", "Available", "Pending", "Sold"].map(status => {
+            const active = selectedStatus === status;
+            const href = "/org-marketplace?organization_id=" + organizationId +
+              (selectedProgramId ? "&program_id=" + selectedProgramId : "") +
+              "&location_id=" + selectedLocationId +
+              (status === "All" ? "" : "&status=" + encodeURIComponent(status));
+            return '<a class="marketplace-btn' + (active ? '' : ' secondary') +
+              '" href="' + escapeHtml(href) + '"' + (active ? ' aria-current="page"' : '') +
+              ' style="margin:0;padding:8px 16px;">' + status + '</a>';
+          }).join("") + '</nav>'
+        : '';
+
       const publicLink = organization.slug
         ? '<a class="marketplace-btn secondary" target="_blank" rel="noopener noreferrer" href="/advertise/' +
           encodeURIComponent(organization.slug) +
@@ -407,6 +421,7 @@ module.exports = function installOrgInventoryHierarchy(
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px;">' + breadcrumb + '</div>' +
         '<h2 style="margin:0 0 6px;">' + escapeHtml(heading) + '</h2>' +
         '<div style="color:#65776b;line-height:1.5;margin-bottom:18px;">' + escapeHtml(subheading) + '</div>' +
+        statusFilter +
         '<div class="marketplace-grid" style="margin:0;">' + cards + '</div>' +
         '</div>' +
         '<div class="marketplace-card">' +
