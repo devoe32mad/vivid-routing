@@ -9,7 +9,7 @@ async function filterSetup(q,user,results){
     JOIN qr_codes qr ON qr.id=ar.created_qr_id AND qr.space_id=s.id AND COALESCE(qr.is_archived,false)=false
     JOIN campaigns c ON c.id=ar.created_campaign_id AND c.organization_id=o.id AND COALESCE(c.is_archived,false)=false
     JOIN qr_campaigns qc ON qc.qr_id=qr.id AND qc.campaign_id=c.id AND COALESCE(qc.is_active,true)=true
-    WHERE ar.created_vivid_user_id=$1 AND LOWER(TRIM(ar.status))='approved'`,[user.id]);
+    WHERE ar.created_vivid_user_id=$1 AND LOWER(TRIM(ar.status))='approved' AND ar.setup_status IS DISTINCT FROM 'Demo Archived'`,[user.id]);
   const locations=new Set(allowed.rows.map(r=>Number(r.location_id)));
   const qrs=new Set(allowed.rows.map(r=>Number(r.qr_id)));
   const campaigns=new Set(allowed.rows.map(r=>Number(r.campaign_id)));
@@ -44,7 +44,7 @@ async function reportScope(q,user){
     JOIN organization_opportunities oo ON oo.id=ar.opportunity_id AND oo.organization_id=o.id AND oo.space_id=s.id
     JOIN qr_codes qr ON qr.id=ar.created_qr_id AND qr.space_id=s.id
     JOIN campaigns c ON c.id=ar.created_campaign_id AND c.organization_id=o.id
-    WHERE ar.created_vivid_user_id=$1 AND LOWER(TRIM(ar.status))='approved'
+    WHERE ar.created_vivid_user_id=$1 AND LOWER(TRIM(ar.status))='approved' AND ar.setup_status IS DISTINCT FROM 'Demo Archived'
       AND s.name NOT IN ('Fundraising & Signature Events','Trade Shows & Conferences','CME & Medical Education',
         'Community Health Activations','Sports & Strategic Partnerships')`,[user.id]);
   const ids=key=>[...new Set(result.rows.map(r=>Number(r[key])).filter(n=>Number.isSafeInteger(n)&&n>0))];
