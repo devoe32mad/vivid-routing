@@ -41,9 +41,9 @@ const EVENTS = [
     description:"Henry Ford Health's 4th Annual Obesity Symposium, publicly listed as open to exhibitors.",
     opportunities:[
       {title:"Exhibit Booth",price:2000,unit:"Starting At",category:"Exhibitor",order:1,description:"HFHS CME exhibit opportunities begin at $2,000. Exhibitors receive a display area outside the educational meeting room and an opportunity to interact with healthcare professionals."},
-      {title:"Registration Sponsor",price:0,unit:"Custom",category:"Conference Sponsorship",order:2,description:"Illustrative Vivid inventory example for a high-traffic registration-area sponsorship. Pricing and availability would be set by Henry Ford Health."},
-      {title:"Lanyard Sponsor",price:0,unit:"Custom",category:"Conference Sponsorship",order:3,description:"Illustrative attendee-lanyard sponsorship inventory. Vivid would manage availability, creative assets, fulfillment, and measurable engagement."},
-      {title:"Networking Break Sponsor",price:0,unit:"Custom",category:"Conference Sponsorship",order:4,description:"Illustrative sponsorship of a networking or refreshment break. Pricing and benefits would be confirmed by Henry Ford Health."}
+      {title:"Registration Sponsor",price:1000,unit:"Per Event",category:"Conference Sponsorship",order:2,description:"Illustrative demo price; not an approved HFHS rate. Illustrative Vivid inventory example for a high-traffic registration-area sponsorship. Pricing and availability would be set by Henry Ford Health."},
+      {title:"Lanyard Sponsor",price:750,unit:"Per Event",category:"Conference Sponsorship",order:3,description:"Illustrative demo price; not an approved HFHS rate. Illustrative attendee-lanyard sponsorship inventory. Vivid would manage availability, creative assets, fulfillment, and measurable engagement."},
+      {title:"Networking Break Sponsor",price:1000,unit:"Per Event",category:"Conference Sponsorship",order:4,description:"Illustrative demo price; not an approved HFHS rate. Illustrative sponsorship of a networking or refreshment break. Pricing and benefits would be confirmed by Henry Ford Health."}
     ]
   },
   {
@@ -54,9 +54,9 @@ const EVENTS = [
     description:"Henry Ford Health's Advanced Endoscopy Course, publicly listed as open to exhibitors.",
     opportunities:[
       {title:"Exhibit Booth",price:2000,unit:"Starting At",category:"Exhibitor",order:1,description:"HFHS CME exhibit opportunities begin at $2,000. Exhibitors use the dedicated exhibitor process and complete the required commercial promotion agreement."},
-      {title:"Registration Sponsor",price:0,unit:"Custom",category:"Conference Sponsorship",order:2,description:"Illustrative Vivid registration sponsorship opportunity for this course."},
-      {title:"Coffee / Break Sponsor",price:0,unit:"Custom",category:"Conference Sponsorship",order:3,description:"Illustrative event-break sponsorship inventory with sponsor recognition and measurable engagement."},
-      {title:"Educational Materials Sponsor",price:0,unit:"Custom",category:"Conference Sponsorship",order:4,description:"Illustrative sponsor opportunity tied to attendee materials or approved event resources."}
+      {title:"Registration Sponsor",price:1000,unit:"Per Event",category:"Conference Sponsorship",order:2,description:"Illustrative demo price; not an approved HFHS rate. Illustrative Vivid registration sponsorship opportunity for this course."},
+      {title:"Coffee / Break Sponsor",price:750,unit:"Per Event",category:"Conference Sponsorship",order:3,description:"Illustrative demo price; not an approved HFHS rate. Illustrative event-break sponsorship inventory with sponsor recognition and measurable engagement."},
+      {title:"Educational Materials Sponsor",price:750,unit:"Per Event",category:"Conference Sponsorship",order:4,description:"Illustrative demo price; not an approved HFHS rate. Illustrative sponsor opportunity tied to attendee materials or approved event resources."}
     ]
   },
   {
@@ -67,9 +67,9 @@ const EVENTS = [
     description:"Henry Ford Health's 6th Annual Sinus and Nasal Symposium, publicly listed as open to exhibitors.",
     opportunities:[
       {title:"Exhibit Booth",price:2000,unit:"Starting At",category:"Exhibitor",order:1,description:"HFHS CME exhibit opportunities begin at $2,000, with limited exhibit space outside the educational room."},
-      {title:"Lanyard Sponsor",price:0,unit:"Custom",category:"Conference Sponsorship",order:2,description:"Illustrative lanyard inventory for attendee visibility."},
-      {title:"Lunch Sponsor",price:0,unit:"Custom",category:"Conference Sponsorship",order:3,description:"Illustrative lunch sponsorship opportunity for the symposium."},
-      {title:"Networking Break Sponsor",price:0,unit:"Custom",category:"Conference Sponsorship",order:4,description:"Illustrative networking-break sponsorship with fulfillment and performance reporting through Vivid."}
+      {title:"Lanyard Sponsor",price:750,unit:"Per Event",category:"Conference Sponsorship",order:2,description:"Illustrative demo price; not an approved HFHS rate. Illustrative lanyard inventory for attendee visibility."},
+      {title:"Lunch Sponsor",price:1500,unit:"Per Event",category:"Conference Sponsorship",order:3,description:"Illustrative demo price; not an approved HFHS rate. Illustrative lunch sponsorship opportunity for the symposium."},
+      {title:"Networking Break Sponsor",price:1000,unit:"Per Event",category:"Conference Sponsorship",order:4,description:"Illustrative demo price; not an approved HFHS rate. Illustrative networking-break sponsorship with fulfillment and performance reporting through Vivid."}
     ]
   },
   {
@@ -80,9 +80,9 @@ const EVENTS = [
     description:"Henry Ford + MSU Annual Cancer Research Symposium, scheduled October 29–30, 2026 and publicly listed as open to exhibitors.",
     opportunities:[
       {title:"Exhibit Booth",price:2000,unit:"Starting At",category:"Exhibitor",order:1,description:"HFHS CME exhibit opportunities begin at $2,000 and allow industry representatives to showcase products and services outside the educational meeting room."},
-      {title:"Registration Sponsor",price:0,unit:"Custom",category:"Conference Sponsorship",order:2,description:"Illustrative high-traffic registration sponsorship."},
-      {title:"Networking Reception Sponsor",price:0,unit:"Custom",category:"Conference Sponsorship",order:3,description:"Illustrative networking-reception sponsorship inventory."},
-      {title:"Program / Digital Guide Sponsor",price:0,unit:"Custom",category:"Conference Sponsorship",order:4,description:"Illustrative program or digital-guide sponsorship for attendee visibility."}
+      {title:"Registration Sponsor",price:1000,unit:"Per Event",category:"Conference Sponsorship",order:2,description:"Illustrative demo price; not an approved HFHS rate. Illustrative high-traffic registration sponsorship."},
+      {title:"Networking Reception Sponsor",price:2000,unit:"Per Event",category:"Conference Sponsorship",order:3,description:"Illustrative demo price; not an approved HFHS rate. Illustrative networking-reception sponsorship inventory."},
+      {title:"Program / Digital Guide Sponsor",price:1000,unit:"Per Event",category:"Conference Sponsorship",order:4,description:"Illustrative demo price; not an approved HFHS rate. Illustrative program or digital-guide sponsorship for attendee visibility."}
     ]
   },
 
@@ -94,9 +94,9 @@ const EVENTS = [
     description:"Henry Ford Health's Annual Breast Oncology Symposium, publicly listed as open to exhibitors.",
     opportunities:[
       {title:"CME Exhibit Booth",price:2000,unit:"Starting At",category:"CME Exhibitor",order:1,description:"HFHS CME exhibit opportunities begin at $2,000. Exhibit registration and commercial promotion requirements apply."},
-      {title:"Networking Reception Sponsor",price:0,unit:"Custom",category:"CME Sponsorship",order:2,description:"Illustrative reception sponsorship associated with the symposium."},
-      {title:"Attendee Materials Sponsor",price:0,unit:"Custom",category:"CME Sponsorship",order:3,description:"Illustrative sponsorship for approved attendee materials or resources."},
-      {title:"Coffee / Break Sponsor",price:0,unit:"Custom",category:"CME Sponsorship",order:4,description:"Illustrative break sponsorship with sponsor recognition and Vivid fulfillment tracking."}
+      {title:"Networking Reception Sponsor",price:2000,unit:"Per Event",category:"CME Sponsorship",order:2,description:"Illustrative demo price; not an approved HFHS rate. Illustrative reception sponsorship associated with the symposium."},
+      {title:"Attendee Materials Sponsor",price:750,unit:"Per Event",category:"CME Sponsorship",order:3,description:"Illustrative demo price; not an approved HFHS rate. Illustrative sponsorship for approved attendee materials or resources."},
+      {title:"Coffee / Break Sponsor",price:750,unit:"Per Event",category:"CME Sponsorship",order:4,description:"Illustrative demo price; not an approved HFHS rate. Illustrative break sponsorship with sponsor recognition and Vivid fulfillment tracking."}
     ]
   },
   {
@@ -107,9 +107,9 @@ const EVENTS = [
     description:"Henry Ford Health's 5th Annual Motown Women's Heart Symposium, publicly listed as open to exhibitors.",
     opportunities:[
       {title:"CME Exhibit Booth",price:2000,unit:"Starting At",category:"CME Exhibitor",order:1,description:"HFHS CME exhibit opportunities begin at $2,000 and provide a designated exhibit area for engagement with healthcare professionals."},
-      {title:"Registration Sponsor",price:0,unit:"Custom",category:"CME Sponsorship",order:2,description:"Illustrative registration sponsorship."},
-      {title:"Lunch Sponsor",price:0,unit:"Custom",category:"CME Sponsorship",order:3,description:"Illustrative lunch sponsorship inventory."},
-      {title:"Networking Sponsor",price:0,unit:"Custom",category:"CME Sponsorship",order:4,description:"Illustrative networking sponsorship with measurable engagement."}
+      {title:"Registration Sponsor",price:1000,unit:"Per Event",category:"CME Sponsorship",order:2,description:"Illustrative demo price; not an approved HFHS rate. Illustrative registration sponsorship."},
+      {title:"Lunch Sponsor",price:1500,unit:"Per Event",category:"CME Sponsorship",order:3,description:"Illustrative demo price; not an approved HFHS rate. Illustrative lunch sponsorship inventory."},
+      {title:"Networking Sponsor",price:1500,unit:"Per Event",category:"CME Sponsorship",order:4,description:"Illustrative demo price; not an approved HFHS rate. Illustrative networking sponsorship with measurable engagement."}
     ]
   },
   {
@@ -120,9 +120,9 @@ const EVENTS = [
     description:"Henry Ford Health's Annual Thoracic Cancer Symposium, publicly listed as open to exhibitors.",
     opportunities:[
       {title:"CME Exhibit Booth",price:2000,unit:"Starting At",category:"CME Exhibitor",order:1,description:"HFHS CME exhibit opportunities begin at $2,000."},
-      {title:"Registration Sponsor",price:0,unit:"Custom",category:"CME Sponsorship",order:2,description:"Illustrative registration sponsorship inventory."},
-      {title:"Coffee / Break Sponsor",price:0,unit:"Custom",category:"CME Sponsorship",order:3,description:"Illustrative refreshment-break sponsorship."},
-      {title:"Program Sponsor",price:0,unit:"Custom",category:"CME Sponsorship",order:4,description:"Illustrative event-program sponsorship."}
+      {title:"Registration Sponsor",price:1000,unit:"Per Event",category:"CME Sponsorship",order:2,description:"Illustrative demo price; not an approved HFHS rate. Illustrative registration sponsorship inventory."},
+      {title:"Coffee / Break Sponsor",price:750,unit:"Per Event",category:"CME Sponsorship",order:3,description:"Illustrative demo price; not an approved HFHS rate. Illustrative refreshment-break sponsorship."},
+      {title:"Program Sponsor",price:1000,unit:"Per Event",category:"CME Sponsorship",order:4,description:"Illustrative demo price; not an approved HFHS rate. Illustrative event-program sponsorship."}
     ]
   },
   {
@@ -133,9 +133,9 @@ const EVENTS = [
     description:"Henry Ford Health's GU Cancer Symposium, publicly listed as open to exhibitors.",
     opportunities:[
       {title:"CME Exhibit Booth",price:2000,unit:"Starting At",category:"CME Exhibitor",order:1,description:"HFHS CME exhibit opportunities begin at $2,000."},
-      {title:"Registration Sponsor",price:0,unit:"Custom",category:"CME Sponsorship",order:2,description:"Illustrative event-registration sponsorship."},
-      {title:"Networking Break Sponsor",price:0,unit:"Custom",category:"CME Sponsorship",order:3,description:"Illustrative networking-break sponsorship."},
-      {title:"Attendee Materials Sponsor",price:0,unit:"Custom",category:"CME Sponsorship",order:4,description:"Illustrative attendee-materials sponsorship."}
+      {title:"Registration Sponsor",price:1000,unit:"Per Event",category:"CME Sponsorship",order:2,description:"Illustrative demo price; not an approved HFHS rate. Illustrative event-registration sponsorship."},
+      {title:"Networking Break Sponsor",price:1000,unit:"Per Event",category:"CME Sponsorship",order:3,description:"Illustrative demo price; not an approved HFHS rate. Illustrative networking-break sponsorship."},
+      {title:"Attendee Materials Sponsor",price:750,unit:"Per Event",category:"CME Sponsorship",order:4,description:"Illustrative demo price; not an approved HFHS rate. Illustrative attendee-materials sponsorship."}
     ]
   },
 
@@ -146,12 +146,12 @@ const EVENTS = [
     date:"2026-09-15",
     description:"Henry Ford Health's Warren Golf Classic, benefiting enhancement of the Cardiology Department.",
     opportunities:[
-      {title:"Presenting Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:1,description:"Illustrative premium tournament sponsorship. Final pricing and benefits would be configured from Henry Ford Health's approved sponsorship package."},
-      {title:"Hole Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:2,description:"Illustrative hole sponsorship inventory with course signage and measurable sponsor engagement."},
-      {title:"Beverage Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:3,description:"Illustrative beverage or hospitality sponsorship for the golf outing."},
-      {title:"Cart Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:4,description:"Illustrative golf-cart sponsorship with branded visibility throughout the event."},
-      {title:"Lunch Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:5,description:"Illustrative lunch sponsorship inventory."},
-      {title:"Registration Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:6,description:"Illustrative registration-area sponsorship and attendee touchpoint."}
+      {title:"Presenting Sponsor",price:5000,unit:"Per Event",category:"Golf Sponsorship",order:1,description:"Illustrative demo price; not an approved HFHS rate. Illustrative premium tournament sponsorship. Final pricing and benefits would be configured from Henry Ford Health's approved sponsorship package."},
+      {title:"Hole Sponsor",price:500,unit:"Per Event",category:"Golf Sponsorship",order:2,description:"Illustrative demo price; not an approved HFHS rate. Illustrative hole sponsorship inventory with course signage and measurable sponsor engagement."},
+      {title:"Beverage Sponsor",price:1000,unit:"Per Event",category:"Golf Sponsorship",order:3,description:"Illustrative demo price; not an approved HFHS rate. Illustrative beverage or hospitality sponsorship for the golf outing."},
+      {title:"Cart Sponsor",price:1500,unit:"Per Event",category:"Golf Sponsorship",order:4,description:"Illustrative demo price; not an approved HFHS rate. Illustrative golf-cart sponsorship with branded visibility throughout the event."},
+      {title:"Lunch Sponsor",price:1500,unit:"Per Event",category:"Golf Sponsorship",order:5,description:"Illustrative demo price; not an approved HFHS rate. Illustrative lunch sponsorship inventory."},
+      {title:"Registration Sponsor",price:1000,unit:"Per Event",category:"Golf Sponsorship",order:6,description:"Illustrative demo price; not an approved HFHS rate. Illustrative registration-area sponsorship and attendee touchpoint."}
     ]
   },
   {
@@ -161,11 +161,11 @@ const EVENTS = [
     date:"2026-06-01",
     description:"Henry Ford Health Providence Golf benefiting the Care of the Poor Fund and Believe in Miracles Fund.",
     opportunities:[
-      {title:"Presenting Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:1,description:"Illustrative premium tournament sponsorship."},
-      {title:"Hole Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:2,description:"Illustrative hole sponsorship with on-course visibility."},
-      {title:"Beverage Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:3,description:"Illustrative beverage sponsorship."},
-      {title:"Cart Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:4,description:"Illustrative golf-cart sponsorship."},
-      {title:"Lunch Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:5,description:"Illustrative meal sponsorship."}
+      {title:"Presenting Sponsor",price:5000,unit:"Per Event",category:"Golf Sponsorship",order:1,description:"Illustrative demo price; not an approved HFHS rate. Illustrative premium tournament sponsorship."},
+      {title:"Hole Sponsor",price:500,unit:"Per Event",category:"Golf Sponsorship",order:2,description:"Illustrative demo price; not an approved HFHS rate. Illustrative hole sponsorship with on-course visibility."},
+      {title:"Beverage Sponsor",price:1000,unit:"Per Event",category:"Golf Sponsorship",order:3,description:"Illustrative demo price; not an approved HFHS rate. Illustrative beverage sponsorship."},
+      {title:"Cart Sponsor",price:1500,unit:"Per Event",category:"Golf Sponsorship",order:4,description:"Illustrative demo price; not an approved HFHS rate. Illustrative golf-cart sponsorship."},
+      {title:"Lunch Sponsor",price:1500,unit:"Per Event",category:"Golf Sponsorship",order:5,description:"Illustrative demo price; not an approved HFHS rate. Illustrative meal sponsorship."}
     ]
   },
   {
@@ -175,11 +175,11 @@ const EVENTS = [
     date:"2026-09-28",
     description:"Henry Ford Health's Hit'em Fore Hospice Golf Outing benefiting Henry Ford Jackson Hospice and compassionate end-of-life care.",
     opportunities:[
-      {title:"Presenting Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:1,description:"Illustrative premium outing sponsorship."},
-      {title:"Hole Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:2,description:"Illustrative hole sponsorship."},
-      {title:"Beverage Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:3,description:"Illustrative beverage sponsorship."},
-      {title:"Cocktail Reception Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:4,description:"Illustrative sponsorship of the published cocktail-reception portion of the event."},
-      {title:"Dinner Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:5,description:"Illustrative sponsorship of the published dinner/program portion of the outing."}
+      {title:"Presenting Sponsor",price:5000,unit:"Per Event",category:"Golf Sponsorship",order:1,description:"Illustrative demo price; not an approved HFHS rate. Illustrative premium outing sponsorship."},
+      {title:"Hole Sponsor",price:500,unit:"Per Event",category:"Golf Sponsorship",order:2,description:"Illustrative demo price; not an approved HFHS rate. Illustrative hole sponsorship."},
+      {title:"Beverage Sponsor",price:1000,unit:"Per Event",category:"Golf Sponsorship",order:3,description:"Illustrative demo price; not an approved HFHS rate. Illustrative beverage sponsorship."},
+      {title:"Cocktail Reception Sponsor",price:2000,unit:"Per Event",category:"Golf Sponsorship",order:4,description:"Illustrative demo price; not an approved HFHS rate. Illustrative sponsorship of the published cocktail-reception portion of the event."},
+      {title:"Dinner Sponsor",price:2500,unit:"Per Event",category:"Golf Sponsorship",order:5,description:"Illustrative demo price; not an approved HFHS rate. Illustrative sponsorship of the published dinner/program portion of the outing."}
     ]
   },
   {
@@ -189,11 +189,11 @@ const EVENTS = [
     date:"2026-07-13",
     description:"Henry Ford Health's Rochester Golf Classic, for which HFHS publicly invites community partners to sponsor the event.",
     opportunities:[
-      {title:"Presenting Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:1,description:"Illustrative premium tournament sponsorship."},
-      {title:"Hole Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:2,description:"Illustrative hole sponsorship."},
-      {title:"Beverage Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:3,description:"Illustrative beverage sponsorship."},
-      {title:"Cart Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:4,description:"Illustrative cart sponsorship."},
-      {title:"Awards / Dinner Sponsor",price:0,unit:"Custom",category:"Golf Sponsorship",order:5,description:"Illustrative closing-event sponsorship."}
+      {title:"Presenting Sponsor",price:5000,unit:"Per Event",category:"Golf Sponsorship",order:1,description:"Illustrative demo price; not an approved HFHS rate. Illustrative premium tournament sponsorship."},
+      {title:"Hole Sponsor",price:500,unit:"Per Event",category:"Golf Sponsorship",order:2,description:"Illustrative demo price; not an approved HFHS rate. Illustrative hole sponsorship."},
+      {title:"Beverage Sponsor",price:1000,unit:"Per Event",category:"Golf Sponsorship",order:3,description:"Illustrative demo price; not an approved HFHS rate. Illustrative beverage sponsorship."},
+      {title:"Cart Sponsor",price:1500,unit:"Per Event",category:"Golf Sponsorship",order:4,description:"Illustrative demo price; not an approved HFHS rate. Illustrative cart sponsorship."},
+      {title:"Awards / Dinner Sponsor",price:2500,unit:"Per Event",category:"Golf Sponsorship",order:5,description:"Illustrative demo price; not an approved HFHS rate. Illustrative closing-event sponsorship."}
     ]
   },
 
@@ -204,12 +204,12 @@ const EVENTS = [
     date:"2026-10-09",
     description:"Destination Grand Ball 2026 benefiting Destination: Grand and the expansion of Henry Ford Hospital.",
     opportunities:[
-      {title:"Grand Sponsor",price:0,unit:"Custom",category:"Destination Grand",order:1,description:"Published sponsorship category for Destination Grand Ball 2026. Pricing and detailed benefits would be loaded from the approved HFHS sponsorship package."},
-      {title:"Registration Sponsor",price:0,unit:"Custom",category:"Destination Grand",order:2,description:"Published Destination Grand Ball sponsorship category."},
-      {title:"Bar Sponsor",price:0,unit:"Custom",category:"Destination Grand",order:3,description:"Published Destination Grand Ball sponsorship category."},
-      {title:"Reception Sponsor",price:0,unit:"Custom",category:"Destination Grand",order:4,description:"Published Destination Grand Ball sponsorship category."},
-      {title:"Entertainment Sponsor",price:0,unit:"Custom",category:"Destination Grand",order:5,description:"Published Destination Grand Ball sponsorship category."},
-      {title:"Red Carpet Experience Sponsor",price:0,unit:"Custom",category:"Destination Grand",order:6,description:"Published Destination Grand Ball sponsorship category."}
+      {title:"Grand Sponsor",price:5000,unit:"Per Event",category:"Destination Grand",order:1,description:"Illustrative demo price; not an approved HFHS rate. Published sponsorship category for Destination Grand Ball 2026. Pricing and detailed benefits would be loaded from the approved HFHS sponsorship package."},
+      {title:"Registration Sponsor",price:1000,unit:"Per Event",category:"Destination Grand",order:2,description:"Illustrative demo price; not an approved HFHS rate. Published Destination Grand Ball sponsorship category."},
+      {title:"Bar Sponsor",price:2000,unit:"Per Event",category:"Destination Grand",order:3,description:"Illustrative demo price; not an approved HFHS rate. Published Destination Grand Ball sponsorship category."},
+      {title:"Reception Sponsor",price:2500,unit:"Per Event",category:"Destination Grand",order:4,description:"Illustrative demo price; not an approved HFHS rate. Published Destination Grand Ball sponsorship category."},
+      {title:"Entertainment Sponsor",price:2500,unit:"Per Event",category:"Destination Grand",order:5,description:"Illustrative demo price; not an approved HFHS rate. Published Destination Grand Ball sponsorship category."},
+      {title:"Red Carpet Experience Sponsor",price:1500,unit:"Per Event",category:"Destination Grand",order:6,description:"Illustrative demo price; not an approved HFHS rate. Published Destination Grand Ball sponsorship category."}
     ]
   },
   {
@@ -219,9 +219,9 @@ const EVENTS = [
     date:null,
     description:"Henry Ford Health's $3 billion Future of Health: Detroit development partnership with Tom Gores and the Detroit Pistons and Henry Ford Health + Michigan State University Health Sciences.",
     opportunities:[
-      {title:"Philanthropic Partnership",price:0,unit:"Custom",category:"Future of Health",order:1,description:"Research-based philanthropic partnership concept tied to Henry Ford Health's public statement that philanthropic partners will play an essential role in Future of Health: Detroit."},
-      {title:"Community Experience Sponsor",price:0,unit:"Custom",category:"Future of Health",order:2,description:"Illustrative Vivid sponsorship inventory for approved community-facing experiences within the broader development."},
-      {title:"Health Innovation Experience Sponsor",price:0,unit:"Custom",category:"Future of Health",order:3,description:"Illustrative sponsorship concept for an approved health-innovation activation."}
+      {title:"Philanthropic Partnership",price:5000,unit:"Per Event",category:"Future of Health",order:1,description:"Illustrative demo price; not an approved HFHS rate. Research-based philanthropic partnership concept tied to Henry Ford Health's public statement that philanthropic partners will play an essential role in Future of Health: Detroit."},
+      {title:"Community Experience Sponsor",price:1500,unit:"Per Event",category:"Future of Health",order:2,description:"Illustrative demo price; not an approved HFHS rate. Illustrative Vivid sponsorship inventory for approved community-facing experiences within the broader development."},
+      {title:"Health Innovation Experience Sponsor",price:2500,unit:"Per Event",category:"Future of Health",order:3,description:"Illustrative demo price; not an approved HFHS rate. Illustrative sponsorship concept for an approved health-innovation activation."}
     ]
   },
   {
@@ -231,10 +231,10 @@ const EVENTS = [
     date:"2026-08-20",
     description:"Henry Ford Macomb Hospital Ambassador Club's 2026 Racing for the Future event, supporting continued campus transformation.",
     opportunities:[
-      {title:"Presenting Sponsor",price:0,unit:"Custom",category:"Ambassador Club",order:1,description:"Illustrative premium sponsorship based on HFHS's public invitation for community partners to sponsor the event."},
-      {title:"Track Experience Sponsor",price:0,unit:"Custom",category:"Ambassador Club",order:2,description:"Illustrative M1 Concourse experience sponsorship."},
-      {title:"Hospitality Sponsor",price:0,unit:"Custom",category:"Ambassador Club",order:3,description:"Illustrative hospitality sponsorship."},
-      {title:"Registration Sponsor",price:0,unit:"Custom",category:"Ambassador Club",order:4,description:"Illustrative registration sponsorship."}
+      {title:"Presenting Sponsor",price:5000,unit:"Per Event",category:"Ambassador Club",order:1,description:"Illustrative demo price; not an approved HFHS rate. Illustrative premium sponsorship based on HFHS's public invitation for community partners to sponsor the event."},
+      {title:"Track Experience Sponsor",price:2500,unit:"Per Event",category:"Ambassador Club",order:2,description:"Illustrative demo price; not an approved HFHS rate. Illustrative M1 Concourse experience sponsorship."},
+      {title:"Hospitality Sponsor",price:2000,unit:"Per Event",category:"Ambassador Club",order:3,description:"Illustrative demo price; not an approved HFHS rate. Illustrative hospitality sponsorship."},
+      {title:"Registration Sponsor",price:1000,unit:"Per Event",category:"Ambassador Club",order:4,description:"Illustrative demo price; not an approved HFHS rate. Illustrative registration sponsorship."}
     ]
   }
 ];
