@@ -1,6 +1,6 @@
 "use strict";
 function once(source,from,to){if(source.split(from).length!==2)throw Error('HFHS report scope anchor missing/ambiguous: '+from);return source.replace(from,to);}
-function install(source){
+function installReportScope(source){
   const marker='// HFHS_LINKED_REPORT_SCOPE_V1';
   if(source.includes(marker))return source;
   // Shared exporter also backs the main campaign report and CSV/PDF summaries.
@@ -23,5 +23,44 @@ function install(source){
     source=source.slice(0,start)+part+source.slice(end);
   }
   return source+'\n'+marker+'\n';
+}
+function install(source){
+  source=installReportScope(source);
+  const marker='// HFHS_PERFORMANCE_DEMO_DEFAULT_V1';
+  if(source.includes(marker))return source;
+  const start=source.indexOf('app.get(\n  "/org-performance",');
+  const end=source.indexOf('\napp.',start+1);
+  if(start<0||end<0)throw Error('Performance route missing');
+  let part=source.slice(start,end);
+  part=once(part,'              id,\n              name\n\n            FROM organizations','              id,\n              name,\n              slug\n\n            FROM organizations');
+  part=once(part,`      const includeTest =
+        String(
+          req.query.include_test || ""
+        ) === "1";`, `      const isHfhsDemo = organization.slug === "henry-ford-health-demo";
+      const includeTest = req.query.include_test !== undefined
+        ? String(req.query.include_test) === "1"
+        : isHfhsDemo && req.query.performance_filter !== "1";`);
+  part=once(part,'      const eventTestSql =','      let eventTestSql =');
+  part=once(part,'      const campaignTestSql =',`      if (isHfhsDemo) eventTestSql += \`
+        AND EXISTS (SELECT 1 FROM campaigns active_demo_campaign
+          WHERE active_demo_campaign.id=e.campaign_id
+            AND active_demo_campaign.organization_id=$1
+            AND COALESCE(active_demo_campaign.is_archived,false)=false)
+        AND EXISTS (SELECT 1 FROM qr_codes active_demo_qr
+          WHERE active_demo_qr.id=e.qr_id
+            AND COALESCE(active_demo_qr.is_archived,false)=false)
+      \`;
+      const campaignTestSql =`);
+  part=once(part,'                <input\n                  type="hidden"\n                  name="organization_id"','                <input type="hidden" name="performance_filter" value="1" />\n                <input\n                  type="hidden"\n                  name="organization_id"');
+  part=once(part,'              <!-- =====================================\n                   LAUNCH SCORECARD',`              \${isHfhsDemo ? \`
+                <div class="card" style="border-left:4px solid #2563eb;margin-bottom:20px;">
+                  <strong>HFHS demonstration data\${includeTest ? " included" : " excluded"}</strong>
+                  <p style="margin:6px 0 0;color:#65776b;">\${includeTest
+                    ? "Results below use the existing HFHS sample campaigns for the selected dates. These are illustrative results, not actual Henry Ford Health outcomes. Archived demo campaigns are excluded."
+                    : "Include test data above to see the HFHS sample campaign results."}</p>
+                </div>\` : ""}
+              <!-- =====================================
+                   LAUNCH SCORECARD`);
+  return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
 }
 module.exports={install};
