@@ -306,6 +306,18 @@ body{margin:0;background:#f5f7fa;color:#17324d;font-family:Arial,Helvetica,sans-
       const rows=result.rows;
       const heading=rows[0]?.program_name || location.name;
       const intro=rows[0]?.program_description || "";
+      const showBusinessVivid = /golf|symposium|endoscopy|conference|trade show/i.test(location.name)
+        || rows.some(o => ['Trade Shows & Conferences','CME & Medical Education'].includes(o.program_name));
+      const businessVivid = showBusinessVivid ? `
+        <section class="business-vivid" aria-labelledby="business-vivid-title">
+          <div class="cat">Optional for sponsors and exhibitors</div>
+          <h2 id="business-vivid-title">Get more from your sponsorship with Vivid</h2>
+          <p>Turn a hole sign, exhibit booth or handout into a next step for your business. Use a Vivid QR code to share an offer, invite an inquiry or send visitors to your website—and measure scans, clicks and configured conversions.</p>
+          <p>You can also choose to use Vivid across your own real-world placements, website and connected digital campaigns for a broader view of your marketing performance.</p>
+          <a class="tool-btn" href="https://vividspots.com" target="_blank" rel="noopener noreferrer">Explore Vivid for Your Business ↗</a>
+          <p class="optional-note">Entirely optional. Additional Vivid services are priced separately and are not required to sponsor this event. Conversion and revenue reporting require tracking setup.</p>
+        </section>` : '';
+
       const cards=rows.map(o=>{
         const n=Number(o.price);
         const price=Number.isFinite(n)&&n>0
@@ -354,6 +366,9 @@ body{margin:0;background:#f5f7fa;color:#17324d;font-family:Arial,Helvetica,sans-
       h3{font-size:21px;line-height:1.25;margin:7px 0 10px}.body p{font-size:14px;line-height:1.52;color:#627487;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
       .mini-meta{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px}.mini-meta span{background:#f2f6fa;border-radius:999px;padding:6px 8px;font-size:11px;font-weight:800;color:#486279}
       .bottom{margin-top:auto;border-top:1px solid #e8edf2;padding-top:13px;display:flex;justify-content:space-between;gap:10px}.bottom strong{color:#123f69}.bottom b{font-size:12px;color:#1768a7}
+      .business-vivid{margin-top:30px;padding:24px;background:#fff;border:1px solid #cbdce8;border-radius:14px}
+      .business-vivid h2{font-size:25px;margin:9px 0 12px}.business-vivid p{max-width:960px;color:#52697c;line-height:1.6}
+      .business-vivid .tool-btn{display:inline-block;text-decoration:none;margin:5px 0}.business-vivid .optional-note{font-size:12px;margin-bottom:0}
       .performance{margin-top:34px;background:#0f3f69;color:#fff;border-radius:16px;padding:24px}
       .performance h2{margin:0 0 8px}.performance p{color:#dcecf8;max-width:900px;line-height:1.55}
       .metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:18px}.metric{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.15);border-radius:11px;padding:14px}.metric b{display:block;font-size:22px}.metric span{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#d5e7f5}
@@ -377,6 +392,7 @@ body{margin:0;background:#f5f7fa;color:#17324d;font-family:Arial,Helvetica,sans-
 
         <div class="count">${rows.length} sponsorship opportunities available for this event</div>
         <div class="grid">${cards}</div>
+        ${businessVivid}
 
         <section class="performance">
           <h2>What sponsors can receive after activation</h2>
