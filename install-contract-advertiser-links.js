@@ -1,6 +1,6 @@
 "use strict";
 const MARKER='// CONTRACT_ADVERTISER_LINKS_V1';
-function install(source){
+function installAdvertiserLinks(source){
  if(source.includes(MARKER))return source;
  const start=source.indexOf('app.get("/org-contracts",');
  const detail=source.indexOf('  "/org-contract/:contractId",',start);
@@ -36,5 +36,27 @@ function install(source){
 }
 `+guard);
  return source.slice(0,start)+part+source.slice(end)+'\n'+MARKER+'\n';
+}
+// Keep the saved inactive state; explain demo cleanup independently of contract dates.
+const ARCHIVE_MARKER='// CONTRACT_DEMO_ARCHIVE_LABEL_V1';
+function install(source){
+ source=installAdvertiserLinks(source);
+ if(source.includes(ARCHIVE_MARKER))return source;
+ const start=source.indexOf('app.get("/org-contracts",');
+ const detail=source.indexOf('  "/org-contract/:contractId",',start);
+ const end=source.indexOf('\napp.',detail);
+ if(start<0||detail<0||end<0)throw Error('Contract archive routes missing');
+ let part=source.slice(start,end);
+ const archived="(LOWER(COALESCE(c.status, '')) = 'inactive' AND COALESCE(ar.setup_status, '') = 'Demo Archived') AS demo_archived,";
+ if(!part.includes('c.status,')||!part.includes('c.*,'))throw Error('Contract archive select anchors missing');
+ part=part.replace('c.status,','c.status,\n          '+archived);
+ part=part.replace('c.*,','c.*,\n            '+archived);
+ let labels=0;
+ part=part.replace(/\$\{escapeHtml\(\s+contract.status \|\| "Draft"\s+\)\}/g,()=>{
+  labels++;
+  return '${escapeHtml(contract.demo_archived ? "Archived demo" : (contract.status || "Draft"))}${contract.demo_archived ? \'<span style="display:block;font-size:12px;font-weight:400;color:#65776b;margin-top:4px;">Removed from the active demo. Original dates retained for history.</span>\' : ""}';
+ });
+ if(labels!==3)throw Error('Expected list and detail contract status labels');
+ return source.slice(0,start)+part+source.slice(end)+'\n'+ARCHIVE_MARKER+'\n';
 }
 module.exports={install};
