@@ -306,18 +306,7 @@ body{margin:0;background:#f5f7fa;color:#17324d;font-family:Arial,Helvetica,sans-
       const rows=result.rows;
       const heading=rows[0]?.program_name || location.name;
       const intro=rows[0]?.program_description || "";
-      const showBusinessVivid = /golf|symposium|endoscopy|conference|trade show/i.test(location.name)
-        || rows.some(o => ['Trade Shows & Conferences','CME & Medical Education'].includes(o.program_name));
-      const businessVivid = showBusinessVivid ? `
-        <section class="business-vivid" aria-labelledby="business-vivid-title">
-          <div class="cat">Optional for sponsors and exhibitors</div>
-          <h2 id="business-vivid-title">Get more from your sponsorship with Vivid</h2>
-          <p>Turn a hole sign, exhibit booth or handout into a next step for your business. Use a Vivid QR code to share an offer, invite an inquiry or send visitors to your website—and measure scans, clicks and configured conversions.</p>
-          <p>You can also choose to use Vivid across your own real-world placements, website and connected digital campaigns for a broader view of your marketing performance.</p>
-          <a class="tool-btn" href="https://vividspots.com" target="_blank" rel="noopener noreferrer">Explore Vivid for Your Business ↗</a>
-          <p class="optional-note">Entirely optional. Additional Vivid services are priced separately and are not required to sponsor this event. Conversion and revenue reporting require tracking setup.</p>
-        </section>` : '';
-
+      const businessVivid = module.exports.businessSection();
       const cards=rows.map(o=>{
         const n=Number(o.price);
         const price=Number.isFinite(n)&&n>0
@@ -535,3 +524,12 @@ body{margin:0;background:#f5f7fa;color:#17324d;font-family:Arial,Helvetica,sans-
     }
   });
 };
+
+module.exports.businessSection = function(){return `<section aria-labelledby="business-vivid-title" style="margin:30px 0;padding:24px;background:#fff;border:1px solid #cbdce8;border-radius:14px;color:#17324d">
+<div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:#477ca8">Optional for every sponsor and advertiser</div>
+<h2 id="business-vivid-title" style="font-size:25px;margin:9px 0 12px">Get more from your sponsorship with Vivid</h2>
+<p style="max-width:960px;line-height:1.6;color:#52697c">Make it easy for people to take the next step with your business. Use a Vivid QR code on event signage, a golf hole sign, an exhibit booth, a program ad or a handout to share an offer, invite an inquiry or link to your website—and measure scans, clicks and configured conversions.</p>
+<p style="max-width:960px;line-height:1.6;color:#52697c">You can also choose to use Vivid across your own real-world placements, website and connected digital campaigns for a broader view of your marketing performance.</p>
+<a href="https://vividspots.com" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:11px 15px;border:1px solid #bfd0df;border-radius:9px;color:#174d78;text-decoration:none;font-weight:800">Explore Vivid for Your Business ↗</a>
+<p style="font-size:12px;line-height:1.6;color:#52697c;margin-bottom:0">Entirely optional. Additional Vivid services are priced separately and are not required to sponsor this event. Conversion and revenue reporting require tracking setup.</p>
+</section>`;};

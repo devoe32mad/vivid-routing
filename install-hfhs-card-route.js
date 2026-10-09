@@ -2,6 +2,16 @@
 const fs=require("fs"),path=require("path");
 const MARKER="// HFHS_CARD_ROUTE_REGISTERED_V1";
 function install(source){
+ const businessMarker='// HFHS_OPTIONAL_BUSINESS_V1';
+ if(!source.includes(businessMarker)){
+  const a=source.indexOf('  "/advertise/:slug/location/:locationId/opportunity/:opportunityId",'),b=source.indexOf('\napp.',a+1);
+  if(a<0||b<0)throw Error('Opportunity detail route missing');
+  let part=source.slice(a,b);const anchor='          </main>';
+  if(part.split(anchor).length!==2)throw Error('Opportunity detail footer anchor missing');
+  part=part.replace(anchor,'            ${require("./hfhs-marketplace-route").businessSection()}\n'+anchor);
+  source=source.slice(0,a)+part+source.slice(b)+'\n'+businessMarker+'\n';
+ }
+
  if(source.includes(MARKER))return source;
  const anchor='  "/advertise/:slug",';
  const pos=source.indexOf(anchor);
