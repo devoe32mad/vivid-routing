@@ -11,7 +11,7 @@ function install(source){
  const line=`${MARKER}\nrequire("./hfhs-marketplace-route")(app,{q,escapeHtml});\n`;
  return source.slice(0,appGet)+line+source.slice(appGet);
 }
-if(require.main===module){try{const f=path.join(__dirname,"server.js"),s=fs.readFileSync(f,"utf8"),n=require("./placement-performance").install(require("./renewal-exports").install(installPipeline(require("./install-contract-advertiser-links").install(require("./install-org-active-advertising").install(require("./install-hfhs-report-scope").install(require("./hfhs-demo-setup-scope").install(install(s))))))));if(n!==s)fs.writeFileSync(f,n);console.log("HFHS card route installed.");}catch(e){console.error("HFHS card route install skipped:",e.message);}}
+if(require.main===module){try{const f=path.join(__dirname,"server.js"),s=fs.readFileSync(f,"utf8"),n=require("./sponsorship-operations").install(require("./placement-performance").install(require("./renewal-exports").install(installPipeline(require("./install-contract-advertiser-links").install(require("./install-org-active-advertising").install(require("./install-hfhs-report-scope").install(require("./hfhs-demo-setup-scope").install(install(s)))))))));if(n!==s)fs.writeFileSync(f,n);console.log("HFHS card route installed.");}catch(e){console.error("HFHS card route install skipped:",e.message);}}
 
 function installPipeline(source){
  const marker='// PIPELINE_CONTRACT_METRICS_V1';

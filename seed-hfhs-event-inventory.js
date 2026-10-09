@@ -325,6 +325,7 @@ async function main(){
     await require("./seed-hfhs-linked-demo").main();
     await require("./restore-hfhs-demo-history").main();
     await require("./trim-hfhs-demo").main();
+    await require("./sponsorship-operations").main();
   }catch(e){
     if(client){try{await client.query("ROLLBACK");}catch(_){}}
     console.error("HFHS EVENT INVENTORY HIERARCHY ERROR:",e.message);
