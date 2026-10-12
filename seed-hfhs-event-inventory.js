@@ -247,11 +247,12 @@ function impressionEstimate(eventName,placementName='') {
   const index=EVENTS.findIndex(e=>e.name===eventName);
   if(index<0) return null;
   const audience=DEMO_AUDIENCES[index];
-  const exposures=/registration|event signage|destination: grand|program book/i.test(placementName)?3:2;
+  const exposures=/golf|hospice/i.test(eventName)?8:
+    /registration|event signage|destination: grand|program book/i.test(placementName)?8:6;
   return {audience,exposures,total:audience*exposures};
 }
 async function reconcileDemoImpressions(client) {
-  const key='hfhs-event-impressions-20261012-v1';
+  const key='hfhs-event-impressions-20261012-v2';
   await client.query('BEGIN');
   try {
     await client.query('SELECT pg_advisory_xact_lock(2026101201)');
@@ -265,15 +266,15 @@ async function reconcileDemoImpressions(client) {
     const manifest={organizationId:org[0].id,spaces:[],qrs:[]};
     for(const space of spaces){
       const estimate=impressionEstimate(space.name);if(!estimate)continue;
-      const note=e=>` DEMO IMPRESSION ESTIMATE: ${e.audience} assumed attendees x ${e.exposures} potential placement exposures = ${e.total} estimated impressions for one event occurrence in the annual cycle. Illustrative planning assumption, not verified HFHS attendance, measured views, or unique reach.`;
+      const note=e=>` DEMO IMPRESSION ESTIMATE: ${e.audience} assumed attendees x ${e.exposures} repeat branding exposures across the event = ${e.total} estimated impressions for one event occurrence in the annual cycle. Illustrative planning assumption, not verified HFHS attendance, measured views, or unique reach.`;
       manifest.spaces.push(space);
-      await client.query(`UPDATE spaces SET annual_impressions=$2,description=COALESCE(description,'') || $3 WHERE id=$1 AND organization_id=$4`,[space.id,estimate.total,note(estimate),org[0].id]);
+      await client.query(`UPDATE spaces SET annual_impressions=$2,description=regexp_replace(COALESCE(description,''),' DEMO IMPRESSION ESTIMATE:.*$','') || $3 WHERE id=$1 AND organization_id=$4`,[space.id,estimate.total,note(estimate),org[0].id]);
       const qrs=(await client.query(`SELECT qr.id,qr.name,qr.annual_impressions,qr.description FROM qr_codes qr
         WHERE qr.space_id=$1 AND COALESCE(qr.is_archived,false)=false
         AND (qr.name LIKE 'HFHS Demo%' OR qr.description LIKE '%PRIVATE VIVID DEMO%')`,[space.id])).rows;
       for(const qr of qrs){
         const e=impressionEstimate(space.name,qr.name);manifest.qrs.push(qr);
-        await client.query(`UPDATE qr_codes SET annual_impressions=$2,description=COALESCE(description,'') || $3 WHERE id=$1 AND space_id=$4`,[qr.id,e.total,note(e),space.id]);
+        await client.query(`UPDATE qr_codes SET annual_impressions=$2,description=regexp_replace(COALESCE(description,''),' DEMO IMPRESSION ESTIMATE:.*$','') || $3 WHERE id=$1 AND space_id=$4`,[qr.id,e.total,note(e),space.id]);
       }
     }
     await client.query('INSERT INTO vivid_evaluation_fixtures(fixture_key,organization_id,manifest) VALUES($1,$2,$3::jsonb)',[key,org[0].id,JSON.stringify(manifest)]);
@@ -373,6 +374,7 @@ async function main(){
       COUNT(e.id) FILTER(WHERE e.type='scan')::int scans,
       COUNT(e.id) FILTER(WHERE e.type IN ('offer','maps','waze','destination_click'))::int clicks,
       COUNT(e.id) FILTER(WHERE e.type='conversion')::int conversions,
+      COALESCE(SUM(e.value) FILTER(WHERE e.type='conversion'),0)::numeric revenue,
       EXISTS(SELECT 1 FROM organization_advertising_requests ar WHERE ar.organization_id=s.organization_id
         AND ar.created_qr_id=qr.id AND LOWER(TRIM(ar.status))='approved'
         AND ar.setup_status IS DISTINCT FROM 'Demo Archived') AS included_in_advertiser
@@ -386,6 +388,7 @@ async function main(){
         AND COALESCE(qr.live_date,qr.created_at::date)<='2026-10-12'
       GROUP BY qr.id,s.organization_id ORDER BY qr.id`);
     console.log('HFHS METRIC AUDIT 2026-09-13/2026-10-12:',JSON.stringify(audit.rows));
+    console.log('HFHS RECONCILED DEMO TOTALS:',JSON.stringify(audit.rows.filter(r=>r.included_in_advertiser).reduce((t,r)=>{for(const k of ['scans','clicks','conversions','revenue'])t[k]+=Number(r[k]||0);return t;},{scans:0,clicks:0,conversions:0,revenue:0})));
   }catch(e){
     if(client){try{await client.query("ROLLBACK");}catch(_){}}
     console.error("HFHS EVENT INVENTORY HIERARCHY ERROR:",e.message);
