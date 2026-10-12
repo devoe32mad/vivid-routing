@@ -272,7 +272,7 @@ function installExecutiveConsistency(source){
   if(source.includes(marker))return source;
   const a=source.indexOf('  WITH filtered_locations AS ('),b=source.indexOf('  qr_campaign_metrics AS (',a);
   if(a<0||b<0)throw Error('Overview scope missing');
-  const prefix=source.slice(a,b);
+  const prefix=source.slice(a,b).replace("WITH filtered_locations AS (","WITH\n filtered_locations AS (");
   const metrics=`event_metrics AS (
     SELECT fq.id,
       COUNT(e.id) FILTER(WHERE e.type='scan')::int AS scans,
