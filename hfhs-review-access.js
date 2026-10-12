@@ -10,12 +10,13 @@ function editableRoute(path){return /^\/admin\/edit-campaign\/\d+$/.test(path)||
 function routeAllowed(path){return editableRoute(path)|| simple.has(path)||path==='/org-organization/39'||/^\/advertise\/henry-ford-health-demo(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path)||/^\/org-(?:location|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/view-campaign\/\d+$/.test(path);}
 function validToken(value){if(typeof value!=='string'||value.length>100)return false;return crypto.timingSafeEqual(crypto.createHash('sha256').update(value).digest(),Buffer.from(TOKEN_HASH,'hex'));}
 function install(source){
- const editorMarker='// HFHS_REVIEW_CAMPAIGN_CHOICES_V1';
+ const editorMarker='// HFHS_REVIEW_CAMPAIGN_CHOICES_V2';
  if(!source.includes(editorMarker)){
   const start=source.indexOf('app.get(\n  "/admin/edit-campaign/:campaignId",'),end=source.indexOf('\napp.',start+1);
   if(start<0||end<0)throw Error('Review campaign editor anchor missing');
   let part=source.slice(start,end);const anchor='      const assignedQrs = await q(';
   if(part.split(anchor).length!==2)throw Error('Review QR choices anchor missing');
+  part=part.replace(anchor,`      const marketplaceRequest=(await q(\`SELECT ar.*,o.name AS organization_name,s.name AS event_name FROM organization_advertising_requests ar JOIN organizations o ON o.id=ar.organization_id LEFT JOIN spaces s ON s.id=ar.location_id AND s.organization_id=o.id WHERE ar.created_campaign_id=$1 AND ar.created_vivid_user_id=$2 AND ar.setup_status IS DISTINCT FROM 'Demo Archived' ORDER BY ar.id LIMIT 1\`,[campaignId,campaignOwnerId])).rows[0]||null;\n`+anchor);
   part=part.replace(anchor,'      if(req.hfhsReviewVerified){const demoScope=await require("./hfhs-demo-setup-scope").reportScope(q,req.session.user);qrs.rows=qrs.rows.filter(r=>demoScope.qrIds.includes(Number(r.id)));}\n'+anchor);
   source=source.slice(0,start)+part+source.slice(end)+'\n'+editorMarker+'\n';
  }
