@@ -120,7 +120,7 @@ function registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizat
     if(requested!==undefined && (typeof requested!=="string" || !/^[1-9]\d*$/.test(requested) || !validId(requested)))return res.status(400).send("Choose a valid account.");
     if(!canSelect && requested!==undefined && Number(requested)!==ownId)return res.status(403).send("Account access denied.");
     const demoScope=await require("./hfhs-demo-setup-scope").reportScope(q,user);
-    if(demoScope)return res.send(page("Marketing Command Center",await renderHfhsMarketingDemo({q,range,scope:demoScope,platform:req.query.platform||""})));
+    if(demoScope)return res.send(page("Marketing Command Center",await renderHfhsMarketingDemo({q,range,scope:demoScope,user,platform:req.query.platform||"",campaign:req.query.campaign||""})));
     const accounts=canSelect?(await q("SELECT id,name FROM users WHERE role='customer' OR id=$1 ORDER BY name,id",[ownId])).rows:[];
     let selectedId=canSelect?Number(requested ?? req.session.marketingAccountId ?? ownId):ownId;
     if(selectedId!==ownId && !accounts.some(a=>Number(a.id)===selectedId)) {
@@ -220,33 +220,19 @@ function registerMarketingCommandCenterRoutes({app,q,pool,page,orgPage,organizat
 module.exports={registerMarketingCommandCenterRoutes};
 
 
-async function renderHfhsMarketingDemo({q,range,scope,platform=""}){
+async function renderHfhsMarketingDemo({q,range,scope,user,platform="",campaign=""}){
   const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const campaigns=(await q(`SELECT c.id,c.name,COUNT(e.id) FILTER(WHERE e.type='scan')::int scans,
     COUNT(e.id) FILTER(WHERE e.type IN('offer','maps','waze','destination_click'))::int clicks,
-    COUNT(e.id) FILTER(WHERE e.type='conversion')::int conversions
+    COUNT(e.id) FILTER(WHERE e.type='conversion')::int conversions,
+    COALESCE(SUM(e.value) FILTER(WHERE e.type='conversion'),0) conversion_value
     FROM campaigns c LEFT JOIN events e ON e.campaign_id=c.id AND e.qr_id=ANY($2::int[])
       AND e.created_at >= $3::date AND e.created_at < $4::date+INTERVAL '1 day'
     WHERE c.id=ANY($1::int[]) AND COALESCE(c.is_archived,false)=false GROUP BY c.id,c.name ORDER BY c.name`,[scope.campaignIds,scope.qrIds,range.from,range.to])).rows;
-  // Presentation-only daily examples. Never saved as events or connector evidence.
-  const days=Math.max(0,(Math.min(Date.parse(range.to),Date.parse('2026-10-12'))-Math.max(Date.parse(range.from),Date.parse('2026-09-13')))/86400000+1);
-  const sample=(n)=>Math.round(n*days/30);
-  const examples=[{id:'meta',name:'Social advertising',channel:'Facebook + Instagram',campaign:'HFHS event sponsor awareness',metrics:[['Impressions',sample(8400)],['Clicks',sample(126)],['Spend','$'+sample(210)],['Sample inquiries',sample(6)]]},
-    {id:'google_ads',name:'Search advertising',channel:'Google Ads',campaign:'HFHS sponsor event offer',metrics:[['Impressions',sample(3600)],['Clicks',sample(108)],['Spend','$'+sample(270)],['Sample inquiries',sample(5)]]},
-    {id:'ga4',name:'Website activity',channel:'Sponsor website',campaign:'HFHS sponsor landing page',metrics:[['Sessions',sample(240)],['Engaged sessions',sample(156)],['Offer clicks',sample(42)],['Sample inquiries',sample(8)]]}];
-  const href=id=>'/admin/marketing-command-center?'+new URLSearchParams({from:range.from,to:range.to,...(id?{platform:id}:{})});
-  const total=key=>campaigns.reduce((n,c)=>n+Number(c[key]||0),0);
-  const selected=examples.find(e=>e.id===platform);
-  const metrics=items=>items.map(([label,value])=>`<div><div class="label">${esc(label)}</div><strong style="font-size:24px">${esc(value)}</strong></div>`).join('');
-  const card=(id,name,items,note)=>`<a class="card" style="text-decoration:none;color:inherit;display:block" href="${esc(href(id))}"><h2>${esc(name)}</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">${metrics(items)}</div><p class="small">${esc(note)}</p><span>View details →</span></a>`;
-  const report='/reports?'+new URLSearchParams({start_date:range.from,end_date:range.to});
-  return `<div class="wrap"><h1>Marketing Command Center</h1><p>Optional sponsor capability · See event placements, digital advertising, and website engagement together.</p>
-    <div class="note"><strong>HFHS demonstration · illustrative data</strong><p>Placement results use the HFHS demo campaigns. Digital and website examples are simulated for September 13–October 12, 2026; no HFHS advertising or website accounts are connected. Inquiries may overlap across channels and are not added together.</p></div>
-    <form class="card" method="get" style="display:flex;gap:16px;align-items:end;flex-wrap:wrap"><label>From<input type="date" name="from" value="${esc(range.from)}"></label><label>To<input type="date" name="to" value="${esc(range.to)}"></label>${platform?`<input type="hidden" name="platform" value="${esc(platform)}">`:""}<button class="btn" type="submit">Update period</button></form>
-    ${platform?`<p><a class="btn secondary" href="${esc(href(''))}">All channels</a></p>`:''}
-    ${selected?`<div class="card"><h2>${esc(selected.name)}</h2><p>${esc(selected.channel)} · ${esc(selected.campaign)}</p><span class="pill">Simulated example</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:20px">${metrics(selected.metrics)}</div><p>Illustrates how a sponsor can review supporting marketing around its HFHS event placement. These figures do not represent measured outcomes or guaranteed returns.</p></div>`:
-    platform==='vivid'?`<div class="card"><h2>HFHS placement results</h2><div style="overflow-x:auto"><table><tr><th>Campaign</th><th>Scans</th><th>Clicks</th><th>Conversions</th></tr>${campaigns.map(c=>`<tr><td>${esc(c.name)}</td><td>${Number(c.scans)}</td><td>${Number(c.clicks)}</td><td>${Number(c.conversions)}</td></tr>`).join('')}</table></div><a class="btn" href="${esc(report)}">Open placement reports</a></div>`:
-    `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px">${card('vivid','Event placements',[['Scans',total('scans')],['Clicks',total('clicks')],['Conversions',total('conversions')]],'Existing HFHS demo results for the selected dates')}${examples.map(e=>card(e.id,e.name,e.metrics,'Simulated example · '+e.channel)).join('')}</div>`}
-    <div class="card"><h2>More value for sponsors</h2><p>Help sponsors understand engagement around their placement, evaluate supporting advertising, and bring clearer results into renewal discussions.</p><a class="btn" href="${esc(report)}">Back to sponsorship reports</a></div></div>`;
+  const banner='<div class="wrap"><div class="note"><strong>HFHS demonstration</strong><p>Placement results use HFHS sample campaigns. Digital platforms show their connection status; no simulated advertising results or unrelated account data are included.</p></div></div>';
+  return banner+renderCommandCenter({title:"Your marketing, together",scope:{kind:"advertiser",userId:Number(user.id),accountName:"HFHS advertiser demo",accountSelection:false,privateAdsAllowed:true},range,campaigns,
+    squareStatus:"Not connected",googleEnabled:true,metaEnabled:true,linkedinEnabled:true,tiktokEnabled:true,redditEnabled:true,pinterestEnabled:true,youtubeEnabled:true,analyticsEnabled:true,
+    platform,campaign,aiVisible:false});
 }
+
 module.exports.renderHfhsMarketingDemo=renderHfhsMarketingDemo;
