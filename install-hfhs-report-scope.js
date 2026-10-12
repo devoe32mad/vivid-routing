@@ -42,6 +42,7 @@ function installExportCenter(source){
   return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
 }
 function install(source){
+  source=installRequestLocationFilters(source);
   source=installSalesOpportunityCards(source);
   source=installLocationDemoScope(source);
   source=installMarketingDemoLink(source);
@@ -243,5 +244,23 @@ function installSalesOpportunityCards(source){
                 \${opportunityRows}`);
   part=part.replace('${opportunities.length}','${visibleOpportunities.length}').replace('opportunities.length === 1','visibleOpportunities.length === 1');
   part=once(part,'No sales opportunities yet','${selectedOutcome === "All" ? "No sales opportunities yet" : "No " + selectedOutcome.toLowerCase() + " opportunities"}');
+  return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
+}
+
+function installRequestLocationFilters(source){
+  const marker='// REQUEST_LOCATION_CARD_FILTERS_V1';
+  if(source.includes(marker))return source;
+  const start=source.indexOf('app.get(\n  "/org-advertising-requests",'),end=source.indexOf('\napp.',start+1);
+  if(start<0||end<0)throw Error('Advertising request route missing');
+  let part=source.slice(start,end);
+  part=once(part,'const requestLocationSummaries =','let requestLocationSummaries =');
+  part=once(part,'      const requestLocationCards =',`      if(selectedStatus!=="All" || cleanSearch || selectedLocationId){
+        const matchingLocations=new Set(filteredRequests.map(r=>Number(r.location_id)));
+        requestLocationSummaries=requestLocationSummaries.filter(l=>matchingLocations.has(Number(l.location_id)));
+      }
+      const requestLocationCards =`);
+  part=once(part,'            \`&location_id=\${locationId}\`;','            `&location_id=${locationId}` +\n            (selectedStatus!=="All" ? "&status="+encodeURIComponent(selectedStatus) : "") +\n            (cleanSearch ? "&search="+encodeURIComponent(cleanSearch) : "");');
+  part=once(part,'href="${locationUrl}"','href="${escapeHtml(locationUrl)}"');
+  part=once(part,'No active locations were found.','${selectedStatus!=="All" || cleanSearch ? "No locations have requests matching the selected filters." : "No active locations were found."}');
   return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
 }
