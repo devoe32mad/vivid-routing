@@ -47,6 +47,7 @@ function install(source){
     source=source.slice(0,a)+part+source.slice(b);
   }
 
+  source=compactCampaignActions(source);
   const marker='// HFHS_DEMO_SETUP_SCOPE_V1';
   if(source.includes(marker))return source;
   const start=source.indexOf('app.get("/my-setup",');
@@ -78,3 +79,29 @@ function scopedRows(rows,scope,type,key){
   const allowed=new Set(scope[type]);return rows.filter(r=>allowed.has(Number(r[key])));
 }
 module.exports={filterSetup,install,isHfhsDemo,reportScope,scopedRows};
+
+function compactCampaignActions(source){
+  const marker='// COMPACT_CAMPAIGN_ACTIONS_V1';
+  if(source.includes(marker))return source;
+  const start=source.indexOf('app.get("/my-setup",'),end=source.indexOf('\napp.',start+1);
+  let part=source.slice(start,end);
+  const anchor='<td>\n  <a href="/admin/view-campaign/${c.id}">View</a>';
+  const a=part.indexOf(anchor),b=part.indexOf('</td>',a);
+  if(a<0||b<0)throw Error('Campaign action cell missing');
+  const cell=part.slice(a,b);
+  const links=cell.match(/<a\b[\s\S]*?<\/a>/g)||[];
+  if(links.length!==5)throw Error('Expected five campaign actions');
+  const view=links.find(l=>l.includes('/admin/view-campaign/'));
+  const edit=links.find(l=>l.includes('/admin/edit-campaign/'));
+  const help=links.find(l=>l.includes('/campaign-help?'))?.replace('Campaign Builder / Request Help','Request help');
+  const visits=links.find(l=>l.includes('/website-pages'));
+  const archive=links.find(l=>l.includes('/admin/archive-campaign/'));
+  if(!view||!edit||!help||!visits||!archive)throw Error('Campaign action link missing');
+  const replacement='<td style="min-width:110px;vertical-align:middle;">'+
+    '<div style="display:flex;justify-content:center;gap:14px;white-space:nowrap;">'+view+edit+'</div>'+
+    '<details style="margin-top:9px;text-align:left;display:inline-block;">'+
+    '<summary style="cursor:pointer;color:#52657b;font-size:13px;font-weight:600;">More</summary>'+
+    '<div style="display:flex;flex-direction:column;gap:10px;padding:12px 0 4px;font-size:13px;white-space:nowrap;">'+help+visits+archive+'</div></details>';
+  part=part.slice(0,a)+replacement+part.slice(b);
+  return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
+}
