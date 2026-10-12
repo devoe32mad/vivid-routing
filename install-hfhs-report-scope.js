@@ -24,7 +24,25 @@ function installReportScope(source){
   }
   return source+'\n'+marker+'\n';
 }
+function installExportCenter(source){
+  const marker='// HFHS_EXPORT_CENTER_ACCESS_V1';
+  if(source.includes(marker))return source;
+  source=once(source,'      basicLockedRoutes.has(requestPath) &&',`      basicLockedRoutes.has(requestPath) &&
+      !(requestPath === "/admin/reports" && await require("./hfhs-demo-setup-scope").reportScope(q,req.session.user)) &&`);
+  const start=source.indexOf('app.get("/admin/reports", requireLogin, async (req, res) => {');
+  const end=source.indexOf('\napp.',start+1);
+  if(start<0||end<0)throw Error('Export Center route missing');
+  let part=source.slice(start,end);
+  part=once(part,'    const reportRows = await buildExportReportRows(',`    const hfhsExportScope = await require("./hfhs-demo-setup-scope").reportScope(q,req.session.user);
+    locations.rows = require("./hfhs-demo-setup-scope").scopedRows(locations.rows,hfhsExportScope,"locationIds","id");
+    qrs.rows = require("./hfhs-demo-setup-scope").scopedRows(qrs.rows,hfhsExportScope,"qrIds","id");
+    campaigns.rows = require("./hfhs-demo-setup-scope").scopedRows(campaigns.rows,hfhsExportScope,"campaignIds","id");
+    const reportRows = await buildExportReportRows(`);
+  part=once(part,'res.send(page("Reports",','res.send(page("Export Center",');
+  return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
+}
 function install(source){
+  source=installExportCenter(source);
   source=installReportScope(source);
   const marker='// HFHS_PERFORMANCE_DEMO_DEFAULT_V1';
   if(source.includes(marker))return source;
