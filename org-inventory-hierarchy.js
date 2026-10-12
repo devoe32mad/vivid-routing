@@ -107,6 +107,29 @@ module.exports = function installOrgInventoryHierarchy(
       );
 
       const opportunities = opportunityResult.rows;
+      const sponsorResult = selectedLocationId && opportunityResult.rows.length
+        ? await q(`SELECT DISTINCT ON (opportunity_id,LOWER(name)) opportunity_id,name,request_id,contract_id
+            FROM (
+              SELECT ar.opportunity_id,TRIM(ar.business_name) AS name,ar.id AS request_id,NULL::int AS contract_id
+              FROM organization_advertising_requests ar
+              WHERE ar.organization_id=$1 AND ar.location_id=$2 AND ar.opportunity_id=ANY($3::int[])
+                AND LOWER(TRIM(ar.status))='approved' AND ar.setup_status IS DISTINCT FROM 'Demo Archived'
+                AND NULLIF(TRIM(ar.business_name),'') IS NOT NULL
+              UNION ALL
+              SELECT c.opportunity_id,TRIM(a.name) AS name,NULL::int AS request_id,c.id AS contract_id
+              FROM contracts c JOIN advertisers a ON a.id=c.advertiser_id AND a.organization_id=c.organization_id
+              WHERE c.organization_id=$1 AND c.location_id=$2 AND c.opportunity_id=ANY($3::int[])
+                AND LOWER(TRIM(c.status))='active' AND NULLIF(TRIM(a.name),'') IS NOT NULL
+            ) sponsors ORDER BY opportunity_id,LOWER(name),request_id NULLS LAST,contract_id DESC`,
+            [organizationId,selectedLocationId,opportunities.map(item=>item.id)])
+        : {rows:[]};
+      const sponsorsByOpportunity = new Map();
+      for(const sponsor of sponsorResult.rows){
+        const key=Number(sponsor.opportunity_id);
+        if(!sponsorsByOpportunity.has(key))sponsorsByOpportunity.set(key,[]);
+        sponsorsByOpportunity.get(key).push(sponsor);
+      }
+
 
       const badge = status => {
         const value = String(status || "Available");
@@ -363,6 +386,16 @@ module.exports = function installOrgInventoryHierarchy(
               ? money(priceValue)
               : (item.pricing_unit || "Custom");
 
+          const sold = ["sold","approved","closed"].includes(String(item.status || "").trim().toLowerCase());
+          const sponsors = sponsorsByOpportunity.get(Number(item.id)) || [];
+          const sponsorLine = !sold ? '' : '<div style="margin-top:10px;font-size:14px;color:#173f64;"><strong>Sponsor:</strong> ' +
+            (sponsors.length ? sponsors.map(sponsor => {
+              const href = sponsor.request_id
+                ? '/org-advertising-request/' + sponsor.request_id + '?organization_id=' + organizationId
+                : '/org-contract/' + sponsor.contract_id + '?organization_id=' + organizationId;
+              return '<a href="' + escapeHtml(href) + '" style="color:#176b3a;text-decoration:underline;">' + escapeHtml(sponsor.name) + '</a>';
+            }).join(', ') : 'Sponsor not linked') + '</div>';
+
           return '<div class="marketplace-card" style="height:100%;">' +
             (item.has_photo
               ? '<img src="/org-opportunity/' + item.id + '/photo" alt="" style="width:100%;height:180px;object-fit:cover;border-radius:12px;margin-bottom:16px;">'
@@ -373,6 +406,7 @@ module.exports = function installOrgInventoryHierarchy(
             '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;">' +
             '<strong>' + escapeHtml(priceText) + '</strong>' + badge(item.status) +
             '</div>' +
+            sponsorLine +
             '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid #e7eee7;">' +
             '<a class="marketplace-btn" href="/org-opportunity/edit/' + item.id + '?organization_id=' + organizationId + '" style="margin:0;padding:8px 12px;font-size:12px;">Edit Opportunity</a>' +
             '<form method="POST" action="/org-opportunity/duplicate/' + item.id + '" style="margin:0;" onsubmit="return confirm(\'Duplicate this opportunity?\');">' +
