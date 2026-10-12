@@ -24,6 +24,18 @@ async function filterSetup(q,user,results){
   }
 }
 function install(source){
+  const collaborationMarker='// SPONSOR_CAMPAIGN_COLLABORATION_V1';
+  if(!source.includes(collaborationMarker)){
+    const route='app.get("/my-setup",';
+    if(source.split(route).length!==2)throw Error('Campaign collaboration setup route missing');
+    source=source.replace(route,collaborationMarker+'\nrequire("./campaign-collaboration").register({app,q,page,orgPage,organizationNav,requireLogin,requireOrganizationPermission,getOrganizationScope});\n'+route);
+    const edit='<a href="/admin/edit-campaign/${c.id}">Edit</a>';
+    const a=source.indexOf(route),b=source.indexOf('\napp.',a+1);let part=source.slice(a,b);
+    if(part.split(edit).length!==2)throw Error('Campaign collaboration edit link missing');
+    part=part.replace(edit,edit+' &nbsp;|&nbsp; <a href="/campaign-help?campaign_id=${c.id}">Campaign Builder / Request Help</a>');
+    source=source.slice(0,a)+part+source.slice(b);
+  }
+
   const marker='// HFHS_DEMO_SETUP_SCOPE_V1';
   if(source.includes(marker))return source;
   const start=source.indexOf('app.get("/my-setup",');
