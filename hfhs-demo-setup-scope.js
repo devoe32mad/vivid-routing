@@ -47,7 +47,7 @@ function install(source){
     source=source.slice(0,a)+part+source.slice(b);
   }
 
-  source=archiveUnderStatus(compactCampaignActions(source));
+  source=showCampaignButtons(archiveUnderStatus(compactCampaignActions(source)));
   const marker='// HFHS_DEMO_SETUP_SCOPE_V1';
   if(source.includes(marker))return source;
   const start=source.indexOf('app.get("/my-setup",');
@@ -120,5 +120,19 @@ function archiveUnderStatus(source){
   if(status<0||close<0)throw Error('Campaign status cell missing');
   const archive=links[0].replace('style="color:red;"','style="color:#b91c1c;font-size:12px;font-weight:500;"');
   part=part.slice(0,close)+'<div style="margin-top:9px;white-space:nowrap;">'+archive+'</div>\n'+part.slice(close);
+  return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
+}
+
+function showCampaignButtons(source){
+  const marker='// VISIBLE_CAMPAIGN_BUTTONS_V1';
+  if(source.includes(marker))return source;
+  const start=source.indexOf('app.get("/my-setup",'),end=source.indexOf('\napp.',start+1);
+  let part=source.slice(start,end);
+  const a=part.indexOf('<td style="min-width:110px;vertical-align:middle;">'),b=part.indexOf('</td>',a);
+  if(a<0||b<0)throw Error('Compact campaign action cell missing');
+  const links=part.slice(a,b).match(/<a\b[\s\S]*?<\/a>/g)||[];
+  if(links.length!==4)throw Error('Expected four campaign actions');
+  const buttons=links.map(link=>link.replace('<a href=','<a style="display:block;padding:7px 8px;border:1px solid #dbe4ef;border-radius:7px;background:#f5f8fc;color:#245ab8;text-decoration:none;font-size:12px;font-weight:600;line-height:1.25;white-space:nowrap;" href=')).join('');
+  part=part.slice(0,a)+'<td style="min-width:175px;vertical-align:middle;"><div style="display:grid;grid-template-columns:repeat(2,max-content);justify-content:center;gap:7px;">'+buttons+'</div>'+part.slice(b);
   return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
 }
