@@ -96,7 +96,9 @@ module.exports = function installOrgInventoryHierarchy(
 
       if (selectedStatus !== "All") {
         params.push(selectedStatus);
-        where += " AND (" + inventoryStatus + ")=$" + params.length;
+        where += selectedStatus === "Sold"
+          ? " AND LOWER(TRIM(" + inventoryStatus + ")) IN (LOWER($" + params.length + "),'approved','closed')"
+          : " AND LOWER(TRIM(" + inventoryStatus + "))=LOWER($" + params.length + ")";
       }
 
       const opportunityResult = await q(
@@ -212,28 +214,35 @@ module.exports = function installOrgInventoryHierarchy(
       const overallRevenue =
         revenueTotals(opportunities);
 
+      const summaryHref = status => "/org-marketplace?" + new URLSearchParams({
+        organization_id:String(organizationId),
+        ...(selectedProgramId ? {program_id:String(selectedProgramId)} : {}),
+        ...(selectedLocationId ? {location_id:String(selectedLocationId)} : {}),
+        ...(status === "All" ? {} : {status})
+      }).toString();
+
       const topSummary =
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:22px;">' +
-        '<div class="marketplace-card" style="margin:0;border:1px solid #dfe8e0;">' +
+        '<a class="marketplace-card" href="' + escapeHtml(summaryHref("Available")) + '" aria-label="Available Revenue — view opportunities" style="display:block;text-decoration:none;color:inherit;margin:0;border:1px solid #dfe8e0;">' +
         '<div style="font-size:11px;color:#65776b;">Available Revenue</div>' +
         '<div style="font-size:26px;font-weight:bold;color:#166534;margin-top:6px;">' + money(overallRevenue.available) + '</div>' +
         '<div style="font-size:12px;color:#65776b;margin-top:5px;">' + overallCounts.available + ' opportunities</div>' +
-        '</div>' +
-        '<div class="marketplace-card" style="margin:0;border:1px solid #eadfbd;">' +
+        '</a>' +
+        '<a class="marketplace-card" href="' + escapeHtml(summaryHref("Pending")) + '" aria-label="Pending Revenue — view opportunities" style="display:block;text-decoration:none;color:inherit;margin:0;border:1px solid #eadfbd;">' +
         '<div style="font-size:11px;color:#65776b;">Pending Revenue</div>' +
         '<div style="font-size:26px;font-weight:bold;color:#92400E;margin-top:6px;">' + money(overallRevenue.pending) + '</div>' +
         '<div style="font-size:12px;color:#65776b;margin-top:5px;">' + overallCounts.pending + ' opportunities</div>' +
-        '</div>' +
-        '<div class="marketplace-card" style="margin:0;border:1px solid #ecd5d5;">' +
+        '</a>' +
+        '<a class="marketplace-card" href="' + escapeHtml(summaryHref("Sold")) + '" aria-label="Sold Revenue — view opportunities" style="display:block;text-decoration:none;color:inherit;margin:0;border:1px solid #ecd5d5;">' +
         '<div style="font-size:11px;color:#65776b;">Sold Revenue</div>' +
         '<div style="font-size:26px;font-weight:bold;color:#991B1B;margin-top:6px;">' + money(overallRevenue.sold) + '</div>' +
         '<div style="font-size:12px;color:#65776b;margin-top:5px;">' + overallCounts.sold + ' opportunities</div>' +
-        '</div>' +
-        '<div class="marketplace-card" style="margin:0;border:1px solid #dfe4ea;">' +
+        '</a>' +
+        '<a class="marketplace-card" href="' + escapeHtml(summaryHref("All")) + '" aria-label="Total Inventory Value — view opportunities" style="display:block;text-decoration:none;color:inherit;margin:0;border:1px solid #dfe4ea;">' +
         '<div style="font-size:11px;color:#65776b;">Total Inventory Value</div>' +
         '<div style="font-size:26px;font-weight:bold;color:#173f64;margin-top:6px;">' + money(overallRevenue.total) + '</div>' +
         '<div style="font-size:12px;color:#65776b;margin-top:5px;">Current filtered view</div>' +
-        '</div>' +
+        '</a>' +
         '</div>';
 
       let heading = "Event Types";
