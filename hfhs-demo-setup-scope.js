@@ -24,11 +24,22 @@ async function filterSetup(q,user,results){
   }
 }
 function install(source){
+  const emailMarker='// CAMPAIGN_COLLABORATION_EMAIL_RETURN_V1';
+  if(!source.includes(emailMarker)){
+    source=source.replaceAll('getOrganizationScope});\napp.get("/my-setup",','getOrganizationScope,sendOrganizationNotification});\napp.get("/my-setup",');
+    const orgReturn='/^\\/org-advertising-request\\/\\d+\\?organization_id=\\d+$/';
+    if(source.split(orgReturn).length!==3)throw Error('Organization login return anchors missing');
+    source=source.replaceAll(orgReturn,'/^\\/org-(?:advertising-request|campaign-help)\\/\\d+\\?organization_id=\\d+$/');
+    const loginReturn='if (afterLoginReturn === "/admin/sponsorship-performance" ||';
+    if(source.split(loginReturn).length!==2)throw Error('Sponsor login return anchor missing');
+    source=source.replace(loginReturn,'if (/^\\/campaign-help\\/[1-9][0-9]*$/.test(afterLoginReturn) || afterLoginReturn === "/admin/sponsorship-performance" ||');
+    source+='\n'+emailMarker+'\n';
+  }
   const collaborationMarker='// SPONSOR_CAMPAIGN_COLLABORATION_V1';
   if(!source.includes(collaborationMarker)){
     const route='app.get("/my-setup",';
     if(source.split(route).length!==2)throw Error('Campaign collaboration setup route missing');
-    source=source.replace(route,collaborationMarker+'\nrequire("./campaign-collaboration").register({app,q,page,orgPage,organizationNav,requireLogin,requireOrganizationPermission,getOrganizationScope});\n'+route);
+    source=source.replace(route,collaborationMarker+'\nrequire("./campaign-collaboration").register({app,q,page,orgPage,organizationNav,requireLogin,requireOrganizationPermission,getOrganizationScope,sendOrganizationNotification});\n'+route);
     const edit='<a href="/admin/edit-campaign/${c.id}">Edit</a>';
     const a=source.indexOf(route),b=source.indexOf('\napp.',a+1);let part=source.slice(a,b);
     if(part.split(edit).length!==2)throw Error('Campaign collaboration edit link missing');
