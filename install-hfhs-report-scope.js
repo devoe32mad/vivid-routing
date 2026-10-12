@@ -42,6 +42,7 @@ function installExportCenter(source){
   return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
 }
 function install(source){
+  source=installExecutiveConsistency(source);
   source=installRequestLocationFilters(source);
   source=installSalesOpportunityCards(source);
   source=installLocationDemoScope(source);
@@ -263,4 +264,69 @@ function installRequestLocationFilters(source){
   part=once(part,'href="${locationUrl}"','href="${escapeHtml(locationUrl)}"');
   part=once(part,'No active locations were found.','${selectedStatus!=="All" || cleanSearch ? "No locations have requests matching the selected filters." : "No active locations were found."}');
   return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
+}
+
+
+function installExecutiveConsistency(source){
+  const marker='// EXECUTIVE_REPORT_SCOPE_V1';
+  if(source.includes(marker))return source;
+  const a=source.indexOf('  WITH filtered_locations AS ('),b=source.indexOf('  qr_campaign_metrics AS (',a);
+  if(a<0||b<0)throw Error('Overview scope missing');
+  const prefix=source.slice(a,b);
+  const metrics=`event_metrics AS (
+    SELECT fq.id,
+      COUNT(e.id) FILTER(WHERE e.type='scan')::int AS scans,
+      COUNT(e.id) FILTER(WHERE e.type IN ('offer','maps','waze','destination_click'))::int AS intent,
+      COUNT(e.id) FILTER(WHERE e.type='conversion')::int AS conversions,
+      COALESCE(SUM(e.value) FILTER(WHERE e.type='conversion'),0)::numeric AS advertiser_revenue
+    FROM filtered_qrs fq LEFT JOIN events e ON e.qr_id=fq.id
+      AND (NULLIF($2,'') IS NULL OR e.created_at::date>=NULLIF($2,'')::date)
+      AND (NULLIF($3,'') IS NULL OR e.created_at::date<=NULLIF($3,'')::date)
+    GROUP BY fq.id
+  )`;
+  const start=source.indexOf('async function buildOrganizationExportData('),end=source.indexOf('\napp.',start);
+  if(start<0||end<0)throw Error('Executive builder missing');
+  let part=source.slice(start,end);
+  function replaceQuery(name,sql){
+    const re=new RegExp('(const '+name+' = await q\\(\\s*`)[\\s\\S]*?(`,\\s*\\[\\s*orgId,\\s*fromDate \\|\\| "",\\s*toDate \\|\\| "",\\s*allowedLocationIds)(\\s*\\])');
+    if(!re.test(part))throw Error('Executive query missing '+name);
+    part=part.replace(re,(_,head,tail,close)=>head+'\n'+sql+'\n'+tail+', selectedLocationId'+close);
+  }
+  replaceQuery('locationsResult',prefix+metrics+`
+    SELECT s.id,s.name,s.location,
+      COUNT(fq.id)::int AS placements,
+      (SELECT COUNT(DISTINCT qc.campaign_id)::int FROM filtered_qrs f JOIN qr_campaigns qc ON qc.qr_id=f.id WHERE f.space_id=s.id) AS campaigns,
+      (SELECT COUNT(DISTINCT LOWER(TRIM(c.advertiser)))::int FROM filtered_qrs f JOIN qr_campaigns qc ON qc.qr_id=f.id JOIN campaigns c ON c.id=qc.campaign_id WHERE f.space_id=s.id AND NULLIF(TRIM(c.advertiser),'') IS NOT NULL) AS advertisers,
+      COALESCE(SUM(m.scans),0)::int AS scans,COALESCE(SUM(m.intent),0)::int AS intent,
+      COALESCE(SUM(m.conversions),0)::int AS conversions,COALESCE(SUM(m.advertiser_revenue),0)::numeric AS advertiser_revenue
+    FROM filtered_locations s LEFT JOIN filtered_qrs fq ON fq.space_id=s.id
+    LEFT JOIN event_metrics m ON m.id=fq.id GROUP BY s.id,s.name,s.location ORDER BY s.name`);
+  replaceQuery('placementsResult',prefix+metrics+`
+    SELECT qr.id,qr.name,s.id AS location_id,s.name AS location_name,s.location AS market,
+      fq.placement_value,m.scans,m.intent,m.conversions,m.advertiser_revenue,
+      (SELECT COUNT(DISTINCT qc.campaign_id)::int FROM qr_campaigns qc WHERE qc.qr_id=qr.id) AS campaigns,
+      (SELECT STRING_AGG(DISTINCT c.advertiser,', ') FROM qr_campaigns qc JOIN campaigns c ON c.id=qc.campaign_id WHERE qc.qr_id=qr.id AND NULLIF(TRIM(c.advertiser),'') IS NOT NULL) AS advertisers
+    FROM filtered_qrs fq JOIN qr_codes qr ON qr.id=fq.id
+    JOIN filtered_locations s ON s.id=fq.space_id JOIN event_metrics m ON m.id=fq.id ORDER BY s.name,qr.name`);
+  for(const name of ['campaignsResult','customerActionsResult']){
+    const re=new RegExp('const '+name+' = await q\\(\\s*`([\\s\\S]*?)`,\\s*\\[\\s*orgId,\\s*fromDate \\|\\| "",\\s*toDate \\|\\| "",\\s*allowedLocationIds\\s*\\]');
+    const match=part.match(re);if(!match)throw Error('Executive campaign query missing');
+    let sql=match[1];
+    if(name==='campaignsResult')sql=sql.replace('WITH unique_assignments AS (',prefix+'unique_assignments AS (');
+    else sql=prefix+'unique_assignments AS (SELECT DISTINCT qr_id,campaign_id FROM qr_campaigns) '+sql.replace('JOIN qr_campaigns qc','JOIN unique_assignments qc');
+    sql=sql.replace(/JOIN qr_codes qr\s+ON qr.id = qc.qr_id\s+AND COALESCE\(\s*qr.is_archived,\s*false\s*\) = false/,'JOIN filtered_qrs export_fq ON export_fq.id = qc.qr_id JOIN qr_codes qr ON qr.id=export_fq.id');
+    part=part.replace(match[0],'const '+name+' = await q(`'+sql+'`,[orgId,fromDate || "",toDate || "",allowedLocationIds,selectedLocationId]');
+  }
+  // QR events are authoritative even when an old assignment has been removed.
+  for(const name of ['advertiserRevenue','scans','intent','conversions']){
+    const re=new RegExp('(const '+name+' =\\s*)campaigns(\\.reduce\\()');
+    if(!re.test(part))throw Error('Executive total missing '+name);
+    part=part.replace(re,'$1placements$2');
+  }
+  source=source.slice(0,start)+part+source.slice(end);
+  source=once(source,`                            The contract cannot be activated
+                            until a Signed Agreement is stored.`,`                            \${contractIsActive
+                              ? "This contract is active, but no signed agreement is stored. Upload it to complete the contract record."
+                              : "The contract cannot be activated until a Signed Agreement is stored."}`);
+  return source+'\n'+marker+'\n';
 }
