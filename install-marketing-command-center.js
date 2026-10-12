@@ -14,7 +14,11 @@ function install(source) {
     source=source.replace(routeAnchor,route+"\n\n"+routeAnchor);
   }
   const nav='<a href="/admin/marketing-command-center" style="color:white;text-decoration:none;">Marketing Command Center</a>';
-  source=source.split(nav).join("");
+  if(!source.includes(nav)){
+    const reportNav='<a href="/reports" style="color:white;text-decoration:none;">';
+    if(!source.includes(reportNav))throw Error("Advertiser navigation anchor missing");
+    source=source.replace(reportNav,nav+"\n  "+reportNav);
+  }
   return source;
 }
 if(require.main===module){const file=path.join(__dirname,"server.js");fs.writeFileSync(file,install(fs.readFileSync(file,"utf8")));}
