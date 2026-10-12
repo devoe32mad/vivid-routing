@@ -13,13 +13,17 @@ async function filterSetup(q,user,results){
   const locations=new Set(allowed.rows.map(r=>Number(r.location_id)));
   const qrs=new Set(allowed.rows.map(r=>Number(r.qr_id)));
   const campaigns=new Set(allowed.rows.map(r=>Number(r.campaign_id)));
+  const added=await require('./hfhs-review-access').extras(q);
+  for(const row of added)(row.kind==='qr'?qrs:campaigns).add(Number(row.entity_id));
+  const demoLocations=await q('SELECT id FROM spaces WHERE organization_id=39 AND COALESCE(is_archived,false)=false');
+  for(const row of demoLocations.rows)locations.add(Number(row.id));
   const pairs=new Set(allowed.rows.map(r=>`${r.qr_id}:${r.campaign_id}`));
   for(const key of ['locations','qrs','campaigns','archivedCampaigns','relationships','assignments','schedules']){
     const result=results[key];
     result.rows=result.rows.filter(r=>key==='locations'?locations.has(Number(r.id)):
       key==='qrs'?qrs.has(Number(r.id)):
       key==='campaigns'||key==='archivedCampaigns'?campaigns.has(Number(r.id)):
-      pairs.has(`${r.qr_id}:${r.campaign_id}`));
+      (pairs.has(`${r.qr_id}:${r.campaign_id}`)||(qrs.has(Number(r.qr_id))&&campaigns.has(Number(r.campaign_id)))));
     result.rowCount=result.rows.length;
   }
 }
@@ -73,7 +77,9 @@ async function reportScope(q,user){
       AND s.name NOT IN ('Fundraising & Signature Events','Trade Shows & Conferences','CME & Medical Education',
         'Community Health Activations','Sports & Strategic Partnerships')`,[user.id]);
   const ids=key=>[...new Set(result.rows.map(r=>Number(r[key])).filter(n=>Number.isSafeInteger(n)&&n>0))];
-  return {campaignIds:ids('campaign_id'),qrIds:ids('qr_id'),locationIds:ids('location_id')};
+  const scope={campaignIds:ids('campaign_id'),qrIds:ids('qr_id'),locationIds:ids('location_id')};
+  for(const row of await require('./hfhs-review-access').extras(q))scope[row.kind==='qr'?'qrIds':'campaignIds'].push(Number(row.entity_id));
+  return scope;
 }
 function scopedRows(rows,scope,type,key){
   if(!scope)return rows;
