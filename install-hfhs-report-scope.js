@@ -42,6 +42,7 @@ function installExportCenter(source){
   return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
 }
 function install(source){
+  source=installSalesOpportunityCards(source);
   source=installLocationDemoScope(source);
   source=installMarketingDemoLink(source);
   source=installExportCenter(source);
@@ -216,4 +217,31 @@ function installLocationDemoScope(source){
     source=source.slice(0,start)+part+source.slice(end);
   }
   return source+'\n'+marker+'\n';
+}
+
+function installSalesOpportunityCards(source){
+  const marker='// SALES_OPPORTUNITY_CARD_FILTERS_V1';
+  if(source.includes(marker))return source;
+  const start=source.indexOf('app.get(\n  "/org-advertiser/:advertiserKey/opportunities",');
+  const end=source.indexOf('\napp.',start+1);
+  if(start<0||end<0)throw Error('Sales opportunity route missing');
+  let part=source.slice(start,end);
+  part=once(part,'      const opportunityRows =',`      const selectedOutcome = ["Open","Won","Lost"].includes(req.query.outcome) ? req.query.outcome : "All";
+      const visibleOpportunities = opportunities.filter(o=>selectedOutcome==="All" || String(o.outcome||"Open")===selectedOutcome);
+      const outcomeHref = outcome => "/org-advertiser/"+encodeURIComponent(advertiserKey)+"/opportunities?"+new URLSearchParams({organization_id:String(organizationId),...(outcome==="All"?{}:{outcome})}).toString()+"#sales-pipeline";
+      const opportunityRows =`);
+  part=once(part,'        opportunities.length\n          ? opportunities','        visibleOpportunities.length\n          ? visibleOpportunities');
+  const from=part.indexOf('                <div class="card" style="margin:0;">'),to=part.indexOf('              <div class="card">',from);
+  let cards=part.slice(from,to);
+  for(const outcome of ['Open','Open','Won','Lost'])cards=cards.replace('<div class="card" style="margin:0;">','<a class="card" href="${escapeHtml(outcomeHref("'+outcome+'"))}" style="display:block;color:inherit;text-decoration:none;margin:0;">').replace('\n                </div>','\n                </a>');
+  part=part.slice(0,from)+cards+part.slice(to);
+  part=once(part,'              <div class="card">','              <div class="card" id="sales-pipeline">');
+  part=once(part,'                      Complete Pipeline','                      ${selectedOutcome === "All" ? "Complete Pipeline" : selectedOutcome + " Opportunities"}');
+  part=once(part,'                ${opportunityRows}',`                <nav aria-label="Sales opportunity status" style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;">
+                  \${["All","Open","Won","Lost"].map(outcome=>'<a class="btn '+(selectedOutcome===outcome?'':'secondary')+'" href="'+escapeHtml(outcomeHref(outcome))+'">'+outcome+'</a>').join("")}
+                </nav>
+                \${opportunityRows}`);
+  part=part.replace('${opportunities.length}','${visibleOpportunities.length}').replace('opportunities.length === 1','visibleOpportunities.length === 1');
+  part=once(part,'No sales opportunities yet','${selectedOutcome === "All" ? "No sales opportunities yet" : "No " + selectedOutcome.toLowerCase() + " opportunities"}');
+  return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
 }
