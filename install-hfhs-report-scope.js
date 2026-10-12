@@ -42,6 +42,7 @@ function installExportCenter(source){
   return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
 }
 function install(source){
+  source=installLocationDemoScope(source);
   source=installMarketingDemoLink(source);
   source=installExportCenter(source);
   source=installSharedExports(source);
@@ -185,6 +186,33 @@ function installMarketingDemoLink(source){
     const at=part.lastIndexOf('    `));');
     if(at<0)throw Error('Marketing demo navigation rendering anchor missing '+path);
     part=part.slice(0,at)+`      \${require("./hfhs-demo-setup-scope").isHfhsDemo(req.session.user)?'<div class="wrap"><a class="btn secondary" href="/admin/marketing-command-center">Explore Marketing Command Center</a></div>':""}\n`+part.slice(at);
+    source=source.slice(0,start)+part+source.slice(end);
+  }
+  return source+'\n'+marker+'\n';
+}
+
+function installLocationDemoScope(source){
+  const marker='// HFHS_NEW_LOCATION_SCOPE_V1';
+  if(source.includes(marker))return source;
+  const get='app.get("/admin/new-location", requireLogin, async (req, res) => {';
+  const post='app.post("/admin/new-location", requireLogin, async (req, res) => {';
+  for(const anchor of [get,post]){
+    const start=source.indexOf(anchor),end=source.indexOf('\napp.',start+anchor.length);
+    if(start<0||end<0)throw Error('New Location route missing');
+    let part=source.slice(start,end);
+    part=once(part,'    const currentUser = req.session.user;',`    const currentUser = req.session.user;
+    const hfhsLocationDemo = require("./hfhs-demo-setup-scope").isHfhsDemo(currentUser);
+    const hfhsLocationOrg = hfhsLocationDemo ? (await q("SELECT id FROM organizations WHERE slug='henry-ford-health-demo' AND COALESCE(is_active,true)=true")).rows[0] : null;
+    if(hfhsLocationDemo && !hfhsLocationOrg)return res.status(403).send("HFHS demo organization is unavailable.");`);
+    if(anchor===get){
+      part=once(part,'    let organizationField = "";',`    if(hfhsLocationDemo) orgs.rows=orgs.rows.filter(o=>Number(o.id)===Number(hfhsLocationOrg.id));
+    let organizationField = "";`);
+      part=once(part,'  if (marketplaceRequest) {',`  if (marketplaceRequest && hfhsLocationDemo && Number(marketplaceRequest.organization_id)!==Number(hfhsLocationOrg.id))return res.status(403).send("This request is outside the HFHS demo.");
+  if (marketplaceRequest) {`);
+    }else{
+      part=once(part,'    const marketplaceRequestId =',`    if(hfhsLocationDemo && organizationId!==Number(hfhsLocationOrg.id))return res.status(403).send("Choose the HFHS demo organization.");
+    const marketplaceRequestId =`);
+    }
     source=source.slice(0,start)+part+source.slice(end);
   }
   return source+'\n'+marker+'\n';
