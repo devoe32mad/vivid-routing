@@ -66,9 +66,10 @@ function registerMarketplaceCampaignBuilderRoutes({ app, q, orgPage, organizatio
   app.get("/org-campaign-builder-requests", requireOrgManager, async (req, res) => {
     try {
       await ensureSchema(); const scope = await getOrganizationScope(req); const orgId = Number(scope.organizationId); const actor = req.session.orgUser || req.session.user;
-      const organization = (await q("SELECT id,name FROM organizations WHERE id=$1", [orgId])).rows[0]; if (!organization) return res.status(404).send("Organization not found.");
+      const organization = (await q("SELECT id,name,slug FROM organizations WHERE id=$1", [orgId])).rows[0]; if (!organization) return res.status(404).send("Organization not found.");
       const requests = (await q("SELECT * FROM marketplace_campaign_briefs WHERE organization_id=$1 ORDER BY created_at DESC LIMIT 100", [orgId])).rows;
-      res.send(orgPage("Campaign Builder Requests", organizationNav({ organizationId:orgId, organizationName:organization.name, activePage:"campaign-builder", userName:actor?.name || actor?.email || "" }) + renderEnterpriseQueue({ organization, requests })));
+      const collaboration = await require("./campaign-collaboration").organizationPanel({q,req,scope,organization});
+      res.send(orgPage("Campaign Builder Requests", organizationNav({ organizationId:orgId, organizationName:organization.name, activePage:"campaign-builder", userName:actor?.name || actor?.email || "" }) + collaboration + (requests.length ? renderEnterpriseQueue({ organization, requests }) : "")));
     } catch (error) { console.error("ORG CAMPAIGN BUILDER REQUESTS ERROR", error); res.status(500).send("Unable to load campaign requests."); }
   });
 }
