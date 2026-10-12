@@ -42,6 +42,7 @@ function installExportCenter(source){
   return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
 }
 function install(source){
+  source=installMarketingDemoLink(source);
   source=installExportCenter(source);
   source=installSharedExports(source);
   source=installReportScope(source);
@@ -173,3 +174,18 @@ async function exportDownload({q,req,res,next,buildExportReportRows}){
 }
 module.exports.exportDownload=exportDownload;
 module.exports.exportCells=exportCells;
+
+function installMarketingDemoLink(source){
+  const marker='// HFHS_MARKETING_DEMO_LINK_V1';
+  if(source.includes(marker))return source;
+  for(const path of ['/my-setup','/reports','/admin/reports']){
+    const start=source.indexOf(`app.get("${path}", requireLogin, async (req, res) => {`),end=source.indexOf('\napp.',start+1);
+    if(start<0||end<0)throw Error('Marketing demo navigation route missing '+path);
+    let part=source.slice(start,end);
+    const at=part.lastIndexOf('    `));');
+    if(at<0)throw Error('Marketing demo navigation rendering anchor missing '+path);
+    part=part.slice(0,at)+`      \${require("./hfhs-demo-setup-scope").isHfhsDemo(req.session.user)?'<div class="wrap"><a class="btn secondary" href="/admin/marketing-command-center">Explore Marketing Command Center</a></div>':""}\n`+part.slice(at);
+    source=source.slice(0,start)+part+source.slice(end);
+  }
+  return source+'\n'+marker+'\n';
+}
