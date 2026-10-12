@@ -3,6 +3,7 @@
 module.exports = function registerHfhsMarketplace(app, deps) {
   const q = deps.q;
   const escapeHtml = deps.escapeHtml;
+  const categoryLabel = name => ({"Fundraising & Events":"Balls & Signature Events","Community & Health Activations":"Golf Outings & Community Fundraisers","Sports & Strategic Partnerships":"Strategic Partnerships & Future of Health"}[name] || name);
   function imageFor(title) {
     const v = String(title || "").toLowerCase();
 
@@ -179,7 +180,7 @@ module.exports = function registerHfhsMarketplace(app, deps) {
 
             <div class="event-body">
               <div class="event-kicker">
-                ${escapeHtml(program.name)}
+                ${escapeHtml(categoryLabel(program.name))}
               </div>
 
               <h2>${escapeHtml(event.event_name)}</h2>
@@ -206,7 +207,7 @@ module.exports = function registerHfhsMarketplace(app, deps) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(program.name)} | Henry Ford Health Vivid Demo</title>
+<title>${escapeHtml(categoryLabel(program.name))} | Henry Ford Health Vivid Demo</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f5f7fa;color:#17324d;font-family:Arial,Helvetica,sans-serif}
@@ -243,7 +244,7 @@ body{margin:0;background:#f5f7fa;color:#17324d;font-family:Arial,Helvetica,sans-
   <div class="hero">
     <div>
       <div class="hero-kicker">Choose an event</div>
-      <h1>${escapeHtml(program.name)}</h1>
+      <h1>${escapeHtml(categoryLabel(program.name))}</h1>
       <p>${escapeHtml(program.description || "")}</p>
     </div>
   </div>
@@ -304,8 +305,8 @@ body{margin:0;background:#f5f7fa;color:#17324d;font-family:Arial,Helvetica,sans-
       );
 
       const rows=result.rows;
-      const heading=rows[0]?.program_name || location.name;
-      const intro=rows[0]?.program_description || "";
+      const heading=location.name;
+      const intro=location.location || "Choose a sponsorship opportunity for this event.";
       const businessVivid = module.exports.businessSection();
       const cards=rows.map(o=>{
         const n=Number(o.price);
