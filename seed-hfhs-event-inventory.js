@@ -241,6 +241,47 @@ const EVENTS = [
 
 function slugify(v){return String(v).toLowerCase().replace(/[^a-z0-9]+/g," ").trim();}
 
+// One event occurrence per annual inventory cycle; exposure estimates, not measured views.
+const DEMO_AUDIENCES = [400,500,150,120,100,250,150,180,120,100,144,144,144,144,700,300,200];
+function impressionEstimate(eventName,placementName='') {
+  const index=EVENTS.findIndex(e=>e.name===eventName);
+  if(index<0) return null;
+  const audience=DEMO_AUDIENCES[index];
+  const exposures=/registration|event signage|destination: grand|program book/i.test(placementName)?3:2;
+  return {audience,exposures,total:audience*exposures};
+}
+async function reconcileDemoImpressions(client) {
+  const key='hfhs-event-impressions-20261012-v1';
+  await client.query('BEGIN');
+  try {
+    await client.query('SELECT pg_advisory_xact_lock(2026101201)');
+    const org=(await client.query(`SELECT o.id FROM organizations o JOIN users u ON u.id=o.customer_id
+      WHERE o.slug=$1 AND LOWER(TRIM(u.email))='michaelandrewdevoe@gmail.com'`,[SLUG])).rows;
+    if(org.length!==1) throw Error('HFHS impression owner identity mismatch');
+    if((await client.query('SELECT 1 FROM vivid_evaluation_fixtures WHERE fixture_key=$1',[key])).rows.length){
+      await client.query('COMMIT');return;
+    }
+    const spaces=(await client.query('SELECT id,name,annual_impressions,description FROM spaces WHERE organization_id=$1 AND COALESCE(is_archived,false)=false',[org[0].id])).rows;
+    const manifest={organizationId:org[0].id,spaces:[],qrs:[]};
+    for(const space of spaces){
+      const estimate=impressionEstimate(space.name);if(!estimate)continue;
+      const note=e=>` DEMO IMPRESSION ESTIMATE: ${e.audience} assumed attendees x ${e.exposures} potential placement exposures = ${e.total} estimated impressions for one event occurrence in the annual cycle. Illustrative planning assumption, not verified HFHS attendance, measured views, or unique reach.`;
+      manifest.spaces.push(space);
+      await client.query(`UPDATE spaces SET annual_impressions=$2,description=COALESCE(description,'') || $3 WHERE id=$1 AND organization_id=$4`,[space.id,estimate.total,note(estimate),org[0].id]);
+      const qrs=(await client.query(`SELECT qr.id,qr.name,qr.annual_impressions,qr.description FROM qr_codes qr
+        WHERE qr.space_id=$1 AND COALESCE(qr.is_archived,false)=false
+        AND (qr.name LIKE 'HFHS Demo%' OR qr.description LIKE '%PRIVATE VIVID DEMO%')`,[space.id])).rows;
+      for(const qr of qrs){
+        const e=impressionEstimate(space.name,qr.name);manifest.qrs.push(qr);
+        await client.query(`UPDATE qr_codes SET annual_impressions=$2,description=COALESCE(description,'') || $3 WHERE id=$1 AND space_id=$4`,[qr.id,e.total,note(e),space.id]);
+      }
+    }
+    await client.query('INSERT INTO vivid_evaluation_fixtures(fixture_key,organization_id,manifest) VALUES($1,$2,$3::jsonb)',[key,org[0].id,JSON.stringify(manifest)]);
+    await client.query('COMMIT');
+    console.log('HFHS IMPRESSION ESTIMATES:',JSON.stringify({spaces:manifest.spaces.length,qrs:manifest.qrs.length}));
+  }catch(e){await client.query('ROLLBACK');throw e;}
+}
+
 async function main(){
   if(!process.env.DATABASE_URL) return;
   const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false},connectionTimeoutMillis:10000});
@@ -278,7 +319,7 @@ async function main(){
       if(space.rows.length){
         spaceId=Number(space.rows[0].id);
         await client.query(
-          `UPDATE spaces SET location=$3,description=$4,is_archived=false,live_date=COALESCE($5::date,live_date)
+          `UPDATE spaces SET location=$3,description=$4 || CASE WHEN description LIKE '% DEMO IMPRESSION ESTIMATE:%' THEN substring(description from ' DEMO IMPRESSION ESTIMATE:.*$') ELSE '' END,is_archived=false,live_date=COALESCE($5::date,live_date)
             WHERE id=$1 AND organization_id=$2`,
           [spaceId,orgId,event.location,event.description,event.date]
         );
@@ -326,6 +367,7 @@ async function main(){
     await require("./restore-hfhs-demo-history").main();
     await require("./trim-hfhs-demo").main();
     await require("./sponsorship-operations").main();
+    await reconcileDemoImpressions(client);
   }catch(e){
     if(client){try{await client.query("ROLLBACK");}catch(_){}}
     console.error("HFHS EVENT INVENTORY HIERARCHY ERROR:",e.message);
@@ -335,4 +377,4 @@ async function main(){
   }
 }
 if(require.main===module) main();
-module.exports={EVENTS};
+module.exports={EVENTS,impressionEstimate,reconcileDemoImpressions};
