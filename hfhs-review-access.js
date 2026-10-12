@@ -6,10 +6,19 @@ const ORG=39;
 const DEFAULT_DATES='from=2026-09-13&to=2026-10-12';
 const homes={enterprise:'/org-organization/39?organization_id=39&'+DEFAULT_DATES,advertiser:'/my-setup',marketplace:'/advertise/henry-ford-health-demo'};
 const simple=new Set(['/org-advertisers','/org-locations','/org-marketplace','/org-contracts','/org-renewals','/org-revenue-pipeline','/org-placement-report','/org-performance','/org-advertising-requests','/org-export','/org-export/renewals.csv','/org-export/renewals.pdf','/my-setup','/reports','/reports-qr','/reports-location','/reports-campaign','/admin/reports','/export/report.pdf','/export/report.xlsx','/export/events.csv','/org-export/report.pdf','/org-export/report.xlsx','/admin/marketing-command-center','/campaign-help','/org-campaign-builder-requests','/org-campaign-help-example','/org-location/new','/org-opportunity/new']);
-function editableRoute(path){return /^\/admin\/edit-campaign\/\d+$/.test(path)||/^\/(?:org-)?campaign-help(?:\/\d+)?$/.test(path)||/^\/org-opportunity\/(?:new|edit\/\d+)$/.test(path)||path==='/org-location/new'||/^\/org-contract\/\d+\/(?:fulfillment|renew|renewal-review|renewal-approve|activate)$/.test(path);}
-function routeAllowed(path){return editableRoute(path)|| simple.has(path)||path==='/org-organization/39'||/^\/advertise\/henry-ford-health-demo(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path)||/^\/org-(?:location|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/view-campaign\/\d+$/.test(path);}
+function editableRoute(path){return ['/admin/new-qr','/admin/new-campaign','/admin/assign','/admin/schedule','/org-programs'].includes(path)||/^\/admin\/edit-qr\/\d+$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path)|| /^\/admin\/edit-campaign\/\d+$/.test(path)||/^\/(?:org-)?campaign-help(?:\/\d+)?$/.test(path)||/^\/org-opportunity\/(?:new|edit\/\d+)$/.test(path)||path==='/org-location/new'||/^\/org-contract\/\d+\/(?:fulfillment|renew|renewal-review|renewal-approve|activate|activity)$/.test(path);}
+function routeAllowed(path){return /^\/admin\/(?:archive|restore)-(?:campaign|qr)\/\d+$/.test(path)|| path==='/admin/qr-setup-choice'||/^\/qr\/\d+\.png$/.test(path)|| editableRoute(path)|| simple.has(path)||path==='/org-organization/39'||/^\/advertise\/henry-ford-health-demo(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path)||/^\/org-(?:location|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/view-campaign\/\d+$/.test(path);}
 function validToken(value){if(typeof value!=='string'||value.length>100)return false;return crypto.timingSafeEqual(crypto.createHash('sha256').update(value).digest(),Buffer.from(TOKEN_HASH,'hex'));}
 function install(source){
+ const createMarker='// HFHS_REVIEW_CREATE_V1';
+ if(!source.includes(createMarker)){
+  const patch=(startText,anchor,addition)=>{const start=source.indexOf(startText),end=source.indexOf('\napp.',start+1);if(start<0||end<0)throw Error('Demo create route missing: '+startText);let part=source.slice(start,end);if(part.split(anchor).length!==2)throw Error('Demo create anchor missing: '+anchor);part=part.replace(anchor,anchor+addition);source=source.slice(0,start)+part+source.slice(end);};
+  patch('app.post("/admin/new-qr",','    const qrId = newQr.rows[0].id;', '\n    if(req.hfhsReviewVerified)await require("./hfhs-review-access").track(q,"qr",qrId);');
+  patch('app.post("/admin/new-campaign",','  Number(campaignInsertResult.rows[0].id);','\nif(req.hfhsReviewVerified){await q("UPDATE campaigns SET organization_id=39,is_test=true WHERE id=$1 AND user_id=$2",[campaignId,userId]);await require("./hfhs-review-access").track(q,"campaign",campaignId);}');
+  // Filter at render time as well as server-side write checks: no other account choices.
+  source+='\n'+createMarker+'\n';
+ }
+
  const editorMarker='// HFHS_REVIEW_CAMPAIGN_CHOICES_V2';
  if(!source.includes(editorMarker)){
   const start=source.indexOf('app.get(\n  "/admin/edit-campaign/:campaignId",'),end=source.indexOf('\napp.',start+1);
@@ -44,6 +53,7 @@ function register(app,{q}){
   if(Date.now()>=EXPIRES)return res.status(410).send('This HFHS review link expired on October 26, 2026.');
   if(!validToken(req.params.token)||!homes[req.params.view])return res.status(404).send('Review link not found.');
   try{
+   await ensure(q);
    const owner=(await q("SELECT o.customer_id,u.email FROM organizations o JOIN users u ON u.id=o.customer_id WHERE o.id=$1 AND o.slug='henry-ford-health-demo' AND LOWER(u.email)='michaelandrewdevoe@gmail.com'",[ORG])).rows[0];
    if(!owner)throw Error('Demo identity unavailable');
    await new Promise((resolve,reject)=>req.session.regenerate(e=>e?reject(e):resolve()));
@@ -62,6 +72,9 @@ function register(app,{q}){
   if(!['GET','HEAD','POST'].includes(req.method))return notice();
   if(req.method==='POST'&&!editableRoute(req.path))return notice();
   if(req.method==='POST'&&(!req.session.hfhsReviewCsrf||req.body?._hfhs_review_csrf!==req.session.hfhsReviewCsrf))return res.status(403).send('Please reload this demo form before saving.');
+  if(req.path==='/admin/archived-campaigns')return res.redirect('/my-setup?status=all');
+  if(req.path==='/dashboard')return res.redirect('/my-setup');
+  if(req.path==='/admin/new-location')return res.redirect('/org-location/new?organization_id=39');
   if(!routeAllowed(req.path))return notice();
   try{
    req.session.hfhsReviewCsrf ||= crypto.randomBytes(24).toString('hex');
@@ -75,17 +88,24 @@ function register(app,{q}){
    let match=req.path.match(/^\/org-(location|campaign|contract|advertising-request)\/(\d+)$/);
    if(match){const kind=match[1],id=Number(match[2]);if(kind==='location'&&!locations.includes(id))return notice();if(kind==='campaign'&&!allowed.campaignIds.includes(id))return notice();if(kind==='contract'||kind==='advertising-request'){const table=kind==='contract'?'contracts':'organization_advertising_requests';if(!(await q('SELECT id FROM '+table+' WHERE id=$1 AND organization_id=$2',[id,ORG])).rows.length)return notice();}}
    match=req.path.match(/^\/admin\/(?:view|edit)-campaign\/(\d+)$/);if(match&&!allowed.campaignIds.includes(Number(match[1])))return notice();
+   match=req.path.match(/^\/admin\/(?:archive|restore)-(campaign|qr)\/(\d+)$/);if(match){if(!allowed[match[1]==='qr'?'qrIds':'campaignIds'].includes(Number(match[2]))||req.query._hfhs_review_csrf!==req.session.hfhsReviewCsrf)return notice();}
+   match=req.path.match(/^\/admin\/edit-qr\/(\d+)$|^\/qr\/(\d+)\.png$/);if(match&&!allowed.qrIds.includes(Number(match[1]||match[2])))return notice();
+   match=req.path.match(/^\/org-programs\/(\d+)\/settings$/);if(match&&!(await q('SELECT id FROM organization_programs WHERE id=$1 AND organization_id=$2',[Number(match[1]),ORG])).rows.length)return notice();
+   if(req.method==='POST'&&req.path==='/admin/new-qr'&&!locations.includes(Number(req.body.space_id)))return notice();
+   if(req.method==='POST'&&['/admin/assign','/admin/schedule'].includes(req.path)&&(!allowed.qrIds.includes(Number(req.body.qr_id))||!allowed.campaignIds.includes(Number(req.body.campaign_id))))return notice();
    if(req.body?.qr_ids&&!allowed.qrIds.includes(Number(req.body.qr_ids)))return notice();
-   for(const [key,table] of [['program_id','organization_programs'],['opportunity_id','organization_opportunities'],['advertiser_id','advertisers'],['contract_id','contracts'],['request_id','organization_advertising_requests']])if(req.body?.[key]&&Number(req.body[key])!==0){if(!(await q('SELECT id FROM '+table+' WHERE id=$1 AND organization_id=$2',[Number(req.body[key]),ORG])).rows.length)return notice();}
+   for(const [key,table] of [['program_id','organization_programs'],['opportunity_id','organization_opportunities'],['advertiser_id','advertisers'],['contract_id','contracts'],['request_id','organization_advertising_requests'],['marketplace_request_id','organization_advertising_requests']])for(const value of [req.body?.[key],req.query[key]])if(value&&value!=='NaN'&&Number(value)!==0){if(!(await q('SELECT id FROM '+table+' WHERE id=$1 AND organization_id=$2',[Number(value),ORG])).rows.length)return notice();}
    match=req.path.match(/^\/org-opportunity\/edit\/(\d+)$/);if(match&&!(await q('SELECT id FROM organization_opportunities WHERE id=$1 AND organization_id=$2',[Number(match[1]),ORG])).rows.length)return notice();
-   match=req.path.match(/^\/org-contract\/(\d+)\/(?:fulfillment|renew|renewal-review|renewal-approve|activate)$/);if(match&&!(await q('SELECT id FROM contracts WHERE id=$1 AND organization_id=$2',[Number(match[1]),ORG])).rows.length)return notice();
+   match=req.path.match(/^\/org-contract\/(\d+)\/(?:fulfillment|renew|renewal-review|renewal-approve|activate|activity)$/);if(match&&!(await q('SELECT id FROM contracts WHERE id=$1 AND organization_id=$2',[Number(match[1]),ORG])).rows.length)return notice();
    match=req.path.match(/^\/(?:org-)?campaign-help\/(\d+)$/);if(match&&!(await q('SELECT id FROM sponsorship_campaign_help WHERE id=$1 AND organization_id=$2 AND user_id=$3',[Number(match[1]),ORG,review.ownerId])).rows.length)return notice();
-   if(req.method==='POST'&&/^\/admin\/edit-campaign\//.test(req.path))req.body.is_test='on';
+   if(req.method==='POST'&&(/^\/admin\/edit-campaign\//.test(req.path)||req.path==='/admin/new-campaign'))req.body.is_test='on';
    req.session.user=user;req.session.orgUser={id:review.ownerId,organization_id:ORG,organization_name:'Henry Ford Health Demo',organization_role:'organization_admin',name:'HFHS Demo Reviewer',email:user.email};
    delete req.session.platformUser;
    req.hfhsReviewVerified=true;
    const send=res.send;res.send=function(body){if(typeof body==='string'&&/<(?:html|body|main|div)\b/i.test(body)){
     const banner='<div style="padding:12px 20px;background:#edf3f9;color:#23374d;font:14px system-ui"><strong>HFHS interactive demo · Editing enabled</strong> · Illustrative demo data · Expires October 26, 2026 (Eastern)<br><a href="'+homes.enterprise+'">Enterprise</a> · <a href="'+homes.marketplace+'">Marketplace</a> · <a href="'+homes.advertiser+'">Advertiser portal</a> · <a href="/admin/marketing-command-center">Marketing Command Center</a></div>';
+    body=body.replace(/href="(\/admin\/(?:archive|restore)-(?:campaign|qr)\/\d+)"/g,(_,url)=>'href="'+url+'?_hfhs_review_csrf='+req.session.hfhsReviewCsrf+'"');
+    body=body.replace(/<select\b([^>]*)>([\s\S]*?)<\/select>/gi,(whole,attrs,options)=>{const name=attrs.match(/name=["']([^"']+)["']/i)?.[1];const ids=['space_id','location_id'].includes(name)?locations:['qr_id','qr_ids'].includes(name)?allowed.qrIds:['campaign_id','campaign'].includes(name)?allowed.campaignIds:null;if(!ids)return whole;return '<select'+attrs+'>'+options.replace(/<option\b[^>]*value=["']([^"']*)["'][^>]*>[\s\S]*?<\/option>/gi,(option,id)=>!id||ids.includes(Number(id))?option:'')+'</select>';});
     body=body.replace(/<form\b[^>]*>/gi,form=>/method=["']?post/i.test(form)?form.replace(/enctype=["']multipart\/form-data["']/i,'')+'<input type="hidden" name="_hfhs_review_csrf" value="'+req.session.hfhsReviewCsrf+'">':form);
     body=body.replace(/<input\b[^>]*type=["']file["'][^>]*>/gi,'<span>Photo uploads are available after demo onboarding.</span>');
     body=body.replace(/michaelandrewdevoe@gmail\.com/gi,'HFHS Demo Reviewer');
@@ -96,3 +116,8 @@ function register(app,{q}){
  });
 }
 module.exports={install,register,scope,validToken,routeAllowed,editableRoute,EXPIRES};
+
+async function ensure(q){await q("CREATE TABLE IF NOT EXISTS hfhs_review_entities(kind TEXT NOT NULL,entity_id INTEGER NOT NULL,organization_id INTEGER NOT NULL DEFAULT 39,PRIMARY KEY(kind,entity_id))");}
+async function track(q,kind,id){await ensure(q);await q("INSERT INTO hfhs_review_entities(kind,entity_id) VALUES($1,$2) ON CONFLICT DO NOTHING",[kind,id]);}
+async function extras(q){await ensure(q);return (await q("SELECT e.kind,e.entity_id FROM hfhs_review_entities e WHERE e.organization_id=39 AND ((e.kind='qr' AND EXISTS(SELECT 1 FROM qr_codes qr JOIN spaces s ON s.id=qr.space_id WHERE qr.id=e.entity_id AND s.organization_id=39)) OR (e.kind='campaign' AND EXISTS(SELECT 1 FROM campaigns c WHERE c.id=e.entity_id AND c.organization_id=39)))")).rows;}
+module.exports.track=track;module.exports.extras=extras;
