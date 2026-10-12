@@ -368,6 +368,24 @@ async function main(){
     await require("./trim-hfhs-demo").main();
     await require("./sponsorship-operations").main();
     await reconcileDemoImpressions(client);
+    // Read-only reconciliation: aggregate demo metrics only; no visitor identifiers.
+    const audit = await client.query(`SELECT qr.id,qr.name,qr.is_archived,qr.annual_impressions,
+      COUNT(e.id) FILTER(WHERE e.type='scan')::int scans,
+      COUNT(e.id) FILTER(WHERE e.type IN ('offer','maps','waze','destination_click'))::int clicks,
+      COUNT(e.id) FILTER(WHERE e.type='conversion')::int conversions,
+      EXISTS(SELECT 1 FROM organization_advertising_requests ar WHERE ar.organization_id=s.organization_id
+        AND ar.created_qr_id=qr.id AND LOWER(TRIM(ar.status))='approved'
+        AND ar.setup_status IS DISTINCT FROM 'Demo Archived') AS included_in_advertiser
+      FROM qr_codes qr JOIN spaces s ON s.id=qr.space_id JOIN organizations o ON o.id=s.organization_id
+      LEFT JOIN events e ON e.qr_id=qr.id AND e.created_at::date BETWEEN '2026-09-13' AND '2026-10-12'
+      WHERE o.slug='henry-ford-health-demo'
+        AND COALESCE(s.is_archived,false)=false
+        AND (s.end_date IS NULL OR s.end_date>='2026-09-13')
+        AND COALESCE(s.live_date,s.created_at::date)<='2026-10-12'
+        AND (qr.end_date IS NULL OR qr.end_date>='2026-09-13')
+        AND COALESCE(qr.live_date,qr.created_at::date)<='2026-10-12'
+      GROUP BY qr.id,s.organization_id ORDER BY qr.id`);
+    console.log('HFHS METRIC AUDIT 2026-09-13/2026-10-12:',JSON.stringify(audit.rows));
   }catch(e){
     if(client){try{await client.query("ROLLBACK");}catch(_){}}
     console.error("HFHS EVENT INVENTORY HIERARCHY ERROR:",e.message);
