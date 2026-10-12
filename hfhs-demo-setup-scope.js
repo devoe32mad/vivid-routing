@@ -24,6 +24,7 @@ async function filterSetup(q,user,results){
   }
 }
 function install(source){
+  source=require("./hfhs-review-access").install(source);
   const emailMarker='// CAMPAIGN_COLLABORATION_EMAIL_RETURN_V1';
   if(!source.includes(emailMarker)){
     source=source.replaceAll('getOrganizationScope});\napp.get("/my-setup",','getOrganizationScope,sendOrganizationNotification});\napp.get("/my-setup",');
