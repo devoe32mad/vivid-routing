@@ -329,7 +329,7 @@ module.exports = function installOrgInventoryHierarchy(
             selectedProgramId +
             "&location_id=" +
             event.id +
-            queryStatus;
+            "&status=All"; // Opening an event starts with its complete inventory.
 
           return '<a href="' + href + '" style="text-decoration:none;color:inherit;">' +
             '<div class="marketplace-card" style="height:100%;border:1px solid #e1e9e2;">' +
