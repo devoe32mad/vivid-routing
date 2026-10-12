@@ -42,6 +42,7 @@ function installExportCenter(source){
   return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
 }
 function install(source){
+  source=installAdvertiserPeriod(source);
   source=installExecutiveConsistency(source);
   source=installRequestLocationFilters(source);
   source=installSalesOpportunityCards(source);
@@ -328,5 +329,47 @@ function installExecutiveConsistency(source){
                             until a Signed Agreement is stored.`,`                            \${contractIsActive
                               ? "This contract is active, but no signed agreement is stored. Upload it to complete the contract record."
                               : "The contract cannot be activated until a Signed Agreement is stored."}`);
+  return source+'\n'+marker+'\n';
+}
+
+
+// Apply the same placement overlap rule used by enterprise reporting.
+// Keep unassigned digital events; they have no physical placement dates.
+function periodQuery(q,startDate,endDate,scope){
+  return (sql,values=[])=>{
+    if(!/\b(?:FROM|JOIN) (?:qr_codes|events)\b/.test(sql))return q(sql,values);
+    const n=values.length,from='$'+(n+1),to='$'+(n+2),ids='$'+(n+3);
+    const eligible=`SELECT pq.* FROM qr_codes pq JOIN spaces ps ON ps.id=pq.space_id
+      WHERE COALESCE(ps.is_archived,false)=false
+      AND (${ids}::int[] IS NULL OR pq.id=ANY(${ids}::int[]))
+      AND (NULLIF(${from},'') IS NULL OR ps.end_date IS NULL OR ps.end_date>=NULLIF(${from},'')::date)
+      AND (NULLIF(${to},'') IS NULL OR COALESCE(ps.live_date,ps.created_at::date)<=NULLIF(${to},'')::date)
+      AND (NULLIF(${from},'') IS NULL OR pq.end_date IS NULL OR pq.end_date>=NULLIF(${from},'')::date)
+      AND (NULLIF(${to},'') IS NULL OR COALESCE(pq.live_date,pq.created_at::date)<=NULLIF(${to},'')::date)`;
+    const scopedEvents=`(SELECT pe.* FROM events pe WHERE (pe.qr_id IS NULL AND ${ids}::int[] IS NULL) OR pe.qr_id IN (SELECT eligible.id FROM (${eligible}) eligible))`;
+    sql=sql.replace(/\b(FROM|JOIN) (qr_codes|events)\b/g,(_,join,table)=>join+' '+(table==='qr_codes'?'('+eligible+')':scopedEvents));
+    return q(sql,[...values,startDate||'',endDate||'',scope?.qrIds??null]);
+  };
+}
+module.exports.periodQuery=periodQuery;
+function installAdvertiserPeriod(source){
+  const marker='// ADVERTISER_PLACEMENT_PERIOD_V1';if(source.includes(marker))return source;
+  source=once(source,'<h3>Getting Started</h3>\n<h3>Getting Started</h3>','<h3>Getting Started</h3>');
+  let a=source.indexOf('async function getPerformanceMetrics({'),b=source.indexOf('async function activeCampaignForQr',a);
+  let part=source.slice(a,b);
+  part=once(part,'  campaignId = null,','  query = q,\n  campaignId = null,');
+  part=once(part,'const result = await q(','const result = await query(');
+  source=source.slice(0,a)+part+source.slice(b);
+  a=source.indexOf('async function allocatedSpotCostForCampaign(');b=source.indexOf('async function allocatedSpotCostForQr(',a);part=source.slice(a,b);
+  part=once(part,'campaignId, startDate, endDate)','campaignId, startDate, endDate, query = q)');
+  part=once(part,'const result = await q(','const result = await query(');source=source.slice(0,a)+part+source.slice(b);
+  a=source.indexOf('async function buildExportReportRows(');b=source.indexOf('\napp.',a);part=source.slice(a,b);
+  part=once(part,'  const currentUser = req.session.user;',`  const currentUser = req.session.user;
+  const reportPeriodScope = await require("./hfhs-demo-setup-scope").reportScope(q,currentUser);
+  const periodQ = require("./install-hfhs-report-scope").periodQuery(q,startDate,endDate,reportPeriodScope);`);
+  part=part.replace(/await q\(/g,'await periodQ(');
+  part=once(part,'await getPerformanceMetrics({','await getPerformanceMetrics({\n        query: periodQ,');
+  part=once(part,'        campaignRow.campaign_id,\n        startDate,\n        endDate\n      );','        campaignRow.campaign_id,\n        startDate,\n        endDate,\n        periodQ\n      );');
+  source=source.slice(0,a)+part+source.slice(b);
   return source+'\n'+marker+'\n';
 }
