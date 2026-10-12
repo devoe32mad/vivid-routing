@@ -6,8 +6,9 @@ const ORG=39;
 const DEFAULT_DATES='from=2026-09-13&to=2026-10-12';
 const homes={enterprise:'/org-organization/39?organization_id=39&'+DEFAULT_DATES,advertiser:'/my-setup',marketplace:'/advertise/henry-ford-health-demo'};
 const simple=new Set(['/org-advertisers','/org-locations','/org-marketplace','/org-contracts','/org-renewals','/org-revenue-pipeline','/org-placement-report','/org-performance','/org-advertising-requests','/org-export','/org-export/renewals.csv','/org-export/renewals.pdf','/my-setup','/reports','/reports-qr','/reports-location','/reports-campaign','/admin/reports','/export/report.pdf','/export/report.xlsx','/export/events.csv','/org-export/report.pdf','/org-export/report.xlsx','/admin/marketing-command-center','/campaign-help','/org-campaign-builder-requests','/org-campaign-help-example','/org-location/new','/org-opportunity/new']);
+function readOnlyAdmin(path){return ['/org-operations','/org-users','/org-users/new','/org-bulk-import','/org-import-locations-assets','/org-locations-assets-template','/org-programs','/org-settings','/org-permissions'].includes(path)||/^\/org-user\/\d+\/edit$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path);}
 function editableRoute(path){return /^\/admin\/edit-location\/\d+$/.test(path)|| ['/admin/new-qr','/admin/new-campaign','/admin/assign','/admin/schedule','/org-programs'].includes(path)||/^\/admin\/edit-qr\/\d+$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path)|| /^\/admin\/edit-campaign\/\d+$/.test(path)||/^\/(?:org-)?campaign-help(?:\/\d+)?$/.test(path)||/^\/org-opportunity\/(?:new|edit\/\d+)$/.test(path)||path==='/org-location/new'||/^\/org-contract\/\d+\/(?:fulfillment|renew|renewal-review|renewal-approve|activate|activity)$/.test(path);}
-function routeAllowed(path){return /^\/admin\/view-(?:qr|location)\/\d+$/.test(path)||/^\/admin\/campaign\/\d+\/website-pages$/.test(path)||/^\/r\/\d+$/.test(path)|| /^\/admin\/(?:archive|restore)-(?:campaign|qr)\/\d+$/.test(path)|| path==='/admin/qr-setup-choice'||/^\/qr\/\d+\.png$/.test(path)|| editableRoute(path)|| simple.has(path)||path==='/org-organization/39'||/^\/advertise\/henry-ford-health-demo(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path)||/^\/org-(?:location|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/view-campaign\/\d+$/.test(path);}
+function routeAllowed(path){return readOnlyAdmin(path)|| /^\/admin\/view-(?:qr|location)\/\d+$/.test(path)||/^\/admin\/campaign\/\d+\/website-pages$/.test(path)||/^\/r\/\d+$/.test(path)|| /^\/admin\/(?:archive|restore)-(?:campaign|qr)\/\d+$/.test(path)|| path==='/admin/qr-setup-choice'||/^\/qr\/\d+\.png$/.test(path)|| editableRoute(path)|| simple.has(path)||path==='/org-organization/39'||/^\/advertise\/henry-ford-health-demo(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path)||/^\/org-(?:location|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/view-campaign\/\d+$/.test(path);}
 function validToken(value){if(typeof value!=='string'||value.length>100)return false;return crypto.timingSafeEqual(crypto.createHash('sha256').update(value).digest(),Buffer.from(TOKEN_HASH,'hex'));}
 function install(source){
  const createMarker='// HFHS_REVIEW_CREATE_V1';
@@ -70,9 +71,11 @@ function register(app,{q}){
   if(review.version!==TOKEN_HASH||review.expires!==EXPIRES||Date.now()>=EXPIRES){return req.session.destroy(()=>res.status(410).send('This HFHS review has expired.'));}
   if(req.path==='/logout'||req.path==='/hfhs-review-exit')return req.session.destroy(()=>res.redirect(homes.marketplace));
   const notice=()=>res.status(403).send('<h2>HFHS demo workspace</h2><p>You can explore reports and edit HFHS demo campaigns, campaign collaboration, sponsorship inventory, locations, renewals and benefit fulfillment. Account settings and other customers are outside this demo.</p><p><a href="'+homes.enterprise+'">Enterprise</a> · <a href="'+homes.marketplace+'">Marketplace</a> · <a href="'+homes.advertiser+'">Advertiser reports</a></p>');
+  if(readOnlyAdmin(req.path)&&!['GET','HEAD'].includes(req.method))return res.status(403).send('Administration is view-only in this HFHS demo. No changes were saved.');
   if(!['GET','HEAD','POST'].includes(req.method))return notice();
   if(req.method==='POST'&&!editableRoute(req.path))return notice();
   if(req.method==='POST'&&(!req.session.hfhsReviewCsrf||req.body?._hfhs_review_csrf!==req.session.hfhsReviewCsrf))return res.status(403).send('Please reload this demo form before saving.');
+  if(req.path==='/org-dashboard')return res.redirect(homes.enterprise);
   if(req.path==='/admin/archived-campaigns')return res.redirect('/my-setup?status=all');
   if(req.path==='/dashboard')return res.redirect('/my-setup');
   if(req.path==='/admin/new-location')return res.redirect('/org-location/new?organization_id=39');
@@ -94,6 +97,7 @@ function register(app,{q}){
    match=req.path.match(/^\/admin\/campaign\/(\d+)\/website-pages$/);if(match&&!allowed.campaignIds.includes(Number(match[1])))return notice();
    match=req.path.match(/^\/admin\/(?:archive|restore)-(campaign|qr)\/(\d+)$/);if(match){if(!allowed[match[1]==='qr'?'qrIds':'campaignIds'].includes(Number(match[2]))||req.query._hfhs_review_csrf!==req.session.hfhsReviewCsrf)return notice();}
    match=req.path.match(/^\/admin\/edit-qr\/(\d+)$|^\/qr\/(\d+)\.png$/);if(match&&!allowed.qrIds.includes(Number(match[1]||match[2])))return notice();
+   match=req.path.match(/^\/org-user\/(\d+)\/edit$/);if(match&&!(await q('SELECT id FROM organization_users WHERE id=$1 AND organization_id=$2',[Number(match[1]),ORG])).rows.length)return notice();
    match=req.path.match(/^\/org-programs\/(\d+)\/settings$/);if(match&&!(await q('SELECT id FROM organization_programs WHERE id=$1 AND organization_id=$2',[Number(match[1]),ORG])).rows.length)return notice();
    if(req.method==='POST'&&req.path==='/admin/new-qr'&&!locations.includes(Number(req.body.space_id)))return notice();
    if(req.method==='POST'&&['/admin/assign','/admin/schedule'].includes(req.path)&&(!allowed.qrIds.includes(Number(req.body.qr_id))||!allowed.campaignIds.includes(Number(req.body.campaign_id))))return notice();
@@ -112,8 +116,10 @@ function register(app,{q}){
     body=body.replace(/<select\b([^>]*)>([\s\S]*?)<\/select>/gi,(whole,attrs,options)=>{const name=attrs.match(/name=["']([^"']+)["']/i)?.[1];const ids=['space_id','location_id'].includes(name)?locations:['qr_id','qr_ids'].includes(name)?allowed.qrIds:['campaign_id','campaign'].includes(name)?allowed.campaignIds:null;if(!ids)return whole;return '<select'+attrs+'>'+options.replace(/<option\b[^>]*value=["']([^"']*)["'][^>]*>[\s\S]*?<\/option>/gi,(option,id)=>!id||ids.includes(Number(id))?option:'')+'</select>';});
     body=body.replace(/<form\b[^>]*>/gi,form=>/method=["']?post/i.test(form)?form.replace(/enctype=["']multipart\/form-data["']/i,'')+'<input type="hidden" name="_hfhs_review_csrf" value="'+req.session.hfhsReviewCsrf+'">':form);
     body=body.replace(/<input\b[^>]*type=["']file["'][^>]*>/gi,'<span>Photo uploads are available after demo onboarding.</span>');
+    if(readOnlyAdmin(req.path)){body=body.replace(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi,(form,attrs,inside)=>/method=["']?post/i.test(attrs)?'<div class="hfhs-admin-preview"><fieldset disabled style="border:0;margin:0;padding:0;min-width:0">'+inside+'</fieldset><p style="color:#64748b;font-size:13px">View-only demo — administrative changes are disabled.</p></div>':form);}
     body=body.replace(/michaelandrewdevoe@gmail\.com/gi,'HFHS Demo Reviewer');
     body=/<body[^>]*>/i.test(body)?body.replace(/<body[^>]*>/i,m=>m+banner):banner+body;
+    if(readOnlyAdmin(req.path))body=body.replace('HFHS interactive demo · Editing enabled','HFHS interactive demo · Administration is view-only');
    }return send.call(this,body);};
    next();
   }catch(e){console.error('HFHS REVIEW GUARD ERROR:',e.message);res.status(503).send('Demo review is temporarily unavailable.');}
@@ -125,3 +131,5 @@ async function ensure(q){await q("CREATE TABLE IF NOT EXISTS hfhs_review_entitie
 async function track(q,kind,id){await ensure(q);await q("INSERT INTO hfhs_review_entities(kind,entity_id) VALUES($1,$2) ON CONFLICT DO NOTHING",[kind,id]);}
 async function extras(q){await ensure(q);return (await q("SELECT e.kind,e.entity_id FROM hfhs_review_entities e WHERE e.organization_id=39 AND ((e.kind='qr' AND EXISTS(SELECT 1 FROM qr_codes qr JOIN spaces s ON s.id=qr.space_id WHERE qr.id=e.entity_id AND s.organization_id=39)) OR (e.kind='campaign' AND EXISTS(SELECT 1 FROM campaigns c WHERE c.id=e.entity_id AND c.organization_id=39)))")).rows;}
 module.exports.track=track;module.exports.extras=extras;
+
+module.exports.readOnlyAdmin=readOnlyAdmin;
