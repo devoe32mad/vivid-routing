@@ -1,6 +1,7 @@
 "use strict";
 const MARKER = "// ORG_ACTIVE_ADVERTISING_SHARED_V1";
 function install(source) {
+ source = installAdvertiserConversions(source);
  if(source.includes(MARKER)) return source;
  const route = source.indexOf('if (metric === "active")');
  const start = source.indexOf('  /*', route);
@@ -26,3 +27,31 @@ function install(source) {
  return source;
 }
 module.exports = {install};
+
+function installAdvertiserConversions(source) {
+ const marker='// ADVERTISER_CONVERSION_CARDS_V1';
+ if(source.includes(marker))return source;
+ const start=source.indexOf('  "/org-advertisers",'),end=source.indexOf('\napp.',start);
+ if(start<0||end<0)throw Error('Advertiser overview route missing');
+ let part=source.slice(start,end);
+ const anchor='            <div style="grid-column:1/-1;" title="Total value';
+ if(part.split(anchor).length!==2)throw Error('Advertiser conversion card anchor missing');
+ part=part.replace(anchor,`            <div style="grid-column:1/-1;">
+              <div style="font-size:10px;color:#65776b;">Conversions</div>
+              <div style="font-size:16px;font-weight:bold;">
+                \${Number(advertiser.conversions || 0).toLocaleString()}
+              </div>
+            </div>
+
+`+anchor);
+ const summary='\${advertiserSummaryCard(\n  "Revenue Generated",';
+ if(part.split(summary).length!==2)throw Error('Advertiser conversion summary anchor missing');
+ part=part.replace(summary,`\${advertiserSummaryCard(
+  "Conversions",
+  totals.conversions.toLocaleString(),
+  \`/org-performance?\${advertiserDetailQuery}\`
+)}
+
+`+summary);
+ return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
+}
