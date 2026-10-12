@@ -47,7 +47,7 @@ function install(source){
     source=source.slice(0,a)+part+source.slice(b);
   }
 
-  source=compactCampaignActions(source);
+  source=archiveUnderStatus(compactCampaignActions(source));
   const marker='// HFHS_DEMO_SETUP_SCOPE_V1';
   if(source.includes(marker))return source;
   const start=source.indexOf('app.get("/my-setup",');
@@ -103,5 +103,22 @@ function compactCampaignActions(source){
     '<summary style="cursor:pointer;color:#52657b;font-size:13px;font-weight:600;">More</summary>'+
     '<div style="display:flex;flex-direction:column;gap:10px;padding:12px 0 4px;font-size:13px;white-space:nowrap;">'+help+visits+archive+'</div></details>';
   part=part.slice(0,a)+replacement+part.slice(b);
+  return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
+}
+
+function archiveUnderStatus(source){
+  const marker='// CAMPAIGN_ARCHIVE_UNDER_STATUS_V1';
+  if(source.includes(marker))return source;
+  const start=source.indexOf('app.get("/my-setup",'),end=source.indexOf('\napp.',start+1);
+  let part=source.slice(start,end);
+  const re=/<a href="\/admin\/archive-campaign\/\$\{c.id\}"[\s\S]*?<\/a>/g;
+  const links=part.match(re)||[];
+  if(links.length!==1)throw Error('Campaign archive link missing or ambiguous');
+  part=part.replace(re,'');
+  const status=part.indexOf('c.is_archived\n      ?');
+  const close=part.indexOf('</td>',status);
+  if(status<0||close<0)throw Error('Campaign status cell missing');
+  const archive=links[0].replace('style="color:red;"','style="color:#b91c1c;font-size:12px;font-weight:500;"');
+  part=part.slice(0,close)+'<div style="margin-top:9px;white-space:nowrap;">'+archive+'</div>\n'+part.slice(close);
   return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
 }
