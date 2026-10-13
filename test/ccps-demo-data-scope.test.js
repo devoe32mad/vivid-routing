@@ -24,6 +24,10 @@ test('CCPS contracts, requests, placements, campaigns and events reconcile witho
  CREATE TABLE advertisers(id int,organization_id int,name text,relationship_status text,next_action text,is_active boolean);
  UPDATE campaigns SET advertiser='Vivid Spots',name='Original test campaign';
  UPDATE organization_advertising_requests SET business_name='Vivid Spots';`);
+ await db.exec(`ALTER TABLE campaigns ADD COLUMN placement_id int; ALTER TABLE campaigns ADD COLUMN is_archived boolean DEFAULT false;
+ ALTER TABLE qr_codes ADD COLUMN name text; ALTER TABLE qr_codes ADD COLUMN space_id int;
+ ALTER TABLE qr_campaigns ADD COLUMN is_active boolean DEFAULT true; ALTER TABLE qr_campaigns ADD COLUMN assigned_at timestamp;
+ CREATE TABLE spaces(id int PRIMARY KEY,name text,location text);`);
  const q=sql=>db.query(scope.sqlFor(sql));
  await scope.run(true,async()=>{
  assert.deepEqual((await q('SELECT count(*)::int n,sum(total_contract_value)::int value FROM contracts')).rows,[{n:3,value:1750}]);
@@ -31,6 +35,18 @@ test('CCPS contracts, requests, placements, campaigns and events reconcile witho
  assert.equal((await q('SELECT * FROM contracts WHERE id=9')).rows.length,0);
  assert.equal((await q('WITH totals AS (SELECT count(*)::int n FROM events) SELECT * FROM totals')).rows[0].n,3);
  assert.equal((await q('SELECT * FROM campaigns')).rows.length,2);
+ // Execute both actual My Setup campaign queries against PostgreSQL, including c.*.
+ const source=require('node:fs').readFileSync(require('node:path').join(__dirname,'../server.js'),'utf8');
+ const setup=source.slice(source.indexOf('const campaigns = await q(',source.indexOf('app.get("/my-setup"')));
+ const queryBlock=setup.slice(0,setup.indexOf('const archivedCampaigns'));
+ const queries=[...queryBlock.matchAll(/`([\s\S]*?)`/g)].map(m=>m[1]);
+ assert.equal(queries.length,2);
+ for(const query of queries){
+  const rows=(await db.query(scope.sqlFor(query),query.includes('$1')?[10]:[])).rows;
+  assert.deepEqual(rows.map(r=>r.id),[69,68]);
+  assert.equal(rows[0].advertiser,'Gulf Coast Home Services (Demo)');
+ }
+
  assert.equal((await q('SELECT * FROM organization_advertising_requests')).rows.length,3);
  const sponsors=(await q('SELECT a.name,sum(c.total_contract_value)::int value FROM contracts c JOIN advertisers a ON a.id=c.advertiser_id GROUP BY a.name ORDER BY a.name')).rows;
  assert.deepEqual(sponsors,[{name:'Coastal Family Dental (Demo)',value:1000},{name:'Gulf Coast Home Services (Demo)',value:750}]);

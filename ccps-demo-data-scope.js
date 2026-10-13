@@ -35,6 +35,11 @@ function sqlFor(sql){
  }
  const selected=Object.entries(definitions).filter(([name])=>new RegExp('\\b(?:FROM|JOIN)\\s+'+name+'\\b','i').test(sql));
  if(!selected.length)return sql;
+ // CTE rows do not inherit the base table's primary-key functional dependency.
+ // Aggregate the campaign record; every joined row within its ID has the same record.
+ if(selected.some(([name])=>name==='campaigns')&&/\bc\.\*/i.test(sql)&&/\bFROM\s+campaigns\s+c\b/i.test(sql)){
+  if(/\bGROUP BY c\.id(?=\s*(?:ORDER BY|HAVING|LIMIT|$))/i.test(sql))sql=sql.replace(/\bc\.\*/g,'((array_agg(c::public.campaigns))[1]).*');
+ }
  if(sql.includes('AS advertiser_count'))sql=sql.replace(/TRIM\(ar\.email\)/g,'TRIM(ar.business_name)');
  const ctes=selected.map(([name,body])=>`${name} AS (${body})`).join(',\n');
  if(/^\s*WITH\s+RECURSIVE\b/i.test(sql))return sql.replace(/^(\s*WITH\s+RECURSIVE)\b/i,`$1 ${ctes},`);
