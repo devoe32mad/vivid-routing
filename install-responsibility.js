@@ -2,6 +2,7 @@
 const fs=require('fs'),path=require('path');
 function once(s,a,b){if(s.split(a).length!==2)throw Error('Responsibility install anchor missing: '+a);return s.replace(a,b);}
 function install(source){
+ source=require("./install-pdf-report-responsibility").install(source);
  const requestMarker='// REQUEST_CARD_DRILLDOWNS_V1';
  if(!source.includes(requestMarker)){
   const start=source.indexOf('      const requestLocationCards ='),end=source.indexOf('      const statusOptions =',start);
