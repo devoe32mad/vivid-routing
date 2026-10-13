@@ -8,6 +8,7 @@ const qrs=`SELECT created_qr_id FROM public.organization_advertising_requests WH
 const dental='Coastal Family Dental (Demo)';
 const home='Gulf Coast Home Services (Demo)';
 const definitions={
+ ...require("./ccps-demo-opportunities").definitions,
  advertisers:`SELECT (jsonb_populate_record(NULL::public.advertisers,jsonb_build_object(
  'id',v.id,'organization_id',13,'name',v.name,'relationship_status','Active',
  'next_action','Review sponsorship results with school','is_active',true))).*
@@ -42,6 +43,7 @@ function sqlFor(sql){
 }
 function run(enabled,callback){return context.run(Boolean(enabled),callback);}
 function install(source){
+ source=require("./ccps-demo-opportunities").install(source);
  const pipelineMarker='// CCPS_UNIQUE_PIPELINE_ADVERTISERS_V1';
  if(!source.includes(pipelineMarker)){
   const pipelineAnchor='const pipelineSummaryCards = [';
