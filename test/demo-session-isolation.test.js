@@ -9,6 +9,7 @@ test('both demos refresh independently in one browser without replacing the norm
   if(req.params.token!=='test-valid')return res.sendStatus(404);
   req.session.regenerate(error=>{if(error)throw error;req.session[req.params.key==='ccps'?'ccpsReview':'rubberWorldReview']={valid:true};req.session.save(()=>res.redirect('/home'));});
  });
+ app.get('/legacy-rubber-test',(req,res)=>{req.session.rubberWorldReview={valid:true};res.send('legacy');});
  app.get('/login-test',(req,res)=>{req.session.user='normal';res.send('normal');});
  app.get('/home',(req,res)=>res.send(`<html><body>${req.session.ccpsReview?'CCPS':req.session.rubberWorldReview?'Rubber World':req.session.user||'none'}<a href="/reports">Reports</a><img src="/photo"/><form action="/reports"><input value="x"/></form><script>fetch('/data')</script></body></html>`));
  app.get('/logout',(req,res)=>req.session.destroy(()=>res.redirect('/home')));
@@ -26,6 +27,10 @@ test('both demos refresh independently in one browser without replacing the norm
  assert.ok((await (await get('/home')).text()).includes('<body>normal'));
  assert.equal((await get('/demo/ccps/rubber-world-review/test-valid/enterprise')).status,404);
  assert.equal((await get('/demo/ccps/ccps-review/invalid/enterprise')).status,404);
+ await get('/legacy-rubber-test');
+ const legacy=await get('/advertise/ccps?program_id=1300105');assert.equal(legacy.status,307);assert.equal(legacy.headers.get('location'),'/demo/ccps/advertise/ccps?program_id=1300105');
+ assert.ok((await (await get('/demo/ccps/home')).text()).includes('<body>CCPS'));
+ const enterprise=await get('/org-organization/13?organization_id=13');assert.equal(enterprise.headers.get('location'),'/demo/ccps/org-organization/13?organization_id=13');
  await get('/demo/ccps/logout');assert.equal((await get('/demo/ccps/home')).status,401);
  assert.ok((await (await get('/demo/rubber-world/home')).text()).includes('<body>Rubber World'));
  }finally{await new Promise(r=>server.close(r));}
