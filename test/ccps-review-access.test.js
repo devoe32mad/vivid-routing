@@ -29,7 +29,7 @@ test('review permits scoped navigation, filters and exports but blocks writes an
  for(const path of ['/org-organization/13','/org-business-breakdown','/advertise/ccps/build-my-campaign','/org-revenue-pipeline/location/36','/org-revenue-pipeline/location/36/revenue','/reports','/admin/marketing-command-center','/help','/org-help','/admin/reports','/my-setup','/export/report.pdf','/advertise/ccps','/org-operations']){
   let passed=false;const req={path,method:'GET',query:{},session},res=response();await guard(req,res,()=>passed=true);assert.equal(passed,true,path);assert.equal(req.ccpsReviewVerified,true);assert.equal(session.user.ccpsReview,true);
  }
- for(const [path,method,query] of [['/admin/schedule','GET',{}],['/admin/assign','GET',{}],['/admin/new-campaign','GET',{}],['/reports','POST',{}],['/org-settings','POST',{}],['/admin/archive-campaign/68','GET',{}],['/r/97','GET',{}],['/org-contract/200/activate','GET',{}],['/org-organization/39','GET',{}],['/reports','GET',{organization_id:39}],['/reports','GET',{campaignId:71}],['/reports','GET',{qrId:100}],['/reports','GET',{account:6}],['/admin/view-campaign/71','GET',{}],['/org-revenue-pipeline/location/119','GET',{}]]){
+ for(const [path,method,query] of [[ '/admin/schedule','POST',{}],['/admin/assign','POST',{}],['/admin/new-campaign','POST',{}],['/reports','POST',{}],['/org-settings','POST',{}],['/admin/archive-campaign/68','GET',{}],['/r/97','GET',{}],['/org-contract/200/activate','GET',{}],['/org-organization/39','GET',{}],['/reports','GET',{organization_id:39}],['/reports','GET',{campaignId:71}],['/reports','GET',{qrId:100}],['/reports','GET',{account:6}],['/admin/view-campaign/71','GET',{}],['/org-revenue-pipeline/location/119','GET',{}]]){
   let passed=false;const res=response();await guard({path,method,query,session},res,()=>passed=true);assert.equal(passed,false,path);assert.equal(res.code,403,path);
  }
  const res=response();await guard({path:'/my-setup',method:'GET',query:{},session},res,()=>{});res.send('<main><form method="post"><button>Save</button></form><form method="get"><button>Filter</button></form><a href="/admin/archive-campaign/68">Archive</a></main>');assert.match(res.body,/fieldset disabled/);assert.match(res.body,/<form method="get">/);assert.doesNotMatch(res.body,/Archive<\/a>|<form method="post">/);
@@ -69,4 +69,17 @@ test('available advertising responds with school totals and scoped inventory lin
  const {enter,guard,session}=fixture();await enter({params:{token,view:'enterprise'},session},response());const res=response();
  await guard({path:'/org-business-breakdown',method:'GET',query:{metric:'available'},session},res,()=>assert.fail('Must return available breakdown'));
  assert.equal(res.code,200);assert.match(res.body,/CCPS Available Advertising/);
+});
+
+test('setup buttons survive filtering and open non-writing previews',async()=>{
+ const {enter,guard,session}=fixture();await enter({params:{token,view:'advertiser'},session},response());
+ const paths=Object.keys(require('../ccps-setup-preview').steps);
+ const setup=response();await guard({path:'/my-setup',method:'GET',query:{},session},setup,()=>{});
+ setup.send('<main>'+paths.map(path=>'<a href="'+path+'">Explore</a>').join('')+'</main>');
+ for(const path of paths){
+  assert.ok(setup.body.includes('href="'+path+'"'));
+  const res=response();await guard({path,method:'GET',query:{},session},res,()=>assert.fail('Preview must not reach live handler'));
+  assert.equal(res.code,200);assert.match(res.body,/Save unavailable in view-only demo/);assert.doesNotMatch(res.body,/<form/);
+  const write=response();await guard({path,method:'POST',query:{},session},write,()=>assert.fail());assert.equal(write.code,403);
+ }
 });
