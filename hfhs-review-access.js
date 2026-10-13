@@ -16,7 +16,7 @@ function install(source){
   const patch=(startText,anchor,addition)=>{const start=source.indexOf(startText),end=source.indexOf('\napp.',start+1);if(start<0||end<0)throw Error('Demo create route missing: '+startText);let part=source.slice(start,end);if(part.split(anchor).length!==2)throw Error('Demo create anchor missing: '+anchor);part=part.replace(anchor,anchor+addition);source=source.slice(0,start)+part+source.slice(end);};
   patch('app.post("/admin/new-qr",','    const qrId = newQr.rows[0].id;', '\n    if(req.hfhsReviewVerified)await require("./hfhs-review-access").track(q,"qr",qrId);');
   patch('app.post("/admin/new-campaign",','  Number(campaignInsertResult.rows[0].id);','\nif(req.hfhsReviewVerified){await q("UPDATE campaigns SET organization_id=39,is_test=true WHERE id=$1 AND user_id=$2",[campaignId,userId]);await require("./hfhs-review-access").track(q,"campaign",campaignId);}');
-  patch('app.get("/admin/schedule",',' let activeScheduleHtml = "";', '\nif(req.hfhsReviewVerified){const allowed=await require("./hfhs-demo-setup-scope").reportScope(q,currentUser);schedules.rows=schedules.rows.filter(r=>allowed.qrIds.includes(Number(r.qr_id))&&allowed.campaignIds.includes(Number(r.campaign_id)));}');
+  patch('app.get("/admin/schedule",',' let activeScheduleHtml = "";', '\nif(req.hfhsReviewVerified||req.rubberWorldReviewVerified||req.ccpsReviewVerified){const allowed=await require("./hfhs-demo-setup-scope").reportScope(q,currentUser);schedules.rows=schedules.rows.filter(r=>allowed.qrIds.includes(Number(r.qr_id))&&allowed.campaignIds.includes(Number(r.campaign_id)));}');
   // Filter at render time as well as server-side write checks: no other account choices.
   source+='\n'+createMarker+'\n';
  }
