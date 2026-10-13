@@ -4,7 +4,7 @@ const express=require('express');
 const session=require('express-session');
 const {middleware,htmlUrls,install}=require('../demo-session-isolation');
 test('both demos refresh independently in one browser without replacing the normal login',async()=>{
- const app=express();app.use(middleware(session,{secret:'test-secret-for-demo-session-isolation',resave:false,saveUninitialized:false,cookie:{httpOnly:true,sameSite:'lax'}}));
+ const app=express();app.use(middleware(session,{store:new session.MemoryStore(),secret:'test-secret-for-demo-session-isolation',resave:false,saveUninitialized:false,cookie:{httpOnly:true,sameSite:'lax'}}));
  app.get('/:key-review/:token/:view',(req,res)=>{
   if(req.params.token!=='test-valid')return res.sendStatus(404);
   req.session.regenerate(error=>{if(error)throw error;req.session[req.params.key==='ccps'?'ccpsReview':'rubberWorldReview']={valid:true};req.session.save(()=>res.redirect('/home'));});

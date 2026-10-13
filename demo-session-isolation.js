@@ -10,9 +10,18 @@ function htmlUrls(body,prefix){
  // Root-relative attributes and quoted script URLs; leave external URLs and anchors intact.
  return body.replace(/(["'`])(\/(?!\/)[^\s"'`<>]*)\1/g,(whole,quote,url)=>quote+localUrl(url,prefix)+quote);
 }
+function independentStore(session,shared){
+ if(!shared)return undefined;
+ // express-session assigns store.generate for each middleware. A shared instance
+ // would make regeneration use the last middleware's cookie path/options.
+ const store=new session.Store();
+ for(const method of ['get','set','destroy','touch','all','length','clear'])if(typeof shared[method]==='function')store[method]=shared[method].bind(shared);
+ for(const event of ['connect','disconnect'])shared.on(event,(...args)=>store.emit(event,...args));
+ return store;
+}
 function middleware(session,options){
  const normal=session(options);
- const scoped=Object.fromEntries(Object.keys(demos).map(key=>[key,session({...options,name:`vivid.demo.${key}.sid`,cookie:{...options.cookie,path:`/demo/${key}`}})]));
+ const scoped=Object.fromEntries(Object.keys(demos).map(key=>[key,session({...options,store:independentStore(session,options.store),name:`vivid.demo.${key}.sid`,cookie:{...options.cookie,path:`/demo/${key}`}})]));
  return function demoSession(req,res,next){
   const entry=req.url.match(/^\/(ccps|rubber-world)-review\//);
   if(entry)return res.redirect(307,`/demo/${entry[1]}${req.url}`);

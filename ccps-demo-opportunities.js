@@ -22,10 +22,9 @@ programs.push(
  {id:1300103,organization_id:13,name:'Fund a Classroom Project',program_type:'giving',audience_scope:'organization',is_active:true,display_order:22,
  description:'Help bring a teacher’s idea to life through Champions For Learning, Collier County’s education foundation. Explore classroom supplies, enrichment and innovative learning projects. Partner-run giving; current project availability is confirmed on the foundation’s site.',
  public_image_url:photos.stem.url,external_action_url:'https://championsforlearning.org/classroom-grants/',external_action_label:'Explore classroom giving'},
- {id:1300104,organization_id:13,name:'Golf & Cougar Community Support',program_type:'giving',audience_scope:'organization',is_active:true,display_order:23,
- description:'Connect with the Barron Collier Gridiron Club to support Cougar football through golf, donations and booster involvement. Its 2026 golf outing has concluded; ask the club about future outings and sponsorships. Booster-run, with dates and prices confirmed by the club.',
- public_image_url:'https://static.wixstatic.com/media/fe7834_2d537a796b814a09a2ef2d3170bb2814~mv2.jpg',external_action_url:'https://www.barroncolliergridiron.com/',external_action_label:'Visit the Gridiron Club'}
+ ...require('./ccps-gridiron').programs
 );
+opportunities.push(...require('./ccps-gridiron').opportunities);
 function union(table,rows){const hex=Buffer.from(JSON.stringify(rows)).toString('hex');return `SELECT * FROM public.${table} UNION ALL SELECT * FROM jsonb_populate_recordset(NULL::public.${table},convert_from(decode('${hex}','hex'),'UTF8')::jsonb)`;}
 module.exports={programs,opportunities,definitions:{organization_programs:union('organization_programs',programs),organization_opportunities:union('organization_opportunities',opportunities)}};
 
