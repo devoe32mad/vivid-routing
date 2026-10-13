@@ -16,6 +16,14 @@ test('CCPS contracts, requests, placements, campaigns and events reconcile witho
  INSERT INTO campaigns VALUES(68,10),(69,10),(57,10),(100,20);
  INSERT INTO qr_campaigns VALUES(97,68),(98,69),(99,69),(9,57),(199,100);
  INSERT INTO events VALUES(1,97),(2,98),(3,99),(4,9),(5,199);`);
+ await db.exec(`ALTER TABLE contracts ADD COLUMN advertiser_id int;
+ ALTER TABLE campaigns ADD COLUMN advertiser text; ALTER TABLE campaigns ADD COLUMN name text;
+ ALTER TABLE organization_advertising_requests ADD COLUMN business_name text;
+ ALTER TABLE organization_advertising_requests ADD COLUMN contact_name text;
+ ALTER TABLE organization_advertising_requests ADD COLUMN email text;
+ CREATE TABLE advertisers(id int,organization_id int,name text,relationship_status text,next_action text,is_active boolean);
+ UPDATE campaigns SET advertiser='Vivid Spots',name='Original test campaign';
+ UPDATE organization_advertising_requests SET business_name='Vivid Spots';`);
  const q=sql=>db.query(scope.sqlFor(sql));
  await scope.run(true,async()=>{
  assert.deepEqual((await q('SELECT count(*)::int n,sum(total_contract_value)::int value FROM contracts')).rows,[{n:3,value:1750}]);
@@ -24,8 +32,13 @@ test('CCPS contracts, requests, placements, campaigns and events reconcile witho
  assert.equal((await q('WITH totals AS (SELECT count(*)::int n FROM events) SELECT * FROM totals')).rows[0].n,3);
  assert.equal((await q('SELECT * FROM campaigns')).rows.length,2);
  assert.equal((await q('SELECT * FROM organization_advertising_requests')).rows.length,3);
+ const sponsors=(await q('SELECT a.name,sum(c.total_contract_value)::int value FROM contracts c JOIN advertisers a ON a.id=c.advertiser_id GROUP BY a.name ORDER BY a.name')).rows;
+ assert.deepEqual(sponsors,[{name:'Coastal Family Dental (Demo)',value:1000},{name:'Gulf Coast Home Services (Demo)',value:750}]);
+ assert.equal((await q('SELECT advertiser FROM campaigns WHERE id=69')).rows[0].advertiser,'Gulf Coast Home Services (Demo)');
+ assert.equal((await q('SELECT business_name FROM organization_advertising_requests WHERE id=51')).rows[0].business_name,'Coastal Family Dental (Demo)');
  });
  assert.equal((await q('SELECT * FROM contracts')).rows.length,5);
+ assert.equal((await q('SELECT advertiser FROM campaigns WHERE id=69')).rows[0].advertiser,'Vivid Spots');
  await Promise.all([scope.run(true,async()=>{await new Promise(r=>setTimeout(r,5));assert.match(scope.sqlFor('SELECT * FROM contracts'),/^WITH/);}),scope.run(false,async()=>{await new Promise(r=>setTimeout(r,10));assert.equal(scope.sqlFor('SELECT * FROM contracts'),'SELECT * FROM contracts');})]);
  assert.equal(scope.run(true,()=>scope.sqlFor('UPDATE contracts SET total_contract_value=1')),'UPDATE contracts SET total_contract_value=1');
  }finally{await db.close();}
