@@ -19,6 +19,12 @@ function independentStore(session,shared){
  for(const event of ['connect','disconnect'])shared.on(event,(...args)=>store.emit(event,...args));
  return store;
 }
+function tenantFromUrl(raw){
+ const url=new URL(raw,'http://local');
+ if(/^\/advertise\/ccps(?:\/|$)/.test(url.pathname)||url.pathname==='/org-organization/13'||url.searchParams.get('organization_id')==='13')return 'ccps';
+ if(/^\/advertise\/rubber-world-demo(?:\/|$)/.test(url.pathname)||url.pathname==='/org-organization/40'||url.searchParams.get('organization_id')==='40')return 'rubber-world';
+ return null;
+}
 function middleware(session,options){
  const normal=session(options);
  const scoped=Object.fromEntries(Object.keys(demos).map(key=>[key,session({...options,store:independentStore(session,options.store),name:`vivid.demo.${key}.sid`,cookie:{...options.cookie,path:`/demo/${key}`}})]));
@@ -26,7 +32,16 @@ function middleware(session,options){
   const entry=req.url.match(/^\/(ccps|rubber-world)-review\//);
   if(entry)return res.redirect(307,`/demo/${entry[1]}${req.url}`);
   const match=req.url.match(/^\/demo\/(ccps|rubber-world)(?=\/|\?|$)/);
-  if(!match)return normal(req,res,next);
+  if(!match)return normal(req,res,error=>{
+   if(error)return next(error);
+   // Migrate old, unprefixed tabs only when the browser is in a demo session.
+   // The destination still requires its own signed cookie or invitation token.
+   if(req.session?.ccpsReview||req.session?.rubberWorldReview){
+    const tenant=tenantFromUrl(req.url);
+    if(tenant){res.setHeader('Cache-Control','no-store');return res.redirect(307,`/demo/${tenant}${req.url}`);}
+   }
+   next();
+  });
   const key=match[1],prefix=`/demo/${key}`;
   req.url=req.url.slice(prefix.length)||'/';if(req.url.startsWith('?'))req.url='/'+req.url;
   const setHeader=res.setHeader;
@@ -53,4 +68,4 @@ function install(source){
  if(source.split(anchor).length!==2)throw Error('Session isolation anchor missing');
  return source.replace(anchor,marker+'\n    store: new PgSession({');
 }
-module.exports={middleware,install,localUrl,htmlUrls};
+module.exports={middleware,install,localUrl,htmlUrls,tenantFromUrl};
