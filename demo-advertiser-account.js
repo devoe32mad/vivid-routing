@@ -16,6 +16,7 @@ async function select(req,q,user,review,scope){
  return narrow(q,user,scope);
 }
 async function respond(req,res,q,org,allowed){
+ if(req.path==='/my-setup')return false;
  const match=req.path.match(/^\/demo-advertiser\/placement\/(\d+)$/);
  if(req.path!=='/my-setup'&&!match)return false;
  if(match&&!allowed.qrIds.includes(Number(match[1]))){res.status(403).send('This placement belongs to another demo advertiser.');return true;}

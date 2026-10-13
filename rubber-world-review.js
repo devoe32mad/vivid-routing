@@ -89,7 +89,7 @@ function register(app,{q}){
     const banner=`<div style="padding:14px 24px;background:#edf3f9;color:#23374d;font:14px system-ui"><strong>Rubber World Magazine · Vivid demonstration</strong> · View-only except responsibility assignments · Sample rates and simulated activity<br>${nav}</div>`;
     body=/<body[^>]*>/i.test(body)?body.replace(/<body[^>]*>/i,m=>m+banner):banner+body;
    }return send.call(this,body);};
-   if(req.path==='/my-setup'||/^\/rubber-world-demo\/placement\/\d+$/.test(req.path)){
+   if(/^\/rubber-world-demo\/placement\/\d+$/.test(req.path)){
     const portal=require('./rubber-world-advertiser-portal');
     try{return res.send(portal.render(await portal.load(q,org,req.query),req.query,req.path.match(/placement\/(\d+)$/)?.[1]));}catch(e){if(e.status)return res.status(e.status).send(e.message);throw e;}
    }

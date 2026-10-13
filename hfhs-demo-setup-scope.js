@@ -1,6 +1,18 @@
 "use strict";
 // Presentation scope for Mike's dedicated HFHS advertiser demo. Does not grant access.
 async function filterSetup(q,user,results){
+  if(user?.demoAdvertiserId || user?.rubberWorldAdvertiserId){
+    const scope=await reportScope(q,user);
+    if(!scope)throw Error('Demo advertiser scope unavailable');
+    for(const [key,result] of Object.entries(results)){
+      result.rows=result.rows.filter(r=>key==='locations'?scope.locationIds.includes(Number(r.id)):
+        key==='qrs'?scope.qrIds.includes(Number(r.id)):
+        ['campaigns','archivedCampaigns'].includes(key)?scope.campaignIds.includes(Number(r.id)):
+        scope.qrIds.includes(Number(r.qr_id))&&scope.campaignIds.includes(Number(r.campaign_id)));
+      result.rowCount=result.rows.length;
+    }
+    return;
+  }
   if(user?.ccpsReview)return require("./ccps-review-access").filterSetup(q,user,results);
   if(String(user.role).toLowerCase()!=="customer" || String(user.email).trim().toLowerCase()!=="michaelandrewdevoe@gmail.com")return;
   const allowed=await q(`SELECT ar.location_id,ar.created_qr_id AS qr_id,ar.created_campaign_id AS campaign_id
