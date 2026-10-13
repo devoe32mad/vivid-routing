@@ -43,5 +43,18 @@ test('fixture SQL executes transactionally in PostgreSQL with exact aggregate re
  const replay=await seed.seed(client);assert.equal((await db.query('SELECT COUNT(*)::int AS count FROM organization_opportunities')).rows[0].count,before);assert(replay.alreadyLoaded);assert.equal(replay.organizationId,result.organizationId);
  const pending=(await db.query("SELECT COUNT(*)::int AS count,SUM(price)::numeric AS total FROM organization_advertising_requests WHERE status='Pending'")).rows[0];assert.equal(pending.count,3);assert.equal(Number(pending.total),8100);
  const owner=(await db.query('SELECT email FROM users WHERE id=$1',[result.ownerId])).rows[0];assert.equal(owner.email,seed.EMAIL);
+ await db.exec('ALTER TABLE spaces ADD COLUMN is_archived BOOLEAN DEFAULT false');
+ const ai=await require('../rubber-world-ai-demo').load(client.query,result.organizationId).catch(async e=>{await db.close();throw e});
+ assert.equal(ai.requests.length,3);assert.equal(ai.contracts.length,6);assert.equal(ai.advertisers.length,3);assert.equal(ai.metrics.find(x=>x.type==='conversion').count,105);assert.equal(ai.opportunities.filter(x=>x.status==='Available').length,26);
+ const foreign=await require('../rubber-world-ai-demo').load(client.query,999999);assert.equal(foreign.opportunities.length,0);assert.equal(foreign.metrics.length,0);
  await db.close();
+});
+
+test('demo AI replaces native links in place without enabling production AI routes',()=>{
+ const ai=require('../rubber-world-ai-demo'),privateAi=require('../ai-preview-access');
+ const html='<nav><a class="nav-item" href="/org-weekly-ai-report?organization_id=40">Weekly AI Report</a><a href="/org-ai-readiness?organization_id=40">AI Readiness</a></nav>';
+ const output=privateAi.withoutAiLinks(ai.navigation(html));
+ assert(output.includes('class="nav-item"'));assert(output.includes('/rubber-world-demo/ai/weekly-report?organization_id=40'));assert(output.includes('AI Readiness'));assert.equal((output.match(/Weekly AI Report/g)||[]).length,1);
+ assert.equal(review.routeAllowed('/org-ai-campaign-operator',40),false);
+ for(const p of ai.paths)assert(review.routeAllowed(p,40));
 });
