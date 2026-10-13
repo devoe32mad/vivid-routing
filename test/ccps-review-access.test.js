@@ -73,13 +73,15 @@ test('available advertising responds with school totals and scoped inventory lin
 
 test('setup buttons survive filtering and open non-writing previews',async()=>{
  const {enter,guard,session}=fixture();await enter({params:{token,view:'advertiser'},session},response());
- const paths=Object.keys(require('../ccps-setup-preview').steps);
+ const paths=['/admin/new-qr','/admin/new-campaign','/admin/assign','/admin/schedule'];
  const setup=response();await guard({path:'/my-setup',method:'GET',query:{},session},setup,()=>{});
  setup.send('<main>'+paths.map(path=>'<a href="'+path+'">Explore</a>').join('')+'</main>');
  for(const path of paths){
   assert.ok(setup.body.includes('href="'+path+'"'));
-  const res=response();await guard({path,method:'GET',query:{},session},res,()=>assert.fail('Preview must not reach live handler'));
-  assert.equal(res.code,200);assert.match(res.body,/Save unavailable in view-only demo/);assert.doesNotMatch(res.body,/<form/);
+  const res=response(),req={path,method:'GET',query:{marketplace_request_id:'52'},session};let passed=false;
+  await guard(req,res,()=>passed=true);assert.equal(passed,true);assert.equal(req.query.marketplace_request_id,undefined);
+  res.send('<main><form id="nativeForm" method="POST"><input name="name"><button type="button">Add Destination</button><button type="submit">Save</button></form></main>');
+  assert.match(res.body,/<form id="nativeForm"/);assert.match(res.body,/<button type="button">Add Destination/);assert.match(res.body,/<button type="submit" disabled/);assert.match(res.body,/Saving is disabled/);
   const write=response();await guard({path,method:'POST',query:{},session},write,()=>assert.fail());assert.equal(write.code,403);
  }
 });
