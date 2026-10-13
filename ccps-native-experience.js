@@ -47,6 +47,7 @@ function install(source){
       const nativeRestricted=id=>require('./ccps-native-experience').restricted(nativeExportAccess,id);
       const reportRows =`);
   if(ext==='pdf'){
+   part=replace(part,'doc.font(require("./install-hfhs-report-scope").reportFont());','doc.font(req.ccpsReviewVerified?"Helvetica":require("./install-hfhs-report-scope").reportFont());');
    part=replace(part,'      drawKeyValueTable(\n        "Executive Summary",',`      if(req.ccpsReviewVerified){doc.fontSize(9).fillColor("#6b7280").text("CCPS illustrative demo. Basic includes scans; restricted metrics are shown as dashes.");doc.moveDown(0.8);}
       drawKeyValueTable(
         "Executive Summary",`);
