@@ -68,6 +68,7 @@ function isHfhsDemo(user){
 }
 async function reportScope(q,user){
   if(user?.ccpsReview)return require("./ccps-review-access").reportScope(q,user);
+  if(require("./rubber-world-review").isDemo(user))return require("./rubber-world-review").reportScope(q,user);
   if(!isHfhsDemo(user))return null;
   const result=await q(`SELECT DISTINCT ar.location_id,ar.created_qr_id AS qr_id,ar.created_campaign_id AS campaign_id
     FROM organization_advertising_requests ar
