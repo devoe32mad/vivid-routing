@@ -44,3 +44,20 @@ test('advertiser dataset excludes other organizations, other owners and mixed as
  assert.equal(await review.reportScope(()=>assert.fail(),{id:10,role:'customer'}),null);
  }finally{await db.close()}
 });
+test('shared demo serves CCPS photos but rejects other organizations and photo writes',async()=>{
+ const {enter,guard,session}=fixture();await enter({params:{token,view:'marketplace'},session},response());
+ for(const [path,method,expected] of [['/org-opportunity/200/photo','GET',true],['/org-opportunity/999/photo','GET',false],['/org-opportunity/200/photo','POST',false]]){
+  let passed=false;const res=response();await guard({path,method,query:{},session},res,()=>passed=true);assert.equal(passed,expected);if(!expected)assert.equal(res.code,403);
+ }
+});
+test('school cards reuse scoped artwork and hidden navigation stays hidden',async()=>{
+ const presentation=require('../ccps-demo-presentation');
+ const html=presentation.render('<h2>Barron Collier High School</h2><img src="/org-opportunity/148/photo">',[{name:'Barron Collier High School',photo_id:147}]);
+ assert.match(html,/src="\/org-opportunity\/147\/photo\?ccps_demo=2"/);
+ assert.match(html,/src="\/org-opportunity\/148\/photo\?ccps_demo=2"/);
+ assert.match(html,/object-position:center/);
+ const {enter,guard,session}=fixture();await enter({params:{token,view:'marketplace'},session},response());const res=response();
+ await guard({path:'/advertise/ccps',method:'GET',query:{},session},res,()=>{});
+ res.send('<main><a style="display:none" href="/admin/ai-readiness">AI Readiness</a><a href="/reports">Reports</a></main>');
+ assert.doesNotMatch(res.body,/AI Readiness/);assert.match(res.body,/href="\/reports"/);
+});
