@@ -1,0 +1,10 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');
+const portal=require('../rubber-world-advertiser-portal');
+const rows=[1,2].map(i=>({qr_id:i,campaign_id:i,advertiser_id:i,advertiser:'Advertiser '+i,qr_name:'Placement '+i,scans:10,clicks:5,conversions:1,revenue:20,start_date:'2026-09-14',end_date:'2026-10-13'}));
+const data={rows,from:'2026-09-14',to:'2026-10-13'};
+test('advertiser selection filters placements and report/export destinations',()=>{const html=portal.render(data,{advertiser_id:'1'});assert.match(html,/Placement 1/);assert.doesNotMatch(html,/Placement 2/);assert.match(html,/campaign_id=1/);assert.doesNotMatch(html,/Create an Issue|New QR|No Active Schedules/);});
+test('placement details enforce selected advertiser and expose scoped actions',()=>{assert.throws(()=>portal.render(data,{advertiser_id:'1'},2));const html=portal.render(data,{},1);assert.match(html,/edit-campaign\/1/);assert.match(html,/qr\/1.png/);assert.match(html,/campaign-help\?campaign_id=1/);assert.throws(()=>portal.render(data,{},99));});
+test('invalid filters rejected and HTML content escaped',()=>{assert.throws(()=>portal.dates({start_date:'2026-02-30'}));assert.throws(()=>portal.dates({start_date:'2026-10-14',end_date:'2026-10-13'}));assert.match(portal.render({...data,rows:[{...rows[0],qr_name:'<script>alert(1)</script>'}]},{}),/&lt;script&gt;/);});
+test('portal reads only its organization and reporting period',async()=>{await portal.load(async(sql,args)=>{assert.match(sql,/WHERE s.organization_id=\$1/);assert.match(sql,/c.organization_id=s.organization_id/);assert.deepEqual(args,[40,'2026-09-14','2026-10-13']);return {rows:[]};},40,{});});
+test('demo guard allows native settings but keeps destructive actions blocked',()=>{const {routeAllowed}=require('../rubber-world-review');for(const path of ['/admin/edit-campaign/85','/admin/edit-qr/119','/rubber-world-demo/placement/119'])assert.equal(routeAllowed(path,40),true);for(const path of ['/admin/archive-campaign/85','/admin/new-campaign','/admin/delete-qr/119'])assert.equal(routeAllowed(path,40),false);});
