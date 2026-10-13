@@ -11,6 +11,7 @@ function editableRoute(path){return /^\/admin\/edit-location\/\d+$/.test(path)||
 function routeAllowed(path){if(['/admin/schedule','/admin/assign','/admin/new-campaign','/admin/new-qr'].includes(path))return false;return /^\/org-opportunity\/\d+\/photo$/.test(path)||path==='/advertise/ccps/build-my-campaign'||/^\/admin\/view-schedule\/\d+$/.test(path)|| /^\/org-revenue-pipeline\/location\/\d+(?:\/revenue)?$/.test(path)|| readOnlyAdmin(path)|| /^\/admin\/view-(?:qr|location)\/\d+$/.test(path)||/^\/admin\/campaign\/\d+\/website-pages$/.test(path)||/^\/r\/\d+$/.test(path)|| /^\/admin\/(?:archive|restore)-(?:campaign|qr)\/\d+$/.test(path)|| path==='/admin/qr-setup-choice'||/^\/qr\/\d+\.png$/.test(path)|| editableRoute(path)|| simple.has(path)||path==='/org-organization/13'||/^\/advertise\/ccps(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path)||/^\/org-(?:location|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/view-campaign\/\d+$/.test(path);}
 function validToken(value){if(typeof value!=='string'||value.length>100)return false;return crypto.timingSafeEqual(crypto.createHash('sha256').update(value).digest(),Buffer.from(TOKEN_HASH,'hex'));}
 function install(source){
+ source=require("./ccps-demo-data-scope").install(source);
  const marker='// CCPS_READ_ONLY_REVIEW_V1';if(source.includes(marker))return source;
  const anchor='const disabledPublicMaintenanceRoutes =';if(source.split(anchor).length!==2)throw Error('CCPS review middleware anchor missing');
  source=source.replace(anchor,marker+'\nrequire("./ccps-review-access").register(app,{q});\n'+anchor);
@@ -44,7 +45,7 @@ function register(app,{q}){
    res.redirect(homes[req.params.view]);
   }catch(e){console.error('CCPS REVIEW ENTRY ERROR:',e.message);res.status(503).send('Demo access is temporarily unavailable.');}
  });
- app.use(async(req,res,next)=>{
+ app.use((req,res,next)=>require("./ccps-demo-data-scope").run(Boolean(req.session?.ccpsReview),async()=>{
   const review=req.session?.ccpsReview;if(!review)return next();
   res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Robots-Tag','noindex, nofollow');
   if(review.version!==TOKEN_HASH||review.expires!==EXPIRES||Date.now()>=EXPIRES){return req.session.destroy(()=>res.status(410).send('This CCPS review has expired.'));}
@@ -100,6 +101,11 @@ function register(app,{q}){
     {body=body.replace(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi,(form,attrs,inside)=>/method=["']?post/i.test(attrs)?'<div class="ccps-admin-preview"><fieldset disabled style="border:0;margin:0;padding:0;min-width:0">'+inside+'</fieldset><p style="color:#64748b;font-size:13px">View-only demo — administrative changes are disabled.</p></div>':form);}
     body=body.replace(/<a\b[^>]*href=["']\/admin\/(?:archive|restore)-(?:campaign|qr)\/[^"']*["'][^>]*>[\s\S]*?<\/a>/gi,'');
     body=body.replace(/<a\b([^>]*?)href=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/a>/gi,(link,before,href,after,label)=>{
+      const text=label.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+      if(/^Advertisers(?:\s|$)/i.test(text)&&(href==='#revenue-by-location'||href.startsWith('/org-revenue-pipeline'))){
+        const target='/org-advertisers?organization_id=13'+(req.query.location_id?'&location_id='+Number(req.query.location_id):'')+'#advertiser-list';
+        return '<a'+before+'href="'+target+'"'+after+'>'+label+'</a>';
+      }
       if(!href.startsWith('/'))return link;
       const path=href.split(/[?#]/)[0];
       const blocked=/^\/admin\/(?:archive|restore|deactivate)-/.test(path)||/^\/r\//.test(path);
@@ -113,7 +119,7 @@ function register(app,{q}){
    if(req.path==='/org-business-breakdown'&&req.query.metric==='available')return res.send(await require('./ccps-demo-presentation').available(q));
    next();
   }catch(e){console.error('CCPS REVIEW GUARD ERROR:',e.message);res.status(503).send('Demo review is temporarily unavailable.');}
- });
+ }));
 }
 module.exports={install,register,scope,validToken,routeAllowed,editableRoute,EXPIRES};
 
