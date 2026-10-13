@@ -8,7 +8,7 @@ const homes={enterprise:'/org-organization/13?organization_id=13&'+DEFAULT_DATES
 const simple=new Set(['/org-business-breakdown','/org-help','/help','/admin/conversion-tracking','/org-advertisers','/org-locations','/org-marketplace','/org-contracts','/org-renewals','/org-revenue-pipeline','/org-placement-report','/org-performance','/org-advertising-requests','/org-export','/org-export/renewals.csv','/org-export/renewals.pdf','/my-setup','/reports','/reports-qr','/reports-location','/reports-campaign','/admin/reports','/export/report.pdf','/export/report.xlsx','/export/events.csv','/org-export/report.pdf','/org-export/report.xlsx','/export/website-pages.csv','/export/website-pages.pdf','/admin/marketing-command-center','/campaign-help','/org-campaign-builder-requests','/org-campaign-help-example','/org-location/new','/org-opportunity/new']);
 function readOnlyAdmin(path){return ['/org-operations','/org-users','/org-users/new','/org-bulk-import','/org-import-locations-assets','/org-locations-assets-template','/org-programs','/org-settings','/org-permissions'].includes(path)||/^\/org-user\/\d+\/edit$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path);}
 function editableRoute(path){return /^\/admin\/edit-location\/\d+$/.test(path)|| ['/admin/new-qr','/admin/new-campaign','/admin/assign','/admin/schedule','/org-programs'].includes(path)||/^\/admin\/edit-qr\/\d+$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path)|| /^\/admin\/edit-campaign\/\d+$/.test(path)||/^\/(?:org-)?campaign-help(?:\/\d+)?$/.test(path)||/^\/org-opportunity\/(?:new|edit\/\d+)$/.test(path)||path==='/org-location/new'||/^\/org-contract\/\d+\/(?:fulfillment|renew|renewal-review|renewal-approve|activate|activity)$/.test(path);}
-function routeAllowed(path){if(['/admin/schedule','/admin/assign','/admin/new-campaign','/admin/new-qr'].includes(path))return false;return path==='/advertise/ccps/build-my-campaign'||/^\/admin\/view-schedule\/\d+$/.test(path)|| /^\/org-revenue-pipeline\/location\/\d+(?:\/revenue)?$/.test(path)|| readOnlyAdmin(path)|| /^\/admin\/view-(?:qr|location)\/\d+$/.test(path)||/^\/admin\/campaign\/\d+\/website-pages$/.test(path)||/^\/r\/\d+$/.test(path)|| /^\/admin\/(?:archive|restore)-(?:campaign|qr)\/\d+$/.test(path)|| path==='/admin/qr-setup-choice'||/^\/qr\/\d+\.png$/.test(path)|| editableRoute(path)|| simple.has(path)||path==='/org-organization/13'||/^\/advertise\/ccps(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path)||/^\/org-(?:location|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/view-campaign\/\d+$/.test(path);}
+function routeAllowed(path){if(['/admin/schedule','/admin/assign','/admin/new-campaign','/admin/new-qr'].includes(path))return false;return /^\/org-opportunity\/\d+\/photo$/.test(path)||path==='/advertise/ccps/build-my-campaign'||/^\/admin\/view-schedule\/\d+$/.test(path)|| /^\/org-revenue-pipeline\/location\/\d+(?:\/revenue)?$/.test(path)|| readOnlyAdmin(path)|| /^\/admin\/view-(?:qr|location)\/\d+$/.test(path)||/^\/admin\/campaign\/\d+\/website-pages$/.test(path)||/^\/r\/\d+$/.test(path)|| /^\/admin\/(?:archive|restore)-(?:campaign|qr)\/\d+$/.test(path)|| path==='/admin/qr-setup-choice'||/^\/qr\/\d+\.png$/.test(path)|| editableRoute(path)|| simple.has(path)||path==='/org-organization/13'||/^\/advertise\/ccps(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path)||/^\/org-(?:location|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/view-campaign\/\d+$/.test(path);}
 function validToken(value){if(typeof value!=='string'||value.length>100)return false;return crypto.timingSafeEqual(crypto.createHash('sha256').update(value).digest(),Buffer.from(TOKEN_HASH,'hex'));}
 function install(source){
  const marker='// CCPS_READ_ONLY_REVIEW_V1';if(source.includes(marker))return source;
@@ -62,6 +62,11 @@ function register(app,{q}){
   try{
    for(const key of ['organization_id','org_id'])if((req.query[key]&&String(req.query[key])!==String(ORG))||(req.body?.[key]&&String(req.body[key])!==String(ORG)))return notice();
    for(const key of ['user_id','customer_id','owner_id','account_id','account','advertiser_customer_id'])if(req.query[key])return notice();
+   const photo=req.path.match(/^\/org-opportunity\/(\d+)\/photo$/);
+   if(photo){
+    if(!(await q('SELECT id FROM organization_opportunities WHERE id=$1 AND organization_id=$2 AND COALESCE(is_active,true)=true',[Number(photo[1]),ORG])).rows.length)return notice();
+    return next();
+   }
    const user={id:review.ownerId,login_user_id:review.ownerId,customer_id:review.ownerId,role:'customer',name:'CCPS Demo Reviewer',email:'mike@vividspots.com',ccpsReview:true};
    const allowed=await reportScope(q,user);
    if(!allowed)return notice();
@@ -86,7 +91,9 @@ function register(app,{q}){
    req.session.user=user;req.session.orgUser={id:review.ownerId,organization_id:ORG,organization_name:'CCPS Demo',organization_role:'organization_admin',name:'CCPS Demo Reviewer',email:user.email};
    delete req.session.platformUser;
    req.ccpsReviewVerified=true;
+   const schoolPhotos=await require("./ccps-demo-presentation").load(q,req.path);
    const send=res.send;res.send=function(body){if(typeof body==='string'&&/<(?:html|body|main|div)\b/i.test(body)){
+    body=require("./ccps-demo-presentation").render(body,schoolPhotos);
     const banner='<div style="padding:12px 20px;background:#edf3f9;color:#23374d;font:14px system-ui"><strong>CCPS interactive demo · View-only</strong> · CCPS review workspace · Expires October 27, 2026 (Eastern)<br><a href="'+homes.enterprise+'">Enterprise</a> · <a href="'+homes.marketplace+'">Marketplace</a> · <a href="'+homes.advertiser+'">Advertiser portal</a></div>';
     body=body.replace(/<select\b([^>]*)>([\s\S]*?)<\/select>/gi,(whole,attrs,options)=>{const name=attrs.match(/name=["']([^"']+)["']/i)?.[1];const ids=['organization_id','org_id'].includes(name)?[ORG]:['space_id','location_id'].includes(name)?locations:['qr_id','qr_ids'].includes(name)?allowed.qrIds:['campaign_id','campaign','campaignId'].includes(name)?allowed.campaignIds:null;if(!ids)return whole;return '<select'+attrs+'>'+options.replace(/<option\b[^>]*value=["']([^"']*)["'][^>]*>[\s\S]*?<\/option>/gi,(option,id)=>!id||ids.includes(Number(id))?option:'')+'</select>';});
     body=body.replace(/<input\b[^>]*type=["']file["'][^>]*>/gi,'<span>Photo uploads are available after demo onboarding.</span>');
@@ -97,7 +104,7 @@ function register(app,{q}){
       const path=href.split(/[?#]/)[0];
       const blocked=path==='/admin/marketing-command-center'||/^\/admin\/(?:archive|restore|deactivate)-/.test(path)||/^\/r\//.test(path);
       const redirects=['/dashboard','/org-dashboard','/admin/archived-campaigns','/admin/new-location'];
-      return blocked||(!routeAllowed(path)&&!redirects.includes(path))?'<span style="color:#64748b">'+label+'</span>':link;
+      return blocked||(!routeAllowed(path)&&!redirects.includes(path))?'':link;
     });
     body=body.replace(/mike@vividspots\.com/gi,'CCPS Demo Reviewer');
     body=/<body[^>]*>/i.test(body)?body.replace(/<body[^>]*>/i,m=>m+banner):banner+body;
