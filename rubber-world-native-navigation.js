@@ -16,6 +16,12 @@ function sqlFor(sql){
  return `WITH ${ctes} ${sql}`;
 }
 function install(source){
+ const planMarker='// RUBBER_WORLD_NATIVE_PLAN_PREVIEW_V1';
+ if(!source.includes(planMarker)){
+  const anchor='    const basicLockedRoutes=new Set([';
+  if(source.split(anchor).length!==2)throw Error('Native demo plan preview anchor missing');
+  source=source.replace(anchor,planMarker+'\n    if(req.rubberWorldReviewVerified&&["GET","HEAD"].includes(req.method)&&require("./rubber-world-native-navigation").paths.includes(requestPath))return next();\n'+anchor);
+ }
  const marker='// RUBBER_WORLD_NATIVE_NAVIGATION_V1';if(source.includes(marker))return source;
  const anchor='async function q(sql, params = []) {';if(source.split(anchor).length!==2)throw Error('Native demo query anchor missing');
  return source.replace(anchor,anchor+'\n'+marker+'\n  if(require("./rubber-world-native-navigation").blockedWrite(sql))return {rows:[],rowCount:0};\n  sql=require("./rubber-world-native-navigation").sqlFor(sql);');
