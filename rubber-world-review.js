@@ -11,6 +11,10 @@ async function reportScope(q,user){
  const locations=(await q('SELECT id FROM spaces WHERE organization_id=$1',[org.id])).rows;
  const qrs=(await q('SELECT qr.id FROM qr_codes qr JOIN spaces s ON s.id=qr.space_id WHERE s.organization_id=$1',[org.id])).rows;
  const campaigns=(await q('SELECT id FROM campaigns WHERE organization_id=$1 AND user_id=$2',[org.id,user.id])).rows;
+ if(user.rubberWorldAdvertiserId){
+  const owned=(await q(`SELECT DISTINCT c.id AS campaign_id,qr.id AS qr_id,s.id AS location_id FROM campaigns c JOIN qr_campaigns qc ON qc.campaign_id=c.id JOIN qr_codes qr ON qr.id=qc.qr_id JOIN spaces s ON s.id=qr.space_id WHERE c.organization_id=$1 AND s.organization_id=$1 AND c.user_id=$2 AND c.advertiser_id=$3`,[org.id,user.id,user.rubberWorldAdvertiserId])).rows;
+  return {locationIds:[...new Set(owned.map(x=>Number(x.location_id)))],qrIds:[...new Set(owned.map(x=>Number(x.qr_id)))],campaignIds:[...new Set(owned.map(x=>Number(x.campaign_id)))]};
+ }
  return {locationIds:locations.map(x=>Number(x.id)),qrIds:qrs.map(x=>Number(x.id)),campaignIds:campaigns.map(x=>Number(x.id))};
 }
 function validToken(token){return typeof token==='string'&&token.length<100&&crypto.timingSafeEqual(crypto.createHash('sha256').update(token).digest(),Buffer.from(HASH,'hex'));}
@@ -52,6 +56,14 @@ function register(app,{q}){
   if(!routeAllowed(req.path,org))return deny();
   try{
    const user={id:review.owner,login_user_id:review.owner,customer_id:review.owner,role:'customer',name:'Rubber World Demo Reviewer',email:EMAIL};
+   const advertiserSurface=req.path==='/my-setup'||req.path.startsWith('/rubber-world-demo/placement/')||/^\/(?:reports(?:-|$)|admin\/(?:reports|view-|edit-|campaign\/)|export\/|qr\/|campaign-help)/.test(req.path);
+   if(advertiserSurface){
+    const advertisers=(await q('SELECT DISTINCT advertiser_id,advertiser FROM campaigns WHERE organization_id=$1 AND user_id=$2 AND advertiser_id IS NOT NULL ORDER BY advertiser,advertiser_id',[org,review.owner])).rows;
+    const selected=Number(req.query.advertiser_id||review.advertiserId||advertisers[0]?.advertiser_id);
+    if(!advertisers.some(a=>Number(a.advertiser_id)===selected))return deny();
+    review.advertiserId=selected;user.rubberWorldAdvertiserId=selected;
+    if(req.path==='/my-setup'||req.path.startsWith('/rubber-world-demo/placement/'))req.query.advertiser_id=String(selected);
+   }
    const scope=await reportScope(q,user);
    if(!scope?.locationIds.length)return deny();
    for(const key of ['organization_id','organizationId','org_id','orgId'])if(req.query[key]&&String(req.query[key])!==String(org))return deny();
