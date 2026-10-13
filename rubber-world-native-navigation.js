@@ -1,7 +1,7 @@
 'use strict';
 const {AsyncLocalStorage}=require('node:async_hooks');
 const context=new AsyncLocalStorage();
-const paths=['/admin/marketing-command-center','/admin/ai-insights','/admin/weekly-ai-report','/admin/ai-approval-center','/admin/ai-readiness','/admin/ai-campaign-operator','/admin/archived-campaigns'];
+const paths=['/admin/marketing-command-center','/admin/archived-campaigns'];
 const ids=values=>values.filter(Number.isSafeInteger).join(',')||'NULL';
 function run(scope,next){return context.run(scope,next);}
 function blockedWrite(sql){return Boolean(context.getStore()&&/^\s*(INSERT|UPDATE|DELETE)\b/i.test(sql));}
