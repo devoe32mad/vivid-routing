@@ -18,7 +18,7 @@ async function load({q,req}){
   const user=req.session?.user;
   if(!user||["super_admin","admin","platform"].includes(user.role))return {rows:[]};
   const hfhsScope=await require("./hfhs-demo-setup-scope").reportScope(q,user);
-  if(hfhsScope)return {rows:[],hfhsScope,hideUpgrade:true,returnTo:reportReturn(req.originalUrl)};
+  if(hfhsScope&&!user.ccpsReview)return {rows:[],hfhsScope,hideUpgrade:true,returnTo:reportReturn(req.originalUrl)};
   let rows=(await q(`
     SELECT DISTINCT qr.id AS qr_id,qr.name AS qr_name,qr.space_id AS location_id,
       s.name AS location_name,qc.campaign_id,spp.status
@@ -34,14 +34,14 @@ async function load({q,req}){
   `,[Number(user.login_user_id||user.id),Number(user.id)])).rows;
   rows=require("./hfhs-demo-setup-scope").scopedRows(rows,hfhsScope,"qrIds","qr_id");
   if(rows.length)req.session.sponsorshipPerformanceCsrf||=crypto.randomBytes(32).toString("hex");
-  return {rows,hfhsScope,hideUpgrade:Boolean(hfhsScope),csrf:req.session.sponsorshipPerformanceCsrf,returnTo:reportReturn(req.originalUrl)};
+  return {rows,hfhsScope,hideUpgrade:Boolean(hfhsScope)&&!user.ccpsReview,readOnlyDemo:Boolean(user.ccpsReview),csrf:req.session.sponsorshipPerformanceCsrf,returnTo:reportReturn(req.originalUrl)};
 }
 function render(state,key,id){
   if(state.hideUpgrade)return "";
   const rows=[...new Map((state.rows||[]).filter(r=>Number(r[key])===Number(id)).map(r=>[r.qr_id,r])).values()];
   return rows.map(r=>`<div style="margin-top:10px;font-size:13px;white-space:normal;text-align:left">
     ${key!=="qr_id"?`<div>${esc(r.qr_name)} · ${esc(r.location_name)}</div>`:""}
-    ${r.status==="upgrade_requested"?'<strong>Upgrade requested</strong><div>We’ll contact you to complete activation.</div>':`<form method="post" action="/admin/sponsorship-performance/upgrade">
+    ${state.readOnlyDemo?'<strong>Vivid Performance — $35/month per placement</strong><div>Optional analytics, billed directly to the sponsor by Vivid.</div><button class="btn" type="button" disabled>Upgrade (demo only)</button>':r.status==="upgrade_requested"?'<strong>Upgrade requested</strong><div>We’ll contact you to complete activation.</div>':`<form method="post" action="/admin/sponsorship-performance/upgrade">
       <input type="hidden" name="csrf" value="${esc(state.csrf)}">
       <input type="hidden" name="qr_id" value="${Number(r.qr_id)}">
       <input type="hidden" name="return_to" value="${esc(state.returnTo)}">
@@ -49,7 +49,7 @@ function render(state,key,id){
     </form>`}
   </div>`).join("");
 }
-function intro(state){return !state.hideUpgrade && state.rows?.length?'<p style="margin:16px 0">Basic includes scans; other performance metrics show a dash until upgraded. <strong>Vivid Performance — $35/month per placement</strong> adds website activity, conversions, revenue, ROI and campaign scheduling. Request an upgrade beside your placement below.</p>':"";}
+function intro(state){return !state.hideUpgrade && state.rows?.length?'<p style="margin:16px 0">Basic includes scans; other performance metrics show a dash until upgraded. <strong>Vivid Performance — $35/month per placement</strong> adds website activity, conversions, revenue, ROI and campaign scheduling. Sponsors pay Vivid directly for this optional analytics upgrade. Request an upgrade beside your placement below.</p>':"";}
 // Mixed aggregates containing a Basic placement must not expose that placement's
 // paid metrics. Performance-only rows and platform administrators remain unchanged.
 function restricted(state,key,id){return (state.rows||[]).some(r=>Number(r[key])===Number(id));}
