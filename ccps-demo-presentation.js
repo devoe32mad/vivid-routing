@@ -21,7 +21,8 @@ function render(body,schools,path){
 
  // Use the uploaded sponsorship artwork already associated with each school.
  // Never borrow another organization's images or replace opportunity-specific artwork.
- for(const school of schools){
+ body=body.replace('event signage, a golf hole sign, an exhibit booth, a program ad or a handout','school fence banners, gym signage, scoreboards, printed programs or handouts').replace('not required to sponsor this event','not required to sponsor this school');
+ for(const school of (path?.includes('/opportunity/')?[]:schools)){
   const name=esc(school.name).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   const pattern=new RegExp('(<(?:h[123]|div)\\b[^>]*>\\s*'+name+'\\s*</(?:h[123]|div)>)');
   const photo=`<img class="ccps-school-photo" src="/org-opportunity/${Number(school.photo_id)}/photo?ccps_demo=2" alt="${esc(school.name)} sponsorship illustration" style="display:block;width:100%;max-width:760px;height:200px;object-fit:cover;object-position:center;border-radius:12px;margin:0 auto 16px" >`;
