@@ -93,6 +93,7 @@ function register(app,{q}){
     body=body.replace(/<a\b([^>]*?)href=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/a>/gi,(link,before,href,after,label)=>{
      if(!href.startsWith('/'))return link;
      const path=href.split(/[?#]/)[0];
+     if(/^\/admin\/(?:ai-|weekly-ai-report)/.test(path))return ''; 
      if(routeAllowed(path,org)||['/logout','/dashboard','/org-dashboard'].includes(path))return link;
      return '<span title="View-only demo" style="color:#87949e">'+label+'</span>';
     });
