@@ -1,7 +1,14 @@
 'use strict';
 const fs=require('fs'),path=require('path');
 function once(s,a,b){if(s.split(a).length!==2)throw Error('Responsibility install anchor missing: '+a);return s.replace(a,b);}
-function install(source){const marker='// DATABASE_RESPONSIBILITY_V1';if(source.includes(marker))return source;
+function install(source){
+ const requestMarker='// REQUEST_CARD_DRILLDOWNS_V1';
+ if(!source.includes(requestMarker)){
+  const start=source.indexOf('      const requestLocationCards ='),end=source.indexOf('      const statusOptions =',start);
+  if(start<0||end<0)throw Error('Request location card renderer not found');
+  source=source.slice(0,start)+'      '+requestMarker+'\n      const requestLocationCards = require("./org-request-location-cards")(requestLocationSummaries, organizationId, escapeHtml);\n'+source.slice(end);
+ }
+ const marker='// DATABASE_RESPONSIBILITY_V1';if(source.includes(marker))return source;
  source=once(source,'const disabledPublicMaintenanceRoutes =',marker+'\nrequire("./responsibility-routes").register(app,{q,organizationNav});\nconst disabledPublicMaintenanceRoutes =');
  const nav='${navItem(\n  "Renewals",\n  `/org-renewals?organization_id=${organizationId}`,\n  "renewals"\n)}';
  source=once(source,nav,nav+'\n${navItem("Sales Rep Report", `/org-sales-reps?organization_id=${organizationId}`, "sales-reps")}');
