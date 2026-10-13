@@ -63,7 +63,9 @@ function register(app,{q}){
    const pathRefs=[[/^\/org-contract\/(\d+)$/,'contracts'],[/^\/org-advertising-request\/(\d+)$/,'organization_advertising_requests'],[/^\/org-advertiser\/(\d+)$/,'advertisers'],[/^\/org-opportunity\/(\d+)\/photo$/,'organization_opportunities'],[/^\/advertise\/rubber-world-demo\/program\/(\d+)$/,'organization_programs'],[/\/opportunity\/(\d+)$/,'organization_opportunities']];
    for(const [regex,table]of pathRefs){const match=req.path.match(regex);if(match&&!(await q(`SELECT id FROM ${table} WHERE id=$1 AND organization_id=$2`,[Number(match[1]),org])).rows.length)return deny();}
    req.session.user=user;req.session.orgUser={id:review.owner,organization_id:org,organization_name:'Rubber World Magazine Demo',organization_role:'organization_admin',name:user.name,email:EMAIL};delete req.session.platformUser;req.rubberWorldReviewVerified=true;
+   const renewalOwners=req.path==='/org-renewals'?await require('./rubber-world-renewal-owners').load(q,org):null;
    const send=res.send;res.send=function(body){if(typeof body==='string'&&/<(?:html|body|main|div)\b/i.test(body)){
+    if(renewalOwners)body=require('./rubber-world-renewal-owners').enhance(body,renewalOwners,org);
     body=require('./rubber-world-ai-demo').navigation(body);
     body=(req.path.startsWith('/advertise/rubber-world-demo')?body:presentation(body)).replace(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi,(form,attrs,inside)=>/method=["']?post/i.test(attrs)?'<fieldset disabled style="border:0;padding:0">'+inside+'</fieldset><p>View-only demonstration.</p>':form);
     body=body.replace(/<a\b([^>]*?)href=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/a>/gi,(link,before,href,after,label)=>{
