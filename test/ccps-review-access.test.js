@@ -61,3 +61,10 @@ test('school cards reuse scoped artwork and hidden navigation stays hidden',asyn
  res.send('<main><a style="display:none" href="/admin/ai-readiness">AI Readiness</a><a href="/reports">Reports</a></main>');
  assert.doesNotMatch(res.body,/AI Readiness/);assert.match(res.body,/href="\/reports"/);
 });
+test('available advertising responds with school totals and scoped inventory links',async()=>{
+ const html=await require('../ccps-demo-presentation').available(async sql=>{assert.match(sql,/oo.organization_id=13/);assert.match(sql,/available_until>=CURRENT_DATE/);return {rows:[{id:36,name:'Barron Collier High School',spots:3,value:20000},{id:40,name:'Gulf Coast High School',spots:3,value:17500}]}});
+ assert.match(html,/6 available spots · \$37,500/);assert.match(html,/location_id=36&status=Available/);assert.match(html,/location_id=40&status=Available/);
+ const {enter,guard,session}=fixture();await enter({params:{token,view:'enterprise'},session},response());const res=response();
+ await guard({path:'/org-business-breakdown',method:'GET',query:{metric:'available'},session},res,()=>assert.fail('Must return available breakdown'));
+ assert.equal(res.code,200);assert.match(res.body,/CCPS Available Advertising/);
+});
