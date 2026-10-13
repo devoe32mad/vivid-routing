@@ -66,6 +66,7 @@ function register(app,{q}){
   }catch(e){console.error('HFHS REVIEW ENTRY ERROR:',e.message);res.status(503).send('Demo access is temporarily unavailable.');}
  });
  app.use(async(req,res,next)=>{
+  if(req.path.startsWith("/ccps-review/"))return next(); // CCPS entry validates its own bearer token before replacing the session.
   const review=req.session?.hfhsReview;if(!review)return next();
   res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Robots-Tag','noindex, nofollow');
   if(review.version!==TOKEN_HASH||review.expires!==EXPIRES||Date.now()>=EXPIRES){return req.session.destroy(()=>res.status(410).send('This HFHS review has expired.'));}

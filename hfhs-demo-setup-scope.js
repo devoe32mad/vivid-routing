@@ -1,6 +1,7 @@
 "use strict";
 // Presentation scope for Mike's dedicated HFHS advertiser demo. Does not grant access.
 async function filterSetup(q,user,results){
+  if(user?.ccpsReview)return require("./ccps-review-access").filterSetup(q,user,results);
   if(String(user.role).toLowerCase()!=="customer" || String(user.email).trim().toLowerCase()!=="michaelandrewdevoe@gmail.com")return;
   const allowed=await q(`SELECT ar.location_id,ar.created_qr_id AS qr_id,ar.created_campaign_id AS campaign_id
     FROM organization_advertising_requests ar
@@ -29,6 +30,7 @@ async function filterSetup(q,user,results){
 }
 function install(source){
   source=require("./hfhs-review-access").install(source);
+  source=require("./ccps-review-access").install(source);
   const emailMarker='// CAMPAIGN_COLLABORATION_EMAIL_RETURN_V1';
   if(!source.includes(emailMarker)){
     source=source.replaceAll('getOrganizationScope});\napp.get("/my-setup",','getOrganizationScope,sendOrganizationNotification});\napp.get("/my-setup",');
@@ -65,6 +67,7 @@ function isHfhsDemo(user){
   return String(user?.role).toLowerCase()==="customer" && String(user?.email||"").trim().toLowerCase()==="michaelandrewdevoe@gmail.com";
 }
 async function reportScope(q,user){
+  if(user?.ccpsReview)return require("./ccps-review-access").reportScope(q,user);
   if(!isHfhsDemo(user))return null;
   const result=await q(`SELECT DISTINCT ar.location_id,ar.created_qr_id AS qr_id,ar.created_campaign_id AS campaign_id
     FROM organization_advertising_requests ar
