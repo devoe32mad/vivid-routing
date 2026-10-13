@@ -6,10 +6,13 @@ const m=new Module(filename,module);m.filename=filename;m.paths=module.paths;m._
 const response=()=>({code:200,headers:{},setHeader(k,v){this.headers[k]=v},status(n){this.code=n;return this},send(s){this.body=s;return this},redirect(s){this.location=s;return this}});
 function fixture(){
  let enter,guard;review.register({get:(_p,h)=>enter=h,use:h=>guard=h},{q:async(sql,p)=>{
+  if(sql.includes('SELECT DISTINCT advertiser_id,advertiser FROM campaigns'))return {rows:[{advertiser_id:1300041,advertiser:'Coastal Family Dental (Demo)'}]};
+  if(sql.includes('c.advertiser_id=$2'))return {rows:[{location_id:36,qr_id:97,campaign_id:68}]};
   if(sql.includes('SELECT name FROM organizations'))return {rows:[{name:'CCPS'}]};
   if(sql.includes('SELECT s.id,s.name FROM spaces'))return {rows:[{id:36,name:'Demo School'}]};
   if(sql.includes('SELECT u.id AS customer_id'))return {rows:[{customer_id:10,email:'mike@vividspots.com'}]};
   if(sql.includes('SELECT DISTINCT s.id AS location_id'))return {rows:[{location_id:36,qr_id:97,campaign_id:68}]};
+  if(sql.includes('SELECT id FROM advertisers')&&p?.[0]===1300041)return {rows:[{id:1300041}]};
   if(sql.includes('SELECT id FROM spaces'))return {rows:[{id:36}]};
   return {rows:p?.[0]===200?[{id:200}]:[]};
  }});
@@ -27,7 +30,7 @@ test('token entry regenerates session; three homes, expiry and tampered tokens e
 test('review permits scoped navigation, filters and exports but blocks writes and cross-account identifiers',async()=>{
  const {enter,guard,session}=fixture();await enter({params:{token,view:'enterprise'},session},response());
  for(const path of ['/org-organization/13','/org-business-breakdown','/advertise/ccps/build-my-campaign','/org-revenue-pipeline/location/36','/org-revenue-pipeline/location/36/revenue','/reports','/admin/marketing-command-center','/help','/org-help','/admin/reports','/my-setup','/export/report.pdf','/advertise/ccps','/org-operations']){
-  let passed=false;const req={path,method:'GET',query:{},session},res=response();await guard(req,res,()=>passed=true);assert.equal(passed,true,path);assert.equal(req.ccpsReviewVerified,true);assert.equal(session.user.ccpsReview,true);
+  let passed=false;const req={path,method:'GET',query:{},session},res=response();await guard(req,res,()=>passed=true);assert.equal(passed,path!=='/my-setup',path);if(path==='/my-setup')assert.match(res.body,/Coastal Family Dental/);assert.equal(req.ccpsReviewVerified,true);assert.equal(session.user.ccpsReview,true);
  }
  for(const [path,method,query] of [[ '/admin/schedule','POST',{}],['/admin/assign','POST',{}],['/admin/new-campaign','POST',{}],['/reports','POST',{}],['/org-settings','POST',{}],['/admin/archive-campaign/68','GET',{}],['/r/97','GET',{}],['/org-contract/200/activate','GET',{}],['/org-organization/39','GET',{}],['/reports','GET',{organization_id:39}],['/reports','GET',{campaignId:71}],['/reports','GET',{qrId:100}],['/reports','GET',{account:6}],['/admin/view-campaign/71','GET',{}],['/org-revenue-pipeline/location/119','GET',{}]]){
   let passed=false;const res=response();await guard({path,method,query,session},res,()=>passed=true);assert.equal(passed,false,path);assert.equal(res.code,403,path);

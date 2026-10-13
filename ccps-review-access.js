@@ -9,7 +9,7 @@ const simple=new Set([...require('./responsibility-routes').paths,'/org-business
 function readOnlyAdmin(path){return ['/org-operations','/org-users','/org-users/new','/org-bulk-import','/org-import-locations-assets','/org-locations-assets-template','/org-programs','/org-settings','/org-permissions'].includes(path)||/^\/org-user\/\d+\/edit$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path);}
 function editableRoute(path){return /^\/admin\/edit-location\/\d+$/.test(path)|| ['/admin/new-qr','/admin/new-campaign','/admin/assign','/admin/schedule','/org-programs'].includes(path)||/^\/admin\/edit-qr\/\d+$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path)|| /^\/admin\/edit-campaign\/\d+$/.test(path)||/^\/(?:org-)?campaign-help(?:\/\d+)?$/.test(path)||/^\/org-opportunity\/(?:new|edit\/\d+)$/.test(path)||path==='/org-location/new'||/^\/org-contract\/\d+\/(?:fulfillment|renew|renewal-review|renewal-approve|activate|activity)$/.test(path);}
 const setupRoutes=new Set(['/admin/new-qr','/admin/new-campaign','/admin/assign','/admin/schedule']);
-function routeAllowed(path){if(setupRoutes.has(path))return true;return /^\/org-opportunity\/\d+\/photo$/.test(path)||path==='/advertise/ccps/build-my-campaign'||/^\/admin\/view-schedule\/\d+$/.test(path)|| /^\/org-revenue-pipeline\/location\/\d+(?:\/revenue)?$/.test(path)|| readOnlyAdmin(path)|| /^\/admin\/view-(?:qr|location)\/\d+$/.test(path)||/^\/admin\/campaign\/\d+\/website-pages$/.test(path)||/^\/r\/\d+$/.test(path)|| /^\/admin\/(?:archive|restore)-(?:campaign|qr)\/\d+$/.test(path)|| path==='/admin/qr-setup-choice'||/^\/qr\/\d+\.png$/.test(path)|| editableRoute(path)|| simple.has(path)||path==='/org-organization/13'||/^\/advertise\/ccps(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path)||/^\/org-(?:location|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/view-campaign\/\d+$/.test(path);}
+function routeAllowed(path){if(/^\/demo-advertiser\/placement\/\d+$/.test(path))return true;if(setupRoutes.has(path))return true;return /^\/org-opportunity\/\d+\/photo$/.test(path)||path==='/advertise/ccps/build-my-campaign'||/^\/admin\/view-schedule\/\d+$/.test(path)|| /^\/org-revenue-pipeline\/location\/\d+(?:\/revenue)?$/.test(path)|| readOnlyAdmin(path)|| /^\/admin\/view-(?:qr|location)\/\d+$/.test(path)||/^\/admin\/campaign\/\d+\/website-pages$/.test(path)||/^\/r\/\d+$/.test(path)|| /^\/admin\/(?:archive|restore)-(?:campaign|qr)\/\d+$/.test(path)|| path==='/admin/qr-setup-choice'||/^\/qr\/\d+\.png$/.test(path)|| editableRoute(path)|| simple.has(path)||path==='/org-organization/13'||/^\/advertise\/ccps(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path)||/^\/org-(?:location|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/view-campaign\/\d+$/.test(path);}
 function validToken(value){if(typeof value!=='string'||value.length>100)return false;return crypto.timingSafeEqual(crypto.createHash('sha256').update(value).digest(),Buffer.from(TOKEN_HASH,'hex'));}
 function install(source){
  source=require("./ccps-demo-data-scope").install(source);
@@ -72,7 +72,8 @@ function register(app,{q}){
     return next();
    }
    const user={id:review.ownerId,login_user_id:review.ownerId,customer_id:review.ownerId,role:'customer',name:'CCPS Demo Reviewer',email:'mike@vividspots.com',ccpsReview:true};
-   const allowed=await reportScope(q,user);
+   let allowed=await reportScope(q,user);
+   allowed=await require('./demo-advertiser-account').select(req,q,user,review,allowed);
    if(!allowed)return notice();
    const locations=(await q('SELECT id FROM spaces WHERE organization_id=$1 AND COALESCE(is_archived,false)=false',[ORG])).rows.map(r=>Number(r.id));
    for(const [keys,ids]of [[['location_id','space_id'],locations],[['campaign_id','campaign','campaignId'],allowed.campaignIds],[['qr_id','qr','qrId','placement_id'],allowed.qrIds]])for(const key of keys){for(const v of [req.query[key],req.body?.[key]])if(v&&v!=='all'&&v!=='All'&&!ids.includes(Number(v)))return notice();}
@@ -128,6 +129,7 @@ function register(app,{q}){
 
    if(require('./ccps-gridiron').respond(req,res))return;
    if(req.path==='/org-business-breakdown'&&req.query.metric==='available')return res.send(await require('./ccps-demo-presentation').available(q));
+   if(await require('./demo-advertiser-account').respond(req,res,q,ORG,allowed))return;
    next();
   }catch(e){console.error('CCPS REVIEW GUARD ERROR:',e.message);res.status(503).send('Demo review is temporarily unavailable.');}
  }));
@@ -146,7 +148,7 @@ async function reportScope(q,user){
  JOIN spaces other_s ON other_s.id=other_qr.space_id WHERE other_qc.campaign_id=c.id AND other_s.organization_id IS DISTINCT FROM $1)
  AND NOT EXISTS(SELECT 1 FROM qr_campaigns other_qc JOIN campaigns other_c ON other_c.id=other_qc.campaign_id WHERE other_qc.qr_id=qr.id AND other_c.user_id IS DISTINCT FROM $2)`,[ORG,user.id]);
  const ids=key=>[...new Set(result.rows.map(r=>Number(r[key])))];
- return {campaignIds:ids('campaign_id'),qrIds:ids('qr_id'),locationIds:ids('location_id')};
+ return require('./demo-advertiser-account').narrow(q,user,{campaignIds:ids('campaign_id'),qrIds:ids('qr_id'),locationIds:ids('location_id')});
 }
 async function filterSetup(q,user,results){
  const allowed=await reportScope(q,user);if(!allowed)return;

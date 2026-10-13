@@ -83,7 +83,7 @@ async function reportScope(q,user){
   const ids=key=>[...new Set(result.rows.map(r=>Number(r[key])).filter(n=>Number.isSafeInteger(n)&&n>0))];
   const scope={campaignIds:ids('campaign_id'),qrIds:ids('qr_id'),locationIds:ids('location_id')};
   for(const row of await require('./hfhs-review-access').extras(q))scope[row.kind==='qr'?'qrIds':'campaignIds'].push(Number(row.entity_id));
-  return scope;
+  return require("./demo-advertiser-account").narrow(q,user,scope);
 }
 function scopedRows(rows,scope,type,key){
   if(!scope)return rows;
