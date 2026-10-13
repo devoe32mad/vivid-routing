@@ -1,5 +1,7 @@
 "use strict";
 // Basic everyday sponsorship regression coverage.
+// Rendering and SQL tests never send email; no production credential is required.
+process.env.RESEND_API_KEY ||= "re_test_not_a_real_key";
 
 const test=require("node:test");
 const assert=require("node:assert/strict");
@@ -28,7 +30,7 @@ test("Performance sponsorship remains eligible for campaign and schedule changes
   assert.equal(await basicQrRestricted(qFor(),7,11),false);
 });
 
-test("mixed plans expose controls only for the Performance placement",()=>{
+test("mixed plans show scan totals and distinguish upgrade eligibility",()=>{
   const html=renderBasicSponsorshipDashboard({
     title:"Mixed Sponsor",
     range:{from:"2026-09-07",to:"2026-10-06"},
@@ -39,9 +41,9 @@ test("mixed plans expose controls only for the Performance placement",()=>{
     ]
   });
   assert.doesNotMatch(html,/\/admin\/view-campaign\/55/);
-  assert.match(html,/\/admin\/view-campaign\/56/);
+  assert.doesNotMatch(html,/\/admin\/view-campaign\/56/);
   assert.match(html,/>33</);
-  assert.match(html,/Add Vivid Performance — \$35\/month/);
+  assert.match(html,/Request Vivid Performance Upgrade — \$35\/month/);
   assert.match(html,/Vivid Performance active · \$35\/month/);
 });
 
@@ -51,7 +53,7 @@ test("real database preserves per-spot Basic and Performance entitlements",async
   const db=new PGlite();
   try{
     await db.exec(`
-      CREATE TABLE users(id INT PRIMARY KEY);
+      CREATE TABLE users(id INT PRIMARY KEY,advertiser_customer_id INT,email TEXT);
       CREATE TABLE spaces(id INT PRIMARY KEY,user_id INT,name TEXT,location TEXT);
       CREATE TABLE qr_codes(id INT PRIMARY KEY,space_id INT,name TEXT,description TEXT);
       CREATE TABLE campaigns(id INT PRIMARY KEY,user_id INT,name TEXT,is_test BOOLEAN DEFAULT false);
@@ -60,7 +62,7 @@ test("real database preserves per-spot Basic and Performance entitlements",async
         id INT PRIMARY KEY,
         created_qr_id INT,
         created_vivid_user_id INT,
-        status TEXT
+        status TEXT, organization_id INT, email TEXT
       );
       CREATE TABLE events(
         id INT PRIMARY KEY,
@@ -69,14 +71,14 @@ test("real database preserves per-spot Basic and Performance entitlements",async
         type TEXT,
         created_at TIMESTAMPTZ
       );
-      INSERT INTO users VALUES(7);
+      INSERT INTO users(id) VALUES(7);
       INSERT INTO spaces VALUES(1,99,'Gulf Coast','Naples'),(2,99,'Barron Collier','Naples');
       INSERT INTO qr_codes VALUES
         (10,1,'Fence','https://example.com/basic'),
         (11,2,'Gym','https://example.com/performance');
       INSERT INTO campaigns VALUES(55,7,'Fall',false),(56,7,'Winter',false);
       INSERT INTO qr_campaigns VALUES(1,10,55,true),(2,11,56,true);
-      INSERT INTO organization_advertising_requests VALUES
+      INSERT INTO organization_advertising_requests(id,created_qr_id,created_vivid_user_id,status) VALUES
         (22,10,7,'Approved'),
         (23,11,7,'Approved');
       INSERT INTO events VALUES
