@@ -407,6 +407,7 @@ module.exports = function installOrgInventoryHierarchy(
             '<strong>' + escapeHtml(priceText) + '</strong>' + badge(item.status) +
             '</div>' +
             sponsorLine +
+            '<div data-responsibility-kind="opportunity" data-responsibility-id="' + Number(item.id) + '"></div>' +
             '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid #e7eee7;">' +
             '<a class="marketplace-btn" href="/org-opportunity/edit/' + item.id + '?organization_id=' + organizationId + '" style="margin:0;padding:8px 12px;font-size:12px;">Edit Opportunity</a>' +
             '<form method="POST" action="/org-opportunity/duplicate/' + item.id + '" style="margin:0;" onsubmit="return confirm(\'Duplicate this opportunity?\');">' +
