@@ -55,8 +55,11 @@ function withoutAiLinks(html) {
     (anchor, quote, href) => isAiOnlyPath(href) ? "" : anchor);
 }
 function aiPreviewMiddleware(req, res, next) {
-  const allowed = canPreviewAi(req.session, req);
-  const performanceAllowed = canViewPerformanceCenter(req.session);
+  // Rubber World's signed demo guard validates identity, expiry, route and account first.
+  if(req.session?.rubberWorldReview&&!req.rubberWorldReviewVerified)return next();
+  const rubberWorldReadOnly=req.rubberWorldReviewVerified&&['GET','HEAD'].includes(req.method);
+  const allowed = rubberWorldReadOnly || canPreviewAi(req.session, req);
+  const performanceAllowed = rubberWorldReadOnly || canViewPerformanceCenter(req.session);
   if (isPerformanceCenterPath(req.path) && (!performanceAllowed ||
       (!allowed && !["GET", "HEAD"].includes(req.method)))) return res.status(404).send("Not found.");
   if (!allowed && isAiOnlyPath(req.path)) return res.status(404).send("Not found.");
