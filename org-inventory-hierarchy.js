@@ -274,7 +274,7 @@ module.exports = function installOrgInventoryHierarchy(
         '<strong style="color:#073b22;">Advertising Inventory</strong>';
       let cards = "";
 
-      if (!selectedProgramId) {
+      if (!selectedProgramId && !selectedLocationId) {
         const groups = new Map();
 
         opportunities.forEach(item => {
@@ -374,10 +374,8 @@ module.exports = function installOrgInventoryHierarchy(
         subheading = "Manage the sponsorship opportunities available for this event.";
         breadcrumb =
           '<a href="/org-marketplace?organization_id=' + organizationId + '" style="color:#176b3a;text-decoration:none;font-weight:bold;">Advertising Inventory</a>' +
-          '<span>›</span>' +
-          '<a href="/org-marketplace?organization_id=' + organizationId + '&program_id=' + selectedProgramId + '" style="color:#176b3a;text-decoration:none;font-weight:bold;">' +
-          escapeHtml(selectedProgram ? selectedProgram.name : "Event Type") +
-          '</a><span>›</span><strong style="color:#073b22;">' + escapeHtml(heading) + '</strong>';
+          (selectedProgram ? '<span>›</span><a href="/org-marketplace?organization_id=' + organizationId + '&program_id=' + selectedProgramId + '" style="color:#176b3a;text-decoration:none;font-weight:bold;">' + escapeHtml(selectedProgram.name) + '</a>' : '') +
+          '<span>›</span><strong style="color:#073b22;">' + escapeHtml(heading) + '</strong>';
 
         cards = opportunities.map(item => {
           const priceValue = Number(item.price ?? item.annual_price ?? 0);
