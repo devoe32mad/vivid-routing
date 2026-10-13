@@ -22,4 +22,4 @@ jobs:
         run: npm install
 
       - name: Run sponsorship performance tests
-        run: node --test test/sponsorship-performance-plan.test.js
+        run: node --test test/sponsorship-performance-plan.test.js test/responsibility.test.js test/ccps-review-access.test.js test/demo-session-isolation.test.js

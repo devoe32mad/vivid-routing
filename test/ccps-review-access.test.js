@@ -6,6 +6,8 @@ const m=new Module(filename,module);m.filename=filename;m.paths=module.paths;m._
 const response=()=>({code:200,headers:{},setHeader(k,v){this.headers[k]=v},status(n){this.code=n;return this},send(s){this.body=s;return this},redirect(s){this.location=s;return this}});
 function fixture(){
  let enter,guard;review.register({get:(_p,h)=>enter=h,use:h=>guard=h},{q:async(sql,p)=>{
+  if(sql.includes('SELECT name FROM organizations'))return {rows:[{name:'CCPS'}]};
+  if(sql.includes('SELECT s.id,s.name FROM spaces'))return {rows:[{id:36,name:'Demo School'}]};
   if(sql.includes('SELECT u.id AS customer_id'))return {rows:[{customer_id:10,email:'mike@vividspots.com'}]};
   if(sql.includes('SELECT DISTINCT s.id AS location_id'))return {rows:[{location_id:36,qr_id:97,campaign_id:68}]};
   if(sql.includes('SELECT id FROM spaces'))return {rows:[{id:36}]};
