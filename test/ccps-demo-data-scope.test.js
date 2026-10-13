@@ -30,3 +30,10 @@ test('CCPS contracts, requests, placements, campaigns and events reconcile witho
  assert.equal(scope.run(true,()=>scope.sqlFor('UPDATE contracts SET total_contract_value=1')),'UPDATE contracts SET total_contract_value=1');
  }finally{await db.close();}
 });
+test('active sponsorship totals include a contracted placement with no visible campaign',async()=>{
+ const active=require('../org-active-advertising');let calls=0;
+ const q=async()=>++calls===1?{rows:[{qr_id:97,campaign_id:68,placement_value:500},{qr_id:98,campaign_id:69,placement_value:750}]}:{rows:[{qr_id:99,campaign_id:null,placement_value:500}]};
+ const rows=await scope.run(true,()=>active.load(q,{organizationId:13,allowedLocationIds:[36,40],selectedLocationId:null}));
+ assert.deepEqual(active.summarize(rows.rows),{placements:3,campaigns:2,value:1750});assert.equal(calls,2);
+ calls=0;await active.load(q,{organizationId:39,allowedLocationIds:[],selectedLocationId:null});assert.equal(calls,1);
+});
