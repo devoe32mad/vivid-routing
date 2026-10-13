@@ -46,6 +46,11 @@ test('fixture SQL executes transactionally in PostgreSQL with exact aggregate re
  await db.exec('ALTER TABLE spaces ADD COLUMN is_archived BOOLEAN DEFAULT false');
  const ai=await require('../rubber-world-ai-demo').load(client.query,result.organizationId).catch(async e=>{await db.close();throw e});
  assert.equal(ai.requests.length,3);assert.equal(ai.contracts.length,6);assert.equal(ai.advertisers.length,3);assert.equal(ai.metrics.find(x=>x.type==='conversion').count,105);assert.equal(ai.opportunities.filter(x=>x.status==='Available').length,26);
+ const portal=await require('../rubber-world-advertiser-portal').load(client.query,result.organizationId,{});
+ const accountScope=await review.reportScope(client.query,{id:result.ownerId,role:'customer',email:seed.EMAIL,rubberWorldAdvertiserId:portal.rows[0].advertiser_id});
+ assert.equal(accountScope.qrIds.length,2);assert.equal(accountScope.campaignIds.length,1);assert(portal.rows.filter(r=>Number(r.advertiser_id)!==Number(portal.rows[0].advertiser_id)).every(r=>!accountScope.qrIds.includes(Number(r.qr_id))));
+ assert.equal(portal.rows.length,6);assert.equal(portal.rows.reduce((n,r)=>n+Number(r.scans),0),result.totals.scans);assert.equal(portal.rows.reduce((n,r)=>n+Number(r.conversions),0),105);
+ const isolated=await require('../rubber-world-advertiser-portal').load(client.query,999999,{});assert.equal(isolated.rows.length,0);
  const foreign=await require('../rubber-world-ai-demo').load(client.query,999999);assert.equal(foreign.opportunities.length,0);assert.equal(foreign.metrics.length,0);
  await db.close();
 });

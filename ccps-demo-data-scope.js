@@ -22,6 +22,7 @@ const definitions={
  WHERE c.organization_id=13 AND c.id IN (${contractIds})`,
  qr_codes:`SELECT * FROM public.qr_codes WHERE id IN (${qrs})`,
  campaigns:`SELECT (jsonb_populate_record(c,jsonb_build_object(
+ 'advertiser_id',CASE WHEN c.id=69 THEN 1300042 ELSE 1300041 END,
  'advertiser',CASE WHEN c.id=69 THEN '${home}' ELSE '${dental}' END,
  'name',CASE WHEN c.id=69 THEN c.name ELSE 'Coastal Family Dental — School Sponsorship' END))).*
  FROM public.campaigns c WHERE user_id=10 AND id IN (SELECT campaign_id FROM public.qr_campaigns WHERE qr_id IN (${qrs}))`,
