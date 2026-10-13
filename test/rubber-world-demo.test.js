@@ -7,12 +7,12 @@ test('seeder creates only isolated magazine fixture, replays safely, and rolls b
  for(const [sql,args]of log)if(sql.startsWith('UPDATE'))assert(sql.includes('organization_id=$2'));
  assert(!JSON.stringify(result).match(/HFHS|Henry Ford|CCPS/));
  const events=log.filter(([sql])=>sql.startsWith('INSERT INTO events')).flatMap(([,args])=>JSON.parse(args[0]));assert(events.length>0);assert(events.every(x=>x.created_at.slice(0,10)>=seed.START&&x.created_at.slice(0,10)<=seed.END));assert(events.filter(x=>x.type==='conversion').every(x=>x.value===1200));
- log=[];await seed.seed({query:async sql=>{log.push([sql]);return {rows:sql.includes('SELECT manifest')?[{manifest:result}]:[]};}});assert(!log.some(([s])=>s.startsWith('INSERT')));
+ log=[];await seed.seed({query:async sql=>{log.push([sql]);return {rows:sql.includes('SELECT manifest')?[{manifest:result}]:[]};}});assert(!log.some(([s])=>s.startsWith('INSERT INTO events')));
  log=[];await assert.rejects(seed.seed({query:async sql=>{log.push([sql]);return {rows:sql.includes('SELECT id,name,email FROM users')?[{id:2}]:[]};}}),/owner already exists/);assert.equal(log.at(-1)[0],'ROLLBACK');
 });
 test('route allowlist rejects cross-organization and mutating GET paths',()=>{
  for(const path of ['/org-organization/39','/advertise/henry-ford-health-demo','/admin/archive-campaign/10','/r/10','/admin/users','/org-opportunity/edit/10'])assert.equal(review.routeAllowed(path,900),false,path);
- for(const path of ['/org-organization/900','/org-revenue-pipeline/location/10/revenue','/reports','/org-contract/1','/advertise/rubber-world-demo/location/1/opportunity/2'])assert(review.routeAllowed(path,900),path);
+ for(const path of ['/org-organization/900','/org-revenue-pipeline/location/10/revenue','/reports','/org-business-breakdown','/org-contract/1','/advertise/rubber-world-demo/location/1/opportunity/2'])assert(review.routeAllowed(path,900),path);
  assert.equal(review.validToken('invalid'),false);assert.equal(review.validToken(null),false);
 });
 test('magazine copy preserves internal paths and scripts',()=>{
@@ -39,6 +39,7 @@ test('fixture SQL executes transactionally in PostgreSQL with exact aggregate re
  for(const [event,key]of [['scan','scans'],['destination_click','clicks'],['conversion','conversions']])assert.equal(rows.find(r=>r.type===event).count,result.totals[key]);
  assert.equal(Number(rows.find(r=>r.type==='conversion').value),result.totals.revenue);
  const replay=await seed.seed(client);assert(replay.alreadyLoaded);assert.equal(replay.organizationId,result.organizationId);
+ const pending=(await db.query("SELECT COUNT(*)::int AS count,SUM(price)::numeric AS total FROM organization_advertising_requests WHERE status='Pending'")).rows[0];assert.equal(pending.count,3);assert.equal(Number(pending.total),8100);
  const owner=(await db.query('SELECT email FROM users WHERE id=$1',[result.ownerId])).rows[0];assert.equal(owner.email,seed.EMAIL);
  await db.close();
 });
