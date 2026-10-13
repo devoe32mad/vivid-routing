@@ -117,6 +117,7 @@ function register(app,{q}){
     body=/<body[^>]*>/i.test(body)?body.replace(/<body[^>]*>/i,m=>m+banner):banner+body;
     if(readOnlyAdmin(req.path))body=body.replace('CCPS interactive demo · View-only','CCPS interactive demo · Administration is view-only');
    }return send.call(this,body);};
+   if(require('./ccps-gridiron').respond(req,res))return;
    if(req.path==='/org-business-breakdown'&&req.query.metric==='available')return res.send(await require('./ccps-demo-presentation').available(q));
    next();
   }catch(e){console.error('CCPS REVIEW GUARD ERROR:',e.message);res.status(503).send('Demo review is temporarily unavailable.');}
