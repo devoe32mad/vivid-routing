@@ -64,6 +64,7 @@ function register(app,{q}){
    for(const [regex,table]of pathRefs){const match=req.path.match(regex);if(match&&!(await q(`SELECT id FROM ${table} WHERE id=$1 AND organization_id=$2`,[Number(match[1]),org])).rows.length)return deny();}
    req.session.user=user;req.session.orgUser={id:review.owner,organization_id:org,organization_name:'Rubber World Magazine Demo',organization_role:'organization_admin',name:user.name,email:EMAIL};delete req.session.platformUser;req.rubberWorldReviewVerified=true;
    const send=res.send;res.send=function(body){if(typeof body==='string'&&/<(?:html|body|main|div)\b/i.test(body)){
+    body=require('./rubber-world-ai-demo').navigation(body);
     body=(req.path.startsWith('/advertise/rubber-world-demo')?body:presentation(body)).replace(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi,(form,attrs,inside)=>/method=["']?post/i.test(attrs)?'<fieldset disabled style="border:0;padding:0">'+inside+'</fieldset><p>View-only demonstration.</p>':form);
     body=body.replace(/<a\b([^>]*?)href=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/a>/gi,(link,before,href,after,label)=>{
      if(!href.startsWith('/'))return link;
@@ -71,11 +72,10 @@ function register(app,{q}){
      if(routeAllowed(path,org)||['/logout','/dashboard','/org-dashboard'].includes(path))return link;
      return '<span title="View-only demo" style="color:#87949e">'+label+'</span>';
     });
-    const aiNav=req.path.startsWith('/org-')||req.path.startsWith('/rubber-world-demo/ai/')?'<div style="display:flex;flex-wrap:wrap;gap:10px;padding:14px 24px;background:#fff;border-bottom:1px solid #dae3ed">'+require('./rubber-world-ai-demo').paths.map((path,i)=>'<a style="background:#175da6;color:#fff;padding:10px 15px;border-radius:7px;font:14px system-ui;text-decoration:none" href="'+path+'?organization_id='+org+'">'+['Weekly AI Report','AI Approval Center','AI Readiness','Prepare Campaign'][i]+'</a>').join('')+'</div>':'';
-    const banner=`<div style="padding:14px 24px;background:#edf3f9;color:#23374d;font:14px system-ui"><strong>Rubber World Magazine · Vivid demonstration</strong> · View-only · Sample rates and simulated activity<br>${nav}</div>${aiNav}`;
+    const banner=`<div style="padding:14px 24px;background:#edf3f9;color:#23374d;font:14px system-ui"><strong>Rubber World Magazine · Vivid demonstration</strong> · View-only · Sample rates and simulated activity<br>${nav}</div>`;
     body=/<body[^>]*>/i.test(body)?body.replace(/<body[^>]*>/i,m=>m+banner):banner+body;
    }return send.call(this,body);};
-   const aiDemo=require('./rubber-world-ai-demo').render(req.path,org);if(aiDemo)return res.send(aiDemo);
+   const ai=require('./rubber-world-ai-demo');if(ai.paths.includes(req.path))return res.send(ai.render(req.path,org,await ai.load(q,org)));
    next();
   }catch(e){console.error('RUBBER WORLD REVIEW GUARD:',e.message);res.status(503).send('Demo review is temporarily unavailable.');}
  });
