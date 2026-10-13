@@ -33,11 +33,13 @@ async function load({q,req}){
     ORDER BY qr.id,qc.campaign_id
   `,[Number(user.login_user_id||user.id),Number(user.id)])).rows;
   rows=require("./hfhs-demo-setup-scope").scopedRows(rows,hfhsScope,"qrIds","qr_id");
+  if(user.ccpsReview)rows=rows.filter(r=>Number(r.qr_id)!==98);
   if(rows.length)req.session.sponsorshipPerformanceCsrf||=crypto.randomBytes(32).toString("hex");
   return {rows,hfhsScope,hideUpgrade:Boolean(hfhsScope)&&!user.ccpsReview,readOnlyDemo:Boolean(user.ccpsReview),csrf:req.session.sponsorshipPerformanceCsrf,returnTo:reportReturn(req.originalUrl)};
 }
 function render(state,key,id){
   if(state.hideUpgrade)return "";
+  if(state.readOnlyDemo && state.hfhsScope?.qrIds.includes(98) && Number(id)===({qr_id:98,campaign_id:69,location_id:40})[key])return '<div style="margin-top:8px;color:#166534;white-space:normal"><strong>Vivid Performance · Demo paid placement</strong><div>$35/month · Illustrative results · No payment processed</div><a href="/admin/marketing-command-center">Open Marketing Command Center →</a></div>';
   const rows=[...new Map((state.rows||[]).filter(r=>Number(r[key])===Number(id)).map(r=>[r.qr_id,r])).values()];
   return rows.map(r=>`<div style="margin-top:10px;font-size:13px;white-space:normal;text-align:left">
     ${key!=="qr_id"?`<div>${esc(r.qr_name)} · ${esc(r.location_name)}</div>`:""}

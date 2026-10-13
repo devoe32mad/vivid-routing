@@ -57,7 +57,7 @@ function register(app,{q}){
   if(req.path==='/admin/archived-campaigns')return res.redirect('/my-setup?status=all');
   if(req.path==='/dashboard')return res.redirect('/my-setup');
   if(req.path==='/admin/new-location')return res.redirect('/org-location/new?organization_id=13');
-  if(req.path==='/admin/marketing-command-center')return notice();
+
   if(!routeAllowed(req.path))return notice();
   try{
    for(const key of ['organization_id','org_id'])if((req.query[key]&&String(req.query[key])!==String(ORG))||(req.body?.[key]&&String(req.body[key])!==String(ORG)))return notice();
@@ -94,7 +94,7 @@ function register(app,{q}){
    const schoolPhotos=await require("./ccps-demo-presentation").load(q,req.path);
    const send=res.send;res.send=function(body){if(typeof body==='string'&&/<(?:html|body|main|div)\b/i.test(body)){
     body=require("./ccps-demo-presentation").render(body,schoolPhotos,req.path);
-    const banner='<div style="padding:12px 20px;background:#edf3f9;color:#23374d;font:14px system-ui"><strong>CCPS interactive demo · View-only</strong> · CCPS review workspace · Expires October 27, 2026 (Eastern)<br><a href="'+homes.enterprise+'">Enterprise</a> · <a href="'+homes.marketplace+'">Marketplace</a> · <a href="'+homes.advertiser+'">Advertiser portal</a></div>';
+    const banner='<div style="padding:12px 20px;background:#edf3f9;color:#23374d;font:14px system-ui"><strong>CCPS interactive demo · View-only</strong> · Sample Performance results at Gulf Coast · Expires October 27, 2026 (Eastern)<br><a href="'+homes.enterprise+'">Enterprise</a> · <a href="'+homes.marketplace+'">Marketplace</a> · <a href="'+homes.advertiser+'">Advertiser portal</a></div>';
     body=body.replace(/<select\b([^>]*)>([\s\S]*?)<\/select>/gi,(whole,attrs,options)=>{const name=attrs.match(/name=["']([^"']+)["']/i)?.[1];const ids=['organization_id','org_id'].includes(name)?[ORG]:['space_id','location_id'].includes(name)?locations:['qr_id','qr_ids'].includes(name)?allowed.qrIds:['campaign_id','campaign','campaignId'].includes(name)?allowed.campaignIds:null;if(!ids)return whole;return '<select'+attrs+'>'+options.replace(/<option\b[^>]*value=["']([^"']*)["'][^>]*>[\s\S]*?<\/option>/gi,(option,id)=>!id||ids.includes(Number(id))?option:'')+'</select>';});
     body=body.replace(/<input\b[^>]*type=["']file["'][^>]*>/gi,'<span>Photo uploads are available after demo onboarding.</span>');
     {body=body.replace(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi,(form,attrs,inside)=>/method=["']?post/i.test(attrs)?'<div class="ccps-admin-preview"><fieldset disabled style="border:0;margin:0;padding:0;min-width:0">'+inside+'</fieldset><p style="color:#64748b;font-size:13px">View-only demo — administrative changes are disabled.</p></div>':form);}
@@ -102,7 +102,7 @@ function register(app,{q}){
     body=body.replace(/<a\b([^>]*?)href=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/a>/gi,(link,before,href,after,label)=>{
       if(!href.startsWith('/'))return link;
       const path=href.split(/[?#]/)[0];
-      const blocked=path==='/admin/marketing-command-center'||/^\/admin\/(?:archive|restore|deactivate)-/.test(path)||/^\/r\//.test(path);
+      const blocked=/^\/admin\/(?:archive|restore|deactivate)-/.test(path)||/^\/r\//.test(path);
       const redirects=['/dashboard','/org-dashboard','/admin/archived-campaigns','/admin/new-location'];
       return blocked||(!routeAllowed(path)&&!redirects.includes(path))?'':link;
     });

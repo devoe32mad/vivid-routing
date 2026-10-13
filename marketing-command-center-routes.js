@@ -222,6 +222,7 @@ module.exports={registerMarketingCommandCenterRoutes};
 
 async function renderHfhsMarketingDemo({q,range,scope,user,platform="",campaign=""}){
   const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  if(user.ccpsReview)scope={...scope,campaignIds:scope.campaignIds.filter(id=>Number(id)===69),qrIds:scope.qrIds.filter(id=>Number(id)===98)};
   const campaigns=(await q(`SELECT c.id,c.name,COUNT(e.id) FILTER(WHERE e.type='scan')::int scans,
     COUNT(e.id) FILTER(WHERE e.type IN('offer','maps','waze','destination_click'))::int clicks,
     COUNT(e.id) FILTER(WHERE e.type='conversion')::int conversions,
@@ -229,8 +230,8 @@ async function renderHfhsMarketingDemo({q,range,scope,user,platform="",campaign=
     FROM campaigns c LEFT JOIN events e ON e.campaign_id=c.id AND e.qr_id=ANY($2::int[])
       AND e.created_at >= $3::date AND e.created_at < $4::date+INTERVAL '1 day'
     WHERE c.id=ANY($1::int[]) AND COALESCE(c.is_archived,false)=false GROUP BY c.id,c.name ORDER BY c.name`,[scope.campaignIds,scope.qrIds,range.from,range.to])).rows;
-  const banner='<div class="wrap"><div class="note"><strong>HFHS demonstration</strong><p>Placement results use HFHS sample campaigns. Digital platforms show their connection status; no simulated advertising results or unrelated account data are included.</p></div></div>';
-  return banner+renderCommandCenter({title:"Your marketing, together",scope:{kind:"advertiser",userId:Number(user.id),accountName:"HFHS advertiser demo",accountSelection:false,privateAdsAllowed:true},range,campaigns,
+  const banner=user.ccpsReview?'<div class="wrap" style="padding:20px"><strong>CCPS · Vivid Performance — $35/month per placement</strong><p>Gulf Coast is the paid-placement example. All displayed placement results are illustrative demo data; no payment was processed. Website and advertising connectors show what the sponsor can connect; no private accounts are connected in this demo.</p><a href="/reports">Back to Reports</a> · <a href="/my-setup">My Setup</a></div>':'<div class="wrap"><div class="note"><strong>HFHS demonstration</strong><p>Placement results use HFHS sample campaigns. Digital platforms show their connection status; no simulated advertising results or unrelated account data are included.</p></div></div>';
+  return banner+renderCommandCenter({title:"Your marketing, together",scope:{kind:"advertiser",userId:Number(user.id),accountName:user.ccpsReview?"CCPS Performance demo":"HFHS advertiser demo",accountSelection:false,privateAdsAllowed:true},range,campaigns,
     squareStatus:"Not connected",googleEnabled:true,metaEnabled:true,linkedinEnabled:true,tiktokEnabled:true,redditEnabled:true,pinterestEnabled:true,youtubeEnabled:true,analyticsEnabled:true,
     platform,campaign,aiVisible:false});
 }
