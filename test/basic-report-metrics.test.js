@@ -31,3 +31,20 @@ test('website detail data and totals exclude Basic campaigns, including mixed-pl
  assert.equal(helper.restricted(state,'qr_id',98),false);
  assert.match(helper.maskRow({...state,rows:[{...state.rows[0],status:'upgrade_requested'}]},'qr_id',97,0,'<td>12</td><td>777</td>'),/>—</);
 });
+test('CCPS shared review retains Basic gating and explains direct sponsor billing without a live upgrade form',async()=>{
+ const req={session:{user:{id:10,role:'customer',ccpsReview:true}},originalUrl:'/reports?status=active'};
+ const q=async sql=>({rows:sql.includes('FROM sponsorship_performance_plans')?[state.rows[0],{...state.rows[0],qr_id:999,campaign_id:999}]:[{qr_id:97,campaign_id:68,location_id:36}]});
+ const loaded=await helper.load({q,req});
+ assert.deepEqual(loaded.hfhsScope,{campaignIds:[68],qrIds:[97],locationIds:[36]});
+ assert.deepEqual(loaded.rows,[state.rows[0]]);
+ assert.equal(loaded.hideUpgrade,false);
+ assert.match(helper.maskRow(loaded,'campaign_id',68,0,'<td>123</td><td>777</td>'),/<td>123<\/td>.*>—<\/td>/);
+ const html=helper.render(loaded,'campaign_id',68);
+ assert.match(html,/\$35\/month per placement/);
+ assert.match(html,/billed directly to the sponsor by Vivid/);
+ assert.match(html,/disabled/);
+ assert.doesNotMatch(html,/<form/);
+ assert.match(helper.intro(loaded),/Sponsors pay Vivid directly/);
+ const website=helper.filterWebsiteReport({rows:[{campaign_id:68,visits:777},{campaign_id:999,visits:888}],pages:[],campaigns:[{id:68},{id:999}],total:1665},loaded);
+ assert.equal(website.total,0);assert.deepEqual(website.rows,[]);
+});
