@@ -5,15 +5,33 @@ const context=new AsyncLocalStorage();
 const contractIds='41,42,43';
 const requests=`SELECT advertising_request_id FROM public.contracts WHERE organization_id=13 AND id IN (${contractIds})`;
 const qrs=`SELECT created_qr_id FROM public.organization_advertising_requests WHERE organization_id=13 AND id IN (${requests})`;
+const dental='Coastal Family Dental (Demo)';
+const home='Gulf Coast Home Services (Demo)';
 const definitions={
- contracts:`SELECT * FROM public.contracts WHERE organization_id=13 AND id IN (${contractIds})`,
- organization_advertising_requests:`SELECT * FROM public.organization_advertising_requests WHERE organization_id=13 AND id IN (${requests})`,
+ advertisers:`SELECT (jsonb_populate_record(NULL::public.advertisers,jsonb_build_object(
+ 'id',v.id,'organization_id',13,'name',v.name,'relationship_status','Active',
+ 'next_action','Review sponsorship results with school','is_active',true))).*
+ FROM (VALUES (1300041,'${dental}'),(1300042,'${home}')) v(id,name)`,
+ contracts:`SELECT (jsonb_populate_record(c,jsonb_build_object('advertiser_id',CASE WHEN c.id=42 THEN 1300042 ELSE 1300041 END))).* FROM public.contracts c WHERE organization_id=13 AND id IN (${contractIds})`,
+ organization_advertising_requests:`SELECT (jsonb_populate_record(ar,jsonb_build_object(
+ 'business_name',CASE WHEN c.id=42 THEN '${home}' ELSE '${dental}' END,
+ 'contact_name','Sample sponsor contact',
+ 'email',CASE WHEN c.id=42 THEN 'home-services@example.com' ELSE 'family-dental@example.com' END))).*
+ FROM public.organization_advertising_requests ar JOIN public.contracts c ON c.advertising_request_id=ar.id
+ WHERE c.organization_id=13 AND c.id IN (${contractIds})`,
  qr_codes:`SELECT * FROM public.qr_codes WHERE id IN (${qrs})`,
- campaigns:`SELECT * FROM public.campaigns WHERE user_id=10 AND id IN (SELECT campaign_id FROM public.qr_campaigns WHERE qr_id IN (${qrs}))`,
+ campaigns:`SELECT (jsonb_populate_record(c,jsonb_build_object(
+ 'advertiser',CASE WHEN c.id=69 THEN '${home}' ELSE '${dental}' END,
+ 'name',CASE WHEN c.id=69 THEN c.name ELSE 'Coastal Family Dental — School Sponsorship' END))).*
+ FROM public.campaigns c WHERE user_id=10 AND id IN (SELECT campaign_id FROM public.qr_campaigns WHERE qr_id IN (${qrs}))`,
  events:`SELECT * FROM public.events WHERE qr_id IN (${qrs})`
 };
 function sqlFor(sql){
  if(!context.getStore()||typeof sql!=='string'||!/^\s*(SELECT|WITH)\b/i.test(sql))return sql;
+ // Contract-only placements belong in sponsor placement counts even without a visible campaign.
+ if(sql.includes('FROM contracts contract')&&sql.includes('filtered_relationships')){
+  sql=sql.replace(/NULL::integer AS qr_id/g,`(SELECT ar.created_qr_id FROM public.organization_advertising_requests ar WHERE ar.id=contract.advertising_request_id) AS qr_id`);
+ }
  const selected=Object.entries(definitions).filter(([name])=>new RegExp('\\b(?:FROM|JOIN)\\s+'+name+'\\b','i').test(sql));
  if(!selected.length)return sql;
  if(sql.includes('AS advertiser_count'))sql=sql.replace(/TRIM\(ar\.email\)/g,'TRIM(ar.business_name)');
