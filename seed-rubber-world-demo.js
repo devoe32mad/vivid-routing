@@ -269,6 +269,24 @@ function buildEvents(p,index,campaignId,qrId,destinationId){
   return out;
 }
 
+async function reconcilePending(client,manifest){
+  await client.query(`INSERT INTO organization_advertising_requests(
+    organization_id,location_id,opportunity_id,business_name,contact_name,email,phone,
+    campaign_name,destination_url,campaign_notes,opportunity_name,price,pricing_unit,
+    suggested_term_length,suggested_term_unit,status,setup_status,created_vivid_user_id,
+    submitted_at,created_at,updated_at)
+    SELECT o.id,oo.space_id,oo.id,'Demo Advertiser — Pending Package','Vivid Demo',
+      $3,'DEMO','Rubber World — Pending '||oo.title,'https://example.com/',$4,
+      oo.title,oo.price,oo.pricing_unit,oo.suggested_term_length,oo.suggested_term_unit,
+      'Pending','Demo Pending',o.customer_id,$6::date,$6::date,CURRENT_TIMESTAMP
+    FROM organization_opportunities oo JOIN organizations o ON o.id=oo.organization_id
+    JOIN users u ON u.id=o.customer_id
+    WHERE o.id=$1 AND o.customer_id=$2 AND u.email=$3 AND o.slug=$5 AND oo.status='Pending'
+      AND NOT EXISTS(SELECT 1 FROM organization_advertising_requests ar
+        WHERE ar.organization_id=o.id AND ar.opportunity_id=oo.id)
+  `,[manifest.organizationId,manifest.ownerId,EMAIL,NOTICE,SLUG,END]);
+}
+
 async function seed(client){
   await client.query("BEGIN");
   try{
@@ -278,7 +296,7 @@ async function seed(client){
       manifest JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`);
     const prior=await client.query("SELECT manifest FROM vivid_evaluation_fixtures WHERE fixture_key=$1",[KEY]);
-    if(prior.rows.length){ await client.query("COMMIT"); return {alreadyLoaded:true,...prior.rows[0].manifest}; }
+    if(prior.rows.length){ await reconcilePending(client,prior.rows[0].manifest); await client.query("COMMIT"); return {alreadyLoaded:true,...prior.rows[0].manifest}; }
 
     let ownerResult=await client.query("SELECT id,name,email FROM users WHERE LOWER(TRIM(email))=$1 ORDER BY id LIMIT 1",[EMAIL]);
     let ownerCreated=false;
@@ -393,6 +411,7 @@ async function seed(client){
       manifest.placements.push({program:m.program,qrId,campaignId:campaign.id,name:m.name,cost:m.cost,...totals});
     }
 
+    await reconcilePending(client,manifest);
     await client.query("INSERT INTO vivid_evaluation_fixtures(fixture_key,organization_id,manifest) VALUES($1,$2,$3::jsonb)",[KEY,org,JSON.stringify(manifest)]);
     await client.query("COMMIT");
     return manifest;
