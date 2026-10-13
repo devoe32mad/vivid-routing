@@ -6,13 +6,13 @@ const date=v=>v?new Date(v).toISOString().slice(0,10):'Not set';
 function dates(query){const from=query.start_date||'2026-09-14',to=query.end_date||'2026-10-13';for(const v of [from,to])if(!/^\d{4}-\d{2}-\d{2}$/.test(v)||!Number.isFinite(Date.parse(v))||date(v)!==v)throw Object.assign(Error('Choose valid reporting dates.'),{status:400});if(from>to)throw Object.assign(Error('Start date must be before the end date.'),{status:400});return {from,to};}
 async function load(q,org,query){
  const {from,to}=dates(query);
- const rows=(await q(`SELECT qr.id AS qr_id,qr.name AS qr_name,s.name AS edition,c.id AS campaign_id,c.name AS campaign_name,c.advertiser,c.advertiser_id,c.start_date,c.end_date,CASE WHEN c.is_archived THEN 'Archived' WHEN c.start_date>CURRENT_DATE THEN 'Scheduled' WHEN c.end_date<CURRENT_DATE THEN 'Completed' ELSE 'Active' END AS status,
+ const rows=(await q(`SELECT DISTINCT qr.id AS qr_id,qr.name AS qr_name,s.name AS edition,c.id AS campaign_id,c.name AS campaign_name,c.advertiser,c.advertiser_id,c.start_date,c.end_date,CASE WHEN c.is_archived THEN 'Archived' WHEN c.start_date>CURRENT_DATE THEN 'Scheduled' WHEN c.end_date<CURRENT_DATE THEN 'Completed' ELSE 'Active' END AS status,
  COALESCE(qr.total_cost,qr.annual_cost,0) AS cost,
  COALESCE(m.scans,0) AS scans,COALESCE(m.clicks,0) AS clicks,COALESCE(m.conversions,0) AS conversions,COALESCE(m.revenue,0) AS revenue,
  d.name AS destination_name,d.destination_url,
  ct.end_date AS contract_end,ct.renewal_date
- FROM qr_codes qr JOIN spaces s ON s.id=qr.space_id JOIN qr_campaigns qc ON qc.qr_id=qr.id AND qc.is_active=true
- JOIN campaigns c ON c.id=qc.campaign_id AND c.organization_id=s.organization_id
+ FROM qr_codes qr JOIN spaces s ON s.id=qr.space_id JOIN qr_campaigns qc ON qc.qr_id=qr.id
+ JOIN campaigns c ON c.id=qc.campaign_id AND (c.organization_id=s.organization_id OR (s.organization_id=13 AND c.organization_id IS NULL))
  LEFT JOIN LATERAL (SELECT COUNT(*) FILTER(WHERE e.type='scan')::int AS scans,COUNT(*) FILTER(WHERE e.type IN ('offer','maps','waze','destination_click'))::int AS clicks,COUNT(*) FILTER(WHERE e.type='conversion')::int AS conversions,COALESCE(SUM(e.value) FILTER(WHERE e.type='conversion'),0) AS revenue FROM events e WHERE e.qr_id=qr.id AND e.campaign_id=c.id AND e.created_at >= $2::date AND e.created_at < $3::date+INTERVAL '1 day') m ON true
  LEFT JOIN LATERAL (SELECT name,destination_url FROM campaign_destinations WHERE campaign_id=c.id AND is_active=true ORDER BY display_order,id LIMIT 1) d ON true
  LEFT JOIN LATERAL (SELECT end_date,renewal_date FROM contracts WHERE organization_id=$1 AND qr_id=qr.id AND status='Active' ORDER BY id DESC LIMIT 1) ct ON true
