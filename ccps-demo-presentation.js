@@ -22,3 +22,16 @@ function render(body,schools){
  return body;
 }
 module.exports={load,render};
+async function available(q){
+ const rows=(await q(`SELECT s.id,s.name,COUNT(*)::int AS spots,
+ COALESCE(SUM(COALESCE(oo.price,oo.annual_price,0)),0)::numeric AS value
+ FROM organization_opportunities oo JOIN spaces s ON s.id=oo.space_id AND s.organization_id=oo.organization_id
+ WHERE oo.organization_id=13 AND COALESCE(s.is_archived,false)=false
+ AND COALESCE(oo.is_active,true)=true AND LOWER(COALESCE(oo.status,''))='available'
+ AND (oo.available_from IS NULL OR oo.available_from<=CURRENT_DATE)
+ AND (oo.available_until IS NULL OR oo.available_until>=CURRENT_DATE)
+ GROUP BY s.id,s.name ORDER BY s.name`)).rows;
+ const money=v=>Number(v||0).toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0});
+ return `<!doctype html><html><head><title>CCPS Available Advertising</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:#f4f7f5;color:#24382c;font:16px system-ui}main{max-width:1080px;margin:32px auto;padding:20px}a{color:#176b3a}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}.school{display:block;background:white;border:1px solid #dbe5dd;border-radius:16px;padding:24px;text-decoration:none;color:inherit}.value{font-size:30px;font-weight:700}.muted{color:#65776b}</style></head><body><main><a href="/org-organization/13?organization_id=13">← Back to Overview</a><h1>Available Advertising</h1><p class="muted">Current CCPS sponsorship inventory by school.</p><p><strong>${rows.reduce((n,r)=>n+Number(r.spots),0)} available spots · ${money(rows.reduce((n,r)=>n+Number(r.value),0))} available sponsorship value</strong></p><div class="grid">${rows.map(r=>`<a class="school" href="/org-marketplace?organization_id=13&location_id=${Number(r.id)}&status=Available"><h2>${esc(r.name)}</h2><p>${Number(r.spots)} available sponsorships</p><div class="value">${money(r.value)}</div><p class="muted">Available sponsorship value</p><strong>View available inventory →</strong></a>`).join('')||'<p>No sponsorships are currently available.</p>'}</div></main></body></html>`;
+}
+module.exports.available=available;
