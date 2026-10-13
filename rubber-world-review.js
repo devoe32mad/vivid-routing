@@ -71,7 +71,8 @@ function register(app,{q}){
      if(routeAllowed(path,org)||['/logout','/dashboard','/org-dashboard'].includes(path))return link;
      return '<span title="View-only demo" style="color:#87949e">'+label+'</span>';
     });
-    const banner=`<div style="padding:14px 24px;background:#edf3f9;color:#23374d;font:14px system-ui"><strong>Rubber World Magazine · Vivid demonstration</strong> · View-only · Sample rates and simulated activity<br>${nav}</div>`;
+    const aiNav=req.path.startsWith('/org-')||req.path.startsWith('/rubber-world-demo/ai/')?'<div style="display:flex;flex-wrap:wrap;gap:10px;padding:14px 24px;background:#fff;border-bottom:1px solid #dae3ed">'+require('./rubber-world-ai-demo').paths.map((path,i)=>'<a style="background:#175da6;color:#fff;padding:10px 15px;border-radius:7px;font:14px system-ui;text-decoration:none" href="'+path+'?organization_id='+org+'">'+['Weekly AI Report','AI Approval Center','AI Readiness','Prepare Campaign'][i]+'</a>').join('')+'</div>':'';
+    const banner=`<div style="padding:14px 24px;background:#edf3f9;color:#23374d;font:14px system-ui"><strong>Rubber World Magazine · Vivid demonstration</strong> · View-only · Sample rates and simulated activity<br>${nav}</div>${aiNav}`;
     body=/<body[^>]*>/i.test(body)?body.replace(/<body[^>]*>/i,m=>m+banner):banner+body;
    }return send.call(this,body);};
    const aiDemo=require('./rubber-world-ai-demo').render(req.path,org);if(aiDemo)return res.send(aiDemo);
