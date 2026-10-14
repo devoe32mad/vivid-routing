@@ -518,6 +518,7 @@ ${navItem(
   `/org-renewals?organization_id=${organizationId}`,
   "renewals"
 )}
+${navItem("Sales Rep Report", `/org-sales-reps?organization_id=${organizationId}`, "sales-reps")}
 ${navItem(
   "Revenue Pipeline",
   `/org-revenue-pipeline?organization_id=${organizationId}`,
@@ -528,6 +529,7 @@ ${navItem(
   `/org-performance?organization_id=${organizationId}`,
   "performance"
 )}
+${navItem("Campaign Builder", `/org-campaign-builder-requests?organization_id=${organizationId}`, "campaign-builder")}
 ${navItem(
   "Reports",
   `/org-export?organization_id=${organizationId}`,
@@ -661,12 +663,12 @@ const imageSources={
  print:'https://www.lpgasmagazine.com/wp-content/themes/childTheme_3_22/images/footerlogo.png'
 };
 function nativeArtwork(id,large=false){const src=id===61?imageSources.summit:id===62?imageSources.hall:id===40?imageSources.content:imageSources.logo;const photo=[61,62,40].includes(id);return `<figure style="margin:0 0 15px;background:${photo?'#eef3f9':'#0b1f3a'};border-radius:10px;overflow:hidden"><img src="${src}" alt="${photo?(id===62?'LP Gas Hall of Fame venue':id===61?'LP Gas Growth Summit attendees':'LP Gas Growth Summit presentation'):'LP Gas publisher logo'}" style="display:block;width:100%;height:${large?280:130}px;object-fit:${photo?'cover':'contain'};padding:${photo?0:20}px" referrerpolicy="no-referrer" loading="lazy"><figcaption style="background:#edf3f9;color:#5f6b7a;padding:6px 10px;font-size:10px">${photo?'Publisher event photo · illustrative placement context':'LP Gas publisher artwork'}</figcaption></figure>`;}
-function demoBanner(){return `<div style="padding:14px 24px;background:#edf3f9;color:#23374d;font:14px Arial"><strong>LP Gas Magazine · Vivid demonstration</strong> · View-only · Illustrative inventory and simulated activity<br><a href="/org-organization/lp-gas-demo">Enterprise</a> · <a href="/advertise/lp-gas-demo">Marketplace</a> · <a href="/my-setup">Advertiser portal</a> · <a href="/admin/marketing-command-center">Marketing Command Center</a></div>`;}
+function demoBanner(){return `<div style="padding:14px 24px;background:#edf3f9;color:#23374d;font:14px Arial"><strong>LP Gas Magazine · Vivid demonstration</strong> · View-only · Illustrative inventory, fictional contract values and simulated activity · Pricing unconfirmed<br><a href="/org-organization/lp-gas-demo">Enterprise</a> · <a href="/advertise/lp-gas-demo">Marketplace</a> · <a href="/my-setup">Advertiser portal</a> · <a href="/admin/marketing-command-center">Marketing Command Center</a></div>`;}
 function enhanceNative(html){return html.replace('<body>','<body>'+demoBanner()).replace('</style>',`
 ${nativeExtras}
 </style>`);}
 const nativeExtras=`.table{overflow:auto}table{width:100%;border-collapse:collapse;background:white}th,td{padding:13px;border-bottom:1px solid var(--vivid-border);text-align:left;font-size:14px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:15px;margin:24px 0}.metric{display:block;background:white;border-radius:18px;padding:18px;box-shadow:0 8px 22px #00000014;text-decoration:none}.metric strong{display:block;font-size:30px}.metric span{font-size:13px;color:var(--vivid-text-muted)}.pill{display:inline-block;padding:7px 14px;border-radius:999px;font-size:13px;background:#dcfce7;color:#166534}.pill.Pending{background:#fef3c7;color:#92400e}.pill.Sold{background:#dbeafe;color:#1e40af}.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:15px 0}.filters{display:flex;gap:12px;align-items:end;flex-wrap:wrap}.filters label{min-width:165px}.muted{color:var(--vivid-text-muted)}.card footer{margin-top:15px;padding-top:10px;border-top:1px solid var(--vivid-border)}label{display:block;font-size:13px}summary{cursor:pointer}button{font:inherit}textarea{width:100%;padding:11px;border:1px solid var(--vivid-border);border-radius:10px}.org-location-grid>a>div{width:100%!important}@media(max-width:800px){.topbar,.wrap{padding:22px}.grid{grid-template-columns:1fr}h1{font-size:28px}}`;
-function nativeShell(title,subtitle,body,path){const keyMap={'/inventory':'marketplace','/advertisers':'advertisers','/requests':'advertising-requests','/contracts':'contracts','/renewals':'renewals','/pipeline':'pipeline','/reports':'reports','/admin/reports':'reports','/locations':'locations','/operations':'operations','/performance':'performance'};body=body.replace(/class="panel/g,'class="card').replace(/class="button secondary/g,'class="btn secondary').replace(/class="button/g,'class="btn').replace(/<button(?![^>]*class=)/g,'<button class="btn"');return enhanceNative(orgPage(title,organizationNav({organizationId:'lp-gas-demo',organizationName:'LP Gas Magazine — Vivid Demo',activePage:keyMap[path]||'',userName:'LP Gas Demo Reviewer'})+`<div class="topbar"><div class="brand">Vivid Organizations</div><h1>${h(title)}</h1><p class="subtitle">${h(subtitle)}</p></div><div class="wrap">${body}</div>`));}
+function nativeShell(title,subtitle,body,path){const keyMap={'/org-sales-reps':'sales-reps','/org-campaign-builder-requests':'campaign-builder','/inventory':'marketplace','/advertisers':'advertisers','/requests':'advertising-requests','/contracts':'contracts','/renewals':'renewals','/pipeline':'pipeline','/reports':'reports','/admin/reports':'reports','/locations':'locations','/operations':'operations','/performance':'performance'};body=body.replace(/class="panel/g,'class="card').replace(/class="button secondary/g,'class="btn secondary').replace(/class="button/g,'class="btn').replace(/<button(?![^>]*class=)/g,'<button class="btn"');return enhanceNative(orgPage(title,organizationNav({organizationId:'lp-gas-demo',organizationName:'LP Gas Magazine — Vivid Demo',activePage:keyMap[path]||'',userName:'LP Gas Demo Reviewer'})+`<div class="topbar"><div class="brand">Vivid Organizations</div><h1>${h(title)}</h1><p class="subtitle">${h(subtitle)}</p></div><div class="wrap">${body}</div>`));}
 function nativeLocations(q){const d=reporting(q);return [...new Set(opportunities.map(o=>o.space_id))].map(id=>{const list=opportunities.filter(o=>o.space_id===id),rows=d.rows.filter(r=>list.some(o=>o.id===r.opportunity_id));return {id,name:list[0].edition,location:list[0].channel,qr_placements:rows.length,placement_value:rows.reduce((a,r)=>a+r.cost,0),active_campaigns:rows.length,scans:rows.reduce((a,r)=>a+r.scans,0),conversions:rows.reduce((a,r)=>a+r.conversions,0),conversion_value:rows.reduce((a,r)=>a+r.revenue,0)};});}
 function nativeOverview(q){
  const org={id:'lp-gas-demo',name:'LP Gas Magazine — Vivid Demo'},req={session:{orgUser:{name:'LP Gas Demo Reviewer'},user:{role:'customer'}}},scope={hasOrganizationWideAccess:true};
@@ -1174,10 +1176,788 @@ justify-content:flex-start;
       `);
 }
 
+
+const dateLabel=(value,fallback='Not Set')=>value?new Date(value).toLocaleDateString('en-US',{timeZone:'UTC'}):fallback;
+function nativeLocation(id,q){
+ const organization={id:'lp-gas-demo',name:'LP Gas Magazine — Vivid Demo'},organizationId=organization.id,location=nativeLocations(q).find(r=>r.id===Number(id));if(!location)throw Object.assign(Error('Location not found.'),{status:404});
+ const data=reporting({...q,location_id:String(id)}),fromDate=data.from,toDate=data.to,dateQueryString=new URLSearchParams({from:fromDate,to:toDate}).toString(),showOrganizationBackButton=true,backHref='/org-organization/lp-gas-demo',req={session:{orgUser:{name:'LP Gas Demo Reviewer'},user:{role:'customer'}}};
+ const qrPlacements=data.rows.map(r=>({id:r.qr_id,name:r.qr_name,is_active:true,is_imported:false,placement_value:r.cost,active_campaigns:1,scans:r.scans,conversions:r.conversions,conversion_value:r.revenue}));
+ const totals={placementValue:location.placement_value,activeCampaigns:location.active_campaigns,scans:location.scans,conversions:location.conversions,conversionValue:location.conversion_value};
+const qrCards = qrPlacements.map(qr => `
+  <a
+    href="/org-qr/${qr.id}?organization_id=${organization.id}&location_id=${location.id}${dateQueryString ? `&${dateQueryString}` : ""}"
+    style="
+      text-decoration:none;
+      color:inherit;
+      display:block;
+      min-width:0;
+    "
+  >
+    <div style="
+    background:white;
+border-radius:14px;
+padding:16px;
+box-shadow:0 5px 14px rgba(0,0,0,.07);
+box-sizing:border-box;
+width:260px;
+min-height:220px;
+      transition:transform .15s ease, box-shadow .15s ease;
+    "
+    onmouseover="
+      this.style.transform='translateY(-2px)';
+      this.style.boxShadow='0 7px 18px rgba(0,0,0,.11)';
+    "
+    onmouseout="
+      this.style.transform='translateY(0)';
+      this.style.boxShadow='0 4px 12px rgba(0,0,0,.07)';
+    ">
+
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        gap:10px;
+        margin-bottom:5px;
+      ">
+
+        <div style="
+          font-size:15px;
+          line-height:1.2;
+          font-weight:bold;
+        ">
+          ${qr.name || "Unnamed QR Placement"}
+        </div>
+
+        <span style="
+          background:${qr.is_active ? "#eaf3e8" : "#f3e8e8"};
+          color:${qr.is_active ? "#176b3a" : "#8a1f1f"};
+          padding:5px 8px;
+          border-radius:999px;
+          font-size:10px;
+          white-space:nowrap;
+        ">
+          ${qr.is_active ? "Active" : "Inactive"}
+        </span>
+
+      </div>
+
+      <div style="
+        color:#65776b;
+        font-size:11px;
+        margin-bottom:12px;
+      ">
+        ${qr.is_imported ? "Imported QR" : "Vivid QR"}
+      </div>
+
+      <div style="
+        display:grid;
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:10px 8px;
+      ">
+
+        <div>
+          <div style="font-size:10px;color:#65776b;">
+            Placement Value
+          </div>
+          <div style="font-size:16px;font-weight:bold;">
+            ${money(qr.placement_value)}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:10px;color:#65776b;">
+            Active Campaigns
+          </div>
+          <div style="font-size:16px;font-weight:bold;">
+            ${Number(qr.active_campaigns || 0).toLocaleString()}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:10px;color:#65776b;">
+            Scans
+          </div>
+          <div style="font-size:16px;font-weight:bold;">
+            ${Number(qr.scans || 0).toLocaleString()}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:10px;color:#65776b;">
+            Conversions
+          </div>
+          <div style="font-size:16px;font-weight:bold;">
+            ${Number(qr.conversions || 0).toLocaleString()}
+          </div>
+        </div>
+
+        <div style="grid-column:1/-1;">
+          <div style="font-size:10px;color:#65776b;">
+            Revenue Generated
+          </div>
+          <div style="font-size:16px;font-weight:bold;">
+            ${money(qr.conversion_value)}
+          </div>
+        </div>
+
+      </div>
+
+      <div style="
+        margin-top:12px;
+        padding-top:9px;
+        border-top:1px solid #e7eee7;
+        font-size:11px;
+        font-weight:bold;
+        color:#176b3a;
+      ">
+        Open QR →
+      </div>
+
+    </div>
+  </a>
+`).join("");
+return orgPage(
+  "Organization Location",
+  `
+    ${organizationNav({
+      organizationId,
+      organizationName:
+        organization.name,
+      activePage: "dashboard",
+      userName:
+        req.session.orgUser?.name ||
+        req.session.orgUser?.email ||
+        req.session.user?.name ||
+        req.session.user?.email ||
+        "",
+      locationId: location.id,
+      queryString:
+        dateQueryString || ""
+    })}
+
+    <div class="topbar">
+            <div class="brand">
+              Vivid Organizations
+            </div>
+
+            <h1>${location.name}</h1>
+
+            <p class="subtitle">
+              ${location.location || "Location"} · ${organization.name}
+            </p>
+          </div>
+
+          <div class="wrap">
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:16px;
+              flex-wrap:wrap;
+              margin-bottom:18px;
+            ">
+
+              <div>
+                <h2 style="margin:0 0 5px;">
+                  Location Overview
+                </h2>
+
+                <div style="color:#65776b;">
+                  Performance aggregated directly from Vivid QR placements.
+                </div>
+              </div>
+
+             ${
+  showOrganizationBackButton
+    ? `
+      <a
+        class="btn secondary"
+        href="${backHref}"
+      >
+        Back to ${escapeHtml(organization.name)}
+      </a>
+    `
+    : ""
+}
+
+            </div>
+${nativeArtwork(location.id,true)}
+${orgDateFilterForm({
+  action: `/org-location/${location.id}`,
+  fromDate,
+  toDate
+})}
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
+              gap:12px;
+              margin-bottom:30px;
+            ">
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  QR Placements
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${qrPlacements.length.toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Placement Value
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${money(totals.placementValue)}
+                </div>
+              </div>
+
+
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Active Campaigns
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${totals.activeCampaigns.toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Scans
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${totals.scans.toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Conversions
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${totals.conversions.toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Revenue Generated
+                </div>
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${money(totals.conversionValue)}
+                </div>
+              </div>
+
+            </div>
+
+            <div style="margin-bottom:15px;">
+              <h2 style="margin:0 0 5px;">
+                QR Placements
+              </h2>
+
+              <div style="color:#65776b;">
+                Each card represents an active Vivid QR placement at this location.
+              </div>
+            </div>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(235px,1fr));
+              gap:14px;
+            ">
+
+              ${qrCards || `
+                <div
+                  class="card"
+                  style="
+                    grid-column:1/-1;
+                    text-align:center;
+                    margin:0;
+                  "
+                >
+                  <h3>No active QR placements</h3>
+
+                  <p>
+                    No active Vivid QR placements are currently connected to this location.
+                  </p>
+                </div>
+              `}
+
+            </div>
+
+          </div>
+        `
+      );
+}
+function nativeQR(id,q){
+ const data=reporting({...q,qr_id:String(id)}),r=data.rows[0],opportunity=opportunities.find(o=>o.id===r.opportunity_id),organizationId='lp-gas-demo';
+ const qr={id:r.qr_id,name:r.qr_name,location_id:opportunity.space_id,location_name:opportunity.edition,organization_id:organizationId,organization_name:'LP Gas Magazine — Vivid Demo',market:opportunity.channel,is_active:true,is_imported:false,live_date:r.start_date,end_date:r.end_date,placement_value:r.cost,annual_impressions:0};
+ const fromDate=data.from,toDate=data.to,dateQueryString=new URLSearchParams({from:fromDate,to:toDate}).toString(),metrics={scans:r.scans,offer_clicks:r.clicks,intent:r.clicks,maps_clicks:0,waze_clicks:0,conversions:r.conversions,revenue_generated:r.revenue};
+ const campaigns=[{id:r.campaign_id,name:r.campaign_name,advertiser:r.advertiser,is_active:true,start_date:r.start_date,end_date:r.end_date,avg_customer_value:1200}],activeCampaigns=campaigns,advertiserNames=[r.advertiser];
+ const campaignCards = campaigns.map(campaign => `
+  <a
+    href="/org-campaign/${campaign.id}?organization_id=${organizationId}&qr_id=${qr.id}${dateQueryString ? `&${dateQueryString}` : ""}"
+    style="
+      text-decoration:none;
+      color:inherit;
+      display:block;
+    "
+  >
+    <div style="
+   background:white;
+border-radius:14px;
+padding:16px;
+box-shadow:0 5px 14px rgba(0,0,0,.07);
+box-sizing:border-box;
+width:260px;
+min-height:220px;
+    ">
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:12px;
+            margin-bottom:12px;
+          ">
+
+            <div>
+              <div style="
+                font-size:17px;
+                font-weight:bold;
+                line-height:1.25;
+              ">
+                ${campaign.name || "Unnamed Campaign"}
+              </div>
+
+              <div style="
+                color:#65776b;
+                font-size:12px;
+                margin-top:3px;
+              ">
+                ${campaign.advertiser || "Advertiser not set"}
+              </div>
+            </div>
+
+            <span style="
+              background:${campaign.is_active !== false ? "#eaf3e8" : "#f3e8e8"};
+              color:${campaign.is_active !== false ? "#176b3a" : "#8a1f1f"};
+              padding:6px 9px;
+              border-radius:999px;
+              font-size:10px;
+              font-weight:bold;
+              white-space:nowrap;
+            ">
+              ${campaign.is_active !== false ? "Active" : "Inactive"}
+            </span>
+
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:10px;
+          ">
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Start Date
+              </div>
+              <div style="font-size:13px;font-weight:bold;">
+                ${dateLabel(
+                  campaign.start_date ||
+                  campaign.started_at ||
+                  campaign.assigned_at
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                End Date
+              </div>
+              <div style="font-size:13px;font-weight:bold;">
+                ${dateLabel(
+                  campaign.end_date ||
+                  campaign.ended_at,
+                  "Active"
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#65776b;">
+                Customer Value
+              </div>
+              <div style="font-size:13px;font-weight:bold;">
+                ${money(campaign.avg_customer_value)}
+              </div>
+            </div>
+
+        <div>
+  <div style="font-size:10px;color:#65776b;">
+    Campaign ID
+  </div>
+  <div style="font-size:13px;font-weight:bold;">
+    ${campaign.id}
+  </div>
+</div>
+
+</div>
+
+<div style="
+  margin-top:12px;
+  padding-top:8px;
+  border-top:1px solid #e7eee7;
+  color:#176b3a;
+  font-size:12px;
+  font-weight:bold;
+">
+  Open Campaign →
+</div>
+
+</div>
+</a>
+`).join("");
+
+return orgPage(
+        "QR Placement Detail",
+        `
+          <div class="topbar">
+            <div class="brand">
+              Vivid Organizations
+            </div>
+
+            <h1>${qr.name || "QR Placement"}</h1>
+
+            <p class="subtitle">
+              ${qr.location_name} · ${qr.organization_name}
+            </p>
+          </div>
+
+          <div class="wrap">
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:16px;
+              flex-wrap:wrap;
+              margin-bottom:20px;
+            ">
+
+              <div>
+                <h2 style="margin:0 0 5px;">
+                  QR Placement Overview
+                </h2>
+
+                <div style="color:#65776b;">
+                  Detailed performance pulled directly from Vivid.
+                </div>
+              </div>
+
+              <a
+                class="btn secondary"
+                href="/org-location/${qr.location_id}?organization_id=${qr.organization_id}${dateQueryString ? `&${dateQueryString}` : ""}"
+              >
+                Back to ${qr.location_name}
+              </a>
+
+         </div>
+
+${orgDateFilterForm({
+  action: `/org-qr/${qr.id}`,
+  fromDate,
+  toDate
+})}
+
+<!-- Executive KPI cards -->
+
+<div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(175px,1fr));
+              gap:12px;
+              margin-bottom:30px;
+            ">
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Placement Value
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${money(qr.placement_value)}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Active Campaigns
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${activeCampaigns.length.toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Scans
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.scans || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:12px;color:#65776b;">
+                  Revenue Generated
+                </div>
+
+                <div style="font-size:27px;font-weight:bold;margin-top:6px;">
+                  ${money(metrics.revenue_generated)}
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Placement information -->
+
+            <h2 style="margin-bottom:14px;">
+              Placement Information
+            </h2>
+
+            <div class="card" style="margin:0 0 30px;">
+
+              <div style="
+                display:grid;
+                grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+                gap:18px;
+              ">
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Location
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${qr.location_name}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Market
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${qr.market || "-"}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    QR Type
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${qr.is_imported ? "Imported QR" : "Vivid QR"}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Status
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${qr.is_active ? "Active" : "Inactive"}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Live Date
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${dateLabel(qr.live_date)}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    End Date
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${dateLabel(qr.end_date, "Active")}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Advertiser
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${advertiserNames.join(", ") || "Not assigned"}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;color:#65776b;">
+                    Annual Impressions
+                  </div>
+
+                  <div style="font-size:15px;font-weight:bold;margin-top:4px;">
+                    ${Number(qr.annual_impressions || 0).toLocaleString()}
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            <!-- Performance -->
+
+            <h2 style="margin-bottom:14px;">
+              Performance Detail
+            </h2>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+              gap:12px;
+              margin-bottom:30px;
+            ">
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Scans
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.scans || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Offer Clicks
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.offer_clicks || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Maps Clicks
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.maps_clicks || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Waze Clicks
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.waze_clicks || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Intent
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.intent || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Conversions
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${Number(metrics.conversions || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;">
+                <div style="font-size:11px;color:#65776b;">
+                  Revenue Generated
+                </div>
+
+                <div style="font-size:24px;font-weight:bold;margin-top:6px;">
+                  ${money(metrics.revenue_generated)}
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Campaigns -->
+
+            <div style="margin-bottom:14px;">
+              <h2 style="margin:0 0 5px;">
+                Campaigns
+              </h2>
+
+              <div style="color:#65776b;">
+                Campaign relationships and dates pulled directly from Vivid.
+              </div>
+            </div>
+
+            <div style="
+              display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(270px,1fr));
+              gap:14px;
+            ">
+
+              ${campaignCards || `
+                <div
+                  class="card"
+                  style="
+                    grid-column:1/-1;
+                    text-align:center;
+                    margin:0;
+                  "
+                >
+                  <h3>No campaigns assigned</h3>
+
+                  <p>
+                    No Vivid campaigns are currently connected to this QR placement.
+                  </p>
+                </div>
+              `}
+
+            </div>
+
+          </div>
+        `
+      );
+}
+
 function nativePage(path,q){
+ if(/^\/org-location\/\d+$/.test(path))return enhanceNative(nativeLocation(path.split('/').pop(),q));
+ if(/^\/org-qr\/\d+$/.test(path))return enhanceNative(nativeQR(path.split('/').pop(),q));
  if(path==='/enterprise')return enhanceNative(nativeOverview(q));
  if(path==='/locations'){const rows=nativeLocations(q);return nativeShell('LP Gas Magazine — Vivid Demo Locations','Locations, QR Codes and active campaigns pulled directly from Vivid.',`<div class="card table"><table><thead><tr><th>Location</th><th>Market</th><th>QR Codes</th><th>Active Campaigns</th><th>Live Date</th><th>End Date</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td>${h(r.name)}</td><td>${h(r.location)}</td><td>${r.qr_placements}</td><td>${r.active_campaigns}</td><td>2026-09-15</td><td>2026-12-31</td><td><a class="btn" href="/org-location/${r.id}">Open</a></td></tr>`).join('')}</tbody></table></div>`,'/locations');}
  const loc=path.match(/^\/org-location\/(\d+)$/);if(loc){const location=nativeLocations(q).find(r=>r.id===+loc[1]);if(!location)throw Object.assign(Error('Location not found.'),{status:404});const list=opportunities.filter(o=>o.space_id===location.id);return nativeShell(location.name,location.location+' · LP Gas Magazine — Vivid Demo',`<div class="actions"><h2>Location Overview</h2><a class="btn secondary" href="/org-organization/lp-gas-demo">Back to LP Gas Magazine — Vivid Demo</a></div>${orgDateFilterForm({action:path,fromDate:reporting(q).from,toDate:reporting(q).to})}${nativeArtwork(location.id,true)}${cards([['QR Placements',location.qr_placements,'/reports?location_id='+location.id],['Placement Value',money(location.placement_value),'/contracts?location_id='+location.id],['Active Campaigns',location.active_campaigns,'/reports?location_id='+location.id],['Scans',location.scans,'/reports?location_id='+location.id],['Conversions',location.conversions,'/reports?location_id='+location.id],['Revenue Generated',money(location.conversion_value),'/reports?location_id='+location.id]])}<h2>Advertising inventory</h2>${inventory({program_id:String(list[0].program_id),location_id:String(location.id)})}`,'/locations');}
+ if(path==='/org-sales-reps')return nativeShell('Sales Rep Report','Responsibility, follow-up and renewal ownership.',`<div class="card table"><table><thead><tr><th>Owner</th><th>Advertiser</th><th>Active contracts</th><th>Contracted revenue</th><th>Next action</th></tr></thead><tbody><tr><td>Demo Account Manager</td><td><a href="/advertisers">${h(advertiser)}</a></td><td><a href="/contracts">3</a></td><td>${money(7700)}</td><td><a href="/renewals">Renewal review · December 1</a></td></tr></tbody></table><p class="muted">Fictional demo team. Ownership and follow-up can be explored without saving changes.</p></div>`,path);
+ if(path==='/org-campaign-builder-requests')return nativeShell('Campaign Builder','Advertising requests, campaign destinations and advertiser setup.',`<div class="card"><span class="pill Pending">Pending · demo request</span><h2>Website section sponsorship</h2><p>Demo Software Provider · Inquiry received</p><div class="actions"><a class="btn" href="/requests">Review advertising request</a><a class="btn secondary" href="/admin/edit-campaign/201">Explore campaign setup</a><a href="/my-setup">Advertiser setup →</a></div><p class="muted">Explore request → agreement → advertiser setup → campaign → reporting. Creating or saving campaigns is disabled in this isolated demo.</p></div>`,path);
  if(path==='/operations')return nativeShell('Organization Administration','Manage organization users, programs, permissions and settings.',`<div class="grid">${[['Users','/org-users'],['Programs','/org-programs'],['Permissions','/org-permissions'],['Settings','/org-settings']].map(([name,url])=>`<a class="card" href="${url}"><h2>${name}</h2><p>Explore organization administration.</p><footer>Open ${name} →</footer></a>`).join('')}</div>`,'/operations');
  if(['/org-users','/org-programs','/org-permissions','/org-settings'].includes(path)){const title={'/org-users':'Organization Users','/org-programs':'Organization Programs','/org-permissions':'Organization Permissions','/org-settings':'Organization Settings'}[path];const body=path==='/org-programs'?groups.map(g=>`<a class="card" style="display:block" href="/inventory?program_id=${g.id}"><h2>${h(g.name)}</h2><p>${h(g.description)}</p></a>`).join(''):path==='/org-users'?'<div class="card"><h2>LP Gas Demo Reviewer</h2><p>Organization administrator · View-only demonstration</p><p>Users, roles and location assignments can be managed in the live platform.</p></div>':'<div class="card"><h2>LP Gas Magazine — Vivid Demo</h2><p>Organization scope, permissions and configuration are shown for exploration. Saving and account changes are disabled in this isolated demonstration.</p><a class="btn" href="/operations">Back to Administration</a></div>';return nativeShell(title,'View organization administration without changing accounts.',body,'/operations');}
  if(path==='/admin/marketing-command-center')return nativeShell('Marketing Command Center','Website and digital campaign measurement alongside physical placement engagement.',`<div class="card"><h2>Connected marketing overview</h2><p>No live advertising accounts are connected in this isolated demo. LP Gas and advertiser credentials are not required to explore the workflow.</p><a class="btn" href="/reports">Explore simulated campaign reporting</a><a class="btn secondary" href="/my-setup">Open advertiser portal</a></div>`,'/performance');
@@ -1187,7 +1967,7 @@ function mapNative(path,q){
  if(q.organization_id&&q.organization_id!=='lp-gas-demo')throw Object.assign(Error('Organization unavailable in this demo.'),{status:404});
  const aliases={'/org-organization/lp-gas-demo':'/enterprise','/org-locations':'/locations','/org-advertisers':'/advertisers','/org-marketplace':'/inventory','/org-advertising-requests':'/requests','/org-contracts':'/contracts','/org-renewals':'/renewals','/org-revenue-pipeline':'/pipeline','/org-performance':'/reports','/org-export':'/reports','/org-operations':'/operations','/org-help':'/help'};
  if(path==='/org-business-breakdown'){const status={available:'Available',pending:'Pending',active:'Sold'}[q.metric];if(status){q.status=status;return '/inventory';}return '/reports';}
- return aliases[path]||path;
+ if(/^\/org-campaign\/\d+$/.test(path))return '/admin/view-campaign/'+path.split('/').pop();return aliases[path]||path;
 }
 
 function rewrite(html){return html.replace(/(["'`])(\/(?!\/)[^\s"'`<>]*)\1/g,(all,quote,url)=>quote+PREFIX+url+quote);}
