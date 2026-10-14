@@ -34,7 +34,9 @@ function overviewSummary(html){
   const disclaimer=section.indexOf('<div style="margin-top:16px;color:#65776b;');
   if(summary<0||actions<summary||disclaimer<actions)return section;
   const opening=section.slice(0,section.indexOf('>')+1);
-  return opening+section.slice(summary,actions).replace('margin-top:18px;padding:18px;','margin-top:0;padding:18px;')+section.slice(disclaimer);
+  const insights=section.slice(0,summary).match(/<a\b[^>]*>View Full Performance Insights →<\/a>/)?.[0]||'';
+  const cta=insights?`<div style="display:flex;justify-content:flex-end;margin-bottom:12px;">${insights}</div>`:'';
+  return opening+cta+section.slice(summary,actions).replace('margin-top:18px;padding:18px;','margin-top:0;padding:18px;')+section.slice(disclaimer);
  });
 }
 function register(app,{q}){
