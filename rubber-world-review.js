@@ -26,6 +26,17 @@ function presentation(html){
  // Change visible prose only: preserve URLs, form names, scripts and styles.
  return html.split(/(<script\b[\s\S]*?<\/script>|<style\b[\s\S]*?<\/style>|<[^>]+>)/gi).map(part=>part.startsWith('<')?part:copy(part)).join('');
 }
+function overviewSummary(html){
+ return html.replace(/<section\b[^>]*>[\s\S]*?<\/section>/gi,section=>{
+  if(!section.includes('Ask Vivid: What needs attention?'))return section;
+  const summary=section.indexOf('<div style="margin-top:18px;padding:18px;');
+  const actions=section.indexOf('<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));');
+  const disclaimer=section.indexOf('<div style="margin-top:16px;color:#65776b;');
+  if(summary<0||actions<summary||disclaimer<actions)return section;
+  const opening=section.slice(0,section.indexOf('>')+1);
+  return opening+section.slice(summary,actions).replace('margin-top:18px;padding:18px;','margin-top:0;padding:18px;')+section.slice(disclaimer);
+ });
+}
 function register(app,{q}){
  app.get('/rubber-world-review/:token/:view',async(req,res)=>{
   res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','no-referrer');
@@ -82,6 +93,7 @@ function register(app,{q}){
    req.session.user=user;req.session.orgUser={id:review.owner,organization_id:org,organization_name:'Rubber World Magazine Demo',organization_role:'organization_admin',name:user.name,email:EMAIL};delete req.session.platformUser;req.rubberWorldReviewVerified=true;
    await require('./responsibility-routes').attach(req,res,q);
    const send=res.send;res.send=function(body){if(typeof body==='string'&&/<(?:html|body|main|div)\b/i.test(body)){
+    if(req.path===`/org-organization/${org}`)body=overviewSummary(body);
     body=require('./rubber-world-ai-demo').navigation(body);
     body=body.replace(/<select\b([^>]*)>([\s\S]*?)<\/select>/gi,(whole,attrs,options)=>{
      const name=attrs.match(/name=["']([^"']+)["']/i)?.[1];
