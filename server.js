@@ -76190,7 +76190,7 @@ const hasSchedules = activeScheduleCount > 0;
   &nbsp;|&nbsp;
 
   <a
-    href="/admin/deactivate-location/${s.id}?return_to=my-setup"
+    href="/admin/archive-location/${s.id}"
     onclick="return confirm('Archive this location?')"
   >
     Archive
@@ -86129,15 +86129,20 @@ app.get("/admin/archive-campaign/:campaignId", requireLogin, async (req, res) =>
     res.send("ARCHIVE ERROR: " + err.message);
   }
 });
-app.get("/admin/archive-location/:locationId", requireLogin, async (req, res) => {
+app.get(["/admin/archive-location/:locationId", "/admin/deactivate-location/:locationId"], requireLogin, async (req, res) => {
   try {
-    await q(`
+    const result = await q(`
       UPDATE spaces
       SET is_archived = true,
     archived_at = CURRENT_TIMESTAMP,
     end_date = CURRENT_DATE
       WHERE id = $1
-    `, [req.params.locationId]);
+        AND (user_id = $2 OR $3::boolean)
+      RETURNING id
+    `, [req.params.locationId, req.session.user.id, req.session.user.role === "super_admin"]);
+    if (!result.rows[0]) {
+      return res.status(403).send("Location not found or access denied.");
+    }
 
     res.redirect("/my-setup");
   } catch (err) {
