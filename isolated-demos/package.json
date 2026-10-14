@@ -1,0 +1,15 @@
+{
+  "name": "lp-gas-private-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node lp-gas.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "pdfkit": "0.17.2",
+    "qrcode": "1.5.4"
+  }
+}
