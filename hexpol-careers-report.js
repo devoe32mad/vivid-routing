@@ -31,7 +31,12 @@ async function load(q,req){
   const matches=result.rows.filter(r=>r.destination_url===j.url);
   return {...j,clicks:matches.reduce((n,r)=>n+Number(r.clicks),0),visitors:matches.reduce((n,r)=>n+Number(r.visitors),0),active:matches.some(r=>r.is_active!==false),lastClick:matches.map(r=>r.last_click).filter(Boolean).sort().at(-1)||null};
  });
- return {...period,rows,clicks:rows.reduce((n,r)=>n+r.clicks,0),mainClicks:result.rows.filter(r=>r.destination_url===MAIN).reduce((n,r)=>n+Number(r.clicks),0)};
+ const visitorTotal=await q(`SELECT COUNT(DISTINCT e.vivid_click_id)::int AS visitors
+ FROM events e JOIN campaign_destinations cd ON cd.id=e.campaign_destination_id AND cd.campaign_id=e.campaign_id
+ WHERE e.campaign_id=88 AND e.type='destination_click' AND cd.destination_url=ANY($3::text[])
+ AND e.created_at >= (($1::date::timestamp AT TIME ZONE 'America/New_York') AT TIME ZONE 'UTC')
+ AND e.created_at < ((($2::date+1)::timestamp AT TIME ZONE 'America/New_York') AT TIME ZONE 'UTC')`,[period.from,period.to,jobs.map(j=>j.url)]);
+ return {...period,rows,visitors:Number(visitorTotal.rows[0]?.visitors||0),clicks:rows.reduce((n,r)=>n+r.clicks,0),mainClicks:result.rows.filter(r=>r.destination_url===MAIN).reduce((n,r)=>n+Number(r.clicks),0)};
 }
 const when=value=>value?new Date(String(value).includes('T')?value:String(value)+'Z').toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'No clicks yet';
 function infoIcon(id,label,text){
@@ -50,7 +55,7 @@ function html(data){
 .job-metric-info.card-info [role=tooltip]{left:0;right:auto}
 </style><div class="wrap"><p><a href="/my-setup">← Back to advertiser portal</a></p><h1>HEXPOL Job Click Report</h1><p>Online Job Listings · All 27 jobs · Dates and times in Eastern Time</p>
  <form method="get" style="display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin:20px 0"><label>From<br><input type="date" name="from" value="${data.from}" required></label><label>To<br><input type="date" name="to" value="${data.to}" required></label><button class="btn">Update report</button><a class="btn secondary" href="/hexpol-careers/report.pdf?${query}">Download PDF</a></form>
- <div class="cards"><div class="card"><div>Job listings</div><h2>27</h2></div><div class="card"><div>Job clicks ${infoIcon("job-total-clicks-info","job clicks",clickExplanation).replace("job-metric-info", "job-metric-info card-info")}</div><h2>${data.clicks}</h2></div><div class="card"><div>Main careers page clicks</div><h2>${data.mainClicks}</h2></div></div>
+ <div class="cards"><div class="card"><div>Job listings</div><h2>27</h2></div><div class="card"><div>Job clicks ${infoIcon("job-total-clicks-info","job clicks",clickExplanation).replace("job-metric-info", "job-metric-info card-info")}</div><h2>${data.clicks}</h2></div><div class="card"><div>Visitors ${infoIcon("job-total-visitors-info","total visitors","Distinct tracked QR visits that clicked at least one job in the selected dates. A visit that clicks several jobs is counted once here, even though it appears under each job. Scanning the QR again can count as another visitor; this is not a count of verified individual people.").replace("job-metric-info", "job-metric-info card-info")}</div><h2>${data.visitors||0}</h2></div><div class="card"><div>Main careers page clicks</div><h2>${data.mainClicks}</h2></div></div>
  <p class="note">Job clicks are selections routed through Vivid. ADP must connect its job-selection tracking before these clicks can appear. Application submissions are not measured in this report. Visitors are distinct tracked journeys for each job.</p>
  <div style="overflow:auto"><table style="width:100%;min-width:720px"><thead><tr><th style="text-align:left">Job / destination URL</th><th style="text-align:left">Location</th><th>Clicks ${infoIcon("job-clicks-info","clicks",clickExplanation)}</th><th>Visitors ${infoIcon("job-visitors-info","visitors",visitorExplanation)}</th><th>Last click</th></tr></thead><tbody>${data.rows.map(j=>`<tr><td style="max-width:480px;padding:14px 10px"><strong>${esc(j.title)}</strong><br><small>${j.requisition}${j.active?'':' · Inactive'}</small><br><a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer" style="font-size:12px;overflow-wrap:anywhere">${esc(j.url)}</a></td><td>${esc(j.location)}</td><td style="text-align:center;font-weight:bold">${j.clicks}</td><td style="text-align:center">${j.visitors}</td><td>${esc(when(j.lastClick))}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
