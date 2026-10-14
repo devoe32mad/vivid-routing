@@ -5,6 +5,7 @@ import QRCode from 'qrcode';
 // Standalone LP Gas demonstration. No production imports, database, or credentials.
 const INVITE_HASH = '838cf329e5a5e44cf3c767f47261eea53b8c8c21d524e7d6aa1412e50727eb68';
 const PREFIX = '/demo/lp-gas';
+const SESSION_VALUE = crypto.randomBytes(32).toString('hex');
 const EXPIRES = Date.parse('2027-01-14T23:59:59Z');
 const h=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=v=>Number(v||0).toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0});
@@ -12,7 +13,7 @@ const number=v=>Number(v||0).toLocaleString('en-US');
 const date=v=>v?new Date(v).toISOString().slice(0,10):'Not set';
 const source='https://www.lpgasmagazine.com/advertising/';
 const groups=[
- {id:1,name:'Print advertising',description:'Issue-based placements with dynamic QR engagement.',packages:['Illustrative upcoming print issue'],items:['Print display advertisement','Print advertiser feature']},
+ {id:1,name:'Print advertising',description:'Issue-based placements with dynamic QR engagement.',packages:['Illustrative upcoming print issue'],items:['Print display advertisement','Additional print placement inquiry']},
  {id:2,name:'Email newsletters',description:'Newsletter placements connected to advertiser destinations.',packages:['Illustrative newsletter campaign'],items:['Blue Flame Pilot advertising','Propane Price Insider advertising']},
  {id:3,name:'Website advertising',description:'Website placements and section sponsorships.',packages:['Illustrative website campaign'],items:['Website display advertisement','Website section sponsorship']},
  {id:4,name:'Sponsored content & video',description:'Promotional stories and videos with measurable next steps.',packages:['Illustrative content campaign'],items:['Sponsored content campaign','Sponsored video campaign']},
@@ -21,7 +22,7 @@ const groups=[
  {id:7,name:'Buyers Guide',description:'Explore print and online supplier visibility.',packages:['Illustrative annual guide'],items:['Buyer’s Guide advertiser inquiry']}
 ];
 let sequence=0;
-const opportunities=groups.flatMap(g=>g.items.map((title,i)=>({id:++sequence,program_id:g.id,space_id:g.id===6?61+i:g.id*10,channel:g.name,edition:g.packages[Math.min(i,g.packages.length-1)],title,status:['Available','Pending','Sold'][sequence%3],description:g.description})));
+const opportunities=groups.flatMap(g=>g.items.map((title,i)=>({id:++sequence,program_id:g.id,space_id:g.id===6?61+i:g.id*10,channel:g.name,edition:g.packages[Math.min(i,g.packages.length-1)],title,status:[1,3,10].includes(sequence)?'Sold':[6,8].includes(sequence)?'Pending':'Available',description:g.description})));
 const advertiser='Demo Equipment Supplier';
 const baseRows=[
  {qr_id:101,campaign_id:201,opportunity_id:1,qr_name:'Print display advertisement',edition:'Illustrative print issue',scans:126,clicks:84,conversions:7,revenue:8400,cost:2200,kind:'print'},
@@ -112,9 +113,9 @@ export async function handle(request){
   if(!['GET','HEAD'].includes(request.method))return response('This demonstration is view-only.',405,'text/plain',{'Allow':'GET, HEAD'});
   if(Date.now()>=EXPIRES)return response('This demo invitation has expired.',410,'text/plain');
   const entry=path.match(/^\/lp-gas-review\/([^/]+)\/(enterprise|marketplace|advertiser)$/);
-  if(entry){if(!validToken(entry[1]))return response('Demo link not found.',404,'text/plain');const target=entry[2]==='marketplace'?'/advertise/lp-gas-demo':entry[2]==='advertiser'?'/my-setup':'/enterprise';return response('',302,'text/plain',{'Location':PREFIX+target,'Set-Cookie':`vivid.lp-gas.demo=${INVITE_HASH}; HttpOnly; SameSite=Lax; ${url.protocol==='https:'?'Secure; ':''}Path=${PREFIX}; Max-Age=28800`});}
+  if(entry){if(!validToken(entry[1]))return response('Demo link not found.',404,'text/plain');const target=entry[2]==='marketplace'?'/advertise/lp-gas-demo':entry[2]==='advertiser'?'/my-setup':'/enterprise';return response('',302,'text/plain',{'Location':PREFIX+target,'Set-Cookie':`vivid.lp-gas.demo=${SESSION_VALUE}; HttpOnly; SameSite=Lax; ${url.protocol==='https:'?'Secure; ':''}Path=${PREFIX}; Max-Age=28800`});}
   if(!path.startsWith(PREFIX+'/'))return response('A private LP Gas demo invitation is required.',404,'text/plain');
-  const cookie=request.headers.get('cookie')||'';if(!cookie.split(';').some(c=>c.trim()==='vivid.lp-gas.demo='+INVITE_HASH))return response('Please reopen your original LP Gas demo invitation.',401,'text/plain');
+  const cookie=request.headers.get('cookie')||'';if(!cookie.split(';').some(c=>c.trim()==='vivid.lp-gas.demo='+SESSION_VALUE))return response('Please reopen your original LP Gas demo invitation.',401,'text/plain');
   const local=path.slice(PREFIX.length);
   if(local.startsWith('/export/')){const data=reporting(q);if(local==='/export/report.pdf')return response(await pdf(data),200,'application/pdf',{'Content-Disposition':'attachment; filename="LP-Gas-Demo-Report.pdf"'});if(local==='/export/report.csv'){const esc=v=>'"'+String(v).replace(/"/g,'""')+'"';const rows=[['SIMULATED VIVID DEMO - NOT OFFICIAL LP GAS RESULTS'],['From',data.from,'Through',data.to],['Placement','Scans','Clicks / intent','Conversions','Attributed advertiser revenue'],...data.rows.map(r=>[r.qr_name,r.scans,r.clicks,r.conversions,r.revenue])];return response(rows.map(row=>row.map(esc).join(',')).join('\r\n'),200,'text/csv; charset=utf-8',{'Content-Disposition':'attachment; filename="LP-Gas-Demo-Report.csv"'});}return response('Export not found.',404,'text/plain');}
   const qr=local.match(/^\/qr\/(\d+)\.png$/);if(qr){if(!baseRows.some(r=>r.qr_id===+qr[1]))return response('QR not found.',404,'text/plain');return response(await QRCode.toBuffer('https://example.com/?vivid_demo=lp-gas&placement='+qr[1],{width:400,margin:3}),200,'image/png',{'Content-Disposition':`attachment; filename="LP-Gas-SAMPLE-QR-${qr[1]}.png"`});}
