@@ -84444,7 +84444,8 @@ await q(
 return res.redirect(
   `/admin/qr-setup-choice` +
   `?space_id=${existingMarketplaceLocationId}` +
-  `&marketplace_request_id=${marketplaceRequestId}`
+  (Number.isInteger(marketplaceRequestId) && marketplaceRequestId > 0
+    ? `&marketplace_request_id=${marketplaceRequestId}` : "")
 );
    } else {
   /*
@@ -84550,7 +84551,8 @@ return res.redirect(
       return res.redirect(
   `/admin/qr-setup-choice` +
   `?space_id=${existingLocation.id}` +
-  `&marketplace_request_id=${marketplaceRequestId}`
+  (Number.isInteger(marketplaceRequestId) && marketplaceRequestId > 0
+    ? `&marketplace_request_id=${marketplaceRequestId}` : "")
 );
     }
 
@@ -84621,7 +84623,8 @@ VALUES ($1, $2, $3, $4, $5, $6)
     return res.redirect(
   `/admin/qr-setup-choice` +
   `?space_id=${createdLocationId}` +
-  `&marketplace_request_id=${marketplaceRequestId}`
+  (Number.isInteger(marketplaceRequestId) && marketplaceRequestId > 0
+    ? `&marketplace_request_id=${marketplaceRequestId}` : "")
 );
   } catch (err) {
     console.error(
@@ -84792,6 +84795,35 @@ app.get(
 
       const marketplaceRequestId =
         Number(req.query.marketplace_request_id);
+
+      // Older standalone location redirects included the literal NaN.
+      const rawRequestId = String(req.query.marketplace_request_id || "");
+      const standalone = !rawRequestId || rawRequestId === "NaN" || rawRequestId === "0";
+
+      if (standalone) {
+        if (!Number.isInteger(spaceId) || spaceId <= 0) {
+          return res.status(400).send("A valid location is required.");
+        }
+        const location = await q(
+          `SELECT id FROM spaces
+           WHERE id = $1 AND COALESCE(is_archived, false) = false
+             AND (user_id = $2 OR $3::boolean)
+           LIMIT 1`,
+          [spaceId, currentUser.id, currentUser.role === "super_admin"]
+        );
+        if (!location.rows[0]) {
+          return res.status(403).send("Location not found or access denied.");
+        }
+        return res.send(page("Choose QR Setup", `
+          <div class="topbar"><div class="brand">Vivid Spots</div><h1>Choose Your QR Setup</h1></div>
+          <div class="wrap"><div class="card">
+            <h2>How would you like to use Vivid?</h2>
+            <p>Create a new QR code or connect one you already use.</p>
+            <a class="btn" href="/admin/new-qr?space_id=${spaceId}">Create New QR Code</a>
+            <a class="btn" href="/admin/import-qr?space_id=${spaceId}">Connect Existing QR Code</a>
+          </div></div>
+        `));
+      }
 
       if (
         !Number.isInteger(spaceId) ||
@@ -85047,7 +85079,7 @@ app.get("/admin/import-qr", requireLogin, async (req, res) => {
 
     for (const s of spaces.rows) {
       locationOptions += `
-        <option value="${s.id}">
+        <option value="${s.id}" ${Number(s.id) === Number(req.query.space_id) ? "selected" : ""}>
           ${s.name}
         </option>
       `;
@@ -85199,6 +85231,8 @@ const requestedMarketplaceRequestId =
     if (
       Number.isInteger(requestedSpaceId) &&
       requestedSpaceId > 0 &&
+      Number.isInteger(requestedMarketplaceRequestId) &&
+      requestedMarketplaceRequestId > 0 &&
       !isSuperAdmin
     ) {
       const marketplaceResult = await q(
