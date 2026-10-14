@@ -5,7 +5,7 @@ const EXPIRES=Date.parse('2026-10-28T04:00:00Z'); // End of October 27, America/
 const ORG=13;
 const DEFAULT_DATES='from=2026-09-14&to=2026-10-13';
 const homes={enterprise:'/org-organization/13?organization_id=13&'+DEFAULT_DATES,advertiser:'/my-setup',marketplace:'/advertise/ccps'};
-const simple=new Set([...require('./responsibility-routes').paths,'/org-business-breakdown','/org-help','/help','/admin/conversion-tracking','/org-advertisers','/org-locations','/org-marketplace','/org-contracts','/org-renewals','/org-revenue-pipeline','/org-placement-report','/org-performance','/org-advertising-requests','/org-export','/org-export/renewals.csv','/org-export/renewals.pdf','/my-setup','/reports','/reports-qr','/reports-location','/reports-campaign','/admin/reports','/export/report.pdf','/export/report.xlsx','/export/events.csv','/org-export/report.pdf','/org-export/report.xlsx','/export/website-pages.csv','/export/website-pages.pdf','/admin/marketing-command-center','/campaign-help','/org-campaign-builder-requests','/org-campaign-help-example','/org-location/new','/org-opportunity/new']);
+const simple=new Set(['/admin/archived-campaigns',...require('./responsibility-routes').paths,'/org-business-breakdown','/org-help','/help','/admin/conversion-tracking','/org-advertisers','/org-locations','/org-marketplace','/org-contracts','/org-renewals','/org-revenue-pipeline','/org-placement-report','/org-performance','/org-advertising-requests','/org-export','/org-export/renewals.csv','/org-export/renewals.pdf','/my-setup','/reports','/reports-qr','/reports-location','/reports-campaign','/admin/reports','/export/report.pdf','/export/report.xlsx','/export/events.csv','/org-export/report.pdf','/org-export/report.xlsx','/export/website-pages.csv','/export/website-pages.pdf','/admin/marketing-command-center','/campaign-help','/org-campaign-builder-requests','/org-campaign-help-example','/org-location/new','/org-opportunity/new']);
 function readOnlyAdmin(path){return ['/org-operations','/org-users','/org-users/new','/org-bulk-import','/org-import-locations-assets','/org-locations-assets-template','/org-programs','/org-settings','/org-permissions'].includes(path)||/^\/org-user\/\d+\/edit$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path);}
 function editableRoute(path){return /^\/admin\/edit-location\/\d+$/.test(path)|| ['/admin/new-qr','/admin/new-campaign','/admin/assign','/admin/schedule','/org-programs'].includes(path)||/^\/admin\/edit-qr\/\d+$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path)|| /^\/admin\/edit-campaign\/\d+$/.test(path)||/^\/(?:org-)?campaign-help(?:\/\d+)?$/.test(path)||/^\/org-opportunity\/(?:new|edit\/\d+)$/.test(path)||path==='/org-location/new'||/^\/org-contract\/\d+\/(?:fulfillment|renew|renewal-review|renewal-approve|activate|activity)$/.test(path);}
 const setupRoutes=new Set(['/admin/new-qr','/admin/new-campaign','/admin/assign','/admin/schedule']);
@@ -13,6 +13,19 @@ function routeAllowed(path){if(/^\/demo-advertiser\/placement\/\d+$/.test(path))
 function validToken(value){if(typeof value!=='string'||value.length>100)return false;return crypto.timingSafeEqual(crypto.createHash('sha256').update(value).digest(),Buffer.from(TOKEN_HASH,'hex'));}
 function install(source){
  source=require("./ccps-demo-data-scope").install(source);
+ const archiveMarker='// CCPS_NATIVE_ARCHIVE_SCOPE_V1';
+ if(!source.includes(archiveMarker)){
+  const start=source.indexOf('app.get("/admin/archived-campaigns",'),end=source.indexOf('\napp.',start+1);
+  if(start<0||end<0)throw Error('CCPS archive route missing');
+  let part=source.slice(start,end);
+  const anchor='    res.send(page("Archive Center", `';
+  if(part.split(anchor).length!==2)throw Error('CCPS archive render anchor missing');
+  part=part.replace(anchor,`    ${archiveMarker}
+    if(req.ccpsReviewVerified)await require("./ccps-review-access").filterSetup(q,req.session.user,{campaigns,locations:archivedLocations,qrs:archivedQrs,schedules:archivedSchedules});
+`+anchor);
+  source=source.slice(0,start)+part+source.slice(end);
+ }
+
  const marker='// CCPS_READ_ONLY_REVIEW_V1';if(source.includes(marker))return source;
  const anchor='const disabledPublicMaintenanceRoutes =';if(source.split(anchor).length!==2)throw Error('CCPS review middleware anchor missing');
  source=source.replace(anchor,marker+'\nrequire("./ccps-review-access").register(app,{q});\n'+anchor);
@@ -56,7 +69,6 @@ function register(app,{q}){
   if(!['GET','HEAD'].includes(req.method)&&!(req.method==='POST'&&req.path==='/org-responsibility/save'))return res.status(403).send('This CCPS demo is view-only. No changes were saved.');
   if(/^\/admin\/(?:archive|restore)-/.test(req.path)||/^\/r\//.test(req.path)||/\/(?:activate|renewal-approve)$/.test(req.path))return notice();
   if(req.path==='/org-dashboard')return res.redirect(homes.enterprise);
-  if(req.path==='/admin/archived-campaigns')return res.redirect('/my-setup?status=all');
   if(req.path==='/dashboard')return res.redirect('/my-setup');
   if(req.path==='/admin/new-location')return res.redirect('/org-location/new?organization_id=13');
 
@@ -72,6 +84,9 @@ function register(app,{q}){
     return next();
    }
    const user={id:review.ownerId,login_user_id:review.ownerId,customer_id:review.ownerId,role:'customer',name:'CCPS Demo Reviewer',email:'mike@vividspots.com',ccpsReview:true};
+   // Default this demo to the existing paid sponsor, without altering source data.
+   if(!review.sponsorPreviewV2){review.advertiserId=1300042;review.sponsorPreviewV2=true;}
+   if(req.path==='/admin/archived-campaigns')user.demoAdvertiserId=review.advertiserId;
    let allowed=await reportScope(q,user);
    allowed=await require('./demo-advertiser-account').select(req,q,user,review,allowed);
    if(!allowed)return notice();
@@ -100,6 +115,9 @@ function register(app,{q}){
    const schoolPhotos=await require("./ccps-demo-presentation").load(q,req.path);
    const send=res.send;res.send=function(body){if(typeof body==='string'&&/<(?:html|body|main|div)\b/i.test(body)){
     body=require("./ccps-demo-presentation").render(body,schoolPhotos,req.path);
+    body=body.replace(/Sales Rep Report/g,'School Responsibility Report').replace(/Sales Reps/g,'School Contacts').replace(/Sales Rep/g,'School Contact').replace(/sales reps/g,'school contacts').replace(/sales rep/g,'school contact').replace(/Demo sales team/g,'Demo school staff');
+    if(req.path==='/admin/archived-campaigns')body=body.replace('href="/admin"','href="/my-setup"').replace('← Back to Admin','← Back to My Setup');
+
     body=body.replace("Advertisers are summed by location; the same advertiser may appear in more than one location.","Advertisers counts unique sponsors across the selected schools.");
     const banner='<div style="padding:12px 20px;background:#edf3f9;color:#23374d;font:14px system-ui"><strong>CCPS interactive demo · View-only except responsibility assignments</strong> · Fictional sample sponsors · Sample Performance results at Gulf Coast · Expires October 27, 2026 (Eastern)<br><a href="'+homes.enterprise+'">Enterprise</a> · <a href="'+homes.marketplace+'">Marketplace</a> · <a href="'+homes.advertiser+'">Advertiser portal</a></div>';
     body=body.replace(/<select\b([^>]*)>([\s\S]*?)<\/select>/gi,(whole,attrs,options)=>{const name=attrs.match(/name=["']([^"']+)["']/i)?.[1];const ids=['organization_id','org_id'].includes(name)?[ORG]:['space_id','location_id'].includes(name)?locations:['qr_id','qr_ids'].includes(name)?allowed.qrIds:['campaign_id','campaign','campaignId'].includes(name)?allowed.campaignIds:null;if(!ids)return whole;return '<select'+attrs+'>'+options.replace(/<option\b[^>]*value=["']([^"']*)["'][^>]*>[\s\S]*?<\/option>/gi,(option,id)=>!id||ids.includes(Number(id))?option:'')+'</select>';});
@@ -123,7 +141,8 @@ function register(app,{q}){
       return blocked||(!routeAllowed(path)&&!redirects.includes(path))?'':link;
     });
     body=body.replace(/mike@vividspots\.com/gi,'CCPS Demo Reviewer');
-    body=/<body[^>]*>/i.test(body)?body.replace(/<body[^>]*>/i,m=>m+banner):banner+body;
+    const sponsorChoice=user.demoAdvertiserId?'<div style="padding:10px 20px;font:14px system-ui;background:#f4f7f5">Sponsor preview: <a href="/my-setup?advertiser_id=1300042">Gulf Coast Home Services · Performance example</a> · <a href="/my-setup?advertiser_id=1300041">Coastal Family Dental · Basic example</a>. Each preview shows only that sponsor.</div>':'';
+    body=/<body[^>]*>/i.test(body)?body.replace(/<body[^>]*>/i,m=>m+banner+sponsorChoice):banner+sponsorChoice+body;
     if(readOnlyAdmin(req.path))body=body.replace('CCPS interactive demo · View-only','CCPS interactive demo · Administration is view-only');
    }return send.call(this,body);};
 
