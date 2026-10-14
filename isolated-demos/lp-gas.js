@@ -109,6 +109,819 @@ function portalRender(data,query,placementId){
 
 
 
+function advertiserPage(title, body) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <title>${title}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    
+    body{margin:0;font-family:Arial,sans-serif;background:var(--vivid-background);color:var(--vivid-text)}
+    
+    .topbar{background:linear-gradient(135deg,var(--vivid-navy),var(--vivid-blue));color:white;padding:30px 40px}
+    .brand{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--vivid-blue-light);font-weight:bold}
+    h1{margin:4px 0 6px;font-size:34px}
+    h2{margin-top:34px}
+    .subtitle{color:var(--vivid-blue-light);margin:0}
+    .wrap{padding:30px 40px;max-width:1250px;margin:0 auto}
+    .btn{display:inline-block;background:#2f7d46;color:white;padding:12px 16px;border-radius:12px;text-decoration:none;font-weight:bold;margin:5px 8px 5px 0;border:0;cursor:pointer}
+    .btn.secondary{background:#123d25}.btn.gold{background:#9a6a00}
+    .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:22px 0 30px}
+.card{
+  background:white;
+  border-radius:18px;
+  padding:18px;
+  box-shadow:0 8px 22px rgba(0,0,0,.08);
+  
+  
+  
+  margin:8px 0;
+
+}
+    .label{color:#65776b;font-size:13px;margin-bottom:8px}.num{font-size:30px;font-weight:bold}
+    table{width:100%;background:white;border-collapse:collapse;border-radius:18px;overflow:hidden;box-shadow:0 8px 22px rgba(0,0,0,.08);margin-bottom:30px}
+    th{background:#eaf3e8}
+   th,td{
+  padding:13px;
+  border-bottom:1px solid #e7eee7;
+  text-align:center;
+  vertical-align:middle;
+  font-size:14px
+}
+    .note{background:white;border-left:6px solid #2f7d46;padding:18px;border-radius:16px;box-shadow:0 8px 18px rgba(0,0,0,.06);margin:20px 0}
+    .choice-card{max-width:620px;margin:36px auto;background:white;border-radius:24px;padding:32px;box-shadow:0 10px 28px rgba(0,0,0,.14)}
+    .choice-btn{display:block;background:#2f7d46;color:white;padding:17px;margin:12px 0;text-align:center;text-decoration:none;border-radius:14px;font-weight:bold;font-size:16px}
+    .choice-btn.dark{background:#123d25}
+    .pill{display:inline-block;background:#eaf3e8;padding:8px 12px;border-radius:999px;font-size:13px;font-weight:bold;margin-bottom:10px}
+    .deal{display:inline-block;background:#fff4d6;padding:8px 12px;border-radius:999px;color:#7a4b00;font-size:13px;font-weight:bold;margin-bottom:10px}
+    .good{color:#1f7a3f;font-weight:bold}.bad{color:#b00020;font-weight:bold}.small{font-size:13px;color:#65776b}
+    input,select{width:100%;padding:11px;border-radius:10px;border:1px solid #cfdacf;margin:6px 0 14px;font-size:15px;box-sizing:border-box}
+    .formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}a{color:#176b3a;font-weight:bold}
+    @media(max-width:800px){.topbar,.wrap{padding:22px}.cards,.formgrid{grid-template-columns:1fr}h1{font-size:28px}}
+        ${vividThemeStyles()}
+  </style>
+</head>
+<body>
+
+<div style="background:var(--vivid-navy);padding:14px 24px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
+
+  <a href="/my-setup" style="color:white;text-decoration:none;font-weight:bold;">
+  My Setup
+</a>
+
+  <a href="/reports" style="color:white;text-decoration:none;">
+    Reports
+  </a>
+
+  <a href="/admin/ai-insights" style="color:white;text-decoration:none;">
+ Performance Insights </a>
+
+ 
+
+ 
+  <a href="/admin/archived-campaigns" style="color:white;text-decoration:none;">
+  Archive Center
+<a href="/admin/reports" style="color:white;text-decoration:none;">
+  Export Center
+</a>
+<a
+  href="/help"
+  target="_blank"
+  rel="noopener noreferrer"
+  style="color:white;text-decoration:none;"
+>
+  Help
+</a>
+
+</div>
+
+${body}
+
+</body>
+</html>`;
+}
+
+// Vivid native My Setup markup and row renderers, with in-memory LP Gas fixtures.
+function nativeAdvertiserSetup(query){
+ reporting(query);
+ const currentUser={email:'demo@example.com',role:'customer'},isPrimaryAdvertiserUser=true,advertiserCustomerId=1;
+ const careersShortcut='';
+ const locations={rows:baseRows.map(r=>{const o=opportunities.find(o=>o.id===r.opportunity_id);return {id:o.space_id,name:o.edition,location:o.channel,live_date:r.start_date};})};
+ const qrs={rows:baseRows.map(r=>{const o=opportunities.find(o=>o.id===r.opportunity_id);return {id:r.qr_id,name:r.qr_name,space_id:o.space_id,location:o.channel,location_name:o.edition,live_date:r.start_date,end_date:r.end_date,annual_impressions:0,annual_cost:r.cost};})};
+ const campaigns={rows:baseRows.map(r=>({id:r.campaign_id,name:r.campaign_name,advertiser:r.advertiser,start_date:r.start_date,end_date:r.end_date,is_archived:false}))};
+ const relationships={rows:baseRows.map(r=>({location_id:opportunities.find(o=>o.id===r.opportunity_id).space_id,qr_id:r.qr_id,campaign_id:r.campaign_id,created_at:r.start_date}))};
+ const schedules={rows:baseRows.map(r=>({id:r.campaign_id,qr_name:r.qr_name,advertiser:r.advertiser,campaign_name:r.campaign_name,effective_start_date:r.start_date,effective_end_date:r.end_date,days_of_week:'0,1,2,3,4,5,6',start_time:'00:00',end_time:'23:59',priority:1,is_active:true}))};
+ const assignments={rows:baseRows.map(r=>{const o=opportunities.find(o=>o.id===r.opportunity_id);return {id:r.qr_id,market:o.channel,location_name:o.edition,qr_name:r.qr_name,advertiser:r.advertiser,campaign_name:r.campaign_name,effective_start_date:r.start_date,assignment_days:30,allocated_cost:r.cost*30/108,is_active:true};})};
+ const archivedCampaigns={rows:[]};
+ const hasLocations=true,hasQrs=true,hasCampaigns=true,hasAssignments=true,hasSchedules=true;
+ const dateLabel=d=>d?new Date(d).toLocaleDateString('en-US',{timeZone:'UTC'}):'Not Set';
+ const daysActive=(start,end)=>Math.max(0,Math.floor((Math.min(Date.parse(end||'2026-10-14'),Date.parse('2026-10-14'))-Date.parse(start))/86400000)+1);
+ const dayLabels=()=> 'Sun, Mon, Tue, Wed, Thu, Fri, Sat';
+    let locationTable = "";
+    for (const s of locations.rows) {
+      const locationRelationships =
+        relationships.rows.filter(
+          relationship =>
+            String(relationship.location_id) ===
+            String(s.id)
+        );
+
+      const relationshipStartDates =
+        locationRelationships
+          .map(relationship => {
+            const qr = qrs.rows.find(
+              item =>
+                String(item.id) ===
+                String(relationship.qr_id)
+            );
+
+            const campaign = campaigns.rows.find(
+              item =>
+                String(item.id) ===
+                String(relationship.campaign_id)
+            );
+
+            const candidates = [
+              s.live_date,
+              qr?.live_date,
+              campaign?.start_date ||
+                campaign?.live_date,
+              relationship.created_at
+            ]
+              .filter(Boolean)
+              .map(value => new Date(value))
+              .filter(
+                value =>
+                  !Number.isNaN(value.getTime())
+              );
+
+            if (!candidates.length) {
+              return null;
+            }
+
+            return new Date(
+              Math.max(
+                ...candidates.map(
+                  value => value.getTime()
+                )
+              )
+            );
+          })
+          .filter(Boolean);
+
+      const effectiveLocationStartDate =
+        relationshipStartDates.length
+          ? new Date(
+              Math.min(
+                ...relationshipStartDates.map(
+                  value => value.getTime()
+                )
+              )
+            )
+          : s.live_date;
+
+      locationTable += `
+        <tr>
+         <td>${s.id}</td>
+<td>${s.name || ""}</td>
+<td>${s.location || ""}</td>
+<td>${
+  qrs.rows
+    .filter(qr => String(qr.space_id) === String(s.id))
+    .map(qr => qr.name)
+    .filter(Boolean)
+    .join(", ")
+}</td>
+
+<td>${
+[...new Set(
+  relationships.rows
+    .filter(r => String(r.location_id) === String(s.id))
+    .map(r => {
+      const campaign = campaigns.rows.find(
+        c => String(c.id) === String(r.campaign_id)
+      );
+      return campaign ? campaign.name : "";
+    })
+    .filter(Boolean)
+)].join(", ")
+}</td>
+<td>${dateLabel(effectiveLocationStartDate)}</td>
+
+<td>${daysActive(effectiveLocationStartDate)}</td>
+
+<td>
+  <a href="/admin/view-location/${s.id}">View</a>
+  &nbsp;|&nbsp;
+
+  <a href="/admin/edit-location/${s.id}">Edit</a>
+  &nbsp;|&nbsp;
+
+  <a
+    href="/admin/archive-location/${s.id}"
+    onclick="return confirm('Archive this location?')"
+  >
+    Archive
+  </a>
+</td>
+        </tr>
+      `;
+    }
+
+    let qrTable = "";
+    for (const qr of qrs.rows) {
+      qrTable += `
+        <tr>
+          <td>${qr.id}</td>
+<td>${qr.name || ""}</td>
+<td>${
+[...new Set(
+  relationships.rows
+    .filter(r => String(r.qr_id) === String(qr.id))
+    .map(r => {
+      const campaign = campaigns.rows.find(c => String(c.id) === String(r.campaign_id));
+      return campaign ? campaign.advertiser : "";
+    })
+    .filter(Boolean)
+)].join(", ")
+}</td>
+<td>
+${qr.is_imported ? "Imported" : "Native"}
+</td>
+<td>${qr.location || ""}</td>
+          <td>${qr.location_name || ""}</td>
+          <td>${
+[...new Set(
+  relationships.rows
+    .filter(r => String(r.qr_id) === String(qr.id))
+    .map(r => {
+      const campaign = campaigns.rows.find(
+        c => String(c.id) === String(r.campaign_id)
+      );
+      return campaign ? campaign.name : "";
+    })
+    .filter(Boolean)
+)].join(", ")
+}</td>
+<td>${dateLabel(qr.live_date || qr.created_at)}</td>
+<td>${daysActive(qr.live_date, qr.end_date)}</td>
+          
+          <td>${Number(qr.annual_impressions || 0).toLocaleString()}</td>
+<td>${money(qr.annual_cost || 0)}</td>
+<td>
+  <a href="/r/${qr.id}" target="_blank">Open</a>
+  &nbsp;|&nbsp;
+  <a href="/admin/view-qr/${qr.id}">View</a>
+  &nbsp;|&nbsp;
+  <a href="/admin/edit-qr/${qr.id}">Edit</a>
+  &nbsp;|&nbsp;
+  <a href="/admin/archive-qr/${qr.id}"
+     onclick="return confirm('Archive this QR code?')"
+     style="color:red;">Archive</a>
+</td>
+
+<td>
+  <a href="/qr/${qr.id}.png" target="_blank">Download</a>
+</td>
+
+
+</tr>
+        
+      `;
+    }
+
+    let campaignTable = "";
+    for (const c of campaigns.rows) {
+      const campaignRelationships = relationships.rows.filter(
+  r => String(r.campaign_id) === String(c.id)
+);
+
+const campaignMarkets = [...new Set(
+  campaignRelationships.map(r => {
+    const loc = locations.rows.find(l => String(l.id) === String(r.location_id));
+    return loc ? loc.location : "";
+  }).filter(Boolean)
+)].join(", ");
+
+const campaignLocations = [...new Set(
+  campaignRelationships.map(r => {
+    const loc = locations.rows.find(l => String(l.id) === String(r.location_id));
+    return loc ? loc.name : "";
+  }).filter(Boolean)
+)].join(", ");
+
+const campaignQrs = [...new Set(
+  campaignRelationships.map(r => {
+    const qr = qrs.rows.find(q => String(q.qr_id || q.id) === String(r.qr_id));
+    return qr ? (qr.qr_name || qr.name) : "";
+  }).filter(Boolean)
+)].join(", ");
+      campaignTable += `
+        <tr>
+          <td>${c.id}</td>
+          <td>${c.advertiser || ""}</td>
+          <td>${c.name || ""}</td>
+<td>${campaignMarkets}</td>
+
+<td>${campaignLocations}</td>
+<td>${campaignQrs}</td>
+
+<td>
+  ${
+    c.start_date
+      ? dateLabel(c.start_date)
+      : "No Start Date"
+  }
+</td>
+
+<td>
+  ${
+    c.end_date
+      ? dateLabel(c.end_date)
+      : "No End Date"
+  }
+</td>
+
+<td>
+  ${
+    c.start_date
+      ? daysActive(
+          c.start_date,
+          c.end_date || c.archived_at
+        )
+      : 0
+  }
+</td>
+
+
+
+<td>
+  <a href="/admin/view-campaign/${c.id}">View</a>
+  &nbsp;|&nbsp;
+  <a href="/admin/edit-campaign/${c.id}">Edit</a>
+  &nbsp;|&nbsp;
+  <a href="/admin/archive-campaign/${c.id}"
+     onclick="return confirm('Archive this campaign?')"
+     style="color:red;">
+     Archive
+  </a>
+</td>
+
+<td>
+  ${
+    c.is_archived
+      ? '<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Archived</span>'
+      : '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Active</span>'
+  }
+</td>
+
+        </tr>
+      `;
+    }
+let archivedCampaignTable = "";
+
+for (const c of archivedCampaigns.rows) {
+  archivedCampaignTable += `
+    <tr>
+      <td>${c.id}</td>
+      <td>${c.advertiser || ""}</td>
+      <td>${c.name || ""}</td>
+
+      <td>
+        <a href="/admin/restore-campaign/${c.id}">
+          Restore
+        </a>
+      </td>
+
+    </tr>
+  `;
+}
+    let scheduleTable = "";
+
+for (const s of schedules.rows) {
+  scheduleTable += `
+    <tr>
+      <td>${s.qr_name || ""}</td>
+      <td>${s.advertiser || ""}</td>
+      <td>${s.campaign_name || ""}</td>
+      <td>${daysActive(
+  s.effective_start_date,
+  s.effective_end_date
+)}</td>
+      <td>${dayLabels(s.days_of_week) || "Every Day"}</td>
+      <td>${s.start_time || ""}</td>
+      <td>${s.end_time || ""}</td>
+      <td>${s.priority || ""}</td>
+      <td>${s.is_active ? "Active" : "Inactive"}</td>
+      <td>
+  <a href="/admin/view-schedule/${s.id}">View</a>
+  &nbsp;|&nbsp;
+  <a href="/admin/edit-schedule/${s.id}">Edit</a>
+  &nbsp;|&nbsp;
+  <a href="/admin/deactivate-schedule/${s.id}">Archive</a>
+</td>
+    </tr>
+  `;
+}
+    let assignmentTable = "";
+    for (const a of assignments.rows) {
+   assignmentTable += `
+  <tr>
+  
+   <td>${a.market || ""}</td>
+<td>${a.location_name || ""}</td>
+<td>${a.qr_name || ""}</td>
+<td>${a.advertiser || ""}</td>
+<td>${a.campaign_name || ""}</td>
+<td>${dateLabel(a.effective_start_date)}</td>
+<td>${Number(a.assignment_days ?? 0)}</td>
+<td>$${Number(a.allocated_cost ?? 0).toLocaleString("en-US", {maximumFractionDigits:0})}</td>
+<td>
+${a.is_active
+? '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Active</span>'
+: '<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;">Inactive</span>'
+}
+</td>
+<td>
+  <a href="/admin/archive-assignment/${a.id}">Archive</a>
+</td>
+  </tr>
+`;
+    }
+
+return finishAdvertiser(advertiserPage('My Setup', `
+      <div class="topbar">
+        <div class="brand">Vivid Spots</div>
+ <h1>
+  My Setup
+  <a class="btn secondary"
+     href="/help"
+     style="margin-left:15px;font-size:14px;">
+     Help
+  </a>
+</h1>
+
+ 
+<div style="font-weight:bold;margin-bottom:15px;">
+  👤 ${currentUser.email}
+  &nbsp;|&nbsp;
+  Role: ${currentUser.role}
+</div>
+
+${careersShortcut}
+<h3>Getting Started</h3>
+<h3>Getting Started</h3>
+
+<ol>
+<li>Create a Location.</li>
+<li>Create a QR Code.</li>
+<li>Create a Campaign.</li>
+<li>Assign the Campaign through Scheduling.</li>
+<li>View performance in Reports.</li>
+</ol>
+
+<p>
+<b>Tip:</b> Archived items are moved to Archive Center and can be restored at any time.
+</p>
+
+</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin:20px 0;">
+  ${
+    isPrimaryAdvertiserUser
+      ? `
+        <a
+          class="btn secondary"
+          href="/admin/advertiser-customer/${advertiserCustomerId}/users"
+        >
+          Manage Users
+        </a>
+      `
+      : ""
+  }
+  <a class="btn" href="/admin/new-location">
+    + New Location
+  </a>
+
+  <a class="btn" href="/admin/new-qr">
+    + New QR
+  </a>
+<a class="btn secondary" href="/admin/import-qr">
+  + Import Existing QR
+</a>
+  <a class="btn" href="/admin/new-campaign">
+    + New Campaign
+  </a>
+
+  <a class="btn" href="/admin/assign">
+    + Assign Campaign
+  </a>
+
+  <a class="btn" href="/admin/schedule">
+    + Schedule Campaign
+  </a>
+
+ 
+
+</div>
+        </div>
+  
+<div style="
+background:#f7faf7;
+border:1px solid #dbe7db;
+padding:10px;
+border-radius:8px;
+margin-bottom:12px;
+font-size:13px;
+color:#4b5563;
+">
+<b>Days in Market:</b> Tracks the active duration of each Vivid asset. Locations, QR codes, campaigns, schedules, and assignments are measured based on their applicable start and end dates.
+</div>
+
+  
+
+      </div>
+
+      <div class="wrap">
+
+<div class="card" style="margin-bottom:25px;padding:20px;">
+  <h2>🚀 Launch Checklist</h2>
+
+  <div class="note" style="margin-top:10px;">
+    Follow these steps to launch and manage your campaigns.
+    <div style="margin-top:18px;line-height:1.8;">
+<div style="margin-top:15px;">
+  ${hasLocations
+    ? "✅ Locations Created"
+    : "⚠ No Locations Yet"}
+</div>
+<br>
+
+${hasQrs
+  ? "✅ QR Codes Created"
+  : "⚠ No QR Codes Yet"}
+  </div>
+<br>
+
+${hasCampaigns
+  ? "✅ Campaigns Created"
+  : "⚠ No Campaigns Yet"}
+  <br>
+<br>
+
+<div style="margin-top:10px;">
+  ${hasAssignments
+    ? "✅ Campaigns Assigned"
+    : "⚠ No Campaign Assignments"}
+</div>
+
+<div style="margin-top:10px;">
+  ${hasSchedules
+    ? "✅ Active Schedules Running"
+    : "⚠ No Active Schedules"}
+</div>
+  <div style="display:flex;flex-wrap:wrap;gap:15px;margin-top:20px;">
+
+    <div class="card" style="width:240px;">
+      <h3>Step 1</h3>
+      <strong>Create Location</strong><br><br>
+
+      Add a physical placement location such as:
+      school, store, marina, event, or parking area.<br><br>
+
+      <a class="btn" href="/admin/new-location">
+        Create Location
+      </a>
+    </div>
+
+    <div class="card" style="width:240px;">
+      <h3>Step 2</h3>
+      <strong>Create QR Code</strong><br><br>
+
+      Create a QR code tied to a specific location.<br><br>
+
+      <a class="btn" href="/admin/new-qr">
+        Create QR
+      </a>
+    </div>
+
+    <div class="card" style="width:240px;">
+      <h3>Step 3</h3>
+      <strong>Create Campaign</strong><br><br>
+
+      Add offers, promotions, landing pages, or destinations.<br><br>
+
+      <a class="btn" href="/admin/new-campaign">
+        Create Campaign
+      </a>
+    </div>
+
+    <div class="card" style="width:240px;">
+      <h3>Step 4</h3>
+      <strong>Assign Campaign</strong><br><br>
+
+      Connect campaigns to QR codes.<br><br>
+
+      <a class="btn" href="/admin/assign">
+        Assign Campaign
+      </a>
+    </div>
+
+    <div class="card" style="width:240px;">
+      <h3>Step 5</h3>
+      <strong>Schedule Campaigns</strong><br><br>
+
+      Schedule promotions by day, time, or priority.<br><br>
+
+      <a class="btn" href="/admin/schedule">
+        Manage Schedules
+      </a>
+    </div>
+
+    <div class="card" style="width:240px;">
+      <h3>Step 6</h3>
+      <strong>View Analytics</strong><br><br>
+
+      Monitor scans, engagement, ROI, and performance.<br><br>
+
+      <a class="btn" href="/dashboard">
+        Open Dashboard
+      </a>
+    </div>
+
+  </div>
+</div>
+        <div class="note">
+          Review your locations, QR codes, campaigns, and assignments here.
+        </div>
+
+      
+  <h2>Locations</h2>
+
+<table>
+  <tr>    
+  <th>ID</th>
+  <th>Name</th>
+  <th>Market</th>
+  <th>QR Codes</th>
+  <th>Campaigns</th>
+  <th>Start Date</th>
+<th>
+  Days in Market
+    <span
+      title="Number of days this location has been active."
+      style="cursor:help;"
+    >ⓘ</span>
+  </th>
+  <th>Action</th>
+</tr>
+  
+          
+        
+            
+        
+  ${locationTable || `<tr><td colspan="8">No locations yet.</td></tr>`}  </table>
+
+       <h2>QR Codes</h2>
+
+<div style="overflow-x:auto;width:100%;">
+<table>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Advertiser</th>
+            <th>Type</th>
+            <th>Market</th>
+            <th>Location</th>
+            <th>Campaigns</th>
+            <th>Live Date</th>
+            <th>
+  Days in Market
+  <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
+</th>
+<th>Impressions</th>
+<th>Contract Cost</th>
+<th>Action</th>
+<th>Download</th>
+          </tr>
+        ${qrTable || '<tr><td colspan="...">No QR Codes yet.</td></tr>'}
+</table>
+</div>
+
+   <h2>Campaigns</h2>
+
+<table>
+  <tr>
+    <th>ID</th>
+    <th>Advertiser</th>
+    <th>Campaign</th>
+    <th>Market</th>
+    <th>Location</th>
+    <th>QR Code</th>
+    <th>Start Date</th>
+    <th>End Date</th>
+
+    <th>
+      Days in Market
+      <span
+        title="Number of days this campaign has been active between its start and end dates."
+        style="cursor:help;"
+      >
+        ⓘ
+      </span>
+    </th>
+
+    <th>Action</th>
+    <th>Status</th>
+  </tr>
+
+  ${
+    campaignTable ||
+    `<tr><td colspan="11">No campaigns yet.</td></tr>`
+  }
+</table>     
+
+    
+<h2>Schedules</h2>
+
+<table>
+  <tr>
+    <th>QR</th>
+<th>Advertiser</th>
+<th>Campaign</th>
+<th>
+  Days in Market
+  <span title="Number of days this item has been active in market since activation." style="cursor:help;">ⓘ</span>
+</th>
+<th>Day</th>
+<th>Start</th>
+<th>End</th>
+<th>Priority</th>
+<th>Status</th>
+<th>Action</th>
+  </tr>
+
+  ${scheduleTable || `<tr><td colspan="8">No schedules yet.</td></tr>`}
+</table>
+        
+  <h2>Active Campaign Assignments</h2>
+
+<table>
+  <tr>
+    <th>Market</th>
+    <th>Location</th>
+    <th>QR Code</th>
+    <th>Advertiser</th>
+    <th>Campaign</th>
+    <th>Start Date</th>
+
+    <th>
+      Assignment Days
+      <span
+        title="Number of days this campaign has been actively assigned to this QR code."
+        style="cursor:help;"
+      >
+        ⓘ
+      </span>
+    </th>
+
+    <th>Allocated Cost</th>
+    <th>Status</th>
+    <th>Action</th>
+  </tr>
+
+  ${
+    assignmentTable ||
+    `<tr><td colspan="10">No assignments yet.</td></tr>`
+  }
+</table>
+
+      </div>
+`));
+}
+function finishAdvertiser(html){
+ return html.replace('<body>','<body>'+demoBanner())
+ .replace(/onclick="return confirm\('[^']*'\)"/g,'')
+ .replace(/href="(\/(?:reports|help))"/g,'href="$1?advertiser_view=1"')
+ .replace('<head>','<head><meta charset="utf-8">')
+ .replace('</style>',' .wrap{overflow-x:auto} table{min-width:850px} </style>');
+}
+function advertiserScreen(title,body){return finishAdvertiser(advertiserPage(title,`<div class="topbar"><div class="brand">Vivid Spots</div><h1>${h(title)}</h1></div><div class="wrap">${body}</div>`));}
+function advertiserPreview(path,q){
+ reporting(q);
+ if(path==='/admin/reports'||path==='/reports')return advertiserScreen(path==='/admin/reports'?'Export Center':'Reports',reportPage(q).replace('<form','<form').replace('</form>','<input type="hidden" name="advertiser_view" value="1"></form>'));
+ if(path==='/help'||path==='/campaign-help')return advertiserScreen('Help',`<div class="note">Create a Location → Create a QR Code → Create a Campaign → Assign through Scheduling → View performance in Reports.</div><p>This view-only demo uses fictional advertiser data. Creation, changes, archiving and user invitations are disabled.</p><a class="btn" href="/my-setup">Back to My Setup</a>`);
+ if(path==='/dashboard'||path==='/admin/ai-insights')return advertiserScreen(path==='/dashboard'?'Dashboard':'Performance Insights',reportPage(q));
+ if(path==='/admin/archived-campaigns')return advertiserScreen('Archive Center','<div class="note">No archived campaigns in this sample account.</div><a class="btn" href="/my-setup">Back to My Setup</a>');
+ if(path==='/admin/advertiser-customer/1/users')return advertiserScreen('Manage Users','<div class="card"><h2>Demo Equipment Supplier</h2><p>demo@example.com · Primary advertiser user</p><p>User changes and invitations are disabled in this demonstration.</p></div>');
+ const m=path.match(/^\/admin\/(view|edit|archive|deactivate)-(location|qr|campaign|schedule|assignment)\/(\d+)$/);
+ if(m){const id=+m[3],r=baseRows.find(r=>m[2]==='location'?opportunities.find(o=>o.id===r.opportunity_id).space_id===id:m[2]==='campaign'||m[2]==='schedule'?r.campaign_id===id:r.qr_id===id);if(!r)throw Object.assign(Error('Item not found in this demo.'),{status:404});const o=opportunities.find(o=>o.id===r.opportunity_id),title=m[1][0].toUpperCase()+m[1].slice(1)+' '+m[2][0].toUpperCase()+m[2].slice(1);return advertiserScreen(title,`<div class="card"><h2>${h(m[2]==='location'?o.edition:r.qr_name)}</h2><p>${h(advertiser)}</p><label>Campaign name<input value="${h(r.campaign_name)}" readonly></label><label>Destination<input value="${h(r.destination_url)}" readonly></label><p>Start: ${r.start_date} · End: ${r.end_date}</p><p>Contract cost: ${money(r.cost)} · Conservative demo estimate</p><div class="note">View-only demo. No changes or archiving are performed.</div><a class="btn" href="/my-setup">Back to My Setup</a><a class="btn secondary" href="/admin/reports?qr_id=${r.qr_id}">Performance report</a><a href="/qr/${r.qr_id}.png">Download QR</a></div>`);}
+ if(/^\/r\/\d+$/.test(path)){const r=baseRows.find(r=>r.qr_id===+path.split('/').pop());if(!r)throw Object.assign(Error('QR not found.'),{status:404});return advertiserScreen('Sample QR Destination',`<div class="note">${h(r.destination_url)}<br>This is a sample destination for ${h(r.qr_name)}.</div><a class="btn" href="/my-setup">Back to My Setup</a>`);}
+ const actions={'/admin/new-location':'New Location','/admin/new-qr':'New QR','/admin/import-qr':'Import Existing QR','/admin/new-campaign':'New Campaign','/admin/assign':'Assign Campaign','/admin/schedule':'Schedule Campaign'};
+ if(actions[path])return advertiserScreen(actions[path],`<div class="note">${h(actions[path])} is available in the live Vivid workflow. Creating, importing and saving records is disabled in this isolated demo.</div><a class="btn" href="/my-setup">Back to My Setup</a>`);
+ return null;
+}
+
 // Native Vivid renderer functions copied verbatim from the production source.
 const escapeHtml=h;
 function vividThemeStyles() {
@@ -668,7 +1481,7 @@ const imageSources={
  print:'https://www.lpgasmagazine.com/wp-content/themes/childTheme_3_22/images/footerlogo.png'
 };
 function nativeArtwork(id,large=false){const src=id===61?imageSources.summit:id===62?imageSources.hall:id===40?imageSources.content:imageSources.logo;const photo=[61,62,40].includes(id);return `<figure style="margin:0 0 15px;background:${photo?'#eef3f9':'#0b1f3a'};border-radius:10px;overflow:hidden"><img src="${src}" alt="${photo?(id===62?'LP Gas Hall of Fame venue':id===61?'LP Gas Growth Summit attendees':'LP Gas Growth Summit presentation'):'LP Gas publisher logo'}" style="display:block;width:100%;height:${large?280:130}px;object-fit:${photo?'cover':'contain'};padding:${photo?0:20}px" referrerpolicy="no-referrer" loading="lazy"><figcaption style="background:#edf3f9;color:#5f6b7a;padding:6px 10px;font-size:10px">${photo?'Publisher event photo · illustrative placement context':'LP Gas publisher artwork'}</figcaption></figure>`;}
-function demoBanner(){return `<div style="padding:14px 24px;background:#edf3f9;color:#23374d;font:14px Arial"><strong>LP Gas Magazine · Vivid demonstration</strong> · View-only · Illustrative inventory, fictional contract values and simulated activity · Conservative demo pricing · Not verified LP Gas rates<br><a href="/org-organization/lp-gas-demo">Enterprise</a> · <a href="/advertise/lp-gas-demo">Marketplace</a> · <a href="/my-setup">Advertiser portal</a> · <a href="/admin/marketing-command-center">Marketing Command Center</a></div>`;}
+function demoBanner(){return `<div style="padding:14px 24px;background:#edf3f9;color:#23374d;font:14px Arial"><strong>LP Gas Magazine · Vivid demonstration</strong> · View-only · Illustrative inventory, fictional contract values and simulated activity · Conservative demo pricing · Not verified LP Gas rates<br><a href="/org-organization/lp-gas-demo">Publisher portal</a> · <a href="/advertise/lp-gas-demo">Marketplace</a> · <a href="/my-setup">Advertiser portal</a> · <a href="/admin/marketing-command-center">Marketing Command Center</a></div>`;}
 function enhanceNative(html){return html.replace('<body>','<body>'+demoBanner()).replace('</style>',`
 ${nativeExtras}
 </style>`);}
@@ -1994,7 +2807,9 @@ export async function handle(request){
   const qr=local.match(/^\/qr\/(\d+)\.png$/);if(qr){if(!baseRows.some(r=>r.qr_id===+qr[1]))return response('QR not found.',404,'text/plain');return response(await QRCode.toBuffer('https://example.com/?vivid_demo=lp-gas&placement='+qr[1],{width:400,margin:3}),200,'image/png',{'Content-Disposition':`attachment; filename="LP-Gas-SAMPLE-QR-${qr[1]}.png"`});}
   let html;
   if(local.startsWith('/advertise/lp-gas-demo'))html=marketplace(local,q);
-  else if(local==='/my-setup'||/^\/lp-gas-demo\/placement\/\d+$/.test(local)){const data=reporting(q);html=portalRender(data,q,local==='/my-setup'?null:local.split('/').pop());html=html.replace('<body>','<body><div style="background:#edf3f9;padding:14px 24px;font:14px system-ui"><strong>LP Gas · Independent Vivid demonstration</strong> · Simulated activity and fictional contract values · <a href="/enterprise">Publisher portal</a> · <a href="/advertise/lp-gas-demo">Marketplace</a></div>');}
+  else if(local==='/my-setup')html=nativeAdvertiserSetup(q);
+  else if((local.startsWith('/admin/')||local.startsWith('/r/')||local==='/dashboard'||q.advertiser_view==='1')&&advertiserPreview(local,q))html=advertiserPreview(local,q);
+  else if(/^\/lp-gas-demo\/placement\/\d+$/.test(local)){const data=reporting(q);const detail=portalRender(data,q,local.split('/').pop());html=advertiserScreen('Placement details',detail.slice(detail.indexOf('<section id="placements">'),detail.indexOf('</main>')).replace(/class="button/g,'class="btn'));}
   else html=nativePage(local,q);
   return response(rewrite(html));
  }catch(error){return response(h(error.status?error.message:'Demo temporarily unavailable.'),error.status||500);}
