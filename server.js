@@ -9478,7 +9478,7 @@ app.get("/r/:qrId", async (req, res) => {
       );
 
     const customerActions =
-      customerActionsResult.rows;
+      require("./hexpol-careers").initialActions(qrId, campaignId, customerActionsResult.rows);
 
     /*
       One active Customer Action:
@@ -93188,6 +93188,7 @@ app.get("/qr-admin/:qrId", requireLogin, async (req, res) => {
     </div>
   `));
 });
+require("./hexpol-careers").register(app, q);
 app.get(
   "/destination-click/:destinationId",
   async (req, res) => {
