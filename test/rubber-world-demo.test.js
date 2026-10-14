@@ -12,7 +12,7 @@ test('seeder creates only isolated magazine fixture, replays safely, and rolls b
 });
 test('route allowlist rejects cross-organization and mutating GET paths',()=>{
  for(const path of ['/org-organization/39','/advertise/henry-ford-health-demo','/admin/archive-campaign/10','/r/10','/admin/users','/org-opportunity/edit/10'])assert.equal(review.routeAllowed(path,900),false,path);
- for(const path of ['/org-organization/900','/org-revenue-pipeline/location/10/revenue','/reports','/org-business-breakdown','/org-contract/1','/advertise/rubber-world-demo/location/1/opportunity/2'])assert(review.routeAllowed(path,900),path);
+ for(const path of ['/org-qr/11','/org-advertiser/demo%20advertiser','/org-organization/900','/org-revenue-pipeline/location/10/revenue','/reports','/org-business-breakdown','/org-contract/1','/advertise/rubber-world-demo/location/1/opportunity/2'])assert(review.routeAllowed(path,900),path);
  assert.equal(review.validToken('invalid'),false);assert.equal(review.validToken(null),false);
 });
 test('magazine copy preserves internal paths and scripts',()=>{
@@ -23,7 +23,7 @@ test('read-only middleware blocks POST and foreign record IDs before handlers',a
  let middleware;review.register({get(){},use(fn){middleware=fn;}},{q:async(sql)=>({rows:sql.includes('SELECT id FROM organizations')?[{id:900}]:sql.includes('qr_codes')?[{id:11}]:sql.includes('campaigns')?[{id:12}]:sql.includes('spaces')?[{id:10}]:[]})});
  // Extract version from source because it is a hash, not the access token.
  const hash=require('fs').readFileSync(require.resolve('../rubber-world-review'),'utf8').match(/const HASH='([^']+)'/)[1];
- for(const [path,method,query]of [['/reports','POST',{}],['/reports','GET',{organization_id:'39'}],['/admin/view-qr/999','GET',{}],['/org-contract/999','GET',{}],['/org-revenue-pipeline/location/999/revenue','GET',{}]]){
+ for(const [path,method,query]of [['/org-qr/999','GET',{}],['/org-advertiser/foreign%20advertiser','GET',{}],['/reports','POST',{}],['/reports','GET',{organization_id:'39'}],['/admin/view-qr/999','GET',{}],['/org-contract/999','GET',{}],['/org-revenue-pipeline/location/999/revenue','GET',{}]]){
   let code,next=false;const res={setHeader(){},status(n){code=n;return this},send(){}};await middleware({path,method,query,session:{rubberWorldReview:{org:900,owner:901,version:hash,expires:review.EXPIRES}}},res,()=>{next=true;});assert.equal(code,403,path);assert.equal(next,false,path);
  }
 });
