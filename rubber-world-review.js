@@ -98,7 +98,7 @@ function register(app,{q}){
     if(!(await q('SELECT id FROM advertisers WHERE organization_id=$1 AND LOWER(TRIM(name))=$2',[org,key])).rows.length)return deny();
    }
    req.session.user=user;req.session.orgUser={id:review.owner,organization_id:org,organization_name:'Rubber World Magazine Demo',organization_role:'organization_admin',name:user.name,email:EMAIL};delete req.session.platformUser;req.rubberWorldReviewVerified=true;
-   if(/^\/(?:org-(?:organization|location|qr|campaign|advertiser|performance|export|placement-report)|reports|admin\/reports|export\/)/.test(req.path)&&!['from','to','start_date','end_date','startDate','endDate','start','end'].some(k=>req.query[k]))Object.assign(req.query,{from:'2026-09-14',to:'2026-10-13',start_date:'2026-09-14',end_date:'2026-10-13'});
+   if(/^\/(?:org-(?:organization|location|qr|campaign|advertiser|performance|export|placement-report)|reports|admin\/reports|export\/)/.test(req.path)&&!['from','to','start_date','end_date','startDate','endDate','start','end'].some(k=>req.query[k]))return res.redirect(req.path+'?'+new URLSearchParams({...req.query,from:'2026-09-14',to:'2026-10-13',start_date:'2026-09-14',end_date:'2026-10-13'}).toString());
    if(req.path==='/org-performance')req.query.include_test='1';
    await require('./responsibility-routes').attach(req,res,q);
    const send=res.send;res.send=function(body){if(typeof body==='string'&&/<(?:html|body|main|div)\b/i.test(body)){
@@ -115,7 +115,7 @@ function register(app,{q}){
     body=body.replace(/<a\b([^>]*?)href=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/a>/gi,(link,before,href,after,label)=>{
      if(!href.startsWith('/'))return link;
      const path=href.split(/[?#]/)[0];
-     if(/^\/admin\/(?:ai-|weekly-ai-report)/.test(path)||require('./rubber-world-ai-demo').paths.includes(path))return ''; 
+     if(/^\/admin\/(?:ai-|weekly-ai-report)/.test(path)||require('./rubber-world-ai-demo').paths.includes(path))return '';
      if(routeAllowed(path,org)||['/logout','/dashboard','/org-dashboard'].includes(path))return link;
      return '<span title="View-only demo" style="color:#87949e">'+label+'</span>';
     });

@@ -5,6 +5,7 @@ function install(source){
  function once(a,b){if(source.split(a).length!==2)throw Error('Rubber World polish anchor missing: '+a.slice(0,90));source=source.replace(a,b);}
  const font='if (!req.hfhsReviewVerified && !req.rubberWorldReviewVerified && !req.ccpsReviewVerified) doc.font("Helvetica");';
  once(font,'if (req.rubberWorldReviewVerified || (!req.hfhsReviewVerified && !req.ccpsReviewVerified)) doc.font("Helvetica");');
+ once('const includeTest = req.query.include_test !== undefined', 'const includeTest = req.rubberWorldReviewVerified ? true : req.query.include_test !== undefined');
  const start=source.indexOf('async function buildOrganizationExportData('),end=source.indexOf('\nasync function ',start+1);
  let part=source.slice(start,end);
  const dateClause=`AND (\n        NULLIF($2, '') IS NULL\n        OR r.approved_at::date >= NULLIF($2, '')::date\n      )\n\n      AND (\n        NULLIF($3, '') IS NULL\n        OR r.approved_at::date <= NULLIF($3, '')::date\n      )`;
