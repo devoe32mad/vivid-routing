@@ -6,13 +6,13 @@ const m=new Module(filename,module);m.filename=filename;m.paths=module.paths;m._
 const response=()=>({code:200,headers:{},setHeader(k,v){this.headers[k]=v},status(n){this.code=n;return this},send(s){this.body=s;return this},redirect(s){this.location=s;return this}});
 function fixture(){
  let enter,guard;review.register({get:(_p,h)=>enter=h,use:h=>guard=h},{q:async(sql,p)=>{
-  if(sql.includes('SELECT DISTINCT advertiser_id,advertiser FROM campaigns'))return {rows:[{advertiser_id:1300041,advertiser:'Coastal Family Dental (Demo)'}]};
+  if(sql.includes('SELECT DISTINCT advertiser_id,advertiser FROM campaigns'))return {rows:[{advertiser_id:1300041,advertiser:'Coastal Family Dental (Demo)'},{advertiser_id:1300042,advertiser:'Gulf Coast Home Services (Demo)'}]};
   if(sql.includes('c.advertiser_id=$2'))return {rows:[{location_id:36,qr_id:97,campaign_id:68}]};
   if(sql.includes('SELECT name FROM organizations'))return {rows:[{name:'CCPS'}]};
   if(sql.includes('SELECT s.id,s.name FROM spaces'))return {rows:[{id:36,name:'Demo School'}]};
   if(sql.includes('SELECT u.id AS customer_id'))return {rows:[{customer_id:10,email:'mike@vividspots.com'}]};
   if(sql.includes('SELECT DISTINCT s.id AS location_id'))return {rows:[{location_id:36,qr_id:97,campaign_id:68}]};
-  if(sql.includes('SELECT id FROM advertisers')&&p?.[0]===1300041)return {rows:[{id:1300041}]};
+  if(sql.includes('SELECT id FROM advertisers')&&[1300041,1300042].includes(p?.[0]))return {rows:[{id:p[0]}]};
   if(sql.includes('SELECT id FROM spaces'))return {rows:[{id:36}]};
   return {rows:p?.[0]===200?[{id:200}]:[]};
  }});
@@ -87,4 +87,12 @@ test('setup buttons survive filtering and open non-writing previews',async()=>{
   assert.match(res.body,/<form id="nativeForm"/);assert.match(res.body,/<button type="button">Add Destination/);assert.match(res.body,/<button type="submit" disabled/);assert.match(res.body,/Saving is disabled/);
   const write=response();await guard({path,method:'POST',query:{},session},write,()=>assert.fail());assert.equal(write.code,403);
  }
+});
+
+test('CCPS archive uses native page with sponsor scope; other requests retain native behavior',()=>{
+ const source=fs.readFileSync(require.resolve('../server.js'),'utf8');
+ const installed=review.install(source);
+ assert.ok(installed.includes('if(req.ccpsReviewVerified)await require("./ccps-review-access").filterSetup(q,req.session.user,{campaigns,locations:archivedLocations,qrs:archivedQrs,schedules:archivedSchedules})'));
+ assert.equal(review.routeAllowed('/admin/archived-campaigns'),true);
+ new (require('node:vm').Script)(installed);
 });
