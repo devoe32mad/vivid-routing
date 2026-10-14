@@ -2000,4 +2000,4 @@ export async function handle(request){
  }catch(error){return response(h(error.status?error.message:'Demo temporarily unavailable.'),error.status||500);}
 }
 if(typeof Bun!=='undefined')Bun.serve({port:Number(Bun.env.PORT||3000),fetch:handle});
-else {const {createServer}=await import('node:http');createServer(async(req,res)=>{const result=await handle(new Request('http://localhost:3000'+req.url,{method:req.method,headers:req.headers}));res.writeHead(result.status,Object.fromEntries(result.headers));res.end(Buffer.from(await result.arrayBuffer()));}).listen(Number(process.env.PORT||3000));}
+else {const {createServer}=await import('node:http');createServer(async(req,res)=>{const result=await handle(new Request((String(req.headers['x-forwarded-proto']||'http').split(',')[0])+"://"+(req.headers.host||'localhost')+req.url,{method:req.method,headers:req.headers}));res.writeHead(result.status,Object.fromEntries(result.headers));res.end(Buffer.from(await result.arrayBuffer()));}).listen(Number(process.env.PORT||3000));}
