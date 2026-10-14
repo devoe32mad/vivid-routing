@@ -383,6 +383,9 @@ function installAdvertiserPdfPolish(source){
   if(a<0||b<0)throw Error('Advertiser PDF route missing');
   let part=source.slice(a,b);
   part=once(part,'      doc.pipe(res);',`      doc.pipe(res);
+      // Keep demo fonts unchanged; regular advertiser reports use PDF standard fonts.
+      if (!req.hfhsReviewVerified && !req.rubberWorldReviewVerified && !req.ccpsReviewVerified) doc.font("Helvetica");
+      else
       doc.font(require("./install-hfhs-report-scope").reportFont());`);
   part=once(part,'            totals.visitors +=','            totals.scans = (totals.scans || 0) + Number(row.scans || 0);\n            totals.visitors +=');
   part=once(part,'        "Executive Summary",\n        [','        "Executive Summary",\n        [\n          ["Scans", Number(summary.scans || 0).toLocaleString()],');

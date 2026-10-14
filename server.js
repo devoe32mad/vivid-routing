@@ -76421,6 +76421,7 @@ ${a.is_active
 `;
     }
 
+    const careersShortcut = require("./hexpol-careers-report").shortcut(req, campaigns.rows);
     res.send(page("My Setup", `
       <div class="topbar">
         <div class="brand">Vivid Spots</div>
@@ -76440,6 +76441,7 @@ ${a.is_active
   Role: ${currentUser.role}
 </div>
 
+${careersShortcut}
 <h3>Getting Started</h3>
 <h3>Getting Started</h3>
 
@@ -93189,6 +93191,7 @@ app.get("/qr-admin/:qrId", requireLogin, async (req, res) => {
   `));
 });
 require("./hexpol-careers").register(app, q);
+require("./hexpol-careers-report").register(app, q, {requireLogin, page});
 app.get(
   "/destination-click/:destinationId",
   async (req, res) => {
