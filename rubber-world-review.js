@@ -19,7 +19,7 @@ async function reportScope(q,user){
 }
 function validToken(token){return typeof token==='string'&&token.length<100&&crypto.timingSafeEqual(crypto.createHash('sha256').update(token).digest(),Buffer.from(HASH,'hex'));}
 const setupRoutes=new Set(['/admin/new-location','/admin/new-qr','/admin/import-qr','/admin/new-campaign','/admin/assign','/admin/schedule']);
-const simple=new Set([...require("./rubber-world-native-navigation").paths,...setupRoutes,...require('./responsibility-routes').paths,...require('./rubber-world-ai-demo').paths,'/org-business-breakdown','/org-help','/help','/org-advertisers','/org-locations','/org-marketplace','/org-contracts','/org-renewals','/org-revenue-pipeline','/org-placement-report','/org-performance','/org-advertising-requests','/org-export','/org-export/renewals.csv','/org-export/renewals.pdf','/my-setup','/reports','/reports-qr','/reports-location','/reports-campaign','/admin/reports','/export/report.pdf','/export/report.xlsx','/export/events.csv','/org-export/report.pdf','/org-export/report.xlsx','/org-operations','/org-users','/org-programs','/org-settings','/org-permissions','/campaign-help','/org-campaign-builder-requests','/org-campaign-help-example']);
+const simple=new Set([...require("./rubber-world-native-navigation").paths,...setupRoutes,...require('./responsibility-routes').paths,...require('./rubber-world-ai-demo').paths,'/org-business-breakdown','/org-help','/help','/org-advertisers','/org-locations','/org-marketplace','/org-contracts','/org-renewals','/org-revenue-pipeline','/org-placement-report','/org-performance','/org-advertising-requests','/org-export','/org-export/renewals.csv','/org-export/renewals.pdf','/my-setup','/reports','/reports-qr','/reports-location','/reports-campaign','/admin/reports','/export/website-pages.pdf','/export/website-pages.csv','/export/report.pdf','/export/report.xlsx','/export/events.csv','/org-export/report.pdf','/org-export/report.xlsx','/org-operations','/org-users','/org-programs','/org-settings','/org-permissions','/campaign-help','/org-campaign-builder-requests','/org-campaign-help-example']);
 function routeAllowed(path,org){return /^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/advertiser-customer\/\d+\/users$/.test(path)|| /^\/rubber-world-demo\/placement\/\d+$/.test(path)||/^\/admin\/edit-(?:qr|campaign)\/\d+$/.test(path)||simple.has(path)||path===`/org-organization/${org}`||/^\/org-revenue-pipeline\/location\/\d+(?:\/revenue)?$/.test(path)||/^\/org-(?:location|qr|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/admin\/view-(?:qr|campaign|location)\/\d+$/.test(path)||/^\/admin\/campaign\/\d+\/website-pages$/.test(path)||/^\/qr\/\d+\.png$/.test(path)||/^\/org-opportunity\/\d+\/photo$/.test(path)||/^\/advertise\/rubber-world-demo(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path);}
 function copy(text){return text.replace(/Add a physical placement location such as:\s*school,\s*store,\s*marina,\s*event,\s*or parking area\./g,"Add a print issue, digital edition, or website advertising collection.").replace(/\bActual Events?\b/g,'Issues / Editions').replace(/\bEvent Types?\b/g,'Channels').replace(/\bevent types?\b/g,'channels').replace(/\bLocations\b/g,'Issues / Editions').replace(/\bLocation\b/g,'Issue / Edition').replace(/\blocations\b/g,'issues / editions').replace(/\blocation\b/g,'issue / edition').replace(/\bEvents\b/g,'Issues / Editions').replace(/\bEvent\b/g,'Issue / Edition').replace(/\bevents\b/g,'issues / editions').replace(/\bevent\b/g,'issue / edition').replace(/\bSponsorship\b/g,'Advertising').replace(/\bsponsorship\b/g,'advertising').replace(/\bSponsors\b/g,'Advertisers').replace(/\bSponsor\b/g,'Advertiser').replace(/\bsponsors\b/g,'advertisers').replace(/\bsponsor\b/g,'advertiser').replace(/\bPrograms\b/g,'Channels').replace(/\bProgram\b/g,'Channel').replace(/\bprograms\b/g,'channels').replace(/\bprogram\b/g,'channel').replace(/rubber-world-demo@example\.invalid/g,'Rubber World Demo').replace(/Create a Issue \/ Edition/g,'Create an Issue / Edition');}
 function presentation(html){
@@ -65,7 +65,7 @@ function register(app,{q}){
   const nav=`<a href="${home}">Enterprise</a> · <a href="/advertise/rubber-world-demo">Marketplace</a> · <a href="/my-setup">Advertiser portal</a>`;
   const deny=()=>res.status(403).send(`<h2>Rubber World demo</h2><p>This view-only demonstration contains illustrative magazine advertising data.</p>${nav}`);
   if(!['GET','HEAD'].includes(req.method)&&!(req.method==='POST'&&req.path==='/org-responsibility/save'))return deny();
-  if(req.path==='/dashboard')return res.redirect('/my-setup');
+  if(req.path==='/dashboard')return res.redirect('/reports');
   if(req.path==='/org-dashboard')return res.redirect(home);
   if(!routeAllowed(req.path,org))return deny();
   if(setupRoutes.has(req.path))delete req.query.marketplace_request_id;
@@ -98,10 +98,13 @@ function register(app,{q}){
     if(!(await q('SELECT id FROM advertisers WHERE organization_id=$1 AND LOWER(TRIM(name))=$2',[org,key])).rows.length)return deny();
    }
    req.session.user=user;req.session.orgUser={id:review.owner,organization_id:org,organization_name:'Rubber World Magazine Demo',organization_role:'organization_admin',name:user.name,email:EMAIL};delete req.session.platformUser;req.rubberWorldReviewVerified=true;
+   if(/^\/(?:org-(?:organization|location|qr|campaign|advertiser|performance|export|placement-report)|reports|admin\/reports|export\/)/.test(req.path)&&!['from','to','start_date','end_date','startDate','endDate','start','end'].some(k=>req.query[k]))Object.assign(req.query,{from:'2026-09-14',to:'2026-10-13',start_date:'2026-09-14',end_date:'2026-10-13'});
+   if(req.path==='/org-performance')req.query.include_test='1';
    await require('./responsibility-routes').attach(req,res,q);
    const send=res.send;res.send=function(body){if(typeof body==='string'&&/<(?:html|body|main|div)\b/i.test(body)){
     if(req.path===`/org-organization/${org}`)body=overviewSummary(body);
     body=require('./rubber-world-ai-demo').navigation(body);
+    body=body.replace('Recommendations do not change campaigns, pricing, or account data.','').replace(/Issue \/ Edition \/ Issue \/ Edition/g,'Issue / Edition');
     body=body.replace(/<select\b([^>]*)>([\s\S]*?)<\/select>/gi,(whole,attrs,options)=>{
      const name=attrs.match(/name=["']([^"']+)["']/i)?.[1];
      const ids=['space_id','location_id'].includes(name)?scope.locationIds:['qr_id','qr_ids'].includes(name)?scope.qrIds:['campaign_id','campaign'].includes(name)?scope.campaignIds:name==='advertiser_id'&&user.rubberWorldAdvertiserId?[user.rubberWorldAdvertiserId]:null;
@@ -112,7 +115,7 @@ function register(app,{q}){
     body=body.replace(/<a\b([^>]*?)href=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/a>/gi,(link,before,href,after,label)=>{
      if(!href.startsWith('/'))return link;
      const path=href.split(/[?#]/)[0];
-     if(/^\/admin\/(?:ai-|weekly-ai-report)/.test(path))return ''; 
+     if(/^\/admin\/(?:ai-|weekly-ai-report)/.test(path)||require('./rubber-world-ai-demo').paths.includes(path))return ''; 
      if(routeAllowed(path,org)||['/logout','/dashboard','/org-dashboard'].includes(path))return link;
      return '<span title="View-only demo" style="color:#87949e">'+label+'</span>';
     });
