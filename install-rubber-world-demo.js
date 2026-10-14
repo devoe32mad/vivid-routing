@@ -2,6 +2,7 @@
 const fs=require('fs'),path=require('path');
 function once(source,from,to){if(source.split(from).length!==2)throw Error('Rubber World install anchor missing: '+from);return source.replace(from,to);}
 function install(source){
+ source=require("./rubber-world-demo-polish").install(source);
  source=require("./rubber-world-native-navigation").install(source);
  source=require("./demo-session-isolation").install(source);
  source=require("./ccps-native-experience").install(source);

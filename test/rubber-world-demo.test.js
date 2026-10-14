@@ -52,6 +52,22 @@ test('fixture SQL executes transactionally in PostgreSQL with exact aggregate re
  assert.equal(portal.rows.length,6);assert.equal(portal.rows.reduce((n,r)=>n+Number(r.scans),0),result.totals.scans);assert.equal(portal.rows.reduce((n,r)=>n+Number(r.conversions),0),105);
  const isolated=await require('../rubber-world-advertiser-portal').load(client.query,999999,{});assert.equal(isolated.rows.length,0);
  const foreign=await require('../rubber-world-ai-demo').load(client.query,999999);assert.equal(foreign.opportunities.length,0);assert.equal(foreign.metrics.length,0);
+ await db.exec(`ALTER TABLE qr_campaigns ADD COLUMN ended_at timestamp;
+ ALTER TABLE advertisers ADD COLUMN account_owner_user_id integer;
+ CREATE TABLE campaign_schedules(id serial primary key,qr_id integer,campaign_id integer,days_of_week text,start_time text,end_time text,priority integer,is_active boolean);`);
+ await db.exec(require('../responsibility-store').SCHEMA);
+ await db.query("INSERT INTO organization_sales_reps(organization_id,dataset,name) VALUES($1,'demo','Jane Doe'),($1,'demo','Bill Smith')",[result.organizationId]);
+ const polish=require('../polish-rubber-world-demo').polish;
+ await db.query("INSERT INTO organizations(id,name,slug,customer_id) VALUES(999999,'Other demo','other-demo',$1)",[result.ownerId]);
+ await db.query("INSERT INTO campaigns(id,name,organization_id,user_id,is_test,end_date) VALUES(999999,'Other demo',999999,$1,true,'2026-10-13')",[result.ownerId]);
+ const repaired=await polish(client);assert.equal(repaired.organizationId,result.organizationId);
+ assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM campaign_schedules')).rows[0].n,6);
+ assert((await db.query('SELECT COUNT(*)::int AS n FROM campaign_website_visits')).rows[0].n>0);
+ assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM organization_responsibility WHERE rep_id IS NULL')).rows[0].n,0);
+ assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM advertisers WHERE account_owner_user_id IS NOT NULL')).rows[0].n,3);
+ assert.equal((await db.query('SELECT end_date::date::text AS end_date FROM campaigns WHERE id=999999')).rows[0].end_date,'2026-10-13');
+ assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM campaign_schedules WHERE campaign_id=999999')).rows[0].n,0);
+ assert((await polish(client)).alreadyApplied);
  await db.close();
 });
 
