@@ -3,6 +3,7 @@ const fs=require('fs'),path=require('path'),crypto=require('crypto');
 const {EMAIL,SLUG}=require('./mca-demo-seed');
 const home=f=>`/org-organization/${f.organizationId}?organization_id=${f.organizationId}`;
 async function prepare(q,f){
+ await q("UPDATE organization_programs SET audience_scope='location' WHERE organization_id=$1",[f.organizationId]);
  await q(`UPDATE organizations SET public_logo_url='https://masonacademy.com/pics/header_logo.png' WHERE id=$1`,[f.organizationId]);
  for(const name of ['Alex Morgan — Demo','Jordan Lee — Demo'])await q(`INSERT INTO organization_sales_reps(organization_id,dataset,name) VALUES($1,'live',$2) ON CONFLICT DO NOTHING`,[f.organizationId,name]);
  const reps=(await q('SELECT id FROM organization_sales_reps WHERE organization_id=$1 ORDER BY id',[f.organizationId])).rows;
@@ -40,7 +41,8 @@ function register(app,{q,organizationNav,fixture:f}){
   res.send=function(body){
    if(typeof body==='string'&&/<(?:html|body)\b/i.test(body)){
     const banner=`<aside class="mca-review"><strong>MCA · Vivid demonstration</strong><span>Fictional sponsors and simulated activity · No payments or emails sent</span><nav><a href="/demo/portal?view=organization">Organization portal</a><a href="/demo/portal?view=marketplace">Marketplace</a><a href="/demo/portal?view=advertiser">Advertiser portal</a></nav></aside>`;
-    const style=`<style>.mca-review{padding:12px 24px;background:#ecf5ef;border-bottom:1px solid #c7decf;font:14px Arial,sans-serif;color:#17452c;display:flex;gap:12px;align-items:center;flex-wrap:wrap}.mca-review nav{display:flex;gap:16px;flex-wrap:wrap}.mca-review a{color:#155c33;font-weight:bold}*{box-sizing:border-box}img{max-width:100%}body{overflow-wrap:anywhere}@media(max-width:700px){body{margin:0!important}main{padding:16px!important}h1{font-size:26px!important}.mca-review{padding:12px}table{display:block;overflow-x:auto}input,select,textarea{max-width:100%}[style*="min-width:300px"]{min-width:0!important}[style*="min-width:280px"]{min-width:0!important}[style*="padding:16px 40px"]{padding:12px!important}}</style>`;
+    const style=`<style>.mca-review{padding:12px 24px;background:#ecf5ef;border-bottom:1px solid #c7decf;font:14px Arial,sans-serif;color:#17452c;display:flex;gap:12px;align-items:center;flex-wrap:wrap}.mca-review nav{display:flex;gap:16px;flex-wrap:wrap}.mca-review a{color:#155c33;font-weight:bold}*{box-sizing:border-box}img{max-width:100%}body{overflow-wrap:anywhere}@media(max-width:700px){.mca-org-nav{position:static!important}.mca-org-nav>div>div:last-child{flex-wrap:nowrap!important;overflow-x:auto;max-width:100%;padding-bottom:6px}.mca-org-nav a{flex:0 0 auto}body{margin:0!important}main{padding:16px!important}h1{font-size:26px!important}.mca-review{padding:12px}table{display:block;overflow-x:auto}input,select,textarea{max-width:100%}[style*="min-width:300px"]{min-width:0!important}[style*="min-width:280px"]{min-width:0!important}[style*="padding:16px 40px"]{padding:12px!important}}</style>`;
+    body=body.replace(/<div(\s+style="[^"]*position:sticky;[^"]*")>/gi,'<div class="mca-org-nav"$1>');
     body=body.replace(/<head>/i,'<head><meta name="viewport" content="width=device-width,initial-scale=1">'+style).replace(/<body([^>]*)>/i,'<body$1>'+banner);
     if(req.path.startsWith('/advertise/'))body=body.replace(/<span[^>]*class="marketplace-status"[^>]*>[\s\S]*?<\/span>/g,'').replace(/\$0(?:\.00)?\s*(?:Per Year|Contact School)?/g,'Contact school');
    }
