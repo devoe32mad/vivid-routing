@@ -4,6 +4,7 @@ import {gunzipSync} from 'node:zlib';
 import fs from 'node:fs';
 import {createRequire} from 'node:module';
 import {Writable} from 'node:stream';
+import {marketplaceDetail,packageComparison,polish,fulfillmentPanel} from './presentation.js';
 const photos=["https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1757434786/canterburyfortmyersorg/alnkveboeiwr1cynkdfj/BannerProgram-2.png", "https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1757434762/canterburyfortmyersorg/j4xb6aopyspmllvfordz/BannerProgram-1.png", "https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1757434800/canterburyfortmyersorg/xvm2k5od4gr7wrtf4qui/BannerProgram-3.png"];
 const eventPhotos={44:'https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_3/v1790688434/gjioy3po7wu9wjkefqgv/11-8-2025Carnival-110.jpg',45:'https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1777909804/canterburyfortmyersorg/stjbwrrqbvxyl7gttcsc/5-1-2026CougarClassic2026-100.jpg',46:'https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_3/v1791812497/canterburyfortmyersorg/h8xswvvljnhyhbjypyxm/SavetheDateExtravaganza2027_VF.png'};
 const photo=id=>eventPhotos[id]||photos[id===11?1:id===12?2:0];
@@ -60,6 +61,19 @@ const assignments=new Map(opportunities.map(o=>[o.id,o.program_id>3?2:1]));
 const repFor=o=>reps.find(r=>r.id===assignments.get(o.id));
 const onboarding=new Map();
 const benefits=new Map();
+// Three sample slots per physical location. Packages reserve the same capacity as individual banners.
+const campusNames={10:'Upper School driveway',11:'Murphy Sports Center',12:'Middle School driveway / tennis area'};
+const reservations=new Map([[1,[10]],[2,[11]],[3,[12]],[4,[10,12]]]);
+const requestDetails=new Map();
+const contractDetails=new Map([[101,{opportunityId:1,locations:[10]}],[102,{opportunityId:2,locations:[11]}],[103,{opportunityId:4,locations:[10,12]}]]);
+const remaining=location=>3-[...reservations.values()].filter(ids=>ids.includes(location)).length;
+function selectedLocations(o,body){
+ if(o.program_id===1)return [o.space_id];
+ if(o.price===5000)return [10,11,12];
+ if(o.price===2500){const ids=String(body.campus_locations||'10,11').split(',').map(Number);return ids.length===2&&new Set(ids).size===2&&ids.every(id=>campusNames[id])?ids:[];}
+ return [];
+}
+
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const error=(message,status=400)=>({status,html:message,headers:{}});
 async function mutate(path,body){
@@ -69,9 +83,14 @@ async function mutate(path,body){
   const o=opportunities.find(o=>o.id===+m[2]&&o.space_id===+m[1]);if(!o||o.id===6)return error('Select a banner package. Audio recognition is a Gold benefit.');
   const fields=['business_name','contact_name','email','phone','website','business_category','campaign_name','destination_url','campaign_notes'];
   const r=Object.fromEntries(fields.map(k=>[k,String(body[k]||'').trim().slice(0,1000)]));
-  if(!r.business_name||!r.contact_name||!r.email||!r.phone||!/^https?:\/\//.test(r.destination_url))return error('Complete contact details and a valid destination URL.');
-  const id=nextId++;await insert('organization_advertising_requests',{...r,id,organization_id:ORG,location_id:o.space_id,opportunity_id:o.id,opportunity_name:o.title,price:o.price,pricing_unit:o.pricing_unit,status:'Pending'});
-  await db.query("UPDATE organization_opportunities SET status='Pending' WHERE id=$1",[o.id]);
+  if(!r.business_name||!r.contact_name||!r.email||!r.phone)return error('Complete the sponsor name and contact details.');
+  if(r.destination_url&&!/^https?:\/\//.test(r.destination_url))return error('Use an http or https destination URL, or leave it blank.');
+  const details={opportunityId:o.id,locations:selectedLocations(o,body),sponsorType:body.sponsor_type==='family'?'Family':'Business',recognition:String(body.recognition_name||r.business_name).trim().slice(0,180),sport:String(body.sport||'').slice(0,40)};
+  if(o.price===5000&&!['Volleyball','Basketball','Football','Soccer','Lacrosse'].includes(details.sport))return error('Choose the sport for Gold audio recognition.');
+  if(!o.inquiry){if(o.status!=='Available')return error('This sample opportunity is already reserved. Choose another available opportunity.',409);if(!details.locations.length||details.locations.some(id=>remaining(id)<1))return error('There is not enough sample capacity at the selected locations. Choose another package or location.',409);reservations.set(o.id,details.locations);o.status='Pending';}
+  r.campaign_notes=[r.campaign_notes,'Sponsor type: '+details.sponsorType,'Recognition: '+details.recognition,details.locations.length?'Reserved locations: '+details.locations.map(id=>campusNames[id]).join('; '):'',details.sport?'Audio sport: '+details.sport:''].filter(Boolean).join('\n');
+  const id=nextId++;requestDetails.set(id,details);await insert('organization_advertising_requests',{...r,id,organization_id:ORG,location_id:o.space_id,opportunity_id:o.id,opportunity_name:o.title,price:o.price,pricing_unit:o.pricing_unit,status:'Pending'});
+  if(!o.inquiry)await db.query("UPDATE organization_opportunities SET status='Pending' WHERE id=$1",[o.id]);
   return {status:302,location:'/org-advertising-request/'+id};
  }
  if(m=path.match(/^\/org-advertising-request\/(\d+)\/approve$/)){
@@ -79,13 +98,13 @@ async function mutate(path,body){
   if(opportunities.find(o=>o.id===r.opportunity_id)?.inquiry)return error('Inquiry saved. Canterbury must confirm this event package and price before approval or a contract can be created. Return to Requests to review the inquiry.',409);
   if(r.status==='Approved')return {status:302,location:'/demo-onboarding/'+r.id};
   const start=body.contract_start_date||'2026-10-15',end=body.contract_end_date||'2027-05-31';if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||start>=end)return error('Enter a valid contract date range.');
-  onboarding.set(r.id,{...r,start,end});await db.query("UPDATE organization_advertising_requests SET status='Approved',approved_at=CURRENT_TIMESTAMP,setup_status='Not Started' WHERE id=$1",[r.id]);
+  onboarding.set(r.id,{...r,start,end,details:requestDetails.get(r.id)||{locations:reservations.get(r.opportunity_id)||[]}});await db.query("UPDATE organization_advertising_requests SET status='Approved',approved_at=CURRENT_TIMESTAMP,setup_status='Not Started' WHERE id=$1",[r.id]);
   return {status:302,location:'/demo-onboarding/'+r.id};
  }
  if(m=path.match(/^\/demo-onboarding\/(\d+)$/)){
   const r=onboarding.get(+m[1]);if(!r)return error('Approve this sample request first.');if(r.complete)return {status:302,location:'/org-contract/'+r.contractId};
   const id=nextId++,o=opportunities.find(o=>o.id===r.opportunity_id),tracked=body.tracking==='yes';
-  const campaignName=String(body.campaign_name||r.campaign_name||o.title).slice(0,180),dest=String(body.destination_url||r.destination_url);if(!/^https?:\/\//.test(dest))return error('Enter an http or https destination.');
+  const campaignName=String(body.campaign_name||r.campaign_name||o.title).slice(0,180),dest=String(body.destination_url||r.destination_url);if(tracked&&!/^https?:\/\//.test(dest))return error('Enter an http or https destination to enable QR tracking.');
   await insert('contracts',{id,customer_id:OWNER,organization_id:ORG,advertiser_id:1,contract_name:o.title+' — '+r.business_name,contract_type:'Sponsorship',start_date:r.start,end_date:r.end,expiration_date:r.end,total_contract_value:o.price,billing_frequency:'One Time',status:'active',location_id:o.space_id,opportunity_id:o.id,advertising_request_id:r.id,source_type:'advertising_request',notes:'DEMONSTRATION ONLY — no legal agreement or payment. '+(tracked?'Optional QR tracking enabled.':'Inventory-only sponsorship; no QR tracking.')});
   if(tracked){
    const template=fixtures({}).records[0];
@@ -98,11 +117,11 @@ async function mutate(path,body){
   }
   await db.query("UPDATE organization_advertising_requests SET setup_status='Completed',setup_completed_at=CURRENT_TIMESTAMP,created_contract_id=$2,created_vivid_user_id=$3,created_advertiser_id=1 WHERE id=$1",[r.id,id,OWNER]);
   await db.query("UPDATE organization_opportunities SET status='Sold' WHERE id=$1",[o.id]);await db.query('UPDATE spaces SET user_id=$2 WHERE id=$1',[o.space_id,OWNER]);
-  benefits.set(id,[{name:'Artwork approved',done:false},{name:'Banner installed',done:false},...(o.id>=4?[{name:'Magazine and annual report recognition',done:false},{name:'Campus TV logo placement',done:false}]:[]),...(o.id===5?[{name:'Audio acknowledgement — one sport',done:false},{name:'Approved promotional item distribution',done:false}]:[])]);
-  r.complete=true;r.contractId=id;return {status:302,location:'/org-contract/'+id};
+  benefits.set(id,[{name:'Artwork approved',done:false},{name:'Banner installed',done:false},...(o.price>=2500?[{name:'Magazine and annual report recognition',done:false},{name:'Campus TV logo placement',done:false}]:[]),...(o.price===5000?[{name:'Audio acknowledgement — one sport',done:false},{name:'Approved promotional item distribution',done:false}]:[])]);
+  o.status='Sold';contractDetails.set(id,{...r.details,opportunityId:o.id});r.complete=true;r.contractId=id;return {status:302,location:'/org-contract/'+id};
  }
  if(m=path.match(/^\/demo-benefit\/(\d+)\/(\d+)$/)){
-  const b=benefits.get(+m[1]);if(!b?.[+m[2]])return error('Benefit not found.',404);b[+m[2]].done=true;return {status:302,location:'/org-contract/'+m[1]};
+  const b=benefits.get(+m[1]);if(!b?.[+m[2]])return error('Benefit not found.',404);b[+m[2]].done=body.completed==='yes';b[+m[2]].note=String(body.evidence||'').slice(0,1200);b[+m[2]].due=String(body.due_date||'').slice(0,10);b[+m[2]].completedAt=b[+m[2]].done?new Date().toISOString().slice(0,10):null;return {status:302,location:'/org-contract/'+m[1]};
  }
  if(m=path.match(/^\/org-contract\/(\d+)\/renew$/)){
   const r=(await db.query('SELECT * FROM contracts WHERE id=$1',[+m[1]])).rows[0];if(!r)return error('Contract not found.',404);
@@ -111,7 +130,7 @@ async function mutate(path,body){
  }
  if(m=path.match(/^\/admin\/edit-campaign\/(\d+)$/)){
   const id=+m[1],r=baseRows.find(r=>r.campaign_id===id);if(!r)return error('Campaign not found.',404);
-  const dest=String(body.campaign_url||body.landing_url||body.offer_url||body.destination_url||r.destination_url),name=String(body.name||body.campaign_name||r.campaign_name).slice(0,180);if(!/^https?:\/\//.test(dest))return error('Enter an http or https destination.');
+  const dest=String(body.campaign_url||body.landing_url||body.offer_url||body.destination_url||r.destination_url),name=String(body.name||body.campaign_name||r.campaign_name).slice(0,180);if(tracked&&!/^https?:\/\//.test(dest))return error('Enter an http or https destination to enable QR tracking.');
   await db.query('UPDATE campaigns SET name=$2,campaign_url=$3 WHERE id=$1',[id,name,dest]);await db.query('UPDATE campaign_destinations SET destination_url=$2 WHERE campaign_id=$1',[id,dest]);r.destination_url=dest;r.campaign_name=name;return {status:302,location:'/admin/view-campaign/'+id};
  }
  return null;
@@ -124,18 +143,22 @@ const demoExcel={...realExcel,Workbook:class extends realExcel.Workbook {
 async function decorateWorkbook(bytes,query){
  const book=new realExcel.Workbook();await book.xlsx.load(bytes);
  for(const sheet of book.worksheets){if(sheet.name==='Executive Summary')continue;const col=sheet.columnCount+1;sheet.getCell(1,col).value='Responsible rep';sheet.getColumn(col).width=30;sheet.eachRow((row,n)=>{if(n===1)return;const values=row.values.map(v=>typeof v==='object'?JSON.stringify(v):String(v??''));const matches=opportunities.filter(o=>values.includes(o.title)||values.includes(o.edition));if(!matches.length)for(const r of baseRows.filter(r=>values.includes(r.advertiser)||values.includes(r.campaign_name)||values.includes(r.qr_name)))matches.push(opportunities.find(o=>o.id===r.opportunity_id));const names=[...new Set(matches.filter(Boolean).map(o=>repFor(o).name))];if(sheet.name==='Available Opportunities'&&matches.some(o=>o?.inquiry))row.getCell(4).value='Contact for pricing';row.getCell(col).value=names.join(' / ')||'See Sales Reps tab';});}
+ const definitions=book.addWorksheet('Read Me');definitions.columns=[{header:'Metric / scope',width:30},{header:'Definition',width:110}];for(const row of [['Demo data','Fictional sponsors, contracts, capacity and simulated activity; no school or OneCause data connected.'],['Activity dates','September 15–October 14, 2026; filters select within this sample period.'],['Scans','QR opens.'],['Intent','Offer, maps and directions actions after scanning.'],['Website clicks / visitors','Separate website telemetry; none connected in this demo.'],['Conversions / revenue','Simulated advertiser outcomes and attributed sales value, not school sponsorship revenue.'],['Sponsorship value','Contract value owed for school sponsorships; not a payment receipt.']])definitions.addRow(row);
+ const fulfillment=book.addWorksheet('Fulfillment');fulfillment.columns=[{header:'Contract ID',width:16},{header:'Benefit',width:44},{header:'Responsible rep',width:26},{header:'Due date',width:16},{header:'Status',width:16},{header:'Evidence / notes',width:65}];for(const [id,list]of benefits){const d=contractDetails.get(id),o=opportunities.find(o=>o.id===d?.opportunityId);for(const b of list)fulfillment.addRow([id,b.name,o?repFor(o).name:'Demo school team',b.due||'To be agreed',b.done?'Complete':'Pending',b.note||'']);}
  const sheet=book.addWorksheet('Sales Reps');sheet.columns=[{header:'Opportunity',key:'title',width:48},{header:'Program',key:'program',width:28},{header:'Responsible rep',key:'rep',width:30},{header:'Status',key:'status',width:18}];for(const o of opportunities.filter(o=>o.id!==6&&(!query.location_id||o.space_id===+query.location_id)))sheet.addRow({title:o.title,program:o.channel,rep:repFor(o).name,status:o.status});sheet.views=[{state:'frozen',ySplit:1}];sheet.getRow(1).font={bold:true};return Buffer.from(await book.xlsx.writeBuffer());
 }
 async function dispatch(path,query={},method='GET',body={}){
  if(method==='POST'&&writable(path))return mutate(path,body);
  let extra='';
+ const detailMatch=path.match(/^\/advertise\/canterbury-demo\/location\/(\d+)\/opportunity\/(\d+)$/);
+ if(detailMatch){const o=opportunities.find(o=>o.id===+detailMatch[2]&&o.space_id===+detailMatch[1]&&o.id!==6);if(!o)return error('Opportunity not found.',404);extra=marketplaceDetail(o,repFor(o),remaining,photo(o.space_id));}
  if(path==='/org-sales-reps'){
   const selected=reps.find(r=>r.id===Number(query.rep_id));
   extra='<h1>Sales Reps</h1><p>Demo assignments only. Assign an accountable person to every sponsorship. Changes stay in this isolated demo and reset on restart.</p><p><a href="/org-marketplace">Advertising inventory</a> · <a href="/advertise/canterbury-demo">Marketplace</a> · <a href="/org-sales-reps">All reps</a></p><div style="display:flex;gap:16px;flex-wrap:wrap">'+reps.map(r=>'<a style="padding:24px;border:1px solid #ddd;border-radius:12px" href="/org-sales-reps?rep_id='+r.id+'"><strong>'+esc(r.name)+'</strong><p>'+r.role+'</p><b>'+opportunities.filter(o=>assignments.get(o.id)===r.id&&o.id!==6).length+' opportunities</b></a>').join('')+'</div><h2>'+(selected?esc(selected.name):'All assignments')+'</h2>'+opportunities.filter(o=>o.id!==6&&(!selected||assignments.get(o.id)===selected.id)).map(o=>'<section style="padding:20px;margin:12px 0;border:1px solid #ddd;border-radius:12px"><h3><a href="/org-marketplace?location_id='+o.space_id+'&program_id='+o.program_id+'">'+esc(o.title)+'</a></h3><p>'+esc(o.channel)+' · '+(o.inquiry?'Pricing requires confirmation':esc(o.pricing_unit))+'</p><form method="POST" action="/org-sales-reps/assign"><input type="hidden" name="opportunity_id" value="'+o.id+'"><label>Responsible person <select name="rep_id">'+reps.map(r=>'<option value="'+r.id+'" '+(assignments.get(o.id)===r.id?'selected':'')+'>'+esc(r.name)+'</option>').join('')+'</select></label> <button>Save assignment</button></form></section>').join('');
  }
 
  const ob=path.match(/^\/demo-onboarding\/(\d+)$/);
- if(ob){const r=onboarding.get(+ob[1]);if(!r)return error('Approve this sample request first.');extra='<h1>Advertiser onboarding</h1><p>Demonstration only. Your request details carry forward automatically.</p><form method="POST" action="'+path+'"><p><strong>'+esc(r.business_name)+'</strong><br>'+esc(r.contact_name)+' · '+esc(r.email)+'<br>'+esc(r.opportunity_name)+'</p><label>Campaign name <input name="campaign_name" value="'+esc(r.campaign_name)+'"></label><br><label>Destination URL <input name="destination_url" type="url" value="'+esc(r.destination_url)+'" required></label><p><label><input type="checkbox" name="tracking" value="yes" checked> Enable optional dynamic QR tracking</label></p><p>Without QR tracking, the school still manages inventory, agreements, benefits and renewals. Conversions and revenue require connected tracking; new placements start with no activity.</p><button>Complete sample setup</button></form>';}
+ if(ob){const r=onboarding.get(+ob[1]);if(!r)return error('Approve this sample request first.');extra='<h1>Advertiser onboarding</h1><p>Demonstration only. Your request details carry forward automatically.</p><form method="POST" action="'+path+'"><p><strong>'+esc(r.business_name)+'</strong><br>'+esc(r.contact_name)+' · '+esc(r.email)+'<br>'+esc(r.opportunity_name)+'</p><label>Campaign name <input name="campaign_name" value="'+esc(r.campaign_name)+'"></label><br><label>Destination URL <input name="destination_url" type="url" value="'+esc(r.destination_url)+'"></label><p><label><input type="checkbox" name="tracking" value="yes" checked> Enable optional dynamic QR tracking</label></p><p>Reserved campus locations: '+esc((r.details?.locations||[]).map(id=>campusNames[id]).join(' · '))+'</p><p>Without QR tracking, the school still manages inventory, agreements, benefits and renewals. Conversions and revenue require connected tracking; new placements start with no activity.</p><button>Complete sample setup</button></form>';}
 
   if(['/org-opportunity-builder','/org-import-opportunities'].includes(path)&&!query.location_id)query={...query,location_id:'10'};
   let match,route;for(const candidate of routes){if(candidate.method!==method)continue;match=path.match(candidate.re);if(match){route=candidate;break;}}if(extra){match=[];route={keys:[],code:'async(req,res)=>res.send(page("Canterbury School",extraContent))'};}if(!route&&['/admin/marketing-command-center','/admin/ai-insights'].includes(path)){match=[];route={keys:[],code:path.endsWith('ai-insights')?'async(req,res)=>res.send(page("AI Performance Center",nativePerformance))':'async(req,res)=>res.send(page("Marketing Command Center",nativeMarketing))'};}if(!route)return null;
@@ -170,7 +193,7 @@ async function dispatch(path,query={},method='GET',body={}){
   if(path.startsWith('/advertise/canterbury-demo')){
     html=html.replace(/(<(?:article)\b[^>]*>)([\s\S]*?)(<\/article>)/g,(all,start,body,end)=>{const loc=body.match(/\/location\/(\d+)/),prog=body.match(/program_id=(\d+)/);const o=opportunities.find(o=>loc?o.space_id===+loc[1]:prog?o.program_id===+prog[1]:false);return o?start+body+'<p>Responsible person: <a href="/org-sales-reps?rep_id='+assignments.get(o.id)+'">'+esc(repFor(o).name)+'</a></p>'+end:all;});
     html=html.replace(/<a\b([^>]*href="([^"]+)"[^>]*)>([\s\S]*?)<\/a>/g,(all,attrs,href,body)=>{if(!/<h[23]\b/.test(body))return all;const prog=href.match(/program_id=(\d+)/),opp=href.match(/\/opportunity\/(\d+)/);const matches=opportunities.filter(o=>opp?o.id===+opp[1]:prog?o.program_id===+prog[1]:false);if(!matches.length)return all;const names=[...new Set(matches.map(o=>repFor(o).name))].join(' / ');return '<a'+attrs+'>'+body+'<span style="display:block;margin-top:14px;font-size:13px">Responsible person: '+esc(names)+'</span></a>';});
-    const match=path.match(/\/opportunity\/(\d+)/);const o=match&&opportunities.find(o=>o.id===+match[1]);if(o)html=html.replace('</body>','<p style="max-width:1100px;margin:24px auto">Responsible person: <a href="/org-sales-reps?rep_id='+assignments.get(o.id)+'">'+esc(repFor(o).name)+'</a></p></body>');
+    const match=path.match(/\/opportunity\/(\d+)/);const o=match&&opportunities.find(o=>o.id===+match[1]);if(o&&!detailMatch)html=html.replace('</body>','<p style="max-width:1100px;margin:24px auto">Responsible person: <a href="/org-sales-reps?rep_id='+assignments.get(o.id)+'">'+esc(repFor(o).name)+'</a></p></body>');
   }
   if(path.startsWith('/reports')||path==='/org-performance'){
    html=html.replace(/<table\b([^>]*)>([\s\S]*?)<\/table>/g,(all,attrs,table)=>{if(!/<th\b/.test(table))return all;let found=false;const rows=table.replace(/<tr\b([^>]*)>([\s\S]*?)<\/tr>/g,(row,a,cells)=>{if(/<th\b/.test(cells))return '<tr'+a+'>'+cells+'<th>Responsible rep</th></tr>';if(!/<td\b/.test(cells))return row;const text=cells.replace(/<[^>]*>/g,' ');const matches=opportunities.filter(o=>text.includes(o.title)||text.includes(o.edition));const qr=cells.match(/(?:qr_id=|view-qr\/)(\d+)/),camp=cells.match(/(?:campaign_id=|view-campaign\/)(\d+)/);if(qr||camp){const r=baseRows.find(r=>qr?r.qr_id===+qr[1]:r.campaign_id===+camp[1]);if(r)matches.push(opportunities.find(o=>o.id===r.opportunity_id));}const ids=[...new Set(matches.filter(Boolean).map(o=>assignments.get(o.id)))];if(ids.length)found=true;return '<tr'+a+'>'+cells+'<td>'+ids.map(id=>'<a href="/org-sales-reps?rep_id='+id+'">'+esc(reps.find(r=>r.id===id).name)+'</a>').join(' / ')+'</td></tr>';});return found?'<table'+attrs+'>'+rows+'</table>':all;});
@@ -188,11 +211,12 @@ async function dispatch(path,query={},method='GET',body={}){
   html=html.replaceAll('https://vivid-routing-production.up.railway.app','https://'+(process.env.RAILWAY_PUBLIC_DOMAIN||'localhost')+'/demo/canterbury');
   html=html.replaceAll(String(ORG),'canterbury-demo').replace(/>Enterprise<\/a>/g,'>School portal</a>');
   html=html.replace(/<body[^>]*>/i,m=>m+banner());
-  const eventOpportunity=opportunities.find(o=>o.inquiry&&path.includes('/opportunity/'+o.id));
+  const eventOpportunity=!detailMatch&&opportunities.find(o=>o.inquiry&&path.includes('/opportunity/'+o.id));
   if(eventOpportunity){html=html.replace('</body>','<section style="max-width:1100px;margin:24px auto;padding:24px;background:white;border:1px solid #d9e4df;border-radius:14px"><h2>Event details · inquiry only</h2><p>'+esc(eventOpportunity.description)+'</p><p><a href="'+eventOpportunity.source+'" target="_blank" rel="noopener noreferrer">View official school event information</a></p></section></body>');}
   if(path.startsWith('/org-advertising-request/')){const id=Number(path.split('/').at(-1));const request=(await db.query('SELECT opportunity_id FROM organization_advertising_requests WHERE id=$1',[id])).rows[0];if(opportunities.find(o=>o.id===request?.opportunity_id)?.inquiry){html=html.replace(/<button([^>]*)>/g,'<button$1 disabled title="Package and price require school confirmation">');html=html.replace('</body>','<section style="padding:24px"><h2>Event inquiry received</h2><p>Package, benefits, price and availability require school confirmation. No agreement or payment has been created. This sample inquiry is retained in Requests until the demo restarts.</p></section></body>');}}
 
-  const cm=path.match(/^\/org-contract\/(\d+)$/);if(cm){const id=+cm[1];if(!benefits.has(id))benefits.set(id,[{name:'Artwork approved',done:true},{name:'Banner installed',done:true},...(id===103?[{name:'Magazine and annual report recognition',done:false},{name:'Campus TV logo placement',done:false}]:[])]);const list=benefits.get(id);html=html.replace('</body>','<section style="max-width:1120px;margin:24px auto;padding:24px;background:white;border:1px solid #d9e4df;border-radius:14px"><h2>Benefit fulfillment</h2><p>Sample completion records — no external actions are taken.</p>'+list.map((b,i)=>'<form method="POST" action="/demo-benefit/'+id+'/'+i+'"><p>'+esc(b.name)+' · '+(b.done?'Completed':'<button>Mark complete in demo</button>')+'</p></form>').join('')+'</section></body>');}
+  const cm=path.match(/^\/org-contract\/(\d+)$/);if(cm){const id=+cm[1];if(!benefits.has(id))benefits.set(id,[{name:'Artwork approved',done:true},{name:'Banner installed',done:true},...(id===103?[{name:'Magazine and annual report recognition',done:false},{name:'Campus TV logo placement',done:false}]:[])]);const list=benefits.get(id);const detail=contractDetails.get(id)||{};const o=opportunities.find(o=>o.id===detail.opportunityId);html=html.replace('</body>',fulfillmentPanel(id,list,detail,o?repFor(o).name:'Demo school team',campusNames)+'</body>');}
+
   if(path.startsWith('/org-advertising-request/')){const id=Number(path.split('/').at(-1));if(onboarding.has(id))html=html.replace('</body>','<p style="padding:24px"><a href="/demo-onboarding/'+id+'">Continue advertiser onboarding with request details</a></p></body>');}
 
   const qrView=path.match(/^\/admin\/view-qr\/(\d+)$/);if(qrView&&baseRows.some(r=>r.qr_id===+qrView[1]))html=html.replace('</body>','<section style="max-width:1120px;margin:24px auto;padding:24px;background:white;border:1px solid #d9e4df;border-radius:14px"><h2>Optional dynamic QR</h2><p>The same QR opens the current campaign destination. This private sample QR requires your review session and is not for printed distribution.</p><a href="/qr/'+qrView[1]+'.png">Download sample QR</a> · <a href="/r/'+qrView[1]+'">Preview current destination</a></section></body>');
@@ -202,6 +226,7 @@ async function dispatch(path,query={},method='GET',body={}){
   html=html.replace(/[&?]location_id=null/g,'').replace(/href="\/admin\/setup"/g,'href="/my-setup"');
   html=html.replace(/href="\/admin\/(archive|deactivate|restore)-[^"]+"/g,'href="/my-setup" title="View-only demo: no records are changed"');
   html=html.replace(/<a\b([^>]*?)href="([^"]+)"([^>]*)>([\s\S]*?)<\/a>/gi,(all,before,href,after,label)=>{const p=href.split(/[?#]/)[0];if(['/admin','/admin/users','/build-my-campaign'].includes(p)||p.startsWith('/admin/connectors/')||/^\/admin\/destination\/\d+\/edit$/.test(p)||/\/(?:disable|delete|remove|send-password-reset)$/.test(p))return '<span title="Unavailable in this view-only demo" style="opacity:.6">'+label+'</span>';return all;});
+  html=polish(html,path,query,{remaining,opportunities,repFor,packageComparison});
   return {status,html,headers};
  }
  const routes=source.routes.map(r=>{const keys=[];const pattern=r.path.replace(/:[A-Za-z]+/g,s=>{keys.push(s.slice(1));return '([^/]+)';});return {...r,keys,re:new RegExp('^'+pattern+'$')};});
