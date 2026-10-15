@@ -88,7 +88,8 @@ function register(app,{q}){
    if(!review.sponsorPreviewV2){review.advertiserId=1300042;review.sponsorPreviewV2=true;}
    if(req.path==='/admin/archived-campaigns')user.demoAdvertiserId=review.advertiserId;
    let allowed=await reportScope(q,user);
-   allowed=await require('./demo-advertiser-account').select(req,q,user,review,allowed);
+   const combinedReport=['/reports','/reports-qr','/reports-campaign','/reports-location'].includes(req.path)&&!req.query.advertiser_id;
+   if(!combinedReport)allowed=await require('./demo-advertiser-account').select(req,q,user,review,allowed);
    if(!allowed)return notice();
    const locations=(await q('SELECT id FROM spaces WHERE organization_id=$1 AND COALESCE(is_archived,false)=false',[ORG])).rows.map(r=>Number(r.id));
    for(const [keys,ids]of [[['location_id','space_id'],locations],[['campaign_id','campaign','campaignId'],allowed.campaignIds],[['qr_id','qr','qrId','placement_id'],allowed.qrIds]])for(const key of keys){for(const v of [req.query[key],req.body?.[key]])if(v&&v!=='all'&&v!=='All'&&!ids.includes(Number(v)))return notice();}
@@ -112,7 +113,10 @@ function register(app,{q}){
    delete req.session.platformUser;
    req.ccpsReviewVerified=true;
    // Match Overview sample results on first visit; preserve explicit filter choices.
-   if(req.path==='/org-performance' && req.query.include_test===undefined && req.query.performance_filter!=='1')req.query.include_test='1';
+   if(req.path==='/org-performance' && req.query.include_test===undefined && req.query.performance_filter!=='1'){
+    const params=new URLSearchParams(req.query);params.set('include_test','1');
+    return res.redirect('/org-performance?'+params.toString());
+   }
    await require('./responsibility-routes').attach(req,res,q);
    const schoolPhotos=await require("./ccps-demo-presentation").load(q,req.path);
    const send=res.send;res.send=function(body){if(typeof body==='string'&&/<(?:html|body|main|div)\b/i.test(body)){

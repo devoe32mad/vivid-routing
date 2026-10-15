@@ -100,7 +100,18 @@ test('CCPS Insights defaults to demo results while preserving explicit filter ch
  const {enter,guard,session}=fixture();await enter({params:{token,view:'enterprise'},session},response());
  for(const [query,expected]of [[{},'1'],[{from:'2026-09-14',to:'2026-10-13'},'1'],[{performance_filter:'1'},undefined],[{include_test:'0'},'0'],[{include_test:'1'},'1']]){
   const req={path:'/org-performance',method:'GET',query,session};let passed=false;
-  await guard(req,response(),()=>passed=true);assert.equal(passed,true);assert.equal(req.query.include_test,expected);
+  const res=response();await guard(req,res,()=>passed=true);
+  if(query.include_test===undefined&&query.performance_filter!=='1'){assert.equal(passed,false);assert.equal(new URL(res.location,'https://demo.invalid').searchParams.get('include_test'),'1');}
+  else {assert.equal(passed,true);assert.equal(req.query.include_test,expected);}
  }
  const req={path:'/org-performance',method:'GET',query:{},session:{}};await guard(req,response(),()=>{});assert.equal(req.query.include_test,undefined);
+});
+
+test('CCPS combined report pages include Basic and paid examples while setup stays sponsor-specific',async()=>{
+ const {enter,guard,session}=fixture();await enter({params:{token,view:'advertiser'},session},response());
+ for(const path of ['/reports','/reports-qr','/reports-campaign','/reports-location']){
+  const req={path,method:'GET',query:{},session};let passed=false;await guard(req,response(),()=>passed=true);
+  assert.equal(passed,true);assert.equal(req.session.user.demoAdvertiserId,undefined);
+ }
+ const req={path:'/my-setup',method:'GET',query:{},session};await guard(req,response(),()=>{});assert.equal(req.session.user.demoAdvertiserId,1300042);
 });
