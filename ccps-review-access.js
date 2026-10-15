@@ -115,6 +115,7 @@ function register(app,{q}){
    const schoolPhotos=await require("./ccps-demo-presentation").load(q,req.path);
    const send=res.send;res.send=function(body){if(typeof body==='string'&&/<(?:html|body|main|div)\b/i.test(body)){
     body=require("./ccps-demo-presentation").render(body,schoolPhotos,req.path);
+    body=require("./ccps-gridiron").decorateRequest(body,req.path);
     body=body.replace(/Sales Rep Report/g,'School Responsibility Report').replace(/Sales Reps/g,'School Contacts').replace(/Sales Rep/g,'School Contact').replace(/sales reps/g,'school contacts').replace(/sales rep/g,'school contact').replace(/Demo sales team/g,'Demo school staff');
     if(req.path==='/admin/archived-campaigns')body=body.replace('href="/admin"','href="/my-setup"').replace('← Back to Admin','← Back to My Setup');
 
