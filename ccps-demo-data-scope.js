@@ -49,6 +49,7 @@ function sqlFor(sql){
 }
 function run(enabled,callback){return context.run(Boolean(enabled),callback);}
 function install(source){
+ source=require("./ccps-advertiser-detail").install(source);
  source=require("./ccps-demo-opportunities").install(source);
  const pipelineMarker='// CCPS_UNIQUE_PIPELINE_ADVERTISERS_V1';
  if(!source.includes(pipelineMarker)){
