@@ -16,7 +16,7 @@ function enrich(data, model) {
 }
 function columnsWithRep(columns,rows,rowMapper){
  if(!rows.some(r=>Object.prototype.hasOwnProperty.call(r,'salesRep')))return {columns,rowMapper};
- return {columns:[...columns.map(c=>({...c,ratio:c.ratio*0.88})),{label:'Sales Rep',ratio:0.12}],rowMapper:r=>[...rowMapper(r),r.salesRep||'Unassigned']};
+ return {columns:[...columns.map(c=>({...c,ratio:c.ratio*0.88})),{label:require('./ccps-demo-data-scope').active()?'School Contact':'Sales Rep',ratio:0.12}],rowMapper:r=>[...rowMapper(r),r.salesRep||'Unassigned']};
 }
 // Reserve enough width for the longest header word so PDFKit never splits it mid-word.
 function widths(doc,columns,totalWidth,fontSize){

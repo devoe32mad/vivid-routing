@@ -38,6 +38,13 @@ function sqlFor(sql){
  if(sql.includes('FROM contracts contract')&&sql.includes('filtered_relationships')){
   sql=sql.replace(/NULL::integer AS qr_id/g,`(SELECT ar.created_qr_id FROM public.organization_advertising_requests ar WHERE ar.id=contract.advertising_request_id) AS qr_id`);
  }
+ // Match the recipient export inventory to the active, currently available marketplace.
+ if(sql.includes('AS available_price')&&sql.includes('FROM organization_opportunities oo')){
+  sql=sql.replace('WHERE oo.organization_id = $1',`WHERE oo.organization_id = $1
+   AND COALESCE(oo.is_active,true)=true AND COALESCE(s.is_archived,false)=false
+   AND (oo.available_from IS NULL OR oo.available_from<=CURRENT_DATE)
+   AND (oo.available_until IS NULL OR oo.available_until>=CURRENT_DATE)`);
+ }
  // Scoped contract CTEs cannot rely on the base primary key for grouped renewal dates.
  if(sql.includes('FROM contracts c')&&sql.includes('AS placement_name')&&sql.includes('renewed_from_contract_id')){
   sql=sql.replace(/(GROUP BY\s+c\.id,)/i,'$1 c.end_date, c.expiration_date,');
