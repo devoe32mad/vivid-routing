@@ -75,6 +75,7 @@ export function createNativeRuntime({baseRows,opportunities,groups,reporting,ban
   // Branding/data-only substitutions; keep native page structure and form controls.
   html=html.replaceAll(String(ORG),'lp-gas-demo').replace(/>Enterprise<\/a>/g,'>Publisher portal</a>');
   html=html.replace(/<body[^>]*>/i,m=>m+banner());
+  html=html.replace('</head>','<style>img[src*="footerlogo.png"]{object-fit:contain!important;background:#0b1f3a!important;padding:12px!important;border-radius:8px}</style></head>');
   html=html.replace(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi,(whole,attrs,body)=>/method\s*=\s*["']?post/i.test(attrs)&&!(/action=["'][^"']*\/review["']/i.test(attrs))?'<form'+attrs+' onsubmit="return false">'+body.replace(/<button\b(?![^>]*type=["']button)/gi,'<button disabled title="Saving is disabled in this demo"')+'<p class="note">View-only demonstration. Saving is disabled.</p></form>':whole);
   html=html.replace(/[&?]location_id=null/g,'').replace(/href="\/admin\/setup"/g,'href="/my-setup"');
   html=html.replace(/href="\/admin\/(archive|deactivate|restore)-[^"]+"/g,'href="/my-setup" title="View-only demo: no records are changed"');
