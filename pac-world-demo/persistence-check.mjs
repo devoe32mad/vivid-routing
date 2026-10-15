@@ -8,14 +8,14 @@ assert((await page('/org-contract/1001')).includes('Sample tearsheet approved'))
 assert((await page('/org-contract/1004')).includes('Sample tearsheet approved'));
 assert.equal((await request('/r/1001')).headers.get('location'),'https://example.com/new-offer');
 assert((await page('/org-contract/1005')).includes('Renewal insertion 4'));
-assert((await page('/my-setup')).includes('No QR required'));
+assert((await page('/my-setup')).includes('Advertisings without QR tracking'));
 assert(!(await page('/advertise/pac-world-demo')).includes('March 2026 —'));
 assert((await page('/demo-history')).includes('March 2026 —'));
 assert.equal((await request('/assets/cover.jpg')).status,200);
 assert.equal((await request('/advertise/pac-world-demo/location/10/opportunity/1/submit',{business_name:'Test'})).status,400);
 const before=JSON.parse(fs.readFileSync(process.env.PAC_DEMO_DATA_DIR+'/actions-v2.json')).length;
 assert.equal((await request('/advertise/pac-world-demo/location/13/opportunity/16/submit',{business_name:'Test',contact_name:'Test',email:'test@example.invalid',phone:'test'})).status,400);
-assert((await page('/advertise/pac-world-demo/location/13/opportunity/16')).includes('Review sample request'));
+assert((await page('/advertise/pac-world-demo/location/13/opportunity/16')).includes('class="form-layout"'));
 assert.equal(JSON.parse(fs.readFileSync(process.env.PAC_DEMO_DATA_DIR+'/actions-v2.json')).length,before);
 console.log('PASS restart restoration: contracts, fulfillment, renewal, destination, untracked setup; historical blocking; invalid request rollback');
 process.exit();

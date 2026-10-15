@@ -196,6 +196,8 @@ async function dispatch(path,query={},method='GET',body={}){
   const q=async(sql,params=[])=>{
    if(!/^\s*(SELECT|WITH)\b/i.test(sql))throw Error('Native demo blocks database writes');
    if(path==='/org-marketplace'&&query.status==='Available'&&/FROM organization_opportunities/i.test(sql)){sql=sql.replace(/FROM organization_opportunities\b/gi,"FROM (SELECT * FROM organization_opportunities WHERE LOWER(status)='available')");}
+   // PAC assets are served locally through the native photo slots.
+   sql=sql.replace(/\b(?:oo\.)?photo_data IS NOT NULL/g,'TRUE');
    return db.query(sql,params);
   };
   const dates={fromDate:f.data.from,toDate:f.data.to,queryString:new URLSearchParams({from:f.data.from,to:f.data.to}).toString()};
