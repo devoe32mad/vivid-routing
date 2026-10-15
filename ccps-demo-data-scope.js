@@ -8,6 +8,10 @@ const qrs=`SELECT created_qr_id FROM public.organization_advertising_requests WH
 const dental='Coastal Family Dental (Demo)';
 const home='Gulf Coast Home Services (Demo)';
 const definitions={
+ // Operational test notes and uploaded files are not part of the recipient demo.
+ contract_activity:`SELECT * FROM public.contract_activity WHERE false`,
+ contract_documents:`SELECT * FROM public.contract_documents WHERE false`,
+ qr_campaigns:`SELECT * FROM public.qr_campaigns WHERE qr_id IN (${qrs}) AND campaign_id IN (SELECT id FROM public.campaigns WHERE user_id=10)`,
  ...require("./ccps-demo-opportunities").definitions,
  advertisers:`SELECT (jsonb_populate_record(NULL::public.advertisers,jsonb_build_object(
  'id',v.id,'organization_id',13,'name',v.name,'relationship_status','Active',

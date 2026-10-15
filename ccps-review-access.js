@@ -88,7 +88,7 @@ function register(app,{q}){
    if(!review.sponsorPreviewV2){review.advertiserId=1300042;review.sponsorPreviewV2=true;}
    if(req.path==='/admin/archived-campaigns')user.demoAdvertiserId=review.advertiserId;
    let allowed=await reportScope(q,user);
-   const combinedReport=['/reports','/reports-qr','/reports-campaign','/reports-location'].includes(req.path)&&!req.query.advertiser_id;
+   const combinedReport=(['/reports','/reports-qr','/reports-campaign','/reports-location','/admin/reports'].includes(req.path)||req.path.startsWith('/export/'))&&!req.query.advertiser_id;
    if(!combinedReport)allowed=await require('./demo-advertiser-account').select(req,q,user,review,allowed);
    if(!allowed)return notice();
    const locations=(await q('SELECT id FROM spaces WHERE organization_id=$1 AND COALESCE(is_archived,false)=false',[ORG])).rows.map(r=>Number(r.id));
