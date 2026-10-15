@@ -111,6 +111,8 @@ function register(app,{q}){
    req.session.user=user;req.session.orgUser={id:review.ownerId,organization_id:ORG,organization_name:'CCPS Demo',organization_role:'organization_admin',name:'CCPS Demo Reviewer',email:user.email};
    delete req.session.platformUser;
    req.ccpsReviewVerified=true;
+   // Match Overview sample results on first visit; preserve explicit filter choices.
+   if(req.path==='/org-performance' && req.query.include_test===undefined && req.query.performance_filter!=='1')req.query.include_test='1';
    await require('./responsibility-routes').attach(req,res,q);
    const schoolPhotos=await require("./ccps-demo-presentation").load(q,req.path);
    const send=res.send;res.send=function(body){if(typeof body==='string'&&/<(?:html|body|main|div)\b/i.test(body)){

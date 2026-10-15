@@ -96,3 +96,11 @@ test('CCPS archive uses native page with sponsor scope; other requests retain na
  assert.equal(review.routeAllowed('/admin/archived-campaigns'),true);
  new (require('node:vm').Script)(installed);
 });
+test('CCPS Insights defaults to demo results while preserving explicit filter choices and other sessions',async()=>{
+ const {enter,guard,session}=fixture();await enter({params:{token,view:'enterprise'},session},response());
+ for(const [query,expected]of [[{},'1'],[{from:'2026-09-14',to:'2026-10-13'},'1'],[{performance_filter:'1'},undefined],[{include_test:'0'},'0'],[{include_test:'1'},'1']]){
+  const req={path:'/org-performance',method:'GET',query,session};let passed=false;
+  await guard(req,response(),()=>passed=true);assert.equal(passed,true);assert.equal(req.query.include_test,expected);
+ }
+ const req={path:'/org-performance',method:'GET',query:{},session:{}};await guard(req,response(),()=>{});assert.equal(req.query.include_test,undefined);
+});
