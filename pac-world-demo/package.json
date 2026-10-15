@@ -1,0 +1,15 @@
+{
+  "type": "module",
+  "dependencies": {
+    "pdfkit": "0.17.2",
+    "qrcode": "1.5.4",
+    "@electric-sql/pglite": "0.5.8",
+    "exceljs": "4.4.0"
+  },
+  "scripts": {
+    "start": "TZ=UTC node pac-world.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
