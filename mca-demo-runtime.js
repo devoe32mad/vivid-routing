@@ -48,6 +48,7 @@ function register(app,{q,organizationNav,fixture:f}){
   };
   next();
  });
+ app.get('/demo/layout-check',(req,res)=>{const views={overview:home(f),marketplace:'/advertise/'+SLUG,advertiser:'/my-setup',inventory:'/org-marketplace?organization_id='+f.organizationId};const src=views[req.query.view]||views.overview;res.send('<!doctype html><html><head><title>MCA mobile layout check</title><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head><body style=\"margin:0;background:#dce5df;font:14px Arial\"><p style=\"margin:12px\">390px mobile layout check · '+Object.keys(views).map(v=>'<a style=\"margin-right:14px\" href=\"/demo/layout-check?view='+v+'\">'+v+'</a>').join('')+'</p><iframe title=\"Mobile preview\" style=\"display:block;width:390px;height:844px;border:1px solid #a5b8ab;background:white;margin:12px auto\" src=\"'+src+'\"></iframe></body></html>');});
  require('./mca-demo-journey').register(app,{q,f,organizationNav});
 }
 module.exports={register,prepare};
