@@ -130,7 +130,7 @@ async function mutate(path,body){
  }
  if(m=path.match(/^\/admin\/edit-campaign\/(\d+)$/)){
   const id=+m[1],r=baseRows.find(r=>r.campaign_id===id);if(!r)return error('Campaign not found.',404);
-  const dest=String(body.campaign_url||body.landing_url||body.offer_url||body.destination_url||r.destination_url),name=String(body.name||body.campaign_name||r.campaign_name).slice(0,180);if(tracked&&!/^https?:\/\//.test(dest))return error('Enter an http or https destination to enable QR tracking.');
+  const dest=String(body.campaign_url||body.landing_url||body.offer_url||body.destination_url||r.destination_url),name=String(body.name||body.campaign_name||r.campaign_name).slice(0,180);if(!/^https?:\/\//.test(dest))return error('Enter an http or https destination to enable QR tracking.');
   await db.query('UPDATE campaigns SET name=$2,campaign_url=$3 WHERE id=$1',[id,name,dest]);await db.query('UPDATE campaign_destinations SET destination_url=$2 WHERE campaign_id=$1',[id,dest]);r.destination_url=dest;r.campaign_name=name;return {status:302,location:'/admin/view-campaign/'+id};
  }
  return null;
