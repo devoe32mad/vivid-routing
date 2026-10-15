@@ -1,15 +1,15 @@
 {
-  "name": "lp-gas-private-demo",
-  "private": true,
   "type": "module",
+  "dependencies": {
+    "pdfkit": "0.17.2",
+    "qrcode": "1.5.4",
+    "@electric-sql/pglite": "0.5.8",
+    "exceljs": "4.4.0"
+  },
   "scripts": {
-    "start": "node lp-gas.js"
+    "start": "TZ=UTC node lp-gas.js"
   },
   "engines": {
     "node": ">=22"
-  },
-  "dependencies": {
-    "pdfkit": "0.17.2",
-    "qrcode": "1.5.4"
   }
 }
