@@ -18,3 +18,9 @@ test('PDF allocates full header words and adds owner cells without losing values
  assert.ok(Math.abs(sized.reduce((n,c)=>n+c.width,0)-708)<.001);
  assert.deepEqual(rowMapper({name:'Ad',conversions:15,salesRep:'Jane Doe'}),['Ad',15,'Jane Doe']);
 });
+
+test('only the CCPS PDF uses school-contact terminology',()=>{
+ const scope=require('../ccps-demo-data-scope');const result=()=>columnsWithRep([{label:'Name',ratio:1}],[{salesRep:'Jane Doe'}],r=>[r.name]);
+ assert.equal(scope.run(true,result).columns.at(-1).label,'School Contact');
+ assert.equal(result().columns.at(-1).label,'Sales Rep');
+});

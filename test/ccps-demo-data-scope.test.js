@@ -76,3 +76,9 @@ test('active sponsorship totals include a contracted placement with no visible c
  assert.deepEqual(active.summarize(rows.rows),{placements:3,campaigns:2,value:1750});assert.equal(calls,2);
  calls=0;await active.load(q,{organizationId:39,allowedLocationIds:[],selectedLocationId:null});assert.equal(calls,1);
 });
+test('CCPS available inventory export excludes inactive and out-of-window opportunities',()=>{
+ const sql='SELECT oo.id,oo.price AS available_price FROM organization_opportunities oo JOIN spaces s ON s.id=oo.space_id WHERE oo.organization_id = $1';
+ const scoped=scope.run(true,()=>scope.sqlFor(sql));
+ assert.match(scoped,/COALESCE\(oo.is_active,true\)=true/);assert.match(scoped,/oo.available_until>=CURRENT_DATE/);
+ assert.equal(scope.sqlFor(sql),sql);
+});
