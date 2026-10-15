@@ -1,0 +1,161 @@
+import {PGlite} from '@electric-sql/pglite';
+import vm from 'node:vm';
+import {gunzipSync} from 'node:zlib';
+import fs from 'node:fs';
+import {createRequire} from 'node:module';
+import {Writable} from 'node:stream';
+const photos=["https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1757434786/canterburyfortmyersorg/alnkveboeiwr1cynkdfj/BannerProgram-2.png", "https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1757434762/canterburyfortmyersorg/j4xb6aopyspmllvfordz/BannerProgram-1.png", "https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1757434800/canterburyfortmyersorg/xvm2k5od4gr7wrtf4qui/BannerProgram-3.png"];
+const photo=id=>photos[id===11?1:id===12?2:0];
+const nodeRequire=createRequire(import.meta.url);
+const source=JSON.parse(gunzipSync(Buffer.from(fs.readFileSync(new URL('./native-source.b64',import.meta.url),'utf8'),'base64')).toString());
+export function createNativeRuntime({baseRows,opportunities,groups,reporting,banner}){
+ const ORG=900001,OWNER=900002;
+ const organization={id:ORG,name:'Canterbury School — Vivid Demo',slug:'canterbury-demo',is_active:true,website:'https://www.canterburyfortmyers.org/',public_heading:'Support Canterbury School',public_description:'Explore school-year banner sponsorships and included recognition benefits. QR tracking is optional; inventory, contracts and renewals work without it.',public_logo_url:''};
+ const fixtures=query=>{
+  const data=reporting(query),active=data.rows;
+  const locations=[...new Set(opportunities.map(o=>o.space_id))].map(id=>{const o=opportunities.find(o=>o.space_id===id),r=baseRows.find(r=>r.opportunity_id===o.id),d=active.filter(r=>opportunities.find(o=>o.id===r.opportunity_id).space_id===id);return {id,name:o.edition,location:o.channel,market:o.channel,organization_id:ORG,user_id:baseRows.some(r=>opportunities.find(x=>x.id===r.opportunity_id).space_id===id)?OWNER:900003,organization_name:organization.name,description:o.description,live_date:'2026-09-15',created_at:'2026-09-15',end_date:'2026-12-31',is_archived:false,qr_count:d.length,qr_placements:d.length,campaign_count:d.length,active_campaigns:d.length,scans:d.reduce((s,r)=>s+r.scans,0),conversions:d.reduce((s,r)=>s+r.conversions,0),revenue:d.reduce((s,r)=>s+r.revenue,0),conversion_value:d.reduce((s,r)=>s+r.revenue,0),placement_value:d.reduce((s,r)=>s+r.cost,0)};});
+  const records=baseRows.map(r=>{const o=opportunities.find(o=>o.id===r.opportunity_id),l=locations.find(l=>l.id===o.space_id),d=active.find(d=>d.qr_id===r.qr_id)||{scans:0,clicks:0,conversions:0,revenue:0};return {...r,...d,id:r.qr_id,name:r.qr_name,qr_name:r.qr_name,advertiser_name:r.advertiser,business_name:r.advertiser,space_id:o.space_id,location_id:o.space_id,location_name:l.name,space_name:l.name,market:l.location,location:l.location,organization_id:ORG,user_id:OWNER,owner_id:OWNER,customer_id:OWNER,advertiser_id:1,live_date:r.start_date,created_at:r.start_date,annual_cost:r.cost,annual_impressions:0,campaign_count:1,qr_count:1,qr_id:r.qr_id,offer_clicks:d.clicks,map_clicks:0,waze_clicks:0,total_intent:d.clicks,conversion_value:d.revenue,is_active:true,is_archived:false,active_campaigns:1,destination_url:r.destination_url,website_url:r.destination_url,url:r.destination_url,is_imported:false,placement_type:r.kind==='digital'?'digital':'qr',tracking_mode:'performance'};});
+  const campaigns=records.map(r=>({...r,id:r.campaign_id,name:r.campaign_name,campaign_url:r.destination_url,advertiser:r.advertiser,landing_url:r.destination_url,offer_url:r.destination_url,is_test:false}));
+  const opps=opportunities.map(o=>({...o,organization_id:ORG,annual_price:o.price,location_id:o.space_id,location_name:locations.find(l=>l.id===o.space_id).name,space_name:locations.find(l=>l.id===o.space_id).name,program_name:o.channel,advertiser_name:o.status==='Sold'?baseRows[0].advertiser:'',status:o.status.toLowerCase(),is_active:true,created_at:'2026-09-15',updated_at:'2026-10-14',photo_url:'',image_url:'',benefits:o.description}));
+  const contracts=records.map(r=>({...r,id:r.qr_id,contract_name:r.qr_name,contract_type:'Advertising',total_contract_value:r.cost,annual_value:r.cost,billing_frequency:'One Time',status:'active',source_type:'advertising_request',advertising_request_id:r.qr_id,opportunity_id:r.opportunity_id,expiration_date:r.end_date,renewal_date:r.renewal_date,renewed_from_contract_id:null,opportunity_name:r.qr_name,contact_name:'Demo Contact',contact_email:'demo@example.com',email:'demo@example.com',days_until_expiration:77,renewal_status:'Not Started',renewal_probability:0,auto_renew:false,benefit_count:3,completed_benefits:2}));
+  const requests=[...records.map(r=>({...r,id:r.qr_id,request_id:r.qr_id,opportunity_name:r.qr_name,opportunity_title:r.qr_name,contact_name:'Demo Contact',contact_email:'demo@example.com',email:'demo@example.com',phone:'',business_website:'https://example.com/',status:'Approved',created_vivid_user_id:OWNER,created_location_id:r.space_id,created_qr_id:r.qr_id,created_campaign_id:r.campaign_id,created_contract_id:r.qr_id,contract_start_date:r.start_date,contract_end_date:r.end_date,marketplace_price:r.cost,setup_status:'Completed'})),{id:104,request_id:104,organization_id:ORG,space_id:12,location_id:12,opportunity_id:3,opportunity_name:opportunities[2].title,opportunity_title:opportunities[2].title,business_name:'Demo Local Sponsor',contact_name:'Demo Contact',contact_email:'demo@example.com',email:'demo@example.com',phone:'',status:'Pending',created_at:'2026-10-14',location_name:locations.find(l=>l.id===12).name,program_name:'Campus banners',price:1500,campaign_destination:'https://example.com/',requested_start_date:'2026-11-01',requested_end_date:'2026-11-30',notes:'Sample Middle School banner request.'}];
+  const relationships=records.map(r=>({...r,id:r.qr_id,location_id:r.space_id,campaign_id:r.campaign_id,effective_start_date:r.start_date,effective_end_date:r.end_date,started_at:r.start_date,assigned_at:r.start_date,assignment_days:30,allocated_cost:r.cost*30/108,is_active:true}));
+  const totals={scans:active.reduce((s,r)=>s+r.scans,0),offer_clicks:active.reduce((s,r)=>s+r.clicks,0),map_clicks:0,waze_clicks:0,conversions:active.reduce((s,r)=>s+r.conversions,0),revenue:active.reduce((s,r)=>s+r.revenue,0),conversion_value:active.reduce((s,r)=>s+r.revenue,0),qr_count:active.length,campaign_count:active.length,advertiser_count:1,active_contracts:contracts.length,total_contract_value:contracts.reduce((s,r)=>s+r.cost,0),allocated_cost:active.reduce((s,r)=>s+r.cost*30/108,0),location_count:locations.length,total_locations:locations.length,total_scans:active.reduce((s,r)=>s+r.scans,0)};
+  return {data,locations,records,campaigns,opps,contracts,requests,relationships,totals};
+ };
+
+ const db=new PGlite();
+ const ready=(async()=>{
+  const statements=JSON.parse(fs.readFileSync(new URL('./native-schema.json',import.meta.url),'utf8'));
+  let pending=statements;
+  for(let attempt=0;attempt<8&&pending.length;attempt++){
+   const next=[];for(const sql of pending){try{await db.exec(sql);}catch(e){next.push(sql);}}
+   if(next.length===pending.length){console.log('Unneeded demo schema statements skipped:',next.length);break;}pending=next;
+  }
+  await db.exec('ALTER TABLE organization_opportunities ADD COLUMN IF NOT EXISTS available_from date; ALTER TABLE organization_opportunities ADD COLUMN IF NOT EXISTS available_until date;');
+  await db.exec('ALTER TABLE organizations ADD COLUMN IF NOT EXISTS public_heading text; ALTER TABLE organizations ADD COLUMN IF NOT EXISTS public_description text; ALTER TABLE organizations ADD COLUMN IF NOT EXISTS public_logo_url text;');
+  const fixture=fixtures({});
+  const tableData={organizations:[{...organization,slug:'canterbury-demo'}],users:[{id:OWNER,name:'Demo Contact',email:'demo@example.com',password:'demo-disabled',role:'customer',advertiser_customer_id:OWNER},{id:900003,name:'Canterbury School Demo Publisher',email:'publisher-demo@example.com',password:'demo-disabled',role:'customer'}],organization_users:[{id:OWNER,user_id:OWNER,organization_id:ORG,role:'organization_admin',is_active:true}],organization_programs:groups.map(g=>({...g,organization_id:ORG,is_active:g.id!==3,public_image_url:photo(g.id===1?10:g.id===2?11:12)})),spaces:fixture.locations,qr_codes:fixture.records.map(r=>({...r,total_cost:r.cost})),campaigns:fixture.campaigns,advertisers:[{id:1,organization_id:ORG,name:baseRows[0].advertiser,email:'demo@example.com',is_active:true}],contracts:fixture.contracts,qr_campaigns:fixture.relationships,campaign_schedules:fixture.relationships.map(r=>({...r,id:r.campaign_id,days_of_week:'0,1,2,3,4,5,6',start_time:'00:00',end_time:'23:59',priority:1})),organization_opportunities:fixture.opps.map(o=>({...o,is_active:o.id!==6,status:o.status==='sold'?'Sold':o.status==='pending'?'Pending':'Available',pricing_unit:o.pricing_unit.replace(/^per /,''),suggested_term_length:1,suggested_term_unit:'School Year',category:o.channel,photo_url:photo(o.space_id)})),organization_advertising_requests:fixture.requests.map(r=>({...r,destination_url:r.destination_url||'https://example.com/',price:r.cost||r.price||0,approved_at:r.status==='Approved'?'2026-09-15T12:00:00Z':null,submitted_at:'2026-09-15T12:00:00Z'})),campaign_destinations:fixture.records.map(r=>({id:r.campaign_id,campaign_id:r.campaign_id,name:r.destination_name,destination_type:'offer',destination_url:r.destination_url,conversion_url:'https://example.com/thank-you',estimated_value:1200,display_order:1,is_active:true}))};
+  for(const [table,rows]of Object.entries(tableData)){
+   let columns=(await db.query('SELECT column_name,data_type FROM information_schema.columns WHERE table_schema=\'public\' AND table_name=$1',[table])).rows;
+   if(!columns.length){await db.exec('CREATE TABLE '+table+' (id integer PRIMARY KEY)');columns=[{column_name:'id',data_type:'integer'}];}
+   const known=new Set(columns.map(c=>c.column_name));
+   // Populate only native schema columns; add a few fixture identity fields used by later migrations.
+   for(const key of ['slug','advertiser_customer_id','is_test'])if(rows.some(r=>r[key]!==undefined)&&!known.has(key)){await db.exec('ALTER TABLE '+table+' ADD COLUMN '+key+' '+(key==='is_test'?'boolean':key==='slug'?'text':'integer'));known.add(key);}
+   for(const row of rows){const entries=Object.entries(row).filter(([k,v])=>known.has(k)&&v!==undefined);const keys=entries.map(([k])=>k);try{await db.query('INSERT INTO '+table+' ('+keys.map(k=>'"'+k+'"').join(',')+') VALUES ('+keys.map((k,i)=>'$'+(i+1)).join(',')+')',entries.map(([k,v])=>v));}catch(e){throw Error('Fixture '+table+': '+e.message);}}
+  }
+  // Deterministic sample events; no production telemetry or database connection exists.
+  let id=1;for(let day=0;day<30;day++){for(const r of baseRows){for(const [type,key]of [['scan','scans'],['offer','clicks'],['conversion','conversions']]){const n=Math.floor(r[key]*(day+1)/30)-Math.floor(r[key]*day/30);for(let j=0;j<n;j++)await db.query('INSERT INTO events (id,qr_id,campaign_id,type,value,created_at) VALUES ($1,$2,$3,$4,$5,$6)',[id++,r.qr_id,r.campaign_id,type,type==='conversion'?r.revenue/r.conversions:0,new Date(Date.parse('2026-09-15T12:00:00Z')+day*86400000).toISOString()]);}}}
+ })();
+ async function insert(table,row){
+ const known=new Set((await db.query("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=$1",[table])).rows.map(r=>r.column_name));
+ const entries=Object.entries(row).filter(([k,v])=>known.has(k)&&v!==undefined);
+ await db.query('INSERT INTO '+table+' ('+entries.map(([k])=>'"'+k+'"').join(',')+') VALUES ('+entries.map((_,i)=>'$'+(i+1)).join(',')+')',entries.map(([k,v])=>v));
+}
+let nextId=1000;
+const onboarding=new Map();
+const benefits=new Map();
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const error=(message,status=400)=>({status,html:message,headers:{}});
+async function mutate(path,body){
+ await ready;let m;
+ if(m=path.match(/^\/advertise\/canterbury-demo\/location\/(\d+)\/opportunity\/(\d+)\/submit$/)){
+  const o=opportunities.find(o=>o.id===+m[2]&&o.space_id===+m[1]);if(!o||o.id===6)return error('Select a banner package. Audio recognition is a Gold benefit.');
+  const fields=['business_name','contact_name','email','phone','website','business_category','campaign_name','destination_url','campaign_notes'];
+  const r=Object.fromEntries(fields.map(k=>[k,String(body[k]||'').trim().slice(0,1000)]));
+  if(!r.business_name||!r.contact_name||!r.email||!r.phone||!/^https?:\/\//.test(r.destination_url))return error('Complete contact details and a valid destination URL.');
+  const id=nextId++;await insert('organization_advertising_requests',{...r,id,organization_id:ORG,location_id:o.space_id,opportunity_id:o.id,opportunity_name:o.title,price:o.price,pricing_unit:o.pricing_unit,status:'Pending'});
+  await db.query("UPDATE organization_opportunities SET status='Pending' WHERE id=$1",[o.id]);
+  return {status:302,location:'/org-advertising-request/'+id};
+ }
+ if(m=path.match(/^\/org-advertising-request\/(\d+)\/approve$/)){
+  const r=(await db.query('SELECT * FROM organization_advertising_requests WHERE id=$1',[+m[1]])).rows[0];if(!r)return error('Request not found.',404);
+  if(r.status==='Approved')return {status:302,location:'/demo-onboarding/'+r.id};
+  const start=body.contract_start_date||'2026-10-15',end=body.contract_end_date||'2027-05-31';if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||start>=end)return error('Enter a valid contract date range.');
+  onboarding.set(r.id,{...r,start,end});await db.query("UPDATE organization_advertising_requests SET status='Approved',approved_at=CURRENT_TIMESTAMP,setup_status='Not Started' WHERE id=$1",[r.id]);
+  return {status:302,location:'/demo-onboarding/'+r.id};
+ }
+ if(m=path.match(/^\/demo-onboarding\/(\d+)$/)){
+  const r=onboarding.get(+m[1]);if(!r)return error('Approve this sample request first.');if(r.complete)return {status:302,location:'/org-contract/'+r.contractId};
+  const id=nextId++,o=opportunities.find(o=>o.id===r.opportunity_id),tracked=body.tracking==='yes';
+  const campaignName=String(body.campaign_name||r.campaign_name||o.title).slice(0,180),dest=String(body.destination_url||r.destination_url);if(!/^https?:\/\//.test(dest))return error('Enter an http or https destination.');
+  await insert('contracts',{id,customer_id:OWNER,organization_id:ORG,advertiser_id:1,contract_name:o.title+' — '+r.business_name,contract_type:'Sponsorship',start_date:r.start,end_date:r.end,expiration_date:r.end,total_contract_value:o.price,billing_frequency:'One Time',status:'active',location_id:o.space_id,opportunity_id:o.id,advertising_request_id:r.id,source_type:'advertising_request',notes:'DEMONSTRATION ONLY — no legal agreement or payment. '+(tracked?'Optional QR tracking enabled.':'Inventory-only sponsorship; no QR tracking.')});
+  if(tracked){
+   const template=fixtures({}).records[0];
+   await insert('qr_codes',{...template,id,name:o.title,space_id:o.space_id,location_id:o.space_id,total_cost:o.price,annual_cost:o.price,live_date:r.start,end_date:r.end});
+   await insert('campaigns',{...fixtures({}).campaigns[0],id,name:campaignName,campaign_url:dest,landing_url:dest,offer_url:dest,destination_url:dest,organization_request_id:r.id});
+   await insert('qr_campaigns',{id,qr_id:id,campaign_id:id,assigned_at:r.start,effective_start_date:r.start,effective_end_date:r.end,is_active:true});
+   await insert('campaign_destinations',{id,campaign_id:id,name:'Sponsor offer',destination_type:'offer',destination_url:dest,is_active:true,display_order:1});
+   await db.query('UPDATE contracts SET qr_id=$1 WHERE id=$1',[id]);
+   baseRows.push({qr_id:id,campaign_id:id,opportunity_id:o.id,qr_name:o.title,edition:o.edition,scans:0,clicks:0,conversions:0,revenue:0,cost:o.price,kind:'print',advertiser:r.business_name,advertiser_id:1,status:'Active',campaign_name:campaignName,start_date:r.start,end_date:r.end,contract_end:r.end,renewal_date:r.end,destination_name:'Sponsor offer',destination_url:dest});
+  }
+  await db.query("UPDATE organization_advertising_requests SET setup_status='Completed',setup_completed_at=CURRENT_TIMESTAMP,created_contract_id=$2,created_vivid_user_id=$3,created_advertiser_id=1 WHERE id=$1",[r.id,id,OWNER]);
+  await db.query("UPDATE organization_opportunities SET status='Sold' WHERE id=$1",[o.id]);await db.query('UPDATE spaces SET user_id=$2 WHERE id=$1',[o.space_id,OWNER]);
+  benefits.set(id,[{name:'Artwork approved',done:false},{name:'Banner installed',done:false},...(o.id>=4?[{name:'Magazine and annual report recognition',done:false},{name:'Campus TV logo placement',done:false}]:[]),...(o.id===5?[{name:'Audio acknowledgement — one sport',done:false},{name:'Approved promotional item distribution',done:false}]:[])]);
+  r.complete=true;r.contractId=id;return {status:302,location:'/org-contract/'+id};
+ }
+ if(m=path.match(/^\/demo-benefit\/(\d+)\/(\d+)$/)){
+  const b=benefits.get(+m[1]);if(!b?.[+m[2]])return error('Benefit not found.',404);b[+m[2]].done=true;return {status:302,location:'/org-contract/'+m[1]};
+ }
+ if(m=path.match(/^\/org-contract\/(\d+)\/renew$/)){
+  const r=(await db.query('SELECT * FROM contracts WHERE id=$1',[+m[1]])).rows[0];if(!r)return error('Contract not found.',404);
+  const start=body.start_date,end=body.end_date,value=Number(body.total_contract_value);if(!start||!end||start>=end||!Number.isFinite(value)||value<0)return error('Enter valid renewal dates and value.');
+  const id=nextId++;await insert('contracts',{...r,id,start_date:start,end_date:end,expiration_date:end,total_contract_value:value,status:'draft',renewed_from_contract_id:r.id,notes:'DEMONSTRATION renewal draft. No agreement sent.'});return {status:302,location:'/org-contract/'+id};
+ }
+ if(m=path.match(/^\/admin\/edit-campaign\/(\d+)$/)){
+  const id=+m[1],r=baseRows.find(r=>r.campaign_id===id);if(!r)return error('Campaign not found.',404);
+  const dest=String(body.campaign_url||body.landing_url||body.offer_url||body.destination_url||r.destination_url),name=String(body.name||body.campaign_name||r.campaign_name).slice(0,180);if(!/^https?:\/\//.test(dest))return error('Enter an http or https destination.');
+  await db.query('UPDATE campaigns SET name=$2,campaign_url=$3 WHERE id=$1',[id,name,dest]);await db.query('UPDATE campaign_destinations SET destination_url=$2 WHERE campaign_id=$1',[id,dest]);r.destination_url=dest;r.campaign_name=name;return {status:302,location:'/admin/view-campaign/'+id};
+ }
+ return null;
+}
+function writable(path){return /\/(submit|approve|renew)$/.test(path)||/^\/(demo-onboarding|demo-benefit|admin\/edit-campaign)\//.test(path);}
+async function dispatch(path,query={},method='GET',body={}){
+ if(method==='POST'&&writable(path))return mutate(path,body);
+ let extra='';
+ const ob=path.match(/^\/demo-onboarding\/(\d+)$/);
+ if(ob){const r=onboarding.get(+ob[1]);if(!r)return error('Approve this sample request first.');extra='<h1>Advertiser onboarding</h1><p>Demonstration only. Your request details carry forward automatically.</p><form method="POST" action="'+path+'"><p><strong>'+esc(r.business_name)+'</strong><br>'+esc(r.contact_name)+' · '+esc(r.email)+'<br>'+esc(r.opportunity_name)+'</p><label>Campaign name <input name="campaign_name" value="'+esc(r.campaign_name)+'"></label><br><label>Destination URL <input name="destination_url" type="url" value="'+esc(r.destination_url)+'" required></label><p><label><input type="checkbox" name="tracking" value="yes" checked> Enable optional dynamic QR tracking</label></p><p>Without QR tracking, the school still manages inventory, agreements, benefits and renewals. Conversions and revenue require connected tracking; new placements start with no activity.</p><button>Complete sample setup</button></form>';}
+
+  if(['/org-opportunity-builder','/org-import-opportunities'].includes(path)&&!query.location_id)query={...query,location_id:'10'};
+  let match,route;for(const candidate of routes){if(candidate.method!==method)continue;match=path.match(candidate.re);if(match){route=candidate;break;}}if(extra){match=[];route={keys:[],code:'async(req,res)=>res.send(page("Advertiser onboarding",extraContent))'};}if(!route&&['/admin/marketing-command-center','/admin/ai-insights'].includes(path)){match=[];route={keys:[],code:path.endsWith('ai-insights')?'async(req,res)=>res.send(page("AI Performance Center",nativePerformance))':'async(req,res)=>res.send(page("Marketing Command Center",nativeMarketing))'};}if(!route)return null;
+  const f=fixtures(query);await ready;
+  const q=async(sql,params=[])=>{
+   if(!/^\s*(SELECT|WITH)\b/i.test(sql))throw Error('Native demo blocks database writes');
+   if(path==='/org-marketplace'&&query.status==='Available'&&/FROM organization_opportunities/i.test(sql)){sql=sql.replace(/FROM organization_opportunities\b/gi,"FROM (SELECT * FROM organization_opportunities WHERE LOWER(status)='available')");}
+   return db.query(sql,params);
+  };
+  const dates={fromDate:f.data.from,toDate:f.data.to,queryString:new URLSearchParams({from:f.data.from,to:f.data.to}).toString()};
+  const scope={organizationId:ORG,organization:organization,organizationName:organization.name,allowedLocationIds:f.locations.map(l=>l.id),selectedLocationId:query.location_id?+query.location_id:null,hasOrganizationWideAccess:true,organizationRole:'organization_admin',isSuperAdmin:false,...dates};
+  const mocks={'./hexpol-careers-report':{shortcut:()=>''}};
+  const moduleCache={};let context;const nativeRequire=name=>{if(mocks[name])return mocks[name];if(name.startsWith('node:'))return nodeRequire(name);const key=name.replace(/^\.\//,'');if(!source.modules[key])throw Error('Native dependency not supplied: '+name);if(moduleCache[key])return moduleCache[key].exports;const module={exports:{}};moduleCache[key]=module;vm.runInContext('(function(require,module,exports){'+source.modules[key]+'\n})',context)(nativeRequire,module,module.exports);return module.exports;};
+  context=vm.createContext({extraContent:extra,marketplaceRequest:null,ExcelJS:nodeRequire('exceljs'),console,URL,URLSearchParams,Date,Buffer,Math,Number,String,Set,Map,Promise,JSON,parseInt,parseFloat,Intl,process:{env:{}},require:nativeRequire,q,getOrganizationScope:async()=>scope,getOrganizationLocationScope:async()=>scope,ensureCampaignTestModeSchema:async()=>{},getAdvertiserReportingScope:async()=>({locationIds:f.locations.map(l=>l.id),campaignIds:f.campaigns.map(c=>c.id),qrIds:f.records.map(r=>r.id)}),getCustomerScope:async()=>({userId:OWNER}),PDFDocument:nodeRequire('pdfkit'),QRCode:nodeRequire('qrcode')});
+  vm.runInContext(source.helpers,context);
+  if(path==='/admin/marketing-command-center')context.nativeMarketing=nativeRequire('./marketing-command-center').renderCommandCenter({title:'Marketing Command Center',scope:{kind:'advertiser',userId:OWNER},range:{from:f.data.from,to:f.data.to},campaigns:f.campaigns.map(c=>({...c,clicks:c.clicks,conversion_value:c.revenue,square_conversions:0,square_value:0})),squareStatus:{connected:false},platform:query.platform||'',campaign:query.campaign||''});
+  if(path==='/admin/ai-insights')context.nativePerformance=nativeRequire('./performance-center').renderPerformanceCenter({startDate:f.data.from,endDate:f.data.to,advertisingInvestment:4500,conversionRevenue:f.totals.revenue,conversions:f.totals.conversions,intent:f.totals.offer_clicks,scans:f.totals.scans,activeCampaigns:3,topFiveCampaigns:f.campaigns});
+  const req={path,params:Object.fromEntries(route.keys.map((k,i)=>[k,match[i+1]==='canterbury-demo'&&k==='id'?String(ORG):decodeURIComponent(match[i+1])])),query:{...query,organization_id:String(ORG),start_date:f.data.from,end_date:f.data.to,from:f.data.from,to:f.data.to},method,body,headers:{},session:{user:{id:OWNER,role:'customer',name:'Demo Contact',email:'demo@example.com',advertiser_customer_id:OWNER},orgUser:{id:OWNER,user_id:OWNER,organization_id:ORG,name:'Canterbury School Demo Reviewer',email:'demo@example.com',organization_name:organization.name,organization_role:'organization_admin'}},protocol:'https',get:key=>key.toLowerCase()==='host'?(process.env.RAILWAY_PUBLIC_DOMAIN||'localhost'):'',originalUrl:path,url:path};
+  let status=200,html,location;const headers={},chunks=[];
+  const res=new Writable({write(chunk,enc,callback){chunks.push(Buffer.from(chunk));callback();}});
+  res.status=n=>{status=n;return res;};res.send=body=>{html=body;return res;};res.redirect=(url)=>{location=url;return res;};res.setHeader=(k,v)=>{headers[k]=v;return res;};res.set=(k,v)=>{headers[k]=v;return res;};res.type=v=>{headers['Content-Type']=v;return res;};res.json=v=>{html=JSON.stringify(v);return res;};
+  try{await vm.runInContext('('+route.code+')',context)(req,res);}catch(err){throw Object.assign(Error(path+': '+err.message),{status:500});}
+  if(location)return {status:302,location};
+  if(Buffer.isBuffer(html))return {status,bytes:html,headers};
+  if(!html&&Object.keys(headers).some(k=>/content-type/i.test(k))){if(!res.writableFinished)await new Promise(resolve=>res.on('finish',resolve));return {status,bytes:Buffer.concat(chunks),headers};}
+  if(typeof html!=='string')return null;
+  if(/(?:ERROR:|not defined|is not a function|Native dependency not supplied|Cannot read properties)/i.test(html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g,'')))throw Object.assign(Error(path+': '+html.replace(/<[^>]*>/g,' ').slice(-400)),{status:500});
+  // Branding/data-only substitutions; keep native page structure and form controls.
+  html=html.replaceAll('https://vivid-routing-production.up.railway.app','https://'+(process.env.RAILWAY_PUBLIC_DOMAIN||'localhost')+'/demo/canterbury');
+  html=html.replaceAll(String(ORG),'canterbury-demo').replace(/>Enterprise<\/a>/g,'>School portal</a>');
+  html=html.replace(/<body[^>]*>/i,m=>m+banner());
+  const cm=path.match(/^\/org-contract\/(\d+)$/);if(cm){const id=+cm[1];if(!benefits.has(id))benefits.set(id,[{name:'Artwork approved',done:true},{name:'Banner installed',done:true},{name:'Recognition fulfilled',done:false}]);const list=benefits.get(id);html=html.replace('</body>','<section style="max-width:1120px;margin:24px auto;padding:24px;background:white;border:1px solid #d9e4df;border-radius:14px"><h2>Benefit fulfillment</h2><p>Sample completion records — no external actions are taken.</p>'+list.map((b,i)=>'<form method="POST" action="/demo-benefit/'+id+'/'+i+'"><p>'+esc(b.name)+' · '+(b.done?'Completed':'<button>Mark complete in demo</button>')+'</p></form>').join('')+'</section></body>');}
+  if(path.startsWith('/org-advertising-request/')){const id=Number(path.split('/').at(-1));if(onboarding.has(id))html=html.replace('</body>','<p style="padding:24px"><a href="/demo-onboarding/'+id+'">Continue advertiser onboarding with request details</a></p></body>');}
+
+  html=html.replace('</head>','<style>img[src*="footerlogo.png"]{object-fit:contain!important;background:#0b1f3a!important;padding:12px!important;border-radius:8px}</style></head>');
+  html=html.replace(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi,(whole,attrs,body)=>/method\s*=\s*["']?post/i.test(attrs)&&!(/action=["'][^"']*\/review["']/i.test(attrs))&&!writable((attrs.match(/action=["']([^"']+)/i)||[])[1]||'')?'<form'+attrs+' onsubmit="return false">'+body.replace(/<button\b(?![^>]*type=["']button)/gi,'<button disabled title="Saving is disabled in this demo"')+'<p class="note">View-only demonstration. Saving is disabled.</p></form>':whole);
+  html=html.replace(/[&?]location_id=null/g,'').replace(/href="\/admin\/setup"/g,'href="/my-setup"');
+  html=html.replace(/href="\/admin\/(archive|deactivate|restore)-[^"]+"/g,'href="/my-setup" title="View-only demo: no records are changed"');
+  html=html.replace(/<a\b([^>]*?)href="([^"]+)"([^>]*)>([\s\S]*?)<\/a>/gi,(all,before,href,after,label)=>{const p=href.split(/[?#]/)[0];if(['/admin','/admin/users','/build-my-campaign'].includes(p)||p.startsWith('/admin/connectors/')||/^\/admin\/destination\/\d+\/edit$/.test(p)||/\/(?:disable|delete|remove|send-password-reset)$/.test(p))return '<span title="Unavailable in this view-only demo" style="opacity:.6">'+label+'</span>';return all;});
+  return {status,html,headers};
+ }
+ const routes=source.routes.map(r=>{const keys=[];const pattern=r.path.replace(/:[A-Za-z]+/g,s=>{keys.push(s.slice(1));return '([^/]+)';});return {...r,keys,re:new RegExp('^'+pattern+'$')};});
+ return {dispatch,writable,sourceCommit:source.commit,paths:routes.map(r=>r.path)};
+}
