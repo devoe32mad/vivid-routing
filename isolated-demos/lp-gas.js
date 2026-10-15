@@ -35,7 +35,7 @@ const baseRows=[
 ].map(r=>({...r,cost:opportunities.find(o=>o.id===r.opportunity_id).price,advertiser,advertiser_id:1,status:'Active',campaign_name:'Demo — '+r.qr_name,start_date:'2026-09-15',end_date:'2026-12-31',contract_end:'2026-12-31',renewal_date:'2026-12-01',destination_name:'Illustrative product inquiry',destination_url:'https://example.com/?vivid_demo=lp-gas'}));
 const sampleContractRevenue=baseRows.reduce((sum,r)=>sum+r.cost,0);
 function reporting(q){
- const from=q.start_date||q.from||'2026-09-15',to=q.end_date||q.to||'2026-10-14';
+ const from=q.start_date||q.startDate||q.from||'2026-09-15',to=q.end_date||q.endDate||q.to||'2026-10-14';
  for(const value of [from,to])if(!/^\d{4}-\d{2}-\d{2}$/.test(value)||!Number.isFinite(Date.parse(value))||date(value)!==value)throw Object.assign(Error('Choose valid reporting dates.'),{status:400});
  if(from>to)throw Object.assign(Error('Start date must be before the end date.'),{status:400});
  if(q.advertiser_id&&q.advertiser_id!=='1')throw Object.assign(Error('Advertiser unavailable in this demo.'),{status:404});
