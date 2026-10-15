@@ -34,6 +34,10 @@ function sqlFor(sql){
  if(sql.includes('FROM contracts contract')&&sql.includes('filtered_relationships')){
   sql=sql.replace(/NULL::integer AS qr_id/g,`(SELECT ar.created_qr_id FROM public.organization_advertising_requests ar WHERE ar.id=contract.advertising_request_id) AS qr_id`);
  }
+ // Scoped contract CTEs cannot rely on the base primary key for grouped renewal dates.
+ if(sql.includes('FROM contracts c')&&sql.includes('AS placement_name')&&sql.includes('renewed_from_contract_id')){
+  sql=sql.replace(/(GROUP BY\s+c\.id,)/i,'$1 c.end_date, c.expiration_date,');
+ }
  const selected=Object.entries(definitions).filter(([name])=>new RegExp('\\b(?:FROM|JOIN)\\s+'+name+'\\b','i').test(sql));
  if(!selected.length)return sql;
  // CTE rows do not inherit the base table's primary-key functional dependency.
