@@ -109,7 +109,7 @@ test('CCPS Insights defaults to demo results while preserving explicit filter ch
 
 test('CCPS combined report pages include Basic and paid examples while setup stays sponsor-specific',async()=>{
  const {enter,guard,session}=fixture();await enter({params:{token,view:'advertiser'},session},response());
- for(const path of ['/reports','/reports-qr','/reports-campaign','/reports-location']){
+ for(const path of ['/reports','/reports-qr','/reports-campaign','/reports-location','/admin/reports','/export/report.pdf','/export/report.xlsx']){
   const req={path,method:'GET',query:{},session};let passed=false;await guard(req,response(),()=>passed=true);
   assert.equal(passed,true);assert.equal(req.session.user.demoAdvertiserId,undefined);
  }
