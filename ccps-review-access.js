@@ -122,6 +122,8 @@ function register(app,{q}){
    const send=res.send;res.send=function(body){if(typeof body==='string'&&/<(?:html|body|main|div)\b/i.test(body)){
     body=require("./ccps-demo-presentation").render(body,schoolPhotos,req.path);
     body=require("./ccps-gridiron").decorateRequest(body,req.path);
+    // CCPS pilot pricing only; other customers and demos keep standard pricing.
+    if(['/reports','/reports-qr','/reports-campaign','/reports-location'].includes(req.path))body=body.replace(/\$35\/month per placement/g,'$20/month for the first placement; $10/month for each additional placement (CCPS pilot)').replace(/\$35\/month/g,'$20/month (CCPS pilot)');
     body=body.replace(/Sales Rep Report/g,'School Responsibility Report').replace(/Sales Reps/g,'School Contacts').replace(/Sales Rep/g,'School Contact').replace(/sales reps/g,'school contacts').replace(/sales rep/g,'school contact').replace(/Demo sales team/g,'Demo school staff');
     if(req.path==='/admin/archived-campaigns')body=body.replace('href="/admin"','href="/my-setup"').replace('← Back to Admin','← Back to My Setup');
 
