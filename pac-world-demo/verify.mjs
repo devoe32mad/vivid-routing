@@ -3,10 +3,10 @@ const {handle}=await import('./pac-world.js');const origin='http://localhost';
 const entry=await handle(new Request(origin+'/pac-world-review/'+process.env.PAC_DEMO_TOKEN+'/enterprise'));const cookie=entry.headers.get('set-cookie').split(';')[0];
 async function req(path,body){const r=await handle(new Request(origin+'/demo/pac-world'+path,{method:body?'POST':'GET',headers:{cookie,origin,...(body?{'content-type':'application/x-www-form-urlencoded'}:{})},...(body?{body:new URLSearchParams(body)}:{})}));assert.ok(r.status<400,path+' '+r.status+' '+(r.status>=400?await r.text():''));return r;}
 for(const [opp,tracking]of [[18,'yes'],[19,'no']]){
- let r=await req('/advertise/pac-world-demo/location/13/opportunity/'+opp+'/submit',{business_name:'Sample Power Co',contact_name:'Sample Contact',email:'sample@example.invalid',phone:'555-0100',campaign_name:'Repeat issue campaign',destination_url:'https://example.com/offer',insertions:'4',schedule:'Four requested issue insertions'});
+ let r=await req('/advertise/pac-world-demo/location/13/opportunity/'+opp+'/submit',{business_name:'Sample Power Co',contact_name:'Sample Contact',email:'sample@example.invalid',phone:'555-0100',campaign_name:'Repeat issue campaign',destination_url:'https://example.com/offer','issue_2026-12':'yes','issue_2027-03':'yes','issue_2027-06':'yes','issue_2027-09':'yes'});
  let path=r.headers.get('location').replace('/demo/pac-world',''),id=path.split('/').at(-1);
  assert((await (await req(path)).text()).includes('Sample Power Co'));
- await req(path+'/approve',{contract_start_date:'2026-10-15',contract_end_date:'2026-12-31'});
+ await req(path+'/approve',{confirm_estimate:'yes',contract_start_date:'2026-12-01',contract_end_date:'2027-09-30'});
  r=await req('/demo-onboarding/'+id,{tracking,campaign_name:'Repeat issue campaign',destination_url:'https://example.com/offer'});const c=r.headers.get('location').replace('/demo/pac-world',''),cid=c.split('/').at(-1);
  const html=await (await req(c)).text();assert(html.includes('Insertion 4'));assert(html.includes('7720')||html.includes('7,720'));
  await req('/demo-benefit/'+cid+'/0',{completed:'yes',evidence:'Sample tearsheet approved',due_date:'2026-12-01'});

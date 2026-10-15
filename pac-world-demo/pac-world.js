@@ -19,16 +19,17 @@ function reporting(q){
  const from=q.start_date||q.startDate||q.from||'2026-09-15',to=q.end_date||q.endDate||q.to||'2026-10-14';
  for(const value of [from,to])if(!/^\d{4}-\d{2}-\d{2}$/.test(value)||!Number.isFinite(Date.parse(value))||date(value)!==value)throw Object.assign(Error('Choose valid reporting dates.'),{status:400});
  if(from>to)throw Object.assign(Error('Start date must be before the end date.'),{status:400});
- if(q.advertiser_id&&q.advertiser_id!=='1')throw Object.assign(Error('Advertiser unavailable in this demo.'),{status:404});
+ if(q.advertiser_id&&!baseRows.some(r=>String(r.advertiser_id)===q.advertiser_id))throw Object.assign(Error('Advertiser unavailable in this demo.'),{status:404});
  let rows=baseRows.map(r=>({...r,scans:0,clicks:0,conversions:0,revenue:0}));
  // Daily, deterministic sample activity; date filters work without storing events.
  for(let d=Date.parse('2026-09-15');d<=Date.parse('2026-10-14');d+=86400000){const day=date(d);if(day<from||day>to)continue;const idx=(d-Date.parse('2026-09-15'))/86400000;
   rows.forEach((r,i)=>{for(const k of ['scans','clicks','conversions','revenue'])r[k]+=Math.floor(baseRows[i][k]*(idx+1)/30)-Math.floor(baseRows[i][k]*idx/30);});}
  if(q.location_id){const ids=opportunities.filter(o=>String(o.space_id)===q.location_id).map(o=>o.id);if(!ids.length)throw Object.assign(Error('Location unavailable in this demo.'),{status:404});rows=rows.filter(r=>ids.includes(r.opportunity_id));}
  for(const [key,field]of [['qr_id','qr_id'],['campaign_id','campaign_id']])if(q[key]){rows=rows.filter(r=>String(r[field])===q[key]);if(!rows.length)throw Object.assign(Error('Placement unavailable in this demo.'),{status:404});}
+ if(q.advertiser_id)rows=rows.filter(r=>String(r.advertiser_id)===q.advertiser_id);
  return {rows,from,to,brand:'PAC World',marketplace:'pac-world-demo',detailRoot:'/pac-world-demo/placement'};
 }
-function demoBanner(){return `<div class="pac-world-demo-bar"><strong>PAC World · Sample data</strong><nav><a href="/org-organization/pac-world-demo">Publisher Portal</a> · <a href="/advertise/pac-world-demo">Marketplace</a> · <a href="/my-setup">Advertiser Portal</a></nav><details><summary>About this private demonstration</summary><p>Published 2026 products and rates; fictional advertisers, availability, assignments and results. Changes reset on restart. No live database, emails, payments or binding agreements. Dates before today are historical examples; 2027 rates and schedules require confirmation.</p><a href="https://www.pacw.org/advertising" target="_blank" rel="noopener">Official advertising page</a></details></div>`;}
+function demoBanner(){return `<div class="pac-world-demo-bar"><strong>PAC World · Sample data</strong><nav><a href="/org-organization/pac-world-demo">Publisher Portal</a> · <a href="/advertise/pac-world-demo">Marketplace</a> · <a href="/my-setup">Advertiser Portal</a></nav><details><summary>About this private demonstration</summary><p>Published 2026 products and rates; fictional advertisers, availability, assignments and results. Requests, contracts, fulfillment, rep assignments and destinations are saved in this isolated demo. No live database, emails, payments or binding agreements. Dates before today are historical examples; 2027 rates and schedules require confirmation.</p><a href="https://www.pacw.org/advertising" target="_blank" rel="noopener">Official advertising page</a></details></div>`;}
 
 function rewrite(html){return html.replace(/(["'`])(\/(?!\/)[^\s"'`<>]*)\1/g,(all,quote,url)=>quote+PREFIX+url+quote);}
 const headers={'Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow','X-Content-Type-Options':'nosniff'};
@@ -38,7 +39,7 @@ const vividNative=createNativeRuntime({baseRows,opportunities,groups,reporting,b
 export {vividNative};
 export async function handle(request){
  try{const url=new URL(request.url),path=url.pathname,q=Object.fromEntries(url.searchParams);
-  if(path==='/health')return response('ok',200,'text/plain');
+  if(path==='/health'){await vividNative.ready;return response('ok',200,'text/plain');}
   if(!['GET','HEAD','POST'].includes(request.method))return response('This demonstration is view-only.',405,'text/plain',{'Allow':'GET, HEAD'});
   if(Date.now()>=EXPIRES)return response('This demo invitation has expired.',410,'text/plain');
   const entry=path.match(/^\/pac-world-review\/([^/]+)\/(enterprise|marketplace|advertiser)$/);
@@ -46,7 +47,7 @@ export async function handle(request){
   if(!path.startsWith(PREFIX+'/'))return response('A private PAC World demo invitation is required.',404,'text/plain');
   const cookie=request.headers.get('cookie')||'';if(!cookie.split(';').some(c=>c.trim()==='vivid.pac-world.demo='+SESSION_VALUE))return response('Please reopen your original PAC World demo invitation.',401,'text/plain');
   const rawPath=path.slice(PREFIX.length);
-  if(/^\/assets\/[a-z0-9-]+\.png$/.test(rawPath)){const file=new URL('.'+rawPath,import.meta.url);if(fs.existsSync(file))return response(fs.readFileSync(file),200,'image/png');}
+  if(/^\/assets\/[a-z0-9-]+\.(png|jpg)$/.test(rawPath)){const file=new URL('.'+rawPath,import.meta.url);if(fs.existsSync(file))return response(fs.readFileSync(file),200,rawPath.endsWith('.jpg')?'image/jpeg':'image/png');}
 
   if(q.organization_id&&q.organization_id!=='pac-world-demo')return response('Organization unavailable in this demo.',404,'text/plain');
   const aliases={'/enterprise':'/org-organization/pac-world-demo','/locations':'/org-locations','/inventory':'/org-marketplace','/advertisers':'/org-advertisers','/requests':'/org-advertising-requests','/contracts':'/org-contracts','/renewals':'/org-renewals','/pipeline':'/org-revenue-pipeline','/operations':'/org-operations','/campaign-help':'/help'};
