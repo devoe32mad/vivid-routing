@@ -8,7 +8,6 @@ async function start(){
  process.env.SESSION_SECRET ||= crypto.randomBytes(48).toString('hex');
  process.env.BASE_URL ||= 'https://'+(process.env.RAILWAY_PUBLIC_DOMAIN||'localhost:3000');
  // No mail, billing, AI or production integration credentials are used by this demo.
- const resend=require('resend');resend.Resend=class{constructor(){this.emails={send:async()=>({data:{id:'demo-email-suppressed'},error:null})}}};
  const imageDir=path.join(__dirname,'assets/mca-isolated');fs.mkdirSync(imageDir,{recursive:true});
  const images=require('./mca-demo-images.json');
  await Promise.all(Object.entries(images).map(async([name,url])=>{if(fs.existsSync(path.join(imageDir,name)))return;const response=await fetch(url,{signal:AbortSignal.timeout(45000)});if(!response.ok)throw Error('MCA image fetch failed: '+name);fs.writeFileSync(path.join(imageDir,name),Buffer.from(await response.arrayBuffer()));}));
@@ -20,6 +19,7 @@ async function start(){
  await require('./mca-demo-runtime').prepare(q,fixture);
  await pool.end();
  let source=fs.readFileSync(require.resolve('./server'),'utf8');
+ source=source.replace('const { Resend } = require(\"resend\");', 'const Resend=class{constructor(){this.emails={send:async()=>({data:{id:\"demo-email-suppressed\"},error:null})}}};');
  source=require('./install-responsibility').install(source);
  source=require('./install-reporting-date-defaults').install(source);
  source=require('./install-qr-edit').install(source);
