@@ -215,7 +215,7 @@ async function dispatch(path,query={},method='GET',body={}){
     for(const o of opportunities){const label='<div class="marketplace-label">Responsible person</div><div class="marketplace-value"><a href="/org-sales-reps?rep_id='+assignments.get(o.id)+'">'+esc(repFor(o).name)+'</a></div>';const edit=new RegExp('(<a\\s+class="marketplace-btn"\\s+href="/org-opportunity/edit/'+o.id+'[\\s\\S]*?</a>)');html=html.replace(edit,label+'$1');}
     html=html.replace(/\$0(?:\.00)?/g,'Price to be confirmed');
   }
-  if(path.startsWith('/advertise/pac-world-demo')){
+  if(path.startsWith('/advertise/pac-world-demo')&&!extra){
     html=html.replace(/(<(?:article)\b[^>]*>)([\s\S]*?)(<\/article>)/g,(all,start,body,end)=>{const loc=body.match(/\/location\/(\d+)/),prog=body.match(/program_id=(\d+)/);const o=opportunities.find(o=>loc?o.space_id===+loc[1]:prog?o.program_id===+prog[1]:false);return o?start+body+'<p>Responsible person: <a href="/org-sales-reps?rep_id='+assignments.get(o.id)+'">'+esc(repFor(o).name)+'</a></p>'+end:all;});
     html=html.replace(/<a\b([^>]*href="([^"]+)"[^>]*)>([\s\S]*?)<\/a>/g,(all,attrs,href,body)=>{if(!/<h[23]\b/.test(body))return all;const prog=href.match(/program_id=(\d+)/),opp=href.match(/\/opportunity\/(\d+)/);const matches=opportunities.filter(o=>opp?o.id===+opp[1]:prog?o.program_id===+prog[1]:false);if(!matches.length)return all;const names=[...new Set(matches.map(o=>repFor(o).name))].join(' / ');return '<a'+attrs+'>'+body+'<span style="display:block;margin-top:14px;font-size:13px">Responsible person: '+esc(names)+'</span></a>';});
     const match=path.match(/\/opportunity\/(\d+)/);const o=match&&opportunities.find(o=>o.id===+match[1]);if(o&&!detailMatch)html=html.replace('</body>','<p style="max-width:1100px;margin:24px auto">Responsible person: <a href="/org-sales-reps?rep_id='+assignments.get(o.id)+'">'+esc(repFor(o).name)+'</a></p></body>');
@@ -252,6 +252,7 @@ async function dispatch(path,query={},method='GET',body={}){
   html=html.replace(/[&?]location_id=null/g,'').replace(/href="\/admin\/setup"/g,'href="/my-setup"');
   html=html.replace(/href="\/admin\/(archive|deactivate|restore)-[^"]+"/g,'href="/my-setup" title="View-only demo: no records are changed"');
   html=html.replace(/<a\b([^>]*?)href="([^"]+)"([^>]*)>([\s\S]*?)<\/a>/gi,(all,before,href,after,label)=>{const p=href.split(/[?#]/)[0];if(['/admin','/admin/users','/build-my-campaign'].includes(p)||p.startsWith('/admin/connectors/')||/^\/admin\/destination\/\d+\/edit$/.test(p)||/\/(?:disable|delete|remove|send-password-reset)$/.test(p))return '<span title="Unavailable in this view-only demo" style="opacity:.6">'+label+'</span>';return all;});
+  if(/^\/org-contract\/\d+$/.test(path))html=html.replaceAll('Upload the signed agreement','Review the sample agreement').replaceAll('The contract cannot be activated until a Signed Agreement is stored.','This sample contract is active for demonstration. Signed-document upload is view-only; use Download sample agreement PDF below.').replace(/<a\b[^>]*href="[^"]*\/documents\/upload[^"]*"[^>]*>([\s\S]*?)<\/a>/g,'<span style="opacity:.65">$1 (view-only)</span>');
   html=polish(html,path,query,{remaining,opportunities,repFor,packageComparison});
   return {status,html,headers};
  }
