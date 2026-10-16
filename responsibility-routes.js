@@ -72,6 +72,7 @@ async function context(req,q){
  return req.responsibilityContext={scope,model,token:req.session.responsibilityCsrf};
 }
 async function attach(req,res,q){
+ require('./demo-portal-navigation').attach(req,res);
  if(!req.session?.orgUser&&!req.query.organization_id&&!req.path?.startsWith('/org-organization/'))return;
  if(req.responsibilityAttached||req.method!=='GET'||!/^\/org-(?:organization\/\d+|business-breakdown|marketplace|advertising-requests|advertising-request\/\d+|contracts|contract\/\d+(?:\/(?:renew|renewal-review))?|renewals|revenue-pipeline(?:\/location\/\d+(?:\/revenue)?)?|location\/\d+|opportunity\/edit\/\d+)$/.test(req.path)||/^\/org-(?:sales-reps|responsibility)/.test(req.path))return;
  const {scope,model}=await context(req,q);req.responsibilityAttached=true;
@@ -82,6 +83,7 @@ async function attach(req,res,q){
  }return send.call(this,body);};
 }
 function register(app,{q,organizationNav}){
+ require('./demo-portal-navigation').configure(organizationNav);
  const error=(res,e)=>{console.error('RESPONSIBILITY:',e.message);return res.status(e.status||500).send(e.status?h(e.message):'Responsibility is temporarily unavailable. Please try again.');};
  const nav=scope=>organizationNav?organizationNav({organizationId:scope.organizationId,organizationName:scope.organizationName,activePage:'sales-reps'}):'';
  app.get('/org-sales-reps',async(req,res)=>{try{const c=await context(req,q);res.setHeader('Cache-Control','no-store');res.send(page(c.scope,'Sales Rep Report',report(c.scope,c.model,req.query,c.token),nav(c.scope)));}catch(e){error(res,e);}});
