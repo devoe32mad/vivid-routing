@@ -52,6 +52,10 @@ function sqlFor(sql){
  const selected=Object.entries(definitions).filter(([name])=>new RegExp('\\b(?:FROM|JOIN)\\s+'+name+'\\b','i').test(sql));
  if(!selected.length)return sql;
  // CTE rows do not inherit the base table's primary-key functional dependency.
+ // The campaign report selects individual fields rather than c.*.
+ if(selected.some(([name])=>name==='campaigns')&&/c\.id\s+AS\s+campaign_id/i.test(sql)&&/\bGROUP BY c\.id\s+ORDER BY c\.id/i.test(sql)){
+  sql=sql.replace(/GROUP BY c\.id\b/i,'GROUP BY c.id,c.advertiser,c.name,c.avg_customer_value,c.is_archived,c.end_date,c.start_date,c.created_at');
+ }
  // Aggregate the campaign record; every joined row within its ID has the same record.
  if(selected.some(([name])=>name==='campaigns')&&/\bc\.\*/i.test(sql)&&/\bFROM\s+campaigns\s+c\b/i.test(sql)){
   if(/\bGROUP BY c\.id(?=\s*(?:ORDER BY|HAVING|LIMIT|$))/i.test(sql))sql=sql.replace(/\bc\.\*/g,'((array_agg(c::public.campaigns))[1]).*');
