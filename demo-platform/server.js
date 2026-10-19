@@ -8,6 +8,7 @@ const canonical = require('./templates/canonical.json');
 const { createDatabase } = require('./database');
 const { assertManifest } = require('./manifest');
 const { scrapeProspectWebsite } = require('./prospect-scraper');
+const { safeReturnPath } = require('./review-access');
 const { assertIsolatedRuntime } = require('./runtime-guard');
 const views = require('./mirror-views');
 
@@ -80,9 +81,9 @@ function page(title, portal, content) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${escapeHtml(title)} · Vivid</title><style>:root{--navy:#0d2744;--green:#123d25;--blue:#1769aa;--ink:#17251e;--muted:#617069;--line:#dbe4df;--bg:#f4f7f5}*{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink)}header{background:linear-gradient(110deg,var(--navy),var(--green));color:white;padding:22px 5vw}header strong{font-size:20px}nav{display:flex;gap:20px;flex-wrap:wrap;margin-top:13px}nav a{color:#cfe5f6;text-decoration:none}nav a[aria-current=page]{color:white;font-weight:750;border-bottom:2px solid white}main{max-width:1180px;margin:auto;padding:34px 24px 60px}.eyebrow{color:var(--green);font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:12px}.sample{display:inline-block;background:#e1f1e7;color:var(--green);padding:6px 10px;border-radius:999px;font-weight:700}.subtle{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}.metrics{margin:24px 0}.card,.panel{background:white;border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 5px 18px rgba(13,39,68,.04)}.metric strong{display:block;font-size:27px;color:var(--navy);margin-top:6px}.market{display:grid;grid-template-columns:repeat(auto-fit,minmax(275px,1fr));gap:18px}.status{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:800;text-transform:uppercase}.available{background:#e4f5e9;color:#17642f}.pending{background:#fff3d6;color:#805c00}.sold{background:#e8edf2;color:#52606c}table{width:100%;border-collapse:collapse;background:white}th,td{text-align:left;padding:12px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-size:12px;text-transform:uppercase}section{margin-top:28px}h1{margin:.35em 0 .2em;font-size:clamp(28px,4vw,42px)}h2{font-size:21px}form{display:grid;gap:8px;margin-top:14px}input,button{font:inherit;padding:10px 12px;border-radius:8px;border:1px solid #b9c8c0}button{background:var(--blue);color:white;border:0;font-weight:750;cursor:pointer}.links{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}.links a{color:var(--blue);font-weight:700}.notice{margin:24px 0;padding:16px;border-left:4px solid #c5922f;background:#fff8e8}@media(max-width:700px){table{display:block;overflow-x:auto}header{padding-inline:24px}}</style></head><body><header><strong>Vivid canonical demonstration</strong><nav>${navigation}</nav></header><main><span class="sample">${escapeHtml(canonical.sampleData.label)}</span>${content}<div class="notice"><strong>Isolated environment:</strong> all names, contacts and results shown here are synthetic. Email, payments, OAuth, Apollo and production administration are disabled.</div></main></body></html>`;
 }
 
-function accessHtml(error = '') {
+function accessHtml(error = '', returnTo = `${basePath}/organization`) {
   const message = error ? `<div class="notice" role="alert"><strong>${escapeHtml(error)}</strong></div>` : '';
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Private demo access · Vivid</title><style>:root{--navy:#0d2744;--green:#123d25;--blue:#1769aa;--ink:#17251e;--muted:#617069;--line:#dbe4df;--bg:#f4f7f5}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;font:15px/1.45 system-ui,-apple-system,sans-serif;background:linear-gradient(135deg,var(--navy),var(--green));color:var(--ink)}main{width:min(100%,460px);background:white;border-radius:18px;padding:32px;box-shadow:0 24px 70px rgba(0,0,0,.25)}.eyebrow{color:var(--green);font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:12px}h1{margin:.35em 0 .25em;font-size:32px}.subtle{color:var(--muted)}form{display:grid;gap:10px;margin-top:24px}label{font-weight:750}input,button{font:inherit;padding:12px 14px;border-radius:9px;border:1px solid #b9c8c0}button{background:var(--blue);color:white;border:0;font-weight:750;cursor:pointer}.notice{margin:20px 0;padding:14px;border-left:4px solid #b54135;background:#fff1ef}</style></head><body><main><p class="eyebrow">Vivid canonical demonstration</p><h1>Private demo access</h1><p class="subtle">Enter the review code supplied by Vivid. Your access lasts for four hours on this device.</p>${message}<form method="post" action="/review"><label for="accessCode">Review code</label><input id="accessCode" name="accessCode" type="password" autocomplete="one-time-code" required autofocus><button type="submit">Open demo</button></form></main></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Private demo access · Vivid</title><style>:root{--navy:#0d2744;--green:#123d25;--blue:#1769aa;--ink:#17251e;--muted:#617069;--line:#dbe4df;--bg:#f4f7f5}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;font:15px/1.45 system-ui,-apple-system,sans-serif;background:linear-gradient(135deg,var(--navy),var(--green));color:var(--ink)}main{width:min(100%,460px);background:white;border-radius:18px;padding:32px;box-shadow:0 24px 70px rgba(0,0,0,.25)}.eyebrow{color:var(--green);font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:12px}h1{margin:.35em 0 .25em;font-size:32px}.subtle{color:var(--muted)}form{display:grid;gap:10px;margin-top:24px}label{font-weight:750}input,button{font:inherit;padding:12px 14px;border-radius:9px;border:1px solid #b9c8c0}button{background:var(--blue);color:white;border:0;font-weight:750;cursor:pointer}.notice{margin:20px 0;padding:14px;border-left:4px solid #b54135;background:#fff1ef}</style></head><body><main><p class="eyebrow">Vivid canonical demonstration</p><h1>Private demo access</h1><p class="subtle">Enter the review code supplied by Vivid. Your access lasts for four hours on this device.</p>${message}<form method="post" action="/review"><input type="hidden" name="returnTo" value="${escapeHtml(returnTo)}"><label for="accessCode">Review code</label><input id="accessCode" name="accessCode" type="password" autocomplete="one-time-code" required autofocus><button type="submit">Open requested page</button></form></main></body></html>`;
 }
 
 function sessionCookie() {
@@ -142,24 +143,32 @@ async function handle(request, response) {
     return sendJson(response, healthy ? 200 : 503, { status: healthy ? 'ok' : 'identity-mismatch', isolated: true, tenantSlug: runtime.tenantSlug });
   }
   if (request.method === 'GET' && url.pathname === '/') {
+    const returnTo = safeReturnPath(url.searchParams.get('returnTo'), basePath);
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
-    return response.end(accessHtml());
+    return response.end(accessHtml('', returnTo));
   }
   if (request.method === 'POST' && url.pathname === '/review') {
     const form = await readForm(request);
+    const returnTo = safeReturnPath(form.get('returnTo'), basePath);
     if (!equalSecret(form.get('accessCode'), process.env.DEMO_REVIEW_CODE)) {
       response.writeHead(401, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
-      return response.end(accessHtml('That review code was not recognized.'));
+      return response.end(accessHtml('That review code was not recognized.', returnTo));
     }
     response.writeHead(303, {
-      location: `${basePath}/organization`,
+      location: returnTo,
       'set-cookie': sessionCookie(),
       'cache-control': 'no-store'
     });
     return response.end();
   }
   const auth = authorization(request, url);
-  if (!auth.authorized) return sendJson(response, 401, { error: 'Review token required' });
+  if (!auth.authorized) {
+    if (request.method === 'GET') {
+      response.writeHead(303, { location: `/?returnTo=${encodeURIComponent(`${url.pathname}${url.search}`)}`, 'cache-control': 'no-store' });
+      return response.end();
+    }
+    return sendJson(response, 401, { error: 'Review access expired. Reopen this page and enter the review code before submitting changes.' });
+  }
   if (auth.establishSession) {
     response.writeHead(302, {
       location: url.pathname,
