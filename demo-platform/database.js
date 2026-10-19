@@ -166,7 +166,7 @@ function createDatabase(connectionString) {
   }
 
   async function organizationDashboard() {
-    const [summary, locations, contracts] = await Promise.all([
+    const [summary, locations, contracts, requests] = await Promise.all([
       pool.query(`SELECT
         (SELECT COUNT(*)::int FROM demo_inventory) AS placements,
         (SELECT COUNT(*)::int FROM demo_advertisers WHERE status IN ('active','renewal')) AS advertisers,
@@ -181,10 +181,18 @@ function createDatabase(connectionString) {
         GROUP BY l.id ORDER BY l.id`),
       pool.query(`SELECT a.name AS advertiser, i.name AS placement, c.ends_on, c.value_cents, c.fulfillment_percent, c.status
         FROM demo_contracts c JOIN demo_advertisers a ON a.id = c.advertiser_id JOIN demo_inventory i ON i.id = c.inventory_id
-        ORDER BY c.ends_on`)
+        ORDER BY c.ends_on`),
+      pool.query(`SELECT r.id, r.advertiser_name, r.contact_name, r.status, r.created_at, i.name AS placement
+        FROM demo_requests r JOIN demo_inventory i ON i.id = r.inventory_id
+        ORDER BY r.created_at DESC LIMIT 10`)
     ]);
     const totals = summary.rows[0];
-    return { totals: { ...totals, contractValue: money(totals.contract_value_cents), revenue: money(totals.revenue_cents) }, locations: locations.rows, contracts: contracts.rows.map(row => ({ ...row, value: money(row.value_cents) })) };
+    return {
+      totals: { ...totals, contractValue: money(totals.contract_value_cents), revenue: money(totals.revenue_cents) },
+      locations: locations.rows,
+      contracts: contracts.rows.map(row => ({ ...row, value: money(row.value_cents) })),
+      requests: requests.rows
+    };
   }
 
   async function marketplace() {
