@@ -27,6 +27,7 @@ function safeEnvironment(overrides = {}) {
     DEMO_DATABASE_SERVICE_ID: isolatedDatabaseService,
     DEMO_TENANT_SLUG: canonical.slug,
     DEMO_REVIEW_TOKEN: 'review-token-with-more-than-24-characters',
+    DEMO_REVIEW_CODE: 'VIVID-TEST-ACCESS',
     SESSION_SECRET: 'session-secret-with-more-than-32-characters-total',
     DATABASE_URL: databaseUrl,
     DEMO_DATABASE_FINGERPRINT: databaseFingerprint(databaseUrl),
@@ -64,6 +65,7 @@ test('runtime guard accepts only the approved isolated project and database', ()
   assert.throws(() => assertIsolatedRuntime(safeEnvironment({ DEMO_DATABASE_SERVICE_ID: 'wrong' }), canonical), /approved isolated database/);
   assert.throws(() => assertIsolatedRuntime(safeEnvironment({ RAILWAY_PROJECT_ID: '11111111-2222-4333-8444-555555555555', DEMO_PROJECT_ID: '11111111-2222-4333-8444-555555555555' }), canonical), /not registered/);
   assert.throws(() => assertIsolatedRuntime(safeEnvironment({ RESEND_API_KEY: 'must-not-be-here' }), canonical), /RESEND_API_KEY/);
+  assert.throws(() => assertIsolatedRuntime(safeEnvironment({ DEMO_REVIEW_CODE: 'short' }), canonical), /DEMO_REVIEW_CODE/);
 });
 
 test('runtime guard accepts only a private Railway database reference in the approved project', () => {

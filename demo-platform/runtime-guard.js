@@ -47,6 +47,7 @@ function assertIsolatedRuntime(env, manifest) {
   const railwayDatabaseReference = env.DEMO_DATABASE_REFERENCE_MODE === 'railway-service';
   if (!railwayDatabaseReference && !env.DEMO_DATABASE_FINGERPRINT) errors.push('DEMO_DATABASE_FINGERPRINT is required');
   if (!env.DEMO_REVIEW_TOKEN || env.DEMO_REVIEW_TOKEN.length < 24) errors.push('DEMO_REVIEW_TOKEN must contain at least 24 characters');
+  if (!env.DEMO_REVIEW_CODE || env.DEMO_REVIEW_CODE.length < 10) errors.push('DEMO_REVIEW_CODE must contain at least 10 characters');
   if (!env.SESSION_SECRET || env.SESSION_SECRET.length < 32) errors.push('SESSION_SECRET must contain at least 32 characters');
   if (!manifest || env.DEMO_TENANT_SLUG !== manifest.slug) errors.push('DEMO_TENANT_SLUG must match the manifest slug');
 

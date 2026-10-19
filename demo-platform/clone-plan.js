@@ -30,6 +30,7 @@ function createClonePlan(manifest) {
       'DEMO_PLATFORM_ISOLATED',
       'DEMO_PROJECT_ID',
       'DEMO_REVIEW_TOKEN',
+      'DEMO_REVIEW_CODE',
       'DEMO_TENANT_SLUG',
       'RAILWAY_PROJECT_ID',
       'RAILWAY_ENVIRONMENT_ID',
