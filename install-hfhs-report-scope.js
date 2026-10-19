@@ -170,9 +170,10 @@ async function exportDownload({q,req,res,next,buildExportReportRows}){
   if(req.hfhsReviewVerified){headers.push("Full-Term Placement Cost");data.forEach((cells,i)=>cells.push(rows[i].fullPlacementCost||0));}
   if(req.path.endsWith('.xlsx')){
     const ExcelJS=require('exceljs'),book=new ExcelJS.Workbook(),sheet=book.addWorksheet('Campaign Results');
-    sheet.addRow(['Vivid Export',start,end]);sheet.addRow(['Basic includes scans; restricted metrics are shown as dashes.']);
+    sheet.addRow(['Vivid Export',start,end]);sheet.addRow([req.hfhsReviewVerified?'Illustrative HFHS demo. Full-term cost is the assigned QR cost; allocated cost covers the selected dates.':'Basic includes scans; restricted metrics are shown as dashes.']);
     sheet.addRow(headers);data.forEach(r=>sheet.addRow(r));
     sheet.columns.forEach(c=>c.width=22);sheet.getRow(3).font={bold:true};
+    if(req.hfhsReviewVerified){for(const n of [12,13,14,16])sheet.getColumn(n).numFmt='$#,##0.00';sheet.getColumn(15).numFmt='0.0"%"';}
     res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition','attachment; filename=vivid-report.xlsx');
     await book.xlsx.write(res);return res.end();
@@ -180,8 +181,8 @@ async function exportDownload({q,req,res,next,buildExportReportRows}){
   const PDFDocument=require('pdfkit'),doc=new PDFDocument({margin:40});
   res.setHeader('Content-Type','application/pdf');res.setHeader('Content-Disposition','attachment; filename=vivid-report.pdf');
   doc.pipe(res);doc.fontSize(18).text('Vivid Performance Report');doc.fontSize(10).text(start+' to '+end);
-  doc.text('Basic includes scans; restricted metrics are shown as dashes.').moveDown();
-  data.forEach(cells=>{if(doc.y>570)doc.addPage();doc.fontSize(12).text(String(cells[1]||'Campaign'));doc.fontSize(9);headers.forEach((h,i)=>{if(i!==1)doc.text(h+': '+String(cells[i]??''));});doc.moveDown();});doc.end();
+  doc.text(req.hfhsReviewVerified?'Illustrative HFHS demo. Full-term cost is the assigned QR cost; allocated cost covers the selected dates.':'Basic includes scans; restricted metrics are shown as dashes.').moveDown();
+  data.forEach(cells=>{if(doc.y>570)doc.addPage();doc.fontSize(12).text(String(cells[1]||'Campaign'));doc.fontSize(9);headers.forEach((h,i)=>{if(i!==1){let value=String(cells[i]??'');if(req.hfhsReviewVerified&&Number.isFinite(Number(cells[i]))){if(['Revenue','Allocated Cost','CAC','Full-Term Placement Cost'].includes(h))value=Number(cells[i]).toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2});else if(h==='ROI %')value=Number(cells[i]).toFixed(1)+'%';}doc.text(h+': '+value);}});doc.moveDown();});doc.end();
 }
 module.exports.exportDownload=exportDownload;
 module.exports.exportCells=exportCells;
