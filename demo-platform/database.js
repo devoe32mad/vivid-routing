@@ -2,7 +2,6 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { Pool } = require('pg');
 
 const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 
@@ -10,7 +9,13 @@ function money(cents) {
   return Number(cents || 0) / 100;
 }
 
+function priceCents(value) {
+  const match = String(value || '').match(/\$\s?([\d,]+(?:\.\d{1,2})?)/);
+  return match ? Math.round(Number(match[1].replaceAll(',', '')) * 100) : 0;
+}
+
 function createDatabase(connectionString) {
+  const { Pool } = require('pg');
   const pool = new Pool({
     connectionString,
     max: 4,
@@ -210,6 +215,7 @@ function createDatabase(connectionString) {
 
   async function marketplace() {
     const result = await pool.query(`SELECT i.id, i.name, i.description, i.format, i.annual_price_cents, i.estimated_impressions, i.status, i.tracking_code, i.destination_url,
+      i.source_url, i.image_url, i.responsible_rep, i.display_price, i.prospect_import_id,
       l.name AS location, l.location_type
       FROM demo_inventory i JOIN demo_locations l ON l.id = i.location_id ORDER BY l.id, i.id`);
     return result.rows.map(row => ({ ...row, annualPrice: money(row.annual_price_cents) }));
@@ -217,6 +223,7 @@ function createDatabase(connectionString) {
 
   async function inventory() {
     const result = await pool.query(`SELECT i.id, i.name, i.description, i.format, i.annual_price_cents, i.estimated_impressions, i.status,
+      i.source_url, i.image_url, i.responsible_rep, i.display_price, i.prospect_import_id, i.tracking_code, i.destination_url,
       l.id AS location_id, l.name AS location, l.location_type,
       a.id AS advertiser_id, a.name AS advertiser, a.sales_rep
       FROM demo_inventory i JOIN demo_locations l ON l.id = i.location_id
@@ -361,7 +368,132 @@ function createDatabase(connectionString) {
     return result.rowCount === 1;
   }
 
-  return { advertiserDashboard, advertiserDetail, advertisers, campaignDetail, contractDetail, contracts, createRequest, health, initialize, inventory, locationDetail, locations, marketplace, organizationDashboard, placementDetail, pool, requests, revenuePipeline, updateRequestStatus };
+  async function createProspectImport(analysis) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const organization = await client.query('SELECT id FROM demo_organizations ORDER BY id LIMIT 1');
+      if (!organization.rowCount) throw new Error('The canonical demo organization is not initialized.');
+      const created = await client.query(
+        `INSERT INTO demo_prospect_imports
+          (organization_id, source_url, website_title, website_description, brand_name, logo_url)
+         VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+        [organization.rows[0].id, analysis.sourceUrl, analysis.title, analysis.description || '', analysis.title, analysis.images[0] || '']
+      );
+      const importId = created.rows[0].id;
+      for (const [index, item] of analysis.opportunities.entries()) {
+        await client.query(
+          `INSERT INTO demo_prospect_drafts
+            (import_id, title, description, category, price_text, source_url, image_url, responsible_rep)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+           ON CONFLICT (import_id, title) DO NOTHING`,
+          [importId, item.title, `Draft opportunity discovered from ${item.sourceUrl}. Review the title, offer, audience, price and fulfillment details before publishing.`, item.category, item.price, item.sourceUrl, analysis.images[index] || analysis.images[0] || '', 'Demo Sales Rep']
+        );
+      }
+      await client.query('COMMIT');
+      return importId;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async function prospectImports() {
+    return (await pool.query(`SELECT p.*,
+      COUNT(d.id)::int AS draft_count,
+      COUNT(d.id) FILTER (WHERE d.review_status='approved')::int AS approved_count,
+      COUNT(d.id) FILTER (WHERE d.review_status='published')::int AS published_count
+      FROM demo_prospect_imports p LEFT JOIN demo_prospect_drafts d ON d.import_id=p.id
+      GROUP BY p.id ORDER BY p.created_at DESC, p.id DESC LIMIT 20`)).rows;
+  }
+
+  async function prospectImport(id) {
+    const prospect = (await pool.query('SELECT * FROM demo_prospect_imports WHERE id=$1 AND is_sample=TRUE', [id])).rows[0];
+    if (!prospect) return null;
+    const drafts = (await pool.query('SELECT * FROM demo_prospect_drafts WHERE import_id=$1 AND is_sample=TRUE ORDER BY id', [id])).rows;
+    return { prospect, drafts };
+  }
+
+  async function updateProspectBrand(id, input) {
+    const color = /^#[0-9a-f]{6}$/i.test(input.primaryColor) ? input.primaryColor : '#176b3a';
+    const result = await pool.query(`UPDATE demo_prospect_imports SET brand_name=$2, primary_color=$3, logo_url=$4
+      WHERE id=$1 AND is_sample=TRUE RETURNING id`, [id, input.brandName.slice(0, 140), color, input.logoUrl.slice(0, 1000)]);
+    return result.rowCount === 1;
+  }
+
+  async function updateProspectDraft(id, input) {
+    const result = await pool.query(`UPDATE demo_prospect_drafts SET title=$2, description=$3, category=$4,
+      price_text=$5, source_url=$6, image_url=$7, responsible_rep=$8,
+      review_status=CASE WHEN review_status='published' THEN review_status ELSE 'draft' END
+      WHERE id=$1 AND is_sample=TRUE RETURNING import_id`, [
+      id, input.title.slice(0, 140), input.description.slice(0, 1000), input.category.slice(0, 80), input.priceText.slice(0, 100),
+      input.sourceUrl.slice(0, 1000), input.imageUrl.slice(0, 1000), input.responsibleRep.slice(0, 100)
+    ]);
+    return result.rows[0]?.import_id || null;
+  }
+
+  async function setProspectDraftStatus(id, reviewStatus) {
+    if (!['approved', 'rejected'].includes(reviewStatus)) return null;
+    const result = await pool.query(`UPDATE demo_prospect_drafts SET review_status=$2
+      WHERE id=$1 AND is_sample=TRUE AND review_status<>'published' RETURNING import_id`, [id, reviewStatus]);
+    if (!result.rowCount) return null;
+    await pool.query(`UPDATE demo_prospect_imports SET status='reviewed' WHERE id=$1 AND status<>'published'`, [result.rows[0].import_id]);
+    return result.rows[0].import_id;
+  }
+
+  async function publishProspectImport(id, locationId) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const location = await client.query(`SELECT l.id FROM demo_locations l JOIN demo_prospect_imports p ON p.organization_id=l.organization_id
+        WHERE p.id=$1 AND l.id=$2 AND p.is_sample=TRUE LIMIT 1`, [id, locationId]);
+      if (!location.rowCount) throw new Error('Choose a valid canonical demo location.');
+      const drafts = await client.query(`SELECT d.*, p.brand_name FROM demo_prospect_drafts d
+        JOIN demo_prospect_imports p ON p.id=d.import_id
+        WHERE d.import_id=$1 AND d.review_status='approved' AND d.is_sample=TRUE ORDER BY d.id FOR UPDATE OF d`, [id]);
+      if (!drafts.rowCount) throw new Error('Approve at least one draft before publishing.');
+      for (const draft of drafts.rows) {
+        const conflict = await client.query('SELECT 1 FROM demo_inventory WHERE location_id=$1 AND name=$2 LIMIT 1', [locationId, draft.title]);
+        const publishedName = conflict.rowCount ? `${draft.title} — ${draft.brand_name} #${id}`.slice(0, 180) : draft.title;
+        const inserted = await client.query(`INSERT INTO demo_inventory
+          (location_id, name, description, format, annual_price_cents, estimated_impressions, status, destination_url, source_url, image_url, responsible_rep, display_price, prospect_import_id)
+          VALUES ($1,$2,$3,$4,$5,0,'available',$6,$6,$7,$8,$9,$10)
+          RETURNING id`, [locationId, publishedName, draft.description, draft.category, priceCents(draft.price_text), draft.source_url, draft.image_url, draft.responsible_rep, draft.price_text, id]);
+        const inventoryId = inserted.rows[0].id;
+        await client.query('UPDATE demo_inventory SET tracking_code=$2 WHERE id=$1', [inventoryId, `VVD-IMPORT-${id}-${inventoryId}`]);
+        await client.query(`UPDATE demo_prospect_drafts SET review_status='published', inventory_id=$2 WHERE id=$1`, [draft.id, inventoryId]);
+      }
+      await client.query(`UPDATE demo_prospect_imports SET status='published', published_at=NOW() WHERE id=$1`, [id]);
+      await client.query('COMMIT');
+      return drafts.rowCount;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async function resetProspectImport(id) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM demo_inventory WHERE prospect_import_id=$1 AND is_sample=TRUE', [id]);
+      await client.query(`UPDATE demo_prospect_drafts SET review_status='approved', inventory_id=NULL
+        WHERE import_id=$1 AND review_status='published' AND is_sample=TRUE`, [id]);
+      await client.query(`UPDATE demo_prospect_imports SET status='reviewed', published_at=NULL WHERE id=$1 AND is_sample=TRUE`, [id]);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  return { advertiserDashboard, advertiserDetail, advertisers, campaignDetail, contractDetail, contracts, createProspectImport, createRequest, health, initialize, inventory, locationDetail, locations, marketplace, organizationDashboard, placementDetail, pool, prospectImport, prospectImports, publishProspectImport, requests, resetProspectImport, revenuePipeline, setProspectDraftStatus, updateProspectBrand, updateProspectDraft, updateRequestStatus };
 }
 
-module.exports = { createDatabase, money };
+module.exports = { createDatabase, money, priceCents };
