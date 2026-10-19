@@ -47,6 +47,7 @@ function install(source){
   source=installAdvertiserPeriod(source);
   source=installExecutiveConsistency(source);
   source=installHfhsExecutiveSummary(source);
+  source=installHfhsHidePlacementValue(source);
   source=installHfhsRevenueBreakdown(source);
   source=installRequestLocationFilters(source);
   source=installSalesOpportunityCards(source);
@@ -614,3 +615,16 @@ module.exports.hfhsPlacementCosts=async(q,req,rows,locationId,qrId)=>{
  const costs=new Map(result.rows.map(r=>[Number(r.campaign_id),Number(r.cost)]));
  return rows.map(r=>({...r,fullPlacementCost:costs.get(Number(r.campaignId))||0}));
 };
+
+function installHfhsHidePlacementValue(source){
+ const marker='// HFHS_HIDE_PLACEMENT_VALUE_V1';
+ if(source.includes(marker))return source;
+ const label='            ${req.hfhsReviewVerified ? "Active Placement Value" : "Active Revenue"}\n          </div>';
+ const at=source.indexOf(label);
+ if(at<0)throw Error('HFHS placement value label missing');
+ const start=source.lastIndexOf('        <div>\n          <div style="font-size:12px;color:#65776b;">',at);
+ if(start<0||at-start>200)throw Error('HFHS placement value container missing');
+ const old='        <div>';
+ source=source.slice(0,start)+source.slice(start).replace(old,'        <div style="${Number(org.id) === 39 ? "display:none;" : ""}">');
+ return source+'\n'+marker+'\n';
+}
