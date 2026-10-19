@@ -46,6 +46,7 @@ function install(source){
   source=installAdvertiserPdfPolish(source);
   source=installAdvertiserPeriod(source);
   source=installExecutiveConsistency(source);
+  source=installHfhsExecutiveSummary(source);
   source=installRequestLocationFilters(source);
   source=installSalesOpportunityCards(source);
   source=installLocationDemoScope(source);
@@ -481,3 +482,69 @@ function installRetiredDemoExclusion(source){
       (`);
   return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
 }
+
+
+function installHfhsExecutiveSummary(source){
+ const marker='// HFHS_EXECUTIVE_SUMMARY_V2';if(source.includes(marker))return source;
+ let a=source.indexOf('async function buildOrganizationExportData('),b=source.indexOf('\napp.',a);
+ let part=source.slice(a,b);
+ part=once(part,'  return {\n    organization,','  const exportData = {\n    organization,');
+ const tail=part.lastIndexOf('  };');if(tail<0)throw Error('Executive return missing');
+ part=part.slice(0,tail)+part.slice(tail).replace('  };','  };\n  return await require("./install-hfhs-report-scope").alignHfhsExecutive({q,req,scope,data:exportData});');
+ source=source.slice(0,a)+part+source.slice(b);
+ for(const format of ['pdf','xlsx']){
+  a=source.indexOf('  "/org-export/report.'+format+'",');b=source.indexOf('\napp.',a);
+  part=source.slice(a,b);
+  if(format==='pdf'){
+   const heading=part.indexOf('"Executive Summary"');
+   const from=part.indexOf('drawMetricTable([',heading),to=part.indexOf('\n      ]);',from);
+   if(from<0||to<0)throw Error('PDF summary rows missing');
+   const rows=part.slice(from+'drawMetricTable('.length,to+'\n      ]'.length);
+   part=part.slice(0,from)+'drawMetricTable(req.hfhsReviewVerified ? require("./install-hfhs-report-scope").hfhsExecutiveRows(data).map(([label,value,format])=>({label,value:format==="money"?moneyValue(value):format==="percent"?percentValue(value):numberValue(value)})) : '+rows+part.slice(to+'\n      ]'.length);
+   part=part.replace('"This report combines organization advertising revenue, available inventory, advertiser performance, conversions, and attributed advertiser revenue from Vivid."',`(req.hfhsReviewVerified ? "Illustrative HFHS demo data. Active placement value is current inventory value, not payments collected. Approved sponsor value is approved request pricing. Sponsor attributed revenue is separate from HFHS revenue. Combined Value adds approved sponsor value and sponsor attributed revenue; it is not HFHS income. Performance follows the selected dates; active inventory and contracts are current snapshots." : "This report combines organization advertising revenue, available inventory, advertiser performance, conversions, and attributed advertiser revenue from Vivid.")`);
+  }else{
+   const from=part.indexOf('executive.addRows(['),to=part.indexOf('\n]);',from);
+   if(from<0||to<0)throw Error('Excel summary missing');
+   const rows=part.slice(from+'executive.addRows('.length,to+2);
+   part=part.slice(0,from)+'executive.addRows(req.hfhsReviewVerified ? require("./install-hfhs-report-scope").hfhsExecutiveRows(data).map(([label,value,format])=>[label,format==="percent"?value/100:value]) : '+rows+part.slice(to+2);
+   const anchor='const locationsSheet =';
+   part=once(part,anchor,`if(req.hfhsReviewVerified){
+    executive.getColumn("A").width=42;
+    const rows=require("./install-hfhs-report-scope").hfhsExecutiveRows(data);
+    rows.forEach(([label,value,format],i)=>{const row=executive.getRow(i+2);row.height=23;row.getCell(2).numFmt=format==="money"?'$#,##0.00':format==="percent"?'0.0%':'#,##0';});
+    const notes=workbook.addWorksheet("Metric Definitions");notes.columns=[{header:"Metric",width:34},{header:"Definition",width:110}];
+    notes.addRows([["Reporting period",String(data.reportingPeriod.fromDate||"All")+" through "+String(data.reportingPeriod.toDate||"All")],["Demo data","Illustrative sample results, not actual HFHS outcomes."],["Active Placement Value","Current active placement values; not payments collected or contract revenue."],["Active Contracts","Current active contract count, independent of performance dates."],["Approved Sponsor Value","Approved sponsorship request prices in the selected period; not collected payments."],["Sponsor Attributed Revenue","Sponsor conversion values attributed through Vivid in the selected period."],["Combined Value","Approved sponsor value plus sponsor attributed revenue. Not HFHS income."],["Period Placement Value","Value of placements whose dates overlap the reporting period; can differ from current active placement value."]]);notes.getColumn(2).alignment={wrapText:true};
+   }
+`+anchor);
+  }
+  part=part.replaceAll('"Internal Revenue"','(req.hfhsReviewVerified ? "Approved Sponsor Value" : "Internal Revenue")').replaceAll('"Economic Impact"','(req.hfhsReviewVerified ? "Combined Value" : "Economic Impact")');
+  source=source.slice(0,a)+part+source.slice(b);
+ }
+ // Correct the Overview label without changing other customers' pages.
+ source=once(source,'            Active Revenue\n          </div>','            ${req.hfhsReviewVerified ? "Active Placement Value" : "Active Revenue"}\n          </div>');
+ return source+'\n'+marker+'\n';
+}
+async function alignHfhsExecutive({q,req,scope,data}){
+ if(!req.hfhsReviewVerified)return data;
+ const active=require('./org-active-advertising').summarize((await require('./org-active-advertising').load(q,scope)).rows);
+ const contracts=(await q(`SELECT COUNT(*) FILTER(WHERE LOWER(COALESCE(status,'active'))='active')::int AS count FROM contracts WHERE organization_id=$1 AND location_id=ANY($2::int[]) AND ($3::int IS NULL OR location_id=$3)`,[scope.organizationId,scope.allowedLocationIds,scope.selectedLocationId])).rows[0];
+ const eligible=(await q(HFHS_OVERVIEW_ADVERTISER_SQL,[scope.organizationId,scope.fromDate||'',scope.toDate||'',scope.allowedLocationIds,scope.selectedLocationId])).rows;
+ const ids=new Set(eligible.map(r=>Number(r.campaign_id))),keys=new Set(eligible.map(r=>r.advertiser_key));
+ data.campaigns=data.campaigns.filter(r=>ids.has(Number(r.campaignId)));
+ data.advertisers=data.advertisers.filter(r=>keys.has(String(r.advertiser||'').trim().toLowerCase()));
+ data.customerActions=data.customerActions.filter(r=>ids.has(Number(r.campaignId)));
+ Object.assign(data.summary,{activePlacementValue:active.value,activePlacements:active.placements,activeContracts:Number(contracts.count||0),advertisers:keys.size,campaigns:data.campaigns.length,customerActions:data.customerActions.length});
+ return data;
+}
+function hfhsExecutiveRows(data){const s=data.summary;return [
+ ['Active Placement Value',s.activePlacementValue,'money'],['Active Placements',s.activePlacements,'number'],['Active Contracts',s.activeContracts,'number'],
+ ['Available Inventory Value',s.availableRevenue,'money'],['Pending Sponsor Value',s.pendingRevenue,'money'],['Sponsor Attributed Revenue',s.advertiserRevenue,'money'],
+ ['Locations',s.locations,'number'],['Advertisers',s.advertisers,'number'],['Scans',s.scans,'number'],['Intent / Click Actions',s.intent,'number'],['Conversions',s.conversions,'number'],
+ ['Campaigns',s.campaigns,'number'],['QR Placements in Period',s.placements,'number'],['Approved Sponsor Value',s.approvedRevenue,'money'],['Period Placement Value',s.placementValue,'money'],
+ ['Visitors',s.visitors,'number'],['Clicks',s.clicks,'number'],['Conversion Rate',s.conversionRate,'percent']
+ ];}
+module.exports.alignHfhsExecutive=alignHfhsExecutive;
+module.exports.hfhsExecutiveRows=hfhsExecutiveRows;
+
+const HFHS_OVERVIEW_ADVERTISER_SQL="\n  SELECT\n    DISTINCT c.id AS campaign_id, LOWER(TRIM(c.advertiser)) AS advertiser_key\n\n  FROM spaces s\n\n  JOIN qr_codes qr\n    ON qr.space_id = s.id\n   AND COALESCE(qr.is_archived, false) = false\n\n  JOIN qr_campaigns qc\n    ON qc.qr_id = qr.id\n\n  JOIN campaigns c\n    ON c.id = qc.campaign_id\n\n WHERE s.organization_id = $1\n  AND COALESCE(s.is_archived, false) = false\n  AND s.id = ANY($4::int[])\n  AND (\n    $5::int IS NULL\n    OR s.id = $5\n  )\n  AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL\n\n    /*\n      Location overlaps the selected range.\n    */\n    AND (\n      NULLIF($2, '') IS NULL\n      OR s.end_date IS NULL\n      OR s.end_date >= NULLIF($2, '')::date\n    )\n\n    AND (\n      NULLIF($3, '') IS NULL\n      OR COALESCE(\n           s.live_date,\n           s.created_at::date\n         ) <= NULLIF($3, '')::date\n    )\n\n    /*\n      QR placement overlaps the selected range.\n    */\n    AND (\n      NULLIF($2, '') IS NULL\n      OR qr.end_date IS NULL\n      OR qr.end_date >= NULLIF($2, '')::date\n    )\n\n    AND (\n      NULLIF($3, '') IS NULL\n      OR COALESCE(\n           qr.live_date,\n           qr.created_at::date\n         ) <= NULLIF($3, '')::date\n    )\n\n    /*\n      Campaign assignment overlaps the selected range.\n    */\n    AND (\n      NULLIF($2, '') IS NULL\n      OR COALESCE(\n           qc.ended_at::date,\n           c.end_date,\n           NULLIF($3, '')::date\n         ) >= NULLIF($2, '')::date\n    )\n\n    AND (\n      NULLIF($3, '') IS NULL\n      OR COALESCE(\n           qc.started_at::date,\n           qc.assigned_at::date,\n           c.start_date,\n           c.live_date,\n           c.created_at::date\n         ) <= NULLIF($3, '')::date\n    )\n\n    /*\n      With no dates selected, preserve the current active-only view.\n    */\n    AND (\n      (\n        NULLIF($2, '') IS NULL\n        AND NULLIF($3, '') IS NULL\n        AND COALESCE(qr.is_active, true) = true\n        AND COALESCE(qc.is_active, true) = true\n        AND COALESCE(c.is_archived, false) = false\n      )\n\n      OR\n\n      (\n        NULLIF($2, '') IS NOT NULL\n        OR NULLIF($3, '') IS NOT NULL\n      )\n    )\n"
+;
