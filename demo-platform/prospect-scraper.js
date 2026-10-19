@@ -6,6 +6,7 @@ const net = require('node:net');
 const MAX_BYTES = 1_500_000;
 const MAX_REDIRECTS = 3;
 const REQUEST_TIMEOUT_MS = 10_000;
+const MAX_DETAIL_PAGES = 8;
 const DISCOVERY_PATTERN = /advertis|sponsor|media[ -]?kit|exhibit|partner|publication|magazine|newsletter|event|golf|gala|booth|vendor/i;
 
 function decodeHtml(value) {
@@ -132,6 +133,47 @@ function uniqueBy(items, key) {
   });
 }
 
+function firstMeaningfulParagraph(html) {
+  const paragraphs = [...String(html || '').matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
+    .map(match => stripTags(match[1]))
+    .filter(text => text.length >= 45 && text.length <= 700);
+  return paragraphs[0] || '';
+}
+
+function pageHeading(html) {
+  const match = String(html || '').match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
+  return match ? stripTags(match[1]) : '';
+}
+
+function discoverContacts(html) {
+  const emailLinks = [...String(html || '').matchAll(/<a\b[^>]*href\s*=\s*(?:"mailto:([^"?]+)[^"]*"|'mailto:([^'?]+)[^']*')[^>]*>([\s\S]*?)<\/a>/gi)]
+    .map(match => {
+      const email = decodeHtml(match[1] || match[2] || '').trim();
+      const label = stripTags(match[3]);
+      return { name: label && label.toLowerCase() !== email.toLowerCase() ? label : '', email };
+    })
+    .filter(item => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.email));
+  const telephoneLinks = [...String(html || '').matchAll(/<a\b[^>]*href\s*=\s*(?:"tel:([^"]+)"|'tel:([^']+)')[^>]*>([\s\S]*?)<\/a>/gi)]
+    .map(match => ({ name: stripTags(match[3]), phone: decodeHtml(match[1] || match[2] || '').trim() }))
+    .filter(item => item.phone);
+  return uniqueBy([...emailLinks, ...telephoneLinks], item => item.email || item.phone).slice(0, 10);
+}
+
+function discoverLogo(html, baseUrl) {
+  const tags = String(html || '').match(/<img\b[^>]*>/gi) || [];
+  const candidate = tags.find(tag => /logo/i.test(`${attribute(tag, 'alt')} ${attribute(tag, 'class')} ${attribute(tag, 'id')} ${attribute(tag, 'src')}`));
+  return candidate ? absoluteUrl(attribute(candidate, 'src'), baseUrl) : '';
+}
+
+function categoryFor(value) {
+  const text = String(value || '');
+  if (/magazine|publication|newsletter|news clips|news & notes|jobline/i.test(text)) return 'Publication';
+  if (/golf|gala|conference|event|exhibit|booth|trade.?show/i.test(text)) return 'Event';
+  if (/website|digital|email|social/i.test(text)) return 'Digital advertising';
+  if (/partner/i.test(text)) return 'Partnership';
+  return 'Sponsorship';
+}
+
 function discoverImages(html, baseUrl) {
   const candidates = [
     { src: metaContent(html, 'property', 'og:image'), width: 0, height: 0, priority: 0 },
@@ -167,7 +209,7 @@ function discoverOpportunities(html, baseUrl) {
     const source = discoveredLinks.find(item => item.label.toLowerCase() === title.toLowerCase()) || discoveredLinks[index] || { href: baseUrl.toString() };
     return {
       title,
-      category: /magazine|publication|newsletter/i.test(title) ? 'Publication' : /golf|gala|event|exhibit|booth/i.test(title) ? 'Event' : 'Sponsorship',
+      category: categoryFor(title),
       price: priceMatches[index] || 'Pricing requires review',
       sourceUrl: source.href,
       status: 'Draft — requires Vivid review'
@@ -176,21 +218,83 @@ function discoverOpportunities(html, baseUrl) {
   return { discoveredLinks, opportunities, priceMatches };
 }
 
+function describePage(html) {
+  return metaContent(html, 'name', 'description') || metaContent(html, 'property', 'og:description') || firstMeaningfulParagraph(html);
+}
+
+function cleanBrandName(title, html, hostname) {
+  const declared = metaContent(html, 'property', 'og:site_name') || metaContent(html, 'name', 'application-name');
+  if (declared) return declared.slice(0, 140);
+  const parts = String(title || '').split(/\s+[|–—-]\s+/).map(value => value.trim()).filter(Boolean);
+  const useful = parts.find(value => !/^(home|welcome|advertis|sponsor)/i.test(value) && value.length <= 90);
+  return (useful || parts[0] || hostname).slice(0, 140);
+}
+
+async function enrichOpportunity(link, fallbackImage, fallbackContact) {
+  try {
+    const { html, url } = await fetchPublicHtml(link.href);
+    const heading = pageHeading(html);
+    const titleTag = stripTags((html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i) || [])[1]);
+    const images = discoverImages(html, url).filter(image => !/logo/i.test(image));
+    const prices = uniqueBy([...stripTags(html).matchAll(/\$\s?\d{1,3}(?:,\d{3})*(?:\.\d{2})?(?:\s*(?:per|\/)[ ]?(?:year|month|issue|event|day))?/gi)].map(match => match[0]), value => value);
+    const contacts = discoverContacts(html);
+    const title = (heading || link.label || titleTag || 'Advertising opportunity').slice(0, 140);
+    return {
+      title,
+      description: (describePage(html) || `Public ${title.toLowerCase()} information from ${url.hostname}.`).slice(0, 1000),
+      category: categoryFor(`${title} ${url.pathname}`),
+      price: prices[0] || 'Pricing requires review',
+      sourceUrl: url.toString(),
+      imageUrl: images[0] || fallbackImage || '',
+      responsibleRep: contacts[0]?.name || contacts[0]?.email || fallbackContact || 'Demo Sales Rep',
+      status: 'Draft — requires Vivid review'
+    };
+  } catch {
+    return {
+      title: link.label.slice(0, 140),
+      description: `Public ${link.label.toLowerCase()} source identified for review.`,
+      category: categoryFor(`${link.label} ${link.href}`),
+      price: 'Pricing requires review',
+      sourceUrl: link.href,
+      imageUrl: fallbackImage || '',
+      responsibleRep: fallbackContact || 'Demo Sales Rep',
+      status: 'Draft — requires Vivid review'
+    };
+  }
+}
+
 async function scrapeProspectWebsite(input) {
   const { html, url } = await fetchPublicHtml(input);
   const title = stripTags((html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i) || [])[1]) || url.hostname;
-  const description = metaContent(html, 'name', 'description') || metaContent(html, 'property', 'og:description');
+  const description = describePage(html);
   const images = discoverImages(html, url);
   const discovery = discoverOpportunities(html, url);
+  const contacts = discoverContacts(html);
+  const fallbackContact = contacts[0]?.name || contacts[0]?.email || '';
+  const detailLinks = discovery.discoveredLinks.slice(0, MAX_DETAIL_PAGES);
+  const enriched = await Promise.all(detailLinks.map((link, index) => enrichOpportunity(link, images[index] || images[0] || '', fallbackContact)));
+  const opportunities = uniqueBy([
+    ...enriched,
+    ...discovery.opportunities.map((item, index) => ({
+      ...item,
+      description: `Public ${item.title.toLowerCase()} source identified on ${url.hostname}.`,
+      imageUrl: images[index] || images[0] || '',
+      responsibleRep: fallbackContact || 'Demo Sales Rep'
+    }))
+  ], item => `${item.title.toLowerCase()}|${item.sourceUrl}`).slice(0, 16);
   return {
     sourceUrl: url.toString(),
     hostname: url.hostname,
     title,
+    brandName: cleanBrandName(title, html, url.hostname),
     description,
+    logoUrl: discoverLogo(html, url) || images[0] || '',
     images,
+    contacts,
     ...discovery,
+    opportunities,
     analyzedAt: new Date().toISOString()
   };
 }
 
-module.exports = { decodeHtml, discoverImages, discoverOpportunities, isBlockedAddress, scrapeProspectWebsite, validatePublicUrl };
+module.exports = { decodeHtml, discoverContacts, discoverImages, discoverOpportunities, isBlockedAddress, scrapeProspectWebsite, validatePublicUrl };
