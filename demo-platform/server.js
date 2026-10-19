@@ -66,6 +66,15 @@ function reportRange(url) {
   return from <= to ? { from, to } : { from: to, to: from };
 }
 
+function publicWebUrl(value) {
+  try {
+    const parsed = new URL(String(value || '').trim());
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
 function page(title, portal, content) {
   const navigation = Object.entries(canonical.portals).map(([key, value]) => `<a href="${basePath}/${key}"${key === portal ? ' aria-current="page"' : ''}>${escapeHtml(value.label)}</a>`).join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${escapeHtml(title)} · Vivid</title><style>:root{--navy:#0d2744;--green:#123d25;--blue:#1769aa;--ink:#17251e;--muted:#617069;--line:#dbe4df;--bg:#f4f7f5}*{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink)}header{background:linear-gradient(110deg,var(--navy),var(--green));color:white;padding:22px 5vw}header strong{font-size:20px}nav{display:flex;gap:20px;flex-wrap:wrap;margin-top:13px}nav a{color:#cfe5f6;text-decoration:none}nav a[aria-current=page]{color:white;font-weight:750;border-bottom:2px solid white}main{max-width:1180px;margin:auto;padding:34px 24px 60px}.eyebrow{color:var(--green);font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:12px}.sample{display:inline-block;background:#e1f1e7;color:var(--green);padding:6px 10px;border-radius:999px;font-weight:700}.subtle{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}.metrics{margin:24px 0}.card,.panel{background:white;border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 5px 18px rgba(13,39,68,.04)}.metric strong{display:block;font-size:27px;color:var(--navy);margin-top:6px}.market{display:grid;grid-template-columns:repeat(auto-fit,minmax(275px,1fr));gap:18px}.status{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:800;text-transform:uppercase}.available{background:#e4f5e9;color:#17642f}.pending{background:#fff3d6;color:#805c00}.sold{background:#e8edf2;color:#52606c}table{width:100%;border-collapse:collapse;background:white}th,td{text-align:left;padding:12px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-size:12px;text-transform:uppercase}section{margin-top:28px}h1{margin:.35em 0 .2em;font-size:clamp(28px,4vw,42px)}h2{font-size:21px}form{display:grid;gap:8px;margin-top:14px}input,button{font:inherit;padding:10px 12px;border-radius:8px;border:1px solid #b9c8c0}button{background:var(--blue);color:white;border:0;font-weight:750;cursor:pointer}.links{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}.links a{color:var(--blue);font-weight:700}.notice{margin:24px 0;padding:16px;border-left:4px solid #c5922f;background:#fff8e8}@media(max-width:700px){table{display:block;overflow-x:auto}header{padding-inline:24px}}</style></head><body><header><strong>Vivid canonical demonstration</strong><nav>${navigation}</nav></header><main><span class="sample">${escapeHtml(canonical.sampleData.label)}</span>${content}<div class="notice"><strong>Isolated environment:</strong> all names, contacts and results shown here are synthetic. Email, payments, OAuth, Apollo and production administration are disabled.</div></main></body></html>`;
@@ -115,7 +124,7 @@ async function readForm(request) {
   let size = 0;
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > 4096) throw new Error('Request body too large');
+    if (size > 16384) throw new Error('Request body too large');
     chunks.push(chunk);
   }
   return new URLSearchParams(Buffer.concat(chunks).toString('utf8'));
@@ -267,19 +276,105 @@ async function handle(request, response) {
     return response.end(views.helpPage(basePath));
   }
   if (request.method === 'GET' && url.pathname === `${basePath}/builder`) {
+    const imports = await database.prospectImports();
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
-    return response.end(views.builderPage(basePath));
+    return response.end(views.builderPage(basePath, imports));
   }
   if (request.method === 'POST' && url.pathname === `${basePath}/builder`) {
     const form = await readForm(request);
     try {
       const analysis = await scrapeProspectWebsite(form.get('websiteUrl'));
-      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
-      return response.end(views.builderPage(basePath, analysis));
+      const importId = await database.createProspectImport(analysis);
+      response.writeHead(303, { location: `${basePath}/builder/import/${importId}?created=1`, 'cache-control': 'no-store' });
+      return response.end();
     } catch (error) {
+      const imports = await database.prospectImports();
       response.writeHead(422, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
-      return response.end(views.builderPage(basePath, null, error.message));
+      return response.end(views.builderPage(basePath, imports, error.message));
     }
+  }
+  const builderImportMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)$`));
+  if (builderImportMatch) {
+    const [data, locations] = await Promise.all([database.prospectImport(Number(builderImportMatch[1])), database.locations()]);
+    if (!data) return sendJson(response, 404, { error: 'Prospect import not found' });
+    const messages = { created: 'Website analysis saved as reviewable drafts. Nothing has been published.', published: 'Approved drafts published to the isolated Marketplace.', reset: 'Only the Marketplace records from this import were removed.', saved: 'Changes saved.', reviewed: 'Review decision saved.' };
+    const message = Object.entries(messages).find(([key]) => url.searchParams.get(key) === '1')?.[1] || '';
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.builderImportPage(basePath, data, locations, message, url.searchParams.get('error') || ''));
+  }
+  const builderBrandMatch = request.method === 'POST' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/brand$`));
+  if (builderBrandMatch) {
+    const form = await readForm(request);
+    const logoUrl = String(form.get('logoUrl') || '').trim();
+    if (logoUrl && !publicWebUrl(logoUrl)) return sendJson(response, 400, { error: 'Logo must use a public HTTP or HTTPS URL' });
+    await database.updateProspectBrand(Number(builderBrandMatch[1]), {
+      brandName: String(form.get('brandName') || '').trim(),
+      primaryColor: String(form.get('primaryColor') || ''),
+      logoUrl: publicWebUrl(logoUrl)
+    });
+    response.writeHead(303, { location: `${basePath}/builder/import/${builderBrandMatch[1]}?saved=1` });
+    return response.end();
+  }
+  const builderDraftMatch = request.method === 'POST' && url.pathname.match(new RegExp(`^${basePath}/builder/draft/(\\d+)$`));
+  if (builderDraftMatch) {
+    const form = await readForm(request);
+    const sourceUrl = publicWebUrl(form.get('sourceUrl'));
+    const rawImageUrl = String(form.get('imageUrl') || '').trim();
+    if (!sourceUrl || (rawImageUrl && !publicWebUrl(rawImageUrl))) return sendJson(response, 400, { error: 'Source and image fields must use public HTTP or HTTPS URLs' });
+    const importId = await database.updateProspectDraft(Number(builderDraftMatch[1]), {
+      title: String(form.get('title') || '').trim(), description: String(form.get('description') || '').trim(),
+      category: String(form.get('category') || '').trim(), priceText: String(form.get('priceText') || '').trim(),
+      sourceUrl, imageUrl: publicWebUrl(rawImageUrl),
+      responsibleRep: String(form.get('responsibleRep') || '').trim()
+    });
+    if (!importId) return sendJson(response, 404, { error: 'Draft not found' });
+    response.writeHead(303, { location: `${basePath}/builder/import/${importId}?saved=1` });
+    return response.end();
+  }
+  const builderDraftStatusMatch = request.method === 'POST' && url.pathname.match(new RegExp(`^${basePath}/builder/draft/(\\d+)/status$`));
+  if (builderDraftStatusMatch) {
+    const form = await readForm(request);
+    const importId = await database.setProspectDraftStatus(Number(builderDraftStatusMatch[1]), String(form.get('status') || ''));
+    if (!importId) return sendJson(response, 400, { error: 'Draft could not be reviewed' });
+    response.writeHead(303, { location: `${basePath}/builder/import/${importId}?reviewed=1` });
+    return response.end();
+  }
+  const builderPublishMatch = request.method === 'POST' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/publish$`));
+  if (builderPublishMatch) {
+    const form = await readForm(request);
+    try {
+      await database.publishProspectImport(Number(builderPublishMatch[1]), Number(form.get('locationId')));
+      response.writeHead(303, { location: `${basePath}/builder/import/${builderPublishMatch[1]}?published=1` });
+    } catch (error) {
+      response.writeHead(303, { location: `${basePath}/builder/import/${builderPublishMatch[1]}?error=${encodeURIComponent(error.message)}` });
+    }
+    return response.end();
+  }
+  const builderResetMatch = request.method === 'POST' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/reset$`));
+  if (builderResetMatch) {
+    const form = await readForm(request);
+    if (form.get('confirmation') !== 'RESET') return sendJson(response, 400, { error: 'Reset confirmation required' });
+    await database.resetProspectImport(Number(builderResetMatch[1]));
+    response.writeHead(303, { location: `${basePath}/builder/import/${builderResetMatch[1]}?reset=1` });
+    return response.end();
+  }
+  const builderPreviewMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/preview$`));
+  if (builderPreviewMatch) {
+    const data = await database.prospectImport(Number(builderPreviewMatch[1]));
+    if (!data) return sendJson(response, 404, { error: 'Prospect import not found' });
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.prospectPreviewPage(basePath, data));
+  }
+  const builderManifestMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/manifest\\.json$`));
+  if (builderManifestMatch) {
+    const data = await database.prospectImport(Number(builderManifestMatch[1]));
+    if (!data) return sendJson(response, 404, { error: 'Prospect import not found' });
+    return sendJson(response, 200, {
+      version: 1, sourceUrl: data.prospect.source_url,
+      organization: { name: data.prospect.brand_name, primaryColor: data.prospect.primary_color, logoUrl: data.prospect.logo_url },
+      opportunities: data.drafts.filter(item => ['approved', 'published'].includes(item.review_status)).map(item => ({ title: item.title, description: item.description, category: item.category, displayPrice: item.price_text, sourceUrl: item.source_url, imageUrl: item.image_url, responsibleRep: item.responsible_rep })),
+      externalEffectsEnabled: false, sampleDataOnly: true
+    });
   }
   if (request.method === 'GET' && url.pathname === `${basePath}/comparison`) {
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
