@@ -39,8 +39,11 @@ function buildProspectManifest(data) {
     name: `${prospect.brand_name} Vivid Demonstration`,
     customerType: 'organization',
     branding: {
+      organizationName: prospect.brand_name,
       primaryColor: prospect.primary_color,
-      logoUrl: prospect.logo_url || canonical.branding.logoUrl
+      logoUrl: prospect.logo_url || canonical.branding.logoUrl,
+      websiteDescription: prospect.website_description || '',
+      publicWebsite: prospect.source_url
     },
     portals: structuredClone(canonical.portals),
     modules: [...canonical.modules],
