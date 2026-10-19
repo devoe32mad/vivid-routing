@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { buildProspectPackage } = require('./prospect-package');
 
 const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 
@@ -416,6 +417,43 @@ function createDatabase(connectionString) {
     return { prospect, drafts };
   }
 
+  async function prospectPackages(importId) {
+    return (await pool.query(`SELECT id, import_id, version, slug, manifest_sha256, status, external_effects_enabled, created_at
+      FROM demo_provision_packages WHERE import_id=$1 AND is_sample=TRUE ORDER BY version DESC`, [importId])).rows;
+  }
+
+  async function prospectPackage(importId, packageId) {
+    return (await pool.query(`SELECT * FROM demo_provision_packages
+      WHERE id=$1 AND import_id=$2 AND is_sample=TRUE`, [packageId, importId])).rows[0] || null;
+  }
+
+  async function createProspectPackage(importId) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const prospect = (await client.query(`SELECT * FROM demo_prospect_imports
+        WHERE id=$1 AND is_sample=TRUE FOR UPDATE`, [importId])).rows[0];
+      if (!prospect) throw new Error('Prospect import not found.');
+      const drafts = (await client.query(`SELECT * FROM demo_prospect_drafts
+        WHERE import_id=$1 AND is_sample=TRUE ORDER BY id`, [importId])).rows;
+      const bundle = buildProspectPackage({ prospect, drafts });
+      const version = Number((await client.query(`SELECT COALESCE(MAX(version),0)+1 AS version
+        FROM demo_provision_packages WHERE import_id=$1`, [importId])).rows[0].version);
+      const inserted = (await client.query(`INSERT INTO demo_provision_packages
+        (import_id, version, slug, manifest, clone_plan, manifest_sha256)
+        VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6) RETURNING *`, [
+        importId, version, bundle.manifest.slug, JSON.stringify(bundle.manifest), JSON.stringify(bundle.clonePlan), bundle.manifestChecksum
+      ])).rows[0];
+      await client.query('COMMIT');
+      return inserted;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async function updateProspectBrand(id, input) {
     const color = /^#[0-9a-f]{6}$/i.test(input.primaryColor) ? input.primaryColor : '#176b3a';
     const result = await pool.query(`UPDATE demo_prospect_imports SET brand_name=$2, primary_color=$3, logo_url=$4
@@ -493,7 +531,7 @@ function createDatabase(connectionString) {
     }
   }
 
-  return { advertiserDashboard, advertiserDetail, advertisers, campaignDetail, contractDetail, contracts, createProspectImport, createRequest, health, initialize, inventory, locationDetail, locations, marketplace, organizationDashboard, placementDetail, pool, prospectImport, prospectImports, publishProspectImport, requests, resetProspectImport, revenuePipeline, setProspectDraftStatus, updateProspectBrand, updateProspectDraft, updateRequestStatus };
+  return { advertiserDashboard, advertiserDetail, advertisers, campaignDetail, contractDetail, contracts, createProspectImport, createProspectPackage, createRequest, health, initialize, inventory, locationDetail, locations, marketplace, organizationDashboard, placementDetail, pool, prospectImport, prospectImports, prospectPackage, prospectPackages, publishProspectImport, requests, resetProspectImport, revenuePipeline, setProspectDraftStatus, updateProspectBrand, updateProspectDraft, updateRequestStatus };
 }
 
 module.exports = { createDatabase, money, priceCents };
