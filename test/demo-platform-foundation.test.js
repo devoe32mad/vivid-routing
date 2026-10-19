@@ -13,9 +13,10 @@ const { safeReturnPath } = require('../demo-platform/review-access');
 const { assertIsolatedRuntime, databaseFingerprint } = require('../demo-platform/runtime-guard');
 const { auditStartCommand } = require('../demo-platform/startup-audit');
 const { auditChangedPaths } = require('../demo-platform/protected-change-audit');
-const { discoverImages, discoverOpportunities, isBlockedAddress } = require('../demo-platform/prospect-scraper');
+const { discoverContacts, discoverImages, discoverOpportunities, isBlockedAddress } = require('../demo-platform/prospect-scraper');
 const { priceCents } = require('../demo-platform/database');
 const mirrorViews = require('../demo-platform/mirror-views');
+const prospectViews = require('../demo-platform/prospect-views');
 const packageJson = require('../package.json');
 
 const isolatedProject = 'e02ba0e0-4faf-41eb-a81d-d53b94ee1019';
@@ -195,6 +196,12 @@ test('prospect importer rejects tracking pixels and prioritizes reviewable artwo
   assert.ok(images.every(url => !url.includes('linkedin')));
 });
 
+test('prospect importer carries public contacts into reviewable opportunity ownership', () => {
+  const contacts = discoverContacts('<a href="mailto:partnerships@example.org">Taylor Morgan</a><a href="tel:+12395550100">Partnership Office</a>');
+  assert.deepEqual(contacts[0], { name: 'Taylor Morgan', email: 'partnerships@example.org' });
+  assert.deepEqual(contacts[1], { name: 'Partnership Office', phone: '+12395550100' });
+});
+
 test('prospect review mirrors edit, approval, publishing and reversible reset controls', () => {
   const html = mirrorViews.builderImportPage('/demo/canonical-vivid', {
     prospect: { id: 8, brand_name: 'Example Association', website_title: 'Example Association', website_description: 'Example description', source_url: 'https://example.org/', primary_color: '#176b3a', logo_url: '', status: 'reviewed' },
@@ -223,6 +230,27 @@ test('approved prospect data becomes an immutable three-portal isolated package'
   assert.equal(bundle.clonePlan.externalEffectsEnabled, false);
   assert.equal(bundle.manifestChecksum, checksum(bundle.manifest));
   assert.equal(bundle.manifestChecksum.length, 64);
+  assert.equal(bundle.manifest.branding.organizationName, 'Example & Partners');
+  assert.equal(bundle.manifest.branding.publicWebsite, 'https://example.org/');
+});
+
+test('reviewed website data replaces generic content across prospect demo portals', () => {
+  const data = {
+    prospect: { id: 22, brand_name: 'Florida Association of Counties', website_title: 'Work With Counties', website_description: 'Connect with county leaders.', source_url: 'https://wwc.fl-counties.com/', primary_color: '#176b3a', logo_url: 'https://wwc.fl-counties.com/fac-logo.png' },
+    drafts: [{ id: 31, title: 'Annual Conference Sponsorship', description: 'Reach county commissioners and administrators.', category: 'Event', price_text: '$2,500 per event', source_url: 'https://wwc.fl-counties.com/sponsors/', image_url: 'https://wwc.fl-counties.com/conference.jpg', responsible_rep: 'Corporate Relations', review_status: 'approved' }]
+  };
+  const organization = prospectViews.prospectOrganizationPage('/demo/canonical-vivid', data, 'inventory');
+  const marketplace = prospectViews.prospectMarketplacePage('/demo/canonical-vivid', data);
+  const advertiser = prospectViews.prospectAdvertiserPage('/demo/canonical-vivid', data, 31);
+  for (const html of [organization, marketplace, advertiser]) {
+    assert.match(html, /Florida Association of Counties/);
+    assert.match(html, /Annual Conference Sponsorship/);
+    assert.match(html, /conference\.jpg/);
+    assert.doesNotMatch(html, /Harbor Community Network/);
+  }
+  assert.match(organization, /Corporate Relations/);
+  assert.match(marketplace, /View Opportunity/);
+  assert.match(advertiser, /Illustrative performance only/);
 });
 
 test('prospect package refuses unreviewed opportunities', () => {
