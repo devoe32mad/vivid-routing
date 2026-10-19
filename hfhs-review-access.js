@@ -113,6 +113,7 @@ function register(app,{q}){
    req.session.user=user;req.session.orgUser={id:review.ownerId,organization_id:ORG,organization_name:'Henry Ford Health Demo',organization_role:'organization_admin',name:'HFHS Demo Reviewer',email:user.email};
    delete req.session.platformUser;
    req.hfhsReviewVerified=true;
+   if(req.path==='/org-business-breakdown'&&req.query.metric==='available'){const target=new URLSearchParams({organization_id:String(ORG),status:'Available'});for(const key of ['location_id','program_id'])if(req.query[key])target.set(key,String(req.query[key]));return res.redirect('/org-marketplace?'+target.toString());}
    await require('./responsibility-routes').attach(req,res,q);
    const send=res.send;res.send=function(body){if(typeof body==='string'&&/<(?:html|body|main|div)\b/i.test(body)){
     const banner='<div style="padding:12px 20px;background:#edf3f9;color:#23374d;font:14px system-ui"><strong>HFHS interactive demo · Editing enabled</strong> · Illustrative demo data · Expires October 26, 2026 (Eastern)<br><a href="'+homes.enterprise+'">Enterprise</a> · <a href="'+homes.marketplace+'">Marketplace</a> · <a href="'+homes.advertiser+'">Advertiser portal</a> · <a href="/admin/marketing-command-center">Marketing Command Center</a></div>';
