@@ -9,6 +9,7 @@ const protectedResources = require('../demo-platform/protected-resources.json');
 const { assertManifest, validateManifest } = require('../demo-platform/manifest');
 const { createClonePlan } = require('../demo-platform/clone-plan');
 const { buildProspectPackage, checksum, slugify } = require('../demo-platform/prospect-package');
+const { safeReturnPath } = require('../demo-platform/review-access');
 const { assertIsolatedRuntime, databaseFingerprint } = require('../demo-platform/runtime-guard');
 const { auditStartCommand } = require('../demo-platform/startup-audit');
 const { auditChangedPaths } = require('../demo-platform/protected-change-audit');
@@ -54,6 +55,16 @@ test('clone plan contains all three connected demo surfaces and no external effe
   assert.equal(plan.externalEffectsEnabled, false);
   assert.ok(plan.disabledCapabilities.includes('email'));
   assert.ok(plan.disabledCapabilities.includes('payments'));
+});
+
+test('private review login returns only to safe canonical demo pages', () => {
+  const base = '/demo/canonical-vivid';
+  const packagePath = `${base}/builder/import/1/package/1?created=1`;
+  assert.equal(safeReturnPath(packagePath, base), packagePath);
+  assert.equal(safeReturnPath('https://attacker.example/steal', base), `${base}/organization`);
+  assert.equal(safeReturnPath('//attacker.example/steal', base), `${base}/organization`);
+  assert.equal(safeReturnPath('/admin', base), `${base}/organization`);
+  assert.equal(safeReturnPath(`${base}\\..\\admin`, base), `${base}/organization`);
 });
 
 test('runtime guard accepts only the approved isolated project and database', () => {
