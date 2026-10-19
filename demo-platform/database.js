@@ -379,7 +379,7 @@ function createDatabase(connectionString) {
         `INSERT INTO demo_prospect_imports
           (organization_id, source_url, website_title, website_description, brand_name, logo_url)
          VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-        [organization.rows[0].id, analysis.sourceUrl, analysis.title, analysis.description || '', analysis.title, analysis.images[0] || '']
+        [organization.rows[0].id, analysis.sourceUrl, analysis.title, analysis.description || '', analysis.brandName || analysis.title, analysis.logoUrl || analysis.images[0] || '']
       );
       const importId = created.rows[0].id;
       for (const [index, item] of analysis.opportunities.entries()) {
@@ -388,7 +388,7 @@ function createDatabase(connectionString) {
             (import_id, title, description, category, price_text, source_url, image_url, responsible_rep)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
            ON CONFLICT (import_id, title) DO NOTHING`,
-          [importId, item.title, `Draft opportunity discovered from ${item.sourceUrl}. Review the title, offer, audience, price and fulfillment details before publishing.`, item.category, item.price, item.sourceUrl, analysis.images[index] || analysis.images[0] || '', 'Demo Sales Rep']
+          [importId, item.title, item.description || `Draft opportunity discovered from ${item.sourceUrl}. Review the title, offer, audience, price and fulfillment details before publishing.`, item.category, item.price, item.sourceUrl, item.imageUrl || analysis.images[index] || analysis.images[0] || '', item.responsibleRep || 'Demo Sales Rep']
         );
       }
       await client.query('COMMIT');
