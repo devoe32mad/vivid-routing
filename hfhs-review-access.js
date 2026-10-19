@@ -72,6 +72,20 @@ function register(app,{q}){
   if(review.version!==TOKEN_HASH||review.expires!==EXPIRES||Date.now()>=EXPIRES){return req.session.destroy(()=>res.status(410).send('This HFHS review has expired.'));}
   if(req.path==='/logout'||req.path==='/hfhs-review-exit')return req.session.destroy(()=>res.redirect(homes.marketplace));
   const notice=()=>res.status(403).send('<h2>HFHS demo workspace</h2><p>You can explore reports and edit HFHS demo campaigns, campaign collaboration, sponsorship inventory, locations, renewals and benefit fulfillment. Account settings and other customers are outside this demo.</p><p><a href="'+homes.enterprise+'">Enterprise</a> · <a href="'+homes.marketplace+'">Marketplace</a> · <a href="'+homes.advertiser+'">Advertiser reports</a></p>');
+  // Canonicalize repeated HFHS organization selectors from navigation links.
+  // Reject mixed IDs instead of selecting the first value.
+  if(['GET','HEAD'].includes(req.method)){
+   const query=new URLSearchParams(req.originalUrl.split('?').slice(1).join('?'));
+   let changed=false;
+   for(const key of ['organization_id','org_id']){
+    const values=query.getAll(key);
+    if(values.length>1){
+     if(values.some(value=>value!==String(ORG)))return notice();
+     query.set(key,String(ORG));changed=true;
+    }
+   }
+   if(changed)return res.redirect(req.path+'?'+query.toString());
+  }
   if(readOnlyAdmin(req.path)&&!['GET','HEAD'].includes(req.method))return res.status(403).send('Administration is view-only in this HFHS demo. No changes were saved.');
   if(!['GET','HEAD','POST'].includes(req.method))return notice();
   if(req.method==='POST'&&!editableRoute(req.path))return notice();
