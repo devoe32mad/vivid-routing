@@ -112,7 +112,7 @@ test('canonical schema is sample-only and binds itself to one demo environment',
   const sql = fs.readFileSync(path.join(__dirname, '..', 'demo-platform', 'schema.sql'), 'utf8');
   assert.match(sql, /CREATE TABLE IF NOT EXISTS demo_environment/);
   assert.match(sql, /CHECK \(id = 1\)/);
-  assert.equal((sql.match(/CHECK \(is_sample = TRUE\)/g) || []).length, 8);
+  assert.equal((sql.match(/CHECK \(is_sample = TRUE\)/g) || []).length, 9);
   assert.doesNotMatch(sql, /ccps|hfhs|rubber.world/i);
 });
 
@@ -128,4 +128,22 @@ test('canonical mirror exposes the connected Vivid operating surfaces', () => {
   }
   assert.match(html, /Advertiser Revenue Generated/);
   assert.match(html, /Open Location/);
+});
+
+test('canonical mirror includes source-of-truth placement, campaign and contract detail views', () => {
+  const placement = mirrorViews.placementPage('/demo/canonical-vivid', {
+    placement: { id: 4, name: 'Sample Placement', location: 'Main Campus', format: 'Signage', status: 'sold', annualPrice: 1000, estimated_impressions: 10000, tracking_code: 'VVD-HCN-004', destination_url: 'https://example.invalid/sample' },
+    contracts: [{ id: 2, advertiser_id: 1, advertiser: 'Sample Advertiser', starts_on: '2026-01-01', ends_on: '2026-12-31', value: 1000, fulfillment_percent: 50, status: 'active' }],
+    campaigns: [{ id: 3, name: 'Sample Campaign', advertiser: 'Sample Advertiser', starts_on: '2026-01-01', ends_on: '2026-12-31', scans: 10, clicks: 5, conversions: 2, revenue: 200 }]
+  });
+  assert.match(placement, /Dynamic Placement/);
+  assert.match(placement, /organization\/contract\/2/);
+  assert.match(placement, /organization\/campaign\/3/);
+
+  const contract = mirrorViews.contractPage('/demo/canonical-vivid', {
+    contract: { id: 2, advertiser_id: 1, advertiser: 'Sample Advertiser', location_id: 1, location: 'Main Campus', inventory_id: 4, placement: 'Sample Placement', starts_on: '2026-01-01', ends_on: '2026-12-31', value: 1000, fulfillment_percent: 50, status: 'active', renewal_owner: 'Jordan Lee', next_action: 'Review results', sales_rep: 'Jordan Lee' },
+    benefits: [{ benefit: 'Placement', notes: 'Installed', due_on: '2026-01-01', status: 'fulfilled' }]
+  });
+  assert.match(contract, /Contract Hierarchy/);
+  assert.match(contract, /Benefit Fulfillment/);
 });

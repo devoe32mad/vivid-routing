@@ -52,6 +52,12 @@ CREATE TABLE IF NOT EXISTS demo_inventory (
   UNIQUE (location_id, name)
 );
 
+ALTER TABLE demo_inventory
+  ADD COLUMN IF NOT EXISTS tracking_code TEXT NOT NULL DEFAULT 'VVD-DEMO';
+
+ALTER TABLE demo_inventory
+  ADD COLUMN IF NOT EXISTS destination_url TEXT NOT NULL DEFAULT 'https://example.invalid';
+
 CREATE TABLE IF NOT EXISTS demo_requests (
   id BIGSERIAL PRIMARY KEY,
   inventory_id BIGINT NOT NULL REFERENCES demo_inventory(id) ON DELETE CASCADE,
@@ -82,6 +88,17 @@ ALTER TABLE demo_contracts
 ALTER TABLE demo_contracts
   ADD COLUMN IF NOT EXISTS renewal_owner TEXT NOT NULL DEFAULT 'Unassigned';
 
+CREATE TABLE IF NOT EXISTS demo_contract_benefits (
+  id BIGSERIAL PRIMARY KEY,
+  contract_id BIGINT NOT NULL REFERENCES demo_contracts(id) ON DELETE CASCADE,
+  benefit TEXT NOT NULL,
+  due_on DATE NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('scheduled', 'in_progress', 'fulfilled')),
+  notes TEXT NOT NULL DEFAULT '',
+  is_sample BOOLEAN NOT NULL DEFAULT TRUE CHECK (is_sample = TRUE),
+  UNIQUE (contract_id, benefit)
+);
+
 CREATE TABLE IF NOT EXISTS demo_campaigns (
   id BIGSERIAL PRIMARY KEY,
   advertiser_id BIGINT NOT NULL REFERENCES demo_advertisers(id) ON DELETE CASCADE,
@@ -109,4 +126,5 @@ CREATE TABLE IF NOT EXISTS demo_performance (
 
 CREATE INDEX IF NOT EXISTS demo_inventory_status_idx ON demo_inventory(status);
 CREATE INDEX IF NOT EXISTS demo_contracts_status_idx ON demo_contracts(status);
+CREATE INDEX IF NOT EXISTS demo_contract_benefits_contract_idx ON demo_contract_benefits(contract_id);
 CREATE INDEX IF NOT EXISTS demo_performance_campaign_idx ON demo_performance(campaign_id, recorded_on);

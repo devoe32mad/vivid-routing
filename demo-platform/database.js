@@ -72,6 +72,9 @@ function createDatabase(connectionString) {
         [locationIds[location], ...values]
       );
       inventoryIds[values[0]] = result.rows[0].id;
+      const trackingCode = `VVD-HCN-${String(result.rows[0].id).padStart(3, '0')}`;
+      const destination = `https://example.invalid/${String(values[0]).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`;
+      await client.query('UPDATE demo_inventory SET tracking_code=$1, destination_url=$2 WHERE id=$3', [trackingCode, destination, result.rows[0].id]);
     }
 
     const contracts = [
@@ -79,14 +82,32 @@ function createDatabase(connectionString) {
       ['Harbor Health Group', 'Welcome Center Display', '2026-09-01', '2027-08-31', 240000, 65, 'active', 'Review benefit fulfillment', 'Morgan Ellis'],
       ['Coastal Home Services', 'Inside Front Cover', '2026-01-01', '2026-12-31', 480000, 100, 'renewal', 'Send renewal proposal', 'Jordan Lee']
     ];
+    const contractIds = {};
     for (const row of contracts) {
       const [advertiser, placement, ...values] = row;
-      await client.query(
+      const result = await client.query(
         `INSERT INTO demo_contracts (advertiser_id, inventory_id, starts_on, ends_on, value_cents, fulfillment_percent, status, next_action, renewal_owner)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-         ON CONFLICT (advertiser_id, inventory_id, starts_on) DO UPDATE SET fulfillment_percent = EXCLUDED.fulfillment_percent, status = EXCLUDED.status, next_action = EXCLUDED.next_action, renewal_owner = EXCLUDED.renewal_owner`,
+         ON CONFLICT (advertiser_id, inventory_id, starts_on) DO UPDATE SET fulfillment_percent = EXCLUDED.fulfillment_percent, status = EXCLUDED.status, next_action = EXCLUDED.next_action, renewal_owner = EXCLUDED.renewal_owner
+         RETURNING id`,
         [advertiserIds[advertiser], inventoryIds[placement], ...values]
       );
+      contractIds[advertiser] = result.rows[0].id;
+    }
+
+    const benefits = [
+      ['Peak Community Bank', 'Year-round stadium fence placement', '2026-08-01', 'fulfilled', 'Installed and photographed'],
+      ['Peak Community Bank', 'Two campaign creative changes', '2027-01-15', 'scheduled', 'Winter creative review'],
+      ['Harbor Health Group', 'Welcome Center display rotation', '2026-09-01', 'fulfilled', 'Initial creative live'],
+      ['Harbor Health Group', 'Quarterly performance review', '2026-12-15', 'in_progress', 'First report being prepared'],
+      ['Coastal Home Services', 'Four magazine issue placements', '2026-10-01', 'fulfilled', 'All issues delivered'],
+      ['Coastal Home Services', 'Renewal performance summary', '2026-11-15', 'in_progress', 'Results ready for proposal']
+    ];
+    for (const [advertiser, benefit, dueOn, benefitStatus, notes] of benefits) {
+      await client.query(`INSERT INTO demo_contract_benefits (contract_id, benefit, due_on, status, notes)
+        VALUES ($1,$2,$3,$4,$5)
+        ON CONFLICT (contract_id, benefit) DO UPDATE SET due_on=EXCLUDED.due_on, status=EXCLUDED.status, notes=EXCLUDED.notes`,
+      [contractIds[advertiser], benefit, dueOn, benefitStatus, notes]);
     }
 
     const campaigns = [
@@ -188,7 +209,7 @@ function createDatabase(connectionString) {
   }
 
   async function marketplace() {
-    const result = await pool.query(`SELECT i.id, i.name, i.description, i.format, i.annual_price_cents, i.estimated_impressions, i.status,
+    const result = await pool.query(`SELECT i.id, i.name, i.description, i.format, i.annual_price_cents, i.estimated_impressions, i.status, i.tracking_code, i.destination_url,
       l.name AS location, l.location_type
       FROM demo_inventory i JOIN demo_locations l ON l.id = i.location_id ORDER BY l.id, i.id`);
     return result.rows.map(row => ({ ...row, annualPrice: money(row.annual_price_cents) }));
@@ -227,6 +248,33 @@ function createDatabase(connectionString) {
     if (!location) return null;
     const items = (await inventory()).filter(row => Number(row.location_id) === Number(id));
     return { location, items };
+  }
+
+  async function placementDetail(id) {
+    const placement = (await pool.query(`SELECT i.*, l.name AS location, l.location_type, l.audience
+      FROM demo_inventory i JOIN demo_locations l ON l.id=i.location_id WHERE i.id=$1`, [id])).rows[0];
+    if (!placement) return null;
+    const [contractRows, campaignRows] = await Promise.all([
+      pool.query(`SELECT ct.id, ct.starts_on, ct.ends_on, ct.value_cents, ct.fulfillment_percent, ct.status,
+        a.id AS advertiser_id, a.name AS advertiser, a.sales_rep
+        FROM demo_contracts ct JOIN demo_advertisers a ON a.id=ct.advertiser_id WHERE ct.inventory_id=$1`, [id]),
+      pool.query(`SELECT c.id, c.name, c.destination_url, c.starts_on, c.ends_on, c.status, a.name AS advertiser,
+        COALESCE(SUM(p.scans),0)::int AS scans, COALESCE(SUM(p.clicks),0)::int AS clicks,
+        COALESCE(SUM(p.conversions),0)::int AS conversions, COALESCE(SUM(p.revenue_cents),0)::bigint AS revenue_cents
+        FROM demo_campaigns c JOIN demo_advertisers a ON a.id=c.advertiser_id
+        LEFT JOIN demo_performance p ON p.campaign_id=c.id WHERE c.inventory_id=$1 GROUP BY c.id,a.id ORDER BY c.id`, [id])
+    ]);
+    return { placement: {...placement, annualPrice: money(placement.annual_price_cents)}, contracts: contractRows.rows.map(x=>({...x,value:money(x.value_cents)})), campaigns: campaignRows.rows.map(x=>({...x,revenue:money(x.revenue_cents)})) };
+  }
+
+  async function campaignDetail(id) {
+    const campaign = (await pool.query(`SELECT c.*, a.id AS advertiser_id, a.name AS advertiser, i.id AS inventory_id, i.name AS placement,
+      i.tracking_code, l.id AS location_id, l.name AS location
+      FROM demo_campaigns c JOIN demo_advertisers a ON a.id=c.advertiser_id
+      JOIN demo_inventory i ON i.id=c.inventory_id JOIN demo_locations l ON l.id=i.location_id WHERE c.id=$1`, [id])).rows[0];
+    if (!campaign) return null;
+    const performance = (await pool.query('SELECT recorded_on, scans, clicks, conversions, revenue_cents FROM demo_performance WHERE campaign_id=$1 ORDER BY recorded_on', [id])).rows.map(x=>({...x,revenue:money(x.revenue_cents)}));
+    return { campaign, performance };
   }
 
   async function advertisers() {
@@ -268,12 +316,19 @@ function createDatabase(connectionString) {
       ORDER BY ct.ends_on`)).rows.map(row => ({...row, value: money(row.value_cents)}));
   }
 
+  async function contractDetail(id) {
+    const contract = (await contracts()).find(row => Number(row.id) === Number(id));
+    if (!contract) return null;
+    const benefits = (await pool.query('SELECT * FROM demo_contract_benefits WHERE contract_id=$1 ORDER BY due_on,id', [id])).rows;
+    return { contract, benefits };
+  }
+
   async function revenuePipeline() {
     const [items, requestRows, contractRows] = await Promise.all([inventory(), requests(), contracts()]);
     return { items, requests: requestRows, contracts: contractRows };
   }
 
-  async function advertiserDashboard(advertiserId = null) {
+  async function advertiserDashboard(advertiserId = null, fromDate = null, toDate = null) {
     const result = await pool.query(`SELECT a.id AS advertiser_id, a.name AS advertiser, a.category, c.id AS campaign_id, c.name AS campaign, c.destination_url, c.starts_on, c.ends_on, c.status, i.id AS inventory_id, i.name AS placement, l.name AS location,
       COALESCE(SUM(p.scans),0)::int AS scans, COALESCE(SUM(p.clicks),0)::int AS clicks,
       COALESCE(SUM(p.conversions),0)::int AS conversions, COALESCE(SUM(p.revenue_cents),0)::bigint AS revenue_cents,
@@ -281,9 +336,11 @@ function createDatabase(connectionString) {
       FROM demo_campaigns c JOIN demo_advertisers a ON a.id = c.advertiser_id
       JOIN demo_inventory i ON i.id = c.inventory_id JOIN demo_locations l ON l.id=i.location_id
       LEFT JOIN demo_performance p ON p.campaign_id = c.id
+        AND ($2::date IS NULL OR p.recorded_on >= $2)
+        AND ($3::date IS NULL OR p.recorded_on <= $3)
       LEFT JOIN demo_contracts ct ON ct.advertiser_id = c.advertiser_id AND ct.inventory_id = c.inventory_id
       WHERE ($1::bigint IS NULL OR a.id=$1)
-      GROUP BY a.id, c.id, i.id, l.id, ct.value_cents ORDER BY a.id`, [advertiserId]);
+      GROUP BY a.id, c.id, i.id, l.id, ct.value_cents ORDER BY a.id`, [advertiserId, fromDate, toDate]);
     return result.rows.map(row => {
       const revenue = money(row.revenue_cents);
       const investment = money(row.investment_cents);
@@ -304,7 +361,7 @@ function createDatabase(connectionString) {
     return result.rowCount === 1;
   }
 
-  return { advertiserDashboard, advertiserDetail, advertisers, contracts, createRequest, health, initialize, inventory, locationDetail, locations, marketplace, organizationDashboard, pool, requests, revenuePipeline, updateRequestStatus };
+  return { advertiserDashboard, advertiserDetail, advertisers, campaignDetail, contractDetail, contracts, createRequest, health, initialize, inventory, locationDetail, locations, marketplace, organizationDashboard, placementDetail, pool, requests, revenuePipeline, updateRequestStatus };
 }
 
 module.exports = { createDatabase, money };

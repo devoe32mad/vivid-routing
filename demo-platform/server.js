@@ -2,6 +2,8 @@
 
 const crypto = require('node:crypto');
 const http = require('node:http');
+const PDFDocument = require('pdfkit');
+const ExcelJS = require('exceljs');
 const canonical = require('./templates/canonical.json');
 const { createDatabase } = require('./database');
 const { assertManifest } = require('./manifest');
@@ -51,6 +53,16 @@ function formatMoney(value) {
 function formatDate(value) {
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? String(value ?? '') : date.toISOString().slice(0, 10);
+}
+
+function reportRange(url) {
+  const toDefault = new Date();
+  const fromDefault = new Date(toDefault.getTime() - 29 * 86400000);
+  const iso = value => value.toISOString().slice(0, 10);
+  const valid = value => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+  const from = valid(url.searchParams.get('from')) ? url.searchParams.get('from') : iso(fromDefault);
+  const to = valid(url.searchParams.get('to')) ? url.searchParams.get('to') : iso(toDefault);
+  return from <= to ? { from, to } : { from: to, to: from };
 }
 
 function page(title, portal, content) {
@@ -163,6 +175,13 @@ async function handle(request, response) {
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
     return response.end(views.locationPage(basePath, data));
   }
+  const placementMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/organization/placement/(\\d+)$`));
+  if (placementMatch) {
+    const data = await database.placementDetail(Number(placementMatch[1]));
+    if (!data) return sendJson(response, 404, { error: 'Placement not found' });
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.placementPage(basePath, data));
+  }
   if (request.method === 'GET' && url.pathname === `${basePath}/organization/inventory`) {
     const data = await database.inventory();
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
@@ -199,6 +218,13 @@ async function handle(request, response) {
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
     return response.end(views.contractsPage(basePath, data, false));
   }
+  const contractMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/organization/contract/(\\d+)$`));
+  if (contractMatch) {
+    const data = await database.contractDetail(Number(contractMatch[1]));
+    if (!data) return sendJson(response, 404, { error: 'Contract not found' });
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.contractPage(basePath, data));
+  }
   if (request.method === 'GET' && url.pathname === `${basePath}/organization/renewals`) {
     const data = await database.contracts();
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
@@ -210,9 +236,17 @@ async function handle(request, response) {
     return response.end(views.pipelinePage(basePath, data));
   }
   if (request.method === 'GET' && url.pathname === `${basePath}/organization/performance`) {
-    const data = await database.advertiserDashboard();
+    const range = reportRange(url);
+    const data = await database.advertiserDashboard(null, range.from, range.to);
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
-    return response.end(views.performancePage(basePath, data));
+    return response.end(views.performancePage(basePath, data, range.from, range.to));
+  }
+  const campaignMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/organization/campaign/(\\d+)$`));
+  if (campaignMatch) {
+    const data = await database.campaignDetail(Number(campaignMatch[1]));
+    if (!data) return sendJson(response, 404, { error: 'Campaign not found' });
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.campaignPage(basePath, data));
   }
   if (request.method === 'GET' && url.pathname === `${basePath}/organization/reports`) {
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
@@ -252,12 +286,13 @@ async function handle(request, response) {
     return response.end();
   }
   if (request.method === 'GET' && url.pathname === `${basePath}/advertiser`) {
+    const range = reportRange(url);
     const advertisers = await database.advertisers();
     const requestedId = Number(url.searchParams.get('advertiser_id'));
     const selected = advertisers.find(row => Number(row.id) === requestedId) || advertisers[0];
-    const data = await database.advertiserDashboard(selected?.id || null);
+    const data = await database.advertiserDashboard(selected?.id || null, range.from, range.to);
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
-    return response.end(views.advertiserPortalPage(basePath, advertisers, selected, data));
+    return response.end(views.advertiserPortalPage(basePath, advertisers, selected, data, range.from, range.to));
   }
   const exportMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/exports/(executive|inventory|performance|contracts)\\.csv$`));
   if (exportMatch) {
@@ -274,12 +309,51 @@ async function handle(request, response) {
       rows = [['Organization','Locations','Placements','Advertisers','Contract value','Scans','Conversions','Attributed revenue'],['Harbor Community Network',data.locations.length,data.totals.placements,data.totals.advertisers,data.totals.contractValue,data.totals.scans,data.totals.conversions,data.totals.revenue]];
     } else {
       const advertiserId = Number(url.searchParams.get('advertiser_id')) || null;
-      const data = await database.advertiserDashboard(advertiserId);
+      const range = reportRange(url);
+      const data = await database.advertiserDashboard(advertiserId, range.from, range.to);
       rows = [['Advertiser','Campaign','Location','Placement','Scans','Actions','Conversions','Revenue','ROI'], ...data.map(x=>[x.advertiser,x.campaign,x.location,x.placement,x.scans,x.clicks,x.conversions,x.revenue,`${x.roi}%`])];
     }
     const csv = rows.map(row => row.map(csvCell).join(',')).join('\n');
     response.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="vivid-canonical-${kind}.csv"`, 'cache-control': 'no-store' });
     return response.end(`${csv}\n`);
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/exports/executive.pdf`) {
+    const [overview, performance] = await Promise.all([database.organizationDashboard(), database.advertiserDashboard()]);
+    response.writeHead(200, { 'content-type': 'application/pdf', 'content-disposition': 'attachment; filename="vivid-canonical-executive.pdf"', 'cache-control': 'no-store' });
+    const doc = new PDFDocument({ margin: 46, size: 'LETTER' });
+    doc.pipe(response);
+    doc.fillColor('#073b22').fontSize(21).text('Vivid Executive Summary');
+    doc.fillColor('#65776b').fontSize(10).text('Harbor Community Network · Illustrative sample data · Isolated canonical demo');
+    doc.moveDown().fillColor('#17251e').fontSize(13).text(`Locations: ${overview.locations.length}   Placements: ${overview.totals.placements}   Advertisers: ${overview.totals.advertisers}`);
+    doc.text(`Contract value: ${formatMoney(overview.totals.contractValue)}   Scans: ${overview.totals.scans}   Conversions: ${overview.totals.conversions}`);
+    doc.text(`Attributed advertiser revenue: ${formatMoney(overview.totals.revenue)}`);
+    doc.moveDown().fillColor('#073b22').fontSize(15).text('Campaign performance');
+    for (const row of performance) doc.fillColor('#17251e').fontSize(10).text(`${row.advertiser} · ${row.campaign} · ${row.placement}: ${row.scans} scans, ${row.conversions} conversions, ${formatMoney(row.revenue)} revenue, ${row.roi}% ROI`);
+    doc.moveDown().fillColor('#65776b').fontSize(9).text('All information in this report is synthetic and intended only to demonstrate the Vivid workflow.');
+    doc.end();
+    return;
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/exports/report.xlsx`) {
+    const [overview, inventory, performance, contracts, advertisers] = await Promise.all([database.organizationDashboard(), database.inventory(), database.advertiserDashboard(), database.contracts(), database.advertisers()]);
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Vivid canonical demonstration';
+    const addSheet = (name, columns, rows) => {
+      const sheet = workbook.addWorksheet(name);
+      sheet.columns = columns.map(column => ({ header: column, key: column, width: Math.max(14, column.length + 3) }));
+      rows.forEach(row => sheet.addRow(Object.fromEntries(columns.map((column, index) => [column, row[index]]))));
+      sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF176B3A' } };
+      sheet.views = [{ state: 'frozen', ySplit: 1 }];
+      sheet.autoFilter = { from: 'A1', to: `${String.fromCharCode(64 + columns.length)}1` };
+    };
+    addSheet('Executive Summary', ['Organization','Locations','Placements','Advertisers','Contract Value','Scans','Conversions','Attributed Revenue'], [['Harbor Community Network',overview.locations.length,overview.totals.placements,overview.totals.advertisers,overview.totals.contractValue,overview.totals.scans,overview.totals.conversions,overview.totals.revenue]]);
+    addSheet('Inventory', ['Location','Opportunity','Format','Status','Annual Price','Impressions','Tracking Code','Advertiser'], inventory.map(x=>[x.location,x.name,x.format,x.status,x.annualPrice,x.estimated_impressions,x.tracking_code,x.advertiser||'']));
+    addSheet('Performance', ['Advertiser','Campaign','Location','Placement','Scans','Actions','Conversions','Revenue','ROI'], performance.map(x=>[x.advertiser,x.campaign,x.location,x.placement,x.scans,x.clicks,x.conversions,x.revenue,x.roi/100]));
+    addSheet('Contracts & Renewals', ['Contract','Advertiser','Location','Placement','Start','End','Value','Fulfillment','Status','Owner','Next Action'], contracts.map(x=>[x.id,x.advertiser,x.location,x.placement,formatDate(x.starts_on),formatDate(x.ends_on),x.value,x.fulfillment_percent/100,x.status,x.renewal_owner,x.next_action]));
+    addSheet('Sales Responsibility', ['Sales Rep','Advertiser','Category','Status','Investment','Revenue'], advertisers.map(x=>[x.sales_rep,x.name,x.category,x.status,x.investment,x.revenue]));
+    response.writeHead(200, { 'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'content-disposition': 'attachment; filename="vivid-canonical-report.xlsx"', 'cache-control': 'no-store' });
+    await workbook.xlsx.write(response);
+    return response.end();
   }
   if (request.method === 'GET' && url.pathname === `${basePath}/api/config`) {
     return sendJson(response, 200, { slug: canonical.slug, sampleData: canonical.sampleData.label, portals: canonical.portals, modules: canonical.modules, integrations: canonical.integrations });
