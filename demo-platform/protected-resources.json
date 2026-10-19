@@ -1,0 +1,31 @@
+{
+  "railwayProjects": {
+    "6fa087d3-e299-479e-82e0-802b8304dd55": "vivid-spots",
+    "f3958358-51b2-431e-bbd8-183662e2d138": "vivid-routing production",
+    "32d63f10-dee9-48af-a631-975f660c27c1": "production Postgres",
+    "faa144a3-0d66-4def-8f6c-650de8ade6df": "legacy vivid-routing service"
+  },
+  "approvedDemoProjects": {
+    "e02ba0e0-4faf-41eb-a81d-d53b94ee1019": {
+      "name": "vivid-canonical-demo",
+      "environmentId": "247466bb-3b21-4f93-bb85-2e04babbe88b",
+      "applicationServiceId": "f4252a91-b9fc-4b27-a6fa-2351446ba46a",
+      "databaseServiceId": "93db3daf-731d-43bf-8990-18d385ae0b09",
+      "status": "app-shell-unconnected"
+    }
+  },
+  "protectedTenants": {
+    "ccps": {
+      "organizationId": 13,
+      "reason": "Active district pilot"
+    },
+    "hfhs": {
+      "organizationId": 39,
+      "reason": "Active enterprise opportunity"
+    },
+    "rubber-world": {
+      "organizationId": 40,
+      "reason": "Active publisher opportunity"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "slug": "canonical-vivid",
+  "name": "Canonical Vivid Demonstration",
+  "customerType": "organization",
+  "branding": {
+    "primaryColor": "#123d25",
+    "logoUrl": "/assets/vivid-logo.svg"
+  },
+  "portals": {
+    "organization": {
+      "enabled": true,
+      "label": "Organization Platform"
+    },
+    "marketplace": {
+      "enabled": true,
+      "label": "Opportunity Marketplace"
+    },
+    "advertiser": {
+      "enabled": true,
+      "label": "Advertiser Platform"
+    }
+  },
+  "modules": [
+    "executive-overview",
+    "inventory",
+    "marketplace",
+    "requests",
+    "advertisers",
+    "responsibility",
+    "contracts",
+    "fulfillment",
+    "campaigns",
+    "performance",
+    "exports",
+    "renewals",
+    "revenue-pipeline"
+  ],
+  "sampleData": {
+    "label": "Illustrative sample data",
+    "realContacts": false
+  },
+  "integrations": {
+    "apollo": false,
+    "email": false,
+    "payments": false,
+    "square": false,
+    "marketingConnectors": false
+  }
+}
