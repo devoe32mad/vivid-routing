@@ -11,6 +11,7 @@ const { createClonePlan } = require('../demo-platform/clone-plan');
 const { assertIsolatedRuntime, databaseFingerprint } = require('../demo-platform/runtime-guard');
 const { auditStartCommand } = require('../demo-platform/startup-audit');
 const { auditChangedPaths } = require('../demo-platform/protected-change-audit');
+const mirrorViews = require('../demo-platform/mirror-views');
 const packageJson = require('../package.json');
 
 const isolatedProject = 'e02ba0e0-4faf-41eb-a81d-d53b94ee1019';
@@ -113,4 +114,18 @@ test('canonical schema is sample-only and binds itself to one demo environment',
   assert.match(sql, /CHECK \(id = 1\)/);
   assert.equal((sql.match(/CHECK \(is_sample = TRUE\)/g) || []).length, 8);
   assert.doesNotMatch(sql, /ccps|hfhs|rubber.world/i);
+});
+
+test('canonical mirror exposes the connected Vivid operating surfaces', () => {
+  const html = mirrorViews.organizationOverview('/demo/canonical-vivid', {
+    totals: { placements: 2, advertisers: 1, contractValue: 1000, scans: 10, conversions: 2, revenue: 500 },
+    locations: [{ id: 1, name: 'Sample Location', location_type: 'Campus', audience: 100, placements: 2, available: 1, scans: 10, revenue: 500 }],
+    contracts: [{ id: 1 }],
+    requests: [{ status: 'pending' }]
+  });
+  for (const label of ['Locations', 'Advertisers', 'Advertising Inventory', 'Advertising Requests', 'Contracts', 'Renewals', 'Revenue Pipeline', 'Performance Insights', 'Reports', 'Sales Rep Report', 'Administration', 'Help']) {
+    assert.match(html, new RegExp(label));
+  }
+  assert.match(html, /Advertiser Revenue Generated/);
+  assert.match(html, /Open Location/);
 });

@@ -36,6 +36,9 @@ CREATE TABLE IF NOT EXISTS demo_advertisers (
   UNIQUE (organization_id, name)
 );
 
+ALTER TABLE demo_advertisers
+  ADD COLUMN IF NOT EXISTS sales_rep TEXT NOT NULL DEFAULT 'Unassigned';
+
 CREATE TABLE IF NOT EXISTS demo_inventory (
   id BIGSERIAL PRIMARY KEY,
   location_id BIGINT NOT NULL REFERENCES demo_locations(id) ON DELETE CASCADE,
@@ -72,6 +75,12 @@ CREATE TABLE IF NOT EXISTS demo_contracts (
   is_sample BOOLEAN NOT NULL DEFAULT TRUE CHECK (is_sample = TRUE),
   UNIQUE (advertiser_id, inventory_id, starts_on)
 );
+
+ALTER TABLE demo_contracts
+  ADD COLUMN IF NOT EXISTS next_action TEXT NOT NULL DEFAULT 'Review account';
+
+ALTER TABLE demo_contracts
+  ADD COLUMN IF NOT EXISTS renewal_owner TEXT NOT NULL DEFAULT 'Unassigned';
 
 CREATE TABLE IF NOT EXISTS demo_campaigns (
   id BIGSERIAL PRIMARY KEY,

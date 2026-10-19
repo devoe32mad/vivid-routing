@@ -6,6 +6,7 @@ const canonical = require('./templates/canonical.json');
 const { createDatabase } = require('./database');
 const { assertManifest } = require('./manifest');
 const { assertIsolatedRuntime } = require('./runtime-guard');
+const views = require('./mirror-views');
 
 assertManifest(canonical);
 const runtime = assertIsolatedRuntime(process.env, canonical);
@@ -148,12 +149,92 @@ async function handle(request, response) {
   if (request.method === 'GET' && url.pathname === `${basePath}/organization`) {
     const data = await database.organizationDashboard();
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
-    return response.end(organizationHtml(data));
+    return response.end(views.organizationOverview(basePath, data));
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/organization/locations`) {
+    const data = await database.locations();
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.locationsPage(basePath, data));
+  }
+  const locationMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/organization/location/(\\d+)$`));
+  if (locationMatch) {
+    const data = await database.locationDetail(Number(locationMatch[1]));
+    if (!data) return sendJson(response, 404, { error: 'Location not found' });
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.locationPage(basePath, data));
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/organization/inventory`) {
+    const data = await database.inventory();
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.inventoryPage(basePath, data));
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/organization/advertisers`) {
+    const data = await database.advertisers();
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.advertisersPage(basePath, data));
+  }
+  const advertiserMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/organization/advertiser/(\\d+)$`));
+  if (advertiserMatch) {
+    const data = await database.advertiserDetail(Number(advertiserMatch[1]));
+    if (!data) return sendJson(response, 404, { error: 'Advertiser not found' });
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.advertiserOrgPage(basePath, data));
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/organization/requests`) {
+    const data = await database.requests();
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.requestsPage(basePath, data));
+  }
+  const requestStatusMatch = request.method === 'POST' && url.pathname.match(new RegExp(`^${basePath}/organization/requests/(\\d+)/status$`));
+  if (requestStatusMatch) {
+    const form = await readForm(request);
+    const status = String(form.get('status') || '');
+    if (!['approved', 'declined'].includes(status)) return sendJson(response, 400, { error: 'Invalid review status' });
+    await database.updateRequestStatus(Number(requestStatusMatch[1]), status);
+    response.writeHead(303, { location: `${basePath}/organization/requests` });
+    return response.end();
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/organization/contracts`) {
+    const data = await database.contracts();
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.contractsPage(basePath, data, false));
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/organization/renewals`) {
+    const data = await database.contracts();
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.contractsPage(basePath, data, true));
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/organization/pipeline`) {
+    const data = await database.revenuePipeline();
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.pipelinePage(basePath, data));
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/organization/performance`) {
+    const data = await database.advertiserDashboard();
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.performancePage(basePath, data));
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/organization/reports`) {
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.reportsPage(basePath));
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/organization/responsibility`) {
+    const [advertisers, contracts] = await Promise.all([database.advertisers(), database.contracts()]);
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.responsibilityPage(basePath, advertisers, contracts));
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/organization/administration`) {
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.administrationPage(basePath));
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/organization/help`) {
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.helpPage(basePath));
   }
   if (request.method === 'GET' && url.pathname === `${basePath}/marketplace`) {
     const data = await database.marketplace();
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
-    return response.end(marketplaceHtml(data, url.searchParams.get('requested') === '1'));
+    return response.end(views.marketplacePage(basePath, data, url.searchParams.get('requested') === '1'));
   }
   if (request.method === 'POST' && url.pathname === `${basePath}/marketplace/request`) {
     const form = await readForm(request);
@@ -171,14 +252,33 @@ async function handle(request, response) {
     return response.end();
   }
   if (request.method === 'GET' && url.pathname === `${basePath}/advertiser`) {
-    const data = await database.advertiserDashboard();
+    const advertisers = await database.advertisers();
+    const requestedId = Number(url.searchParams.get('advertiser_id'));
+    const selected = advertisers.find(row => Number(row.id) === requestedId) || advertisers[0];
+    const data = await database.advertiserDashboard(selected?.id || null);
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
-    return response.end(advertiserHtml(data));
+    return response.end(views.advertiserPortalPage(basePath, advertisers, selected, data));
   }
-  if (request.method === 'GET' && url.pathname === `${basePath}/exports/performance.csv`) {
-    const rows = await database.advertiserDashboard();
-    const csv = [['Advertiser', 'Campaign', 'Placement', 'Scans', 'Actions', 'Conversions', 'Revenue', 'ROI'], ...rows.map(row => [row.advertiser, row.campaign, row.placement, row.scans, row.clicks, row.conversions, row.revenue, `${row.roi}%`])].map(row => row.map(csvCell).join(',')).join('\n');
-    response.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="vivid-canonical-performance.csv"', 'cache-control': 'no-store' });
+  const exportMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/exports/(executive|inventory|performance|contracts)\\.csv$`));
+  if (exportMatch) {
+    const kind = exportMatch[1];
+    let rows;
+    if (kind === 'inventory') {
+      const data = await database.inventory();
+      rows = [['Location','Opportunity','Format','Status','Annual price','Estimated impressions','Advertiser'], ...data.map(x=>[x.location,x.name,x.format,x.status,x.annualPrice,x.estimated_impressions,x.advertiser||''])];
+    } else if (kind === 'contracts') {
+      const data = await database.contracts();
+      rows = [['Contract','Advertiser','Location','Placement','Start','End','Value','Fulfillment','Status','Owner','Next action'], ...data.map(x=>[x.id,x.advertiser,x.location,x.placement,formatDate(x.starts_on),formatDate(x.ends_on),x.value,`${x.fulfillment_percent}%`,x.status,x.renewal_owner,x.next_action])];
+    } else if (kind === 'executive') {
+      const data = await database.organizationDashboard();
+      rows = [['Organization','Locations','Placements','Advertisers','Contract value','Scans','Conversions','Attributed revenue'],['Harbor Community Network',data.locations.length,data.totals.placements,data.totals.advertisers,data.totals.contractValue,data.totals.scans,data.totals.conversions,data.totals.revenue]];
+    } else {
+      const advertiserId = Number(url.searchParams.get('advertiser_id')) || null;
+      const data = await database.advertiserDashboard(advertiserId);
+      rows = [['Advertiser','Campaign','Location','Placement','Scans','Actions','Conversions','Revenue','ROI'], ...data.map(x=>[x.advertiser,x.campaign,x.location,x.placement,x.scans,x.clicks,x.conversions,x.revenue,`${x.roi}%`])];
+    }
+    const csv = rows.map(row => row.map(csvCell).join(',')).join('\n');
+    response.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="vivid-canonical-${kind}.csv"`, 'cache-control': 'no-store' });
     return response.end(`${csv}\n`);
   }
   if (request.method === 'GET' && url.pathname === `${basePath}/api/config`) {
