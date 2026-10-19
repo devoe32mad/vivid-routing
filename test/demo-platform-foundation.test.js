@@ -12,6 +12,7 @@ const { assertIsolatedRuntime, databaseFingerprint } = require('../demo-platform
 const { auditStartCommand } = require('../demo-platform/startup-audit');
 const { auditChangedPaths } = require('../demo-platform/protected-change-audit');
 const { discoverOpportunities, isBlockedAddress } = require('../demo-platform/prospect-scraper');
+const { priceCents } = require('../demo-platform/database');
 const mirrorViews = require('../demo-platform/mirror-views');
 const packageJson = require('../package.json');
 
@@ -113,7 +114,10 @@ test('canonical schema is sample-only and binds itself to one demo environment',
   const sql = fs.readFileSync(path.join(__dirname, '..', 'demo-platform', 'schema.sql'), 'utf8');
   assert.match(sql, /CREATE TABLE IF NOT EXISTS demo_environment/);
   assert.match(sql, /CHECK \(id = 1\)/);
-  assert.equal((sql.match(/CHECK \(is_sample = TRUE\)/g) || []).length, 9);
+  assert.equal((sql.match(/CHECK \(is_sample = TRUE\)/g) || []).length, 11);
+  assert.match(sql, /demo_prospect_imports/);
+  assert.match(sql, /demo_prospect_drafts/);
+  assert.match(sql, /prospect_import_id BIGINT REFERENCES demo_prospect_imports/);
   assert.doesNotMatch(sql, /ccps|hfhs|rubber.world/i);
 });
 
@@ -168,4 +172,20 @@ test('prospect importer extracts reviewable sources without writing Marketplace 
 test('prospect importer blocks private network targets', () => {
   for (const address of ['127.0.0.1', '10.0.0.2', '172.16.0.4', '192.168.1.4', '::1', 'fd00::1', '::ffff:127.0.0.1']) assert.equal(isBlockedAddress(address), true);
   assert.equal(isBlockedAddress('8.8.8.8'), false);
+});
+
+test('prospect review mirrors edit, approval, publishing and reversible reset controls', () => {
+  const html = mirrorViews.builderImportPage('/demo/canonical-vivid', {
+    prospect: { id: 8, brand_name: 'Example Association', website_title: 'Example Association', website_description: 'Example description', source_url: 'https://example.org/', primary_color: '#176b3a', logo_url: '', status: 'reviewed' },
+    drafts: [{ id: 9, title: 'Annual Sponsorship', description: 'Reviewed description', category: 'Sponsorship', price_text: '$2,500 per event', source_url: 'https://example.org/advertise', image_url: '', responsible_rep: 'Demo Sales Rep', review_status: 'approved', inventory_id: null }]
+  }, [{ id: 1, name: 'Main Campus' }]);
+  for (const label of ['Prospect branding', 'Approve', 'Reject', 'Publish 1 approved', 'Responsible rep', 'Demo manifest']) assert.match(html, new RegExp(label));
+  assert.match(html, /builder\/import\/8\/publish/);
+  assert.match(html, /builder\/draft\/9/);
+});
+
+test('public price references become annual-price cents without inventing prices', () => {
+  assert.equal(priceCents('$2,500 per event'), 250000);
+  assert.equal(priceCents('$185/month'), 18500);
+  assert.equal(priceCents('Pricing requires review'), 0);
 });
