@@ -8,10 +8,11 @@ const canonical = require('../demo-platform/templates/canonical.json');
 const protectedResources = require('../demo-platform/protected-resources.json');
 const { assertManifest, validateManifest } = require('../demo-platform/manifest');
 const { createClonePlan } = require('../demo-platform/clone-plan');
+const { buildProspectPackage, checksum, slugify } = require('../demo-platform/prospect-package');
 const { assertIsolatedRuntime, databaseFingerprint } = require('../demo-platform/runtime-guard');
 const { auditStartCommand } = require('../demo-platform/startup-audit');
 const { auditChangedPaths } = require('../demo-platform/protected-change-audit');
-const { discoverOpportunities, isBlockedAddress } = require('../demo-platform/prospect-scraper');
+const { discoverImages, discoverOpportunities, isBlockedAddress } = require('../demo-platform/prospect-scraper');
 const { priceCents } = require('../demo-platform/database');
 const mirrorViews = require('../demo-platform/mirror-views');
 const packageJson = require('../package.json');
@@ -114,9 +115,11 @@ test('canonical schema is sample-only and binds itself to one demo environment',
   const sql = fs.readFileSync(path.join(__dirname, '..', 'demo-platform', 'schema.sql'), 'utf8');
   assert.match(sql, /CREATE TABLE IF NOT EXISTS demo_environment/);
   assert.match(sql, /CHECK \(id = 1\)/);
-  assert.equal((sql.match(/CHECK \(is_sample = TRUE\)/g) || []).length, 11);
+  assert.equal((sql.match(/CHECK \(is_sample = TRUE\)/g) || []).length, 12);
   assert.match(sql, /demo_prospect_imports/);
   assert.match(sql, /demo_prospect_drafts/);
+  assert.match(sql, /demo_provision_packages/);
+  assert.match(sql, /external_effects_enabled = FALSE/);
   assert.match(sql, /prospect_import_id BIGINT REFERENCES demo_prospect_imports/);
   assert.doesNotMatch(sql, /ccps|hfhs|rubber.world/i);
 });
@@ -174,14 +177,58 @@ test('prospect importer blocks private network targets', () => {
   assert.equal(isBlockedAddress('8.8.8.8'), false);
 });
 
+test('prospect importer rejects tracking pixels and prioritizes reviewable artwork', () => {
+  const html = '<meta property="og:image" content="/hero.jpg"><img src="https://px.ads.linkedin.com/collect?id=1" width="1" height="1"><img src="/sponsor.jpg" width="800" height="600"><img src="https://cdn.example.net/partner.png">';
+  const images = discoverImages(html, new URL('https://example.org/advertise'));
+  assert.deepEqual(images, ['https://example.org/hero.jpg', 'https://example.org/sponsor.jpg', 'https://cdn.example.net/partner.png']);
+  assert.ok(images.every(url => !url.includes('linkedin')));
+});
+
 test('prospect review mirrors edit, approval, publishing and reversible reset controls', () => {
   const html = mirrorViews.builderImportPage('/demo/canonical-vivid', {
     prospect: { id: 8, brand_name: 'Example Association', website_title: 'Example Association', website_description: 'Example description', source_url: 'https://example.org/', primary_color: '#176b3a', logo_url: '', status: 'reviewed' },
     drafts: [{ id: 9, title: 'Annual Sponsorship', description: 'Reviewed description', category: 'Sponsorship', price_text: '$2,500 per event', source_url: 'https://example.org/advertise', image_url: '', responsible_rep: 'Demo Sales Rep', review_status: 'approved', inventory_id: null }]
   }, [{ id: 1, name: 'Main Campus' }]);
-  for (const label of ['Prospect branding', 'Approve', 'Reject', 'Publish 1 approved', 'Responsible rep', 'Demo manifest']) assert.match(html, new RegExp(label));
+  for (const label of ['Prospect branding', 'Approve', 'Reject', 'Publish 1 approved', 'Responsible rep', 'Reviewed manifest', 'Create isolated package']) assert.match(html, new RegExp(label));
   assert.match(html, /builder\/import\/8\/publish/);
   assert.match(html, /builder\/draft\/9/);
+});
+
+test('approved prospect data becomes an immutable three-portal isolated package', () => {
+  const data = {
+    prospect: { id: 8, brand_name: 'Example & Partners', website_title: 'Example', source_url: 'https://example.org/', primary_color: '#176b3a', logo_url: '' },
+    drafts: [
+      { title: 'Annual Sponsorship', description: 'Reviewed description', category: 'Sponsorship', price_text: '$2,500 per event', source_url: 'https://example.org/advertise', image_url: '', responsible_rep: 'Demo Sales Rep', review_status: 'approved' },
+      { title: 'Rejected Idea', review_status: 'rejected' }
+    ]
+  };
+  const bundle = buildProspectPackage(data);
+  assert.equal(slugify(data.prospect.brand_name), 'example-partners');
+  assert.equal(bundle.manifest.slug, 'example-partners-8');
+  assert.equal(bundle.manifest.opportunities.length, 1);
+  assert.deepEqual(Object.keys(bundle.manifest.portals), ['organization', 'marketplace', 'advertiser']);
+  assert.equal(bundle.clonePlan.resourcePolicy.reuseExistingDatabase, false);
+  assert.equal(bundle.clonePlan.resourcePolicy.protectedTenantAccess, false);
+  assert.equal(bundle.clonePlan.externalEffectsEnabled, false);
+  assert.equal(bundle.manifestChecksum, checksum(bundle.manifest));
+  assert.equal(bundle.manifestChecksum.length, 64);
+});
+
+test('prospect package refuses unreviewed opportunities', () => {
+  assert.throws(() => buildProspectPackage({
+    prospect: { id: 2, brand_name: 'No Review', website_title: 'No Review', source_url: 'https://example.org/', primary_color: '#176b3a', logo_url: '' },
+    drafts: [{ title: 'Draft', review_status: 'draft' }]
+  }), /Approve at least one opportunity/);
+});
+
+test('package review shows isolation contract and all Vivid surfaces', () => {
+  const bundle = buildProspectPackage({
+    prospect: { id: 8, brand_name: 'Example', website_title: 'Example', source_url: 'https://example.org/', primary_color: '#176b3a', logo_url: '' },
+    drafts: [{ title: 'Annual Sponsorship', description: 'Reviewed', category: 'Sponsorship', price_text: '$2,500', source_url: 'https://example.org/advertise', image_url: '', responsible_rep: 'Demo Rep', review_status: 'approved' }]
+  });
+  const html = mirrorViews.provisionPackagePage('/demo/canonical-vivid', { id: 3, import_id: 8, version: 1, status: 'ready', manifest_sha256: bundle.manifestChecksum, manifest: bundle.manifest, clone_plan: bundle.clonePlan }, true);
+  for (const label of ['Isolation contract', 'New project', 'New database', 'Organization Platform', 'Opportunity Marketplace', 'Advertiser Platform', 'Operator verification']) assert.match(html, new RegExp(label));
+  assert.match(html, /No infrastructure or external system was changed/);
 });
 
 test('public price references become annual-price cents without inventing prices', () => {
