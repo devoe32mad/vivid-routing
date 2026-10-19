@@ -7,8 +7,8 @@ const DEFAULT_DATES='from=2026-09-13&to=2026-10-12';
 const homes={enterprise:'/org-organization/39?organization_id=39&'+DEFAULT_DATES,advertiser:'/my-setup',marketplace:'/advertise/henry-ford-health-demo'};
 const simple=new Set([...require('./responsibility-routes').paths,'/org-business-breakdown','/org-help','/help','/admin/conversion-tracking','/org-advertisers','/org-locations','/org-marketplace','/org-contracts','/org-renewals','/org-revenue-pipeline','/org-placement-report','/org-performance','/org-advertising-requests','/org-export','/org-export/renewals.csv','/org-export/renewals.pdf','/my-setup','/reports','/reports-qr','/reports-location','/reports-campaign','/admin/reports','/export/report.pdf','/export/report.xlsx','/export/events.csv','/export/website-pages.pdf','/export/website-pages.csv','/org-export/report.pdf','/org-export/report.xlsx','/admin/marketing-command-center','/campaign-help','/org-campaign-builder-requests','/org-campaign-help-example','/org-location/new','/org-opportunity/new']);
 function readOnlyAdmin(path){return ['/org-operations','/org-users','/org-users/new','/org-bulk-import','/org-import-locations-assets','/org-locations-assets-template','/org-programs','/org-settings','/org-permissions'].includes(path)||/^\/org-user\/\d+\/edit$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path);}
-function editableRoute(path){return path==='/org-responsibility/save'|| /^\/admin\/edit-location\/\d+$/.test(path)|| ['/admin/new-qr','/admin/new-campaign','/admin/assign','/admin/schedule','/org-programs'].includes(path)||/^\/admin\/edit-qr\/\d+$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path)|| /^\/admin\/edit-campaign\/\d+$/.test(path)||/^\/(?:org-)?campaign-help(?:\/\d+)?$/.test(path)||/^\/org-opportunity\/(?:new|edit\/\d+)$/.test(path)||path==='/org-location/new'||/^\/org-contract\/\d+\/(?:fulfillment|renew|renewal-review|renewal-approve|activate|activity)$/.test(path);}
-function routeAllowed(path){if(/^\/demo-advertiser\/placement\/\d+$/.test(path))return true;return /^\/org-revenue-pipeline\/location\/\d+(?:\/revenue)?$/.test(path)|| readOnlyAdmin(path)|| /^\/admin\/view-(?:qr|location)\/\d+$/.test(path)||/^\/admin\/campaign\/\d+\/website-pages$/.test(path)||/^\/r\/\d+$/.test(path)|| /^\/admin\/(?:archive|restore)-(?:campaign|qr)\/\d+$/.test(path)|| path==='/admin/qr-setup-choice'||/^\/qr\/\d+\.png$/.test(path)|| editableRoute(path)|| simple.has(path)||path==='/org-organization/39'||/^\/advertise\/henry-ford-health-demo(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path)||/^\/org-(?:location|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/view-campaign\/\d+$/.test(path);}
+function editableRoute(path){if(crmRoute(path,true))return true;return path==='/org-responsibility/save'|| /^\/admin\/edit-location\/\d+$/.test(path)|| ['/admin/new-qr','/admin/new-campaign','/admin/assign','/admin/schedule','/org-programs'].includes(path)||/^\/admin\/edit-qr\/\d+$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path)|| /^\/admin\/edit-campaign\/\d+$/.test(path)||/^\/(?:org-)?campaign-help(?:\/\d+)?$/.test(path)||/^\/org-opportunity\/(?:new|edit\/\d+)$/.test(path)||path==='/org-location/new'||/^\/org-contract\/\d+\/(?:fulfillment|renew|renewal-review|renewal-approve|activate|activity)$/.test(path);}
+function routeAllowed(path){if(crmRoute(path))return true;if(/^\/demo-advertiser\/placement\/\d+$/.test(path))return true;return /^\/org-revenue-pipeline\/location\/\d+(?:\/revenue)?$/.test(path)|| readOnlyAdmin(path)|| /^\/admin\/view-(?:qr|location)\/\d+$/.test(path)||/^\/admin\/campaign\/\d+\/website-pages$/.test(path)||/^\/r\/\d+$/.test(path)|| /^\/admin\/(?:archive|restore)-(?:campaign|qr)\/\d+$/.test(path)|| path==='/admin/qr-setup-choice'||/^\/qr\/\d+\.png$/.test(path)|| editableRoute(path)|| simple.has(path)||path==='/org-organization/39'||/^\/advertise\/henry-ford-health-demo(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path)||/^\/org-(?:location|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/view-campaign\/\d+$/.test(path);}
 function validToken(value){if(typeof value!=='string'||value.length>100)return false;return crypto.timingSafeEqual(crypto.createHash('sha256').update(value).digest(),Buffer.from(TOKEN_HASH,'hex'));}
 function install(source){
  const createMarker='// HFHS_REVIEW_CREATE_V1';
@@ -106,6 +106,13 @@ function register(app,{q}){
    const locations=(await q('SELECT id FROM spaces WHERE organization_id=$1 AND COALESCE(is_archived,false)=false',[ORG])).rows.map(r=>Number(r.id));
    for(const [keys,ids]of [[['location_id','space_id'],locations],[['campaign_id','campaign'],allowed.campaignIds],[['qr_id','qr','placement_id'],allowed.qrIds]])for(const key of keys){for(const v of [req.query[key],req.body?.[key]])if(v&&v!=='all'&&v!=='All'&&!ids.includes(Number(v)))return notice();}
    const pipelineLocation=req.path.match(/^\/org-revenue-pipeline\/location\/(\d+)(?:\/revenue)?$/);if(pipelineLocation&&!locations.includes(Number(pipelineLocation[1])))return notice();
+   if(crmRoute(req.path)||crmRoute(req.path,true)){
+    let key;try{key=decodeURIComponent(req.path.split('/')[2]).trim().toLowerCase();}catch(e){return notice();}
+    const advertiser=(await q('SELECT id FROM advertisers WHERE organization_id=$1 AND LOWER(TRIM(name))=$2 LIMIT 1',[ORG,key])).rows[0];
+    if(!advertiser)return notice();
+    const record=req.path.match(/\/(task|opportunity)\/(\d+)(?:\/(?:edit|complete))?$/);
+    if(record){const table=record[1]==='task'?'advertiser_relationship_tasks':'advertiser_sales_opportunities';if(!(await q('SELECT id FROM '+table+' WHERE id=$1 AND organization_id=$2 AND advertiser_id=$3',[Number(record[2]),ORG,Number(advertiser.id)])).rows.length)return notice();}
+   }
    let match=req.path.match(/^\/org-(location|campaign|contract|advertising-request)\/(\d+)$/);
    if(match){const kind=match[1],id=Number(match[2]);if(kind==='location'&&!locations.includes(id))return notice();if(kind==='campaign'&&!allowed.campaignIds.includes(id))return notice();if(kind==='contract'||kind==='advertising-request'){const table=kind==='contract'?'contracts':'organization_advertising_requests';if(!(await q('SELECT id FROM '+table+' WHERE id=$1 AND organization_id=$2',[id,ORG])).rows.length)return notice();}}
    match=req.path.match(/^\/admin\/(?:view|edit)-campaign\/(\d+)$/);if(match&&!allowed.campaignIds.includes(Number(match[1])))return notice();
@@ -136,6 +143,7 @@ function register(app,{q}){
     body=body.replace(/<form\b[^>]*>/gi,form=>/method=["']?post/i.test(form)?form.replace(/enctype=["']multipart\/form-data["']/i,'')+'<input type="hidden" name="_hfhs_review_csrf" value="'+req.session.hfhsReviewCsrf+'">':form);
     body=body.replace(/<input\b[^>]*type=["']file["'][^>]*>/gi,'<span>Photo uploads are available after demo onboarding.</span>');
     if(readOnlyAdmin(req.path)){body=body.replace(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi,(form,attrs,inside)=>/method=["']?post/i.test(attrs)&&! /action=["']\/org-responsibility\/save(?:\?|["'])/i.test(attrs)?'<div class="hfhs-admin-preview"><fieldset disabled style="border:0;margin:0;padding:0;min-width:0">'+inside+'</fieldset><p style="color:#64748b;font-size:13px">View-only demo — administrative changes are disabled.</p></div>':form);}
+    body=body.replace(/(<a\b[^>]*href="\/org-advertisers(?:\?[^"]*)?"[^>]*>)\s*Advertisers\s*(<\/a>)/g,'$1Sponsors &amp; CRM$2');
     body=body.replace(/michaelandrewdevoe@gmail\.com/gi,'HFHS Demo Reviewer');
     body=/<body[^>]*>/i.test(body)?body.replace(/<body[^>]*>/i,m=>m+banner):banner+body;
     if(readOnlyAdmin(req.path))body=body.replace('HFHS interactive demo · Editing enabled','HFHS interactive demo · Administration is view-only');
@@ -153,3 +161,11 @@ async function extras(q){await ensure(q);return (await q("SELECT e.kind,e.entity
 module.exports.track=track;module.exports.extras=extras;
 
 module.exports.readOnlyAdmin=readOnlyAdmin;
+
+function crmRoute(path,write=false){
+ const match=path.match(/^\/org-advertiser\/[^/]+\/(.+)$/);
+ if(!match)return false;
+ return (write ? /^(?:relationship|tasks|task\/\d+\/(?:edit|complete)|opportunities|opportunity\/\d+|activity)$/ : /^(?:relationship\/edit|tasks(?:\/new)?|task\/\d+\/edit|opportunities(?:\/new)?|opportunity\/\d+(?:\/edit)?|activity(?:\/new)?)$/).test(match[1]);
+}
+
+module.exports.crmRoute=crmRoute;
