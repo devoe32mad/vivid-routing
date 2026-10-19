@@ -47,6 +47,7 @@ function install(source){
   source=installAdvertiserPeriod(source);
   source=installExecutiveConsistency(source);
   source=installHfhsExecutiveSummary(source);
+  source=installHfhsRevenueBreakdown(source);
   source=installRequestLocationFilters(source);
   source=installSalesOpportunityCards(source);
   source=installLocationDemoScope(source);
@@ -548,3 +549,36 @@ module.exports.hfhsExecutiveRows=hfhsExecutiveRows;
 
 const HFHS_OVERVIEW_ADVERTISER_SQL="\n  SELECT\n    DISTINCT c.id AS campaign_id, LOWER(TRIM(c.advertiser)) AS advertiser_key\n\n  FROM spaces s\n\n  JOIN qr_codes qr\n    ON qr.space_id = s.id\n   AND COALESCE(qr.is_archived, false) = false\n\n  JOIN qr_campaigns qc\n    ON qc.qr_id = qr.id\n\n  JOIN campaigns c\n    ON c.id = qc.campaign_id\n\n WHERE s.organization_id = $1\n  AND COALESCE(s.is_archived, false) = false\n  AND s.id = ANY($4::int[])\n  AND (\n    $5::int IS NULL\n    OR s.id = $5\n  )\n  AND NULLIF(TRIM(c.advertiser), '') IS NOT NULL\n\n    /*\n      Location overlaps the selected range.\n    */\n    AND (\n      NULLIF($2, '') IS NULL\n      OR s.end_date IS NULL\n      OR s.end_date >= NULLIF($2, '')::date\n    )\n\n    AND (\n      NULLIF($3, '') IS NULL\n      OR COALESCE(\n           s.live_date,\n           s.created_at::date\n         ) <= NULLIF($3, '')::date\n    )\n\n    /*\n      QR placement overlaps the selected range.\n    */\n    AND (\n      NULLIF($2, '') IS NULL\n      OR qr.end_date IS NULL\n      OR qr.end_date >= NULLIF($2, '')::date\n    )\n\n    AND (\n      NULLIF($3, '') IS NULL\n      OR COALESCE(\n           qr.live_date,\n           qr.created_at::date\n         ) <= NULLIF($3, '')::date\n    )\n\n    /*\n      Campaign assignment overlaps the selected range.\n    */\n    AND (\n      NULLIF($2, '') IS NULL\n      OR COALESCE(\n           qc.ended_at::date,\n           c.end_date,\n           NULLIF($3, '')::date\n         ) >= NULLIF($2, '')::date\n    )\n\n    AND (\n      NULLIF($3, '') IS NULL\n      OR COALESCE(\n           qc.started_at::date,\n           qc.assigned_at::date,\n           c.start_date,\n           c.live_date,\n           c.created_at::date\n         ) <= NULLIF($3, '')::date\n    )\n\n    /*\n      With no dates selected, preserve the current active-only view.\n    */\n    AND (\n      (\n        NULLIF($2, '') IS NULL\n        AND NULLIF($3, '') IS NULL\n        AND COALESCE(qr.is_active, true) = true\n        AND COALESCE(qc.is_active, true) = true\n        AND COALESCE(c.is_archived, false) = false\n      )\n\n      OR\n\n      (\n        NULLIF($2, '') IS NOT NULL\n        OR NULLIF($3, '') IS NOT NULL\n      )\n    )\n"
 ;
+
+
+function installHfhsRevenueBreakdown(source){
+ const marker='// HFHS_REVENUE_BREAKDOWN_SCOPE_V1';if(source.includes(marker))return source;
+ const a=source.indexOf('  WITH filtered_locations AS ('),b=source.indexOf('  qr_campaign_metrics AS (',a);
+ if(a<0||b<0)throw Error('Revenue Overview scope missing');
+ const prefix=source.slice(a,b).replace(/,\s*$/, "\n");
+ const start=source.indexOf('if (metric === "advertiser-revenue")'),end=source.indexOf('if (metric === "pending")',start);
+ let part=source.slice(start,end);
+ const sql=prefix+`
+ SELECT s.id AS space_id,s.name AS location_name,s.location AS market,
+ fq.id AS qr_id,qr.name AS qr_name,c.id AS campaign_id,c.name AS campaign_name,
+ COALESCE(c.advertiser,'Unattributed campaign') AS advertiser,
+ COUNT(e.id) FILTER(WHERE e.type='scan')::int AS scans,
+ COUNT(e.id) FILTER(WHERE e.type IN ('offer','maps','waze','destination_click'))::int AS intent,
+ COUNT(e.id) FILTER(WHERE e.type='conversion')::int AS conversions,
+ COALESCE(SUM(e.value) FILTER(WHERE e.type='conversion'),0)::numeric AS conversion_value
+ FROM filtered_qrs fq JOIN filtered_locations s ON s.id=fq.space_id
+ JOIN qr_codes qr ON qr.id=fq.id
+ JOIN events e ON e.qr_id=fq.id
+  AND (NULLIF($2,'') IS NULL OR e.created_at::date>=NULLIF($2,'')::date)
+  AND (NULLIF($3,'') IS NULL OR e.created_at::date<=NULLIF($3,'')::date)
+ LEFT JOIN campaigns c ON c.id=e.campaign_id
+ GROUP BY s.id,s.name,s.location,fq.id,qr.name,c.id,c.name,c.advertiser
+ ORDER BY conversion_value DESC,conversions DESC,c.advertiser,c.name`;
+ // Overview aggregates events directly by placement. Joining through assignment
+ // history would duplicate events or silently omit historical campaign events.
+ part=once(part,'  const revenueResult = await q(',`  const hfhsRevenueScope=req.hfhsReviewVerified ? await getOrganizationScope(req,organizationId) : null;
+  const revenueResult = req.hfhsReviewVerified ? await q(${JSON.stringify(sql)},[organizationId,fromDate||"",toDate||"",hfhsRevenueScope.allowedLocationIds,hfhsRevenueScope.selectedLocationId]) : await q(`);
+ part=once(part,'  const advertiserCount =\n    new Set(',`  const advertiserCount = req.hfhsReviewVerified ? await require("./install-hfhs-report-scope").hfhsAdvertiserCount(q,hfhsRevenueScope) : new Set(`);
+ return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
+}
+module.exports.hfhsAdvertiserCount=async(q,scope)=>new Set((await q(HFHS_OVERVIEW_ADVERTISER_SQL,[scope.organizationId,scope.fromDate||'',scope.toDate||'',scope.allowedLocationIds,scope.selectedLocationId])).rows.map(r=>r.advertiser_key)).size;
