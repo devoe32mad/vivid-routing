@@ -16,6 +16,21 @@ CREATE TABLE IF NOT EXISTS demo_organizations (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS demo_prospect_imports (
+  id BIGSERIAL PRIMARY KEY,
+  organization_id BIGINT NOT NULL REFERENCES demo_organizations(id) ON DELETE CASCADE,
+  source_url TEXT NOT NULL,
+  website_title TEXT NOT NULL,
+  website_description TEXT NOT NULL DEFAULT '',
+  brand_name TEXT NOT NULL,
+  primary_color TEXT NOT NULL DEFAULT '#176b3a',
+  logo_url TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'reviewed', 'published')),
+  is_sample BOOLEAN NOT NULL DEFAULT TRUE CHECK (is_sample = TRUE),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  published_at TIMESTAMPTZ
+);
+
 CREATE TABLE IF NOT EXISTS demo_locations (
   id BIGSERIAL PRIMARY KEY,
   organization_id BIGINT NOT NULL REFERENCES demo_organizations(id) ON DELETE CASCADE,
@@ -57,6 +72,37 @@ ALTER TABLE demo_inventory
 
 ALTER TABLE demo_inventory
   ADD COLUMN IF NOT EXISTS destination_url TEXT NOT NULL DEFAULT 'https://example.invalid';
+
+ALTER TABLE demo_inventory
+  ADD COLUMN IF NOT EXISTS source_url TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE demo_inventory
+  ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE demo_inventory
+  ADD COLUMN IF NOT EXISTS responsible_rep TEXT NOT NULL DEFAULT 'Unassigned';
+
+ALTER TABLE demo_inventory
+  ADD COLUMN IF NOT EXISTS display_price TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE demo_inventory
+  ADD COLUMN IF NOT EXISTS prospect_import_id BIGINT REFERENCES demo_prospect_imports(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS demo_prospect_drafts (
+  id BIGSERIAL PRIMARY KEY,
+  import_id BIGINT NOT NULL REFERENCES demo_prospect_imports(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  category TEXT NOT NULL,
+  price_text TEXT NOT NULL DEFAULT 'Pricing requires review',
+  source_url TEXT NOT NULL,
+  image_url TEXT NOT NULL DEFAULT '',
+  responsible_rep TEXT NOT NULL DEFAULT 'Unassigned',
+  review_status TEXT NOT NULL DEFAULT 'draft' CHECK (review_status IN ('draft', 'approved', 'rejected', 'published')),
+  inventory_id BIGINT REFERENCES demo_inventory(id) ON DELETE SET NULL,
+  is_sample BOOLEAN NOT NULL DEFAULT TRUE CHECK (is_sample = TRUE),
+  UNIQUE (import_id, title)
+);
 
 CREATE TABLE IF NOT EXISTS demo_requests (
   id BIGSERIAL PRIMARY KEY,
@@ -125,6 +171,8 @@ CREATE TABLE IF NOT EXISTS demo_performance (
 );
 
 CREATE INDEX IF NOT EXISTS demo_inventory_status_idx ON demo_inventory(status);
+CREATE INDEX IF NOT EXISTS demo_inventory_prospect_import_idx ON demo_inventory(prospect_import_id);
+CREATE INDEX IF NOT EXISTS demo_prospect_drafts_import_idx ON demo_prospect_drafts(import_id, review_status);
 CREATE INDEX IF NOT EXISTS demo_contracts_status_idx ON demo_contracts(status);
 CREATE INDEX IF NOT EXISTS demo_contract_benefits_contract_idx ON demo_contract_benefits(contract_id);
 CREATE INDEX IF NOT EXISTS demo_performance_campaign_idx ON demo_performance(campaign_id, recorded_on);
