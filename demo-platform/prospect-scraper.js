@@ -174,17 +174,36 @@ function categoryFor(value) {
   return 'Sponsorship';
 }
 
+function imageSource(tag) {
+  const direct = attribute(tag, 'src') || attribute(tag, 'data-src') || attribute(tag, 'data-lazy-src');
+  if (direct) return direct;
+  const srcset = attribute(tag, 'srcset') || attribute(tag, 'data-srcset');
+  return srcset.split(',')[0]?.trim().split(/\s+/)[0] || '';
+}
+
+function isUsableImageUrl(value, pageUrl) {
+  if (!value || /(?:\{|\}|%7b|%7d)/i.test(value)) return false;
+  try {
+    const image = new URL(value);
+    if (image.href === pageUrl.href) return false;
+    const path = image.pathname.toLowerCase();
+    return /\.(?:avif|gif|jpe?g|png|svg|webp)$/.test(path) || /(?:image|media|photo|logo|banner|thumb|upload)/i.test(path);
+  } catch {
+    return false;
+  }
+}
+
 function discoverImages(html, baseUrl) {
   const candidates = [
     { src: metaContent(html, 'property', 'og:image'), width: 0, height: 0, priority: 0 },
     ...[...html.matchAll(/<img\b[^>]*>/gi)].map(match => ({
-      src: attribute(match[0], 'src'),
+      src: imageSource(match[0]),
       width: Number(attribute(match[0], 'width') || 0),
       height: Number(attribute(match[0], 'height') || 0),
       priority: 1
     }))
   ].map(item => ({ ...item, url: absoluteUrl(item.src, baseUrl) }))
-    .filter(item => item.url)
+    .filter(item => isUsableImageUrl(item.url, baseUrl))
     .filter(item => !(item.width > 0 && item.width <= 2) && !(item.height > 0 && item.height <= 2))
     .filter(item => !/(?:pixel|tracking|analytics|\/collect(?:\?|$)|facebook\.com\/tr|doubleclick)/i.test(item.url))
     .map(item => ({ ...item, sameOrigin: new URL(item.url).origin === baseUrl.origin }))
