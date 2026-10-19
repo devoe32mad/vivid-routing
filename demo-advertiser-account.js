@@ -8,6 +8,14 @@ async function narrow(q,user,scope){
 async function select(req,q,user,review,scope){
  if(!surface(req.path))return scope;
  const people=(await q('SELECT DISTINCT advertiser_id,advertiser FROM campaigns WHERE id=ANY($1::int[]) AND advertiser_id IS NOT NULL ORDER BY advertiser,advertiser_id',[scope.campaignIds])).rows;
+ // Start HFHS reviews with a populated, date-aligned sponsorship example.
+ if(req.session?.hfhsReview && !review.hfhsPopulatedDefault){
+  if(!req.query.advertiser_id){
+   const example=people.find(p=>/Fundraising & Events/i.test(p.advertiser));
+   if(example)review.advertiserId=Number(example.advertiser_id);
+  }
+  review.hfhsPopulatedDefault=true;
+ }
  const id=Number(req.query.advertiser_id||review.advertiserId||people[0]?.advertiser_id);
  if(!people.some(p=>Number(p.advertiser_id)===id))throw Object.assign(Error('Choose an advertiser from this demo.'),{status:403});
  review.advertiserId=id;user.demoAdvertiserId=id;

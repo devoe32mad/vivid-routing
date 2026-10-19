@@ -55,6 +55,7 @@ function install(source){
   source=installExportCenter(source);
   source=installSharedExports(source);
   source=installReportScope(source);
+  source=installHfhsPlacementCosts(source);
   const marker='// HFHS_PERFORMANCE_DEMO_DEFAULT_V1';
   if(source.includes(marker))return source;
   const start=source.indexOf('app.get(\n  "/org-performance",');
@@ -137,7 +138,7 @@ function exportCells(row,state){
 async function exportDownload({q,req,res,next,buildExportReportRows}){
   const state=await require('./report-performance-upgrade').load({q,req});
   const raw=req.path==='/export/events.csv';
-  if(!raw&&(!state.rows.length||req.ccpsReviewVerified))return next();
+  if(!raw&&(!state.rows.length||req.ccpsReviewVerified)&&!req.hfhsReviewVerified)return next();
   const f=req.query,today=new Date().toISOString().slice(0,10);
   const start=f.start_date||f.startDate||f.start||f.from||today;
   const end=f.end_date||f.endDate||f.end||f.to||today;
@@ -166,6 +167,7 @@ async function exportDownload({q,req,res,next,buildExportReportRows}){
   const rows=await buildExportReportRows(req,start,end,location,qr,campaign,status);
   const headers=['Advertiser','Campaign','QR Codes','Locations','Status','Scans','Offers','Maps','Waze','Intent','Conversions','Revenue','Allocated Cost','CAC','ROI %'];
   const data=rows.map(r=>exportCells(r,state));
+  if(req.hfhsReviewVerified){headers.push("Full-Term Placement Cost");data.forEach((cells,i)=>cells.push(rows[i].fullPlacementCost||0));}
   if(req.path.endsWith('.xlsx')){
     const ExcelJS=require('exceljs'),book=new ExcelJS.Workbook(),sheet=book.addWorksheet('Campaign Results');
     sheet.addRow(['Vivid Export',start,end]);sheet.addRow(['Basic includes scans; restricted metrics are shown as dashes.']);
@@ -582,3 +584,32 @@ function installHfhsRevenueBreakdown(source){
  return source.slice(0,start)+part+source.slice(end)+'\n'+marker+'\n';
 }
 module.exports.hfhsAdvertiserCount=async(q,scope)=>new Set((await q(HFHS_OVERVIEW_ADVERTISER_SQL,[scope.organizationId,scope.fromDate||'',scope.toDate||'',scope.allowedLocationIds,scope.selectedLocationId])).rows.map(r=>r.advertiser_key)).size;
+
+
+function installHfhsPlacementCosts(source){
+ const marker='// HFHS_FULL_PLACEMENT_COST_V1';if(source.includes(marker))return source;
+ const old='  return require("./hfhs-demo-setup-scope").scopedRows(reportRows,await require("./hfhs-demo-setup-scope").reportScope(q,req.session.user),"campaignIds","campaignId");';
+ source=once(source,old,'  const scopedExportRows=require("./hfhs-demo-setup-scope").scopedRows(reportRows,await require("./hfhs-demo-setup-scope").reportScope(q,req.session.user),"campaignIds","campaignId");\n  return await require("./install-hfhs-report-scope").hfhsPlacementCosts(q,req,scopedExportRows,locationId,qrId);');
+ for(const path of ['/reports','/admin/reports']){
+  const a=source.indexOf('app.get("'+path+'", requireLogin, async (req, res) => {'),b=source.indexOf('\napp.',a+1);let part=source.slice(a,b);
+  part=once(part,'<th>Allocated Cost</th>','${req.hfhsReviewVerified ? "<th>Full-Term Placement Cost</th>" : ""}<th>Allocated Cost</th>');
+  part=once(part,'<td>${money(r.allocatedCost)}</td>','${req.hfhsReviewVerified ? "<td>"+money(r.fullPlacementCost)+"</td>" : ""}<td>${money(r.allocatedCost)}</td>');
+  const anchor=path==='/reports'?'<h2>Campaign Performance</h2>':'<h2>Detailed Results</h2>';
+  part=once(part,anchor,anchor+'${req.hfhsReviewVerified ? "<p>Illustrative demo results. Full-term placement cost comes from the assigned QR records. Allocated cost is the portion attributable to the selected dates. Revenue and conversions use the same date range.</p>" : ""}');
+  source=source.slice(0,a)+part+source.slice(b);
+ }
+ return source+'\n'+marker+'\n';
+}
+module.exports.hfhsPlacementCosts=async(q,req,rows,locationId,qrId)=>{
+ if(!req.hfhsReviewVerified||!rows.length)return rows;
+ const scope=await require('./hfhs-demo-setup-scope').reportScope(q,req.session.user);
+ const result=await q(`SELECT x.campaign_id,SUM(x.cost)::numeric AS cost FROM (
+ SELECT DISTINCT qc.campaign_id,qr.id,COALESCE(qr.total_cost,qr.annual_cost,s.placement_cost,0)::numeric AS cost
+ FROM qr_campaigns qc JOIN qr_codes qr ON qr.id=qc.qr_id JOIN spaces s ON s.id=qr.space_id
+ WHERE s.organization_id=39 AND qc.campaign_id=ANY($1::int[]) AND qr.id=ANY($2::int[])
+ AND COALESCE(qr.is_archived,false)=false AND COALESCE(qc.is_active,true)=true
+ AND ($3::text='' OR s.id::text=$3) AND ($4::text='' OR qr.id::text=$4)
+ ) x GROUP BY x.campaign_id`,[rows.map(r=>Number(r.campaignId)),scope.qrIds,String(locationId||''),String(qrId||'')]);
+ const costs=new Map(result.rows.map(r=>[Number(r.campaign_id),Number(r.cost)]));
+ return rows.map(r=>({...r,fullPlacementCost:costs.get(Number(r.campaignId))||0}));
+};
