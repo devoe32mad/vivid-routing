@@ -7,8 +7,8 @@ const DEFAULT_DATES='from=2026-09-13&to=2026-10-12';
 const homes={enterprise:'/org-organization/39?organization_id=39&'+DEFAULT_DATES,advertiser:'/my-setup',marketplace:'/advertise/henry-ford-health-demo'};
 const simple=new Set([...require('./responsibility-routes').paths,'/org-business-breakdown','/org-help','/help','/admin/conversion-tracking','/org-advertisers','/org-locations','/org-marketplace','/org-contracts','/org-renewals','/org-revenue-pipeline','/org-placement-report','/org-performance','/org-advertising-requests','/org-export','/org-export/renewals.csv','/org-export/renewals.pdf','/my-setup','/reports','/reports-qr','/reports-location','/reports-campaign','/admin/reports','/export/report.pdf','/export/report.xlsx','/export/events.csv','/export/website-pages.pdf','/export/website-pages.csv','/org-export/report.pdf','/org-export/report.xlsx','/admin/marketing-command-center','/campaign-help','/org-campaign-builder-requests','/org-campaign-help-example','/org-location/new','/org-opportunity/new']);
 function readOnlyAdmin(path){return ['/org-operations','/org-users','/org-users/new','/org-bulk-import','/org-import-locations-assets','/org-locations-assets-template','/org-programs','/org-settings','/org-permissions'].includes(path)||/^\/org-user\/\d+\/edit$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path);}
-function editableRoute(path){if(crmRoute(path,true))return true;return path==='/org-responsibility/save'|| /^\/admin\/edit-location\/\d+$/.test(path)|| ['/admin/new-qr','/admin/new-campaign','/admin/assign','/admin/schedule','/org-programs'].includes(path)||/^\/admin\/edit-qr\/\d+$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path)|| /^\/admin\/edit-campaign\/\d+$/.test(path)||/^\/(?:org-)?campaign-help(?:\/\d+)?$/.test(path)||/^\/org-opportunity\/(?:new|edit\/\d+)$/.test(path)||path==='/org-location/new'||/^\/org-contract\/\d+\/(?:fulfillment|renew|renewal-review|renewal-approve|activate|activity)$/.test(path);}
-function routeAllowed(path){if(crmRoute(path))return true;if(/^\/demo-advertiser\/placement\/\d+$/.test(path))return true;return /^\/org-revenue-pipeline\/location\/\d+(?:\/revenue)?$/.test(path)|| readOnlyAdmin(path)|| /^\/admin\/view-(?:qr|location)\/\d+$/.test(path)||/^\/admin\/campaign\/\d+\/website-pages$/.test(path)||/^\/r\/\d+$/.test(path)|| /^\/admin\/(?:archive|restore)-(?:campaign|qr)\/\d+$/.test(path)|| path==='/admin/qr-setup-choice'||/^\/qr\/\d+\.png$/.test(path)|| editableRoute(path)|| simple.has(path)||path==='/org-organization/39'||/^\/advertise\/henry-ford-health-demo(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path)||/^\/org-(?:location|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/view-campaign\/\d+$/.test(path);}
+function editableRoute(path){if(/^\/admin\/edit-assignment\/\d+$|^\/admin\/campaign\/\d+\/new-destination$|^\/admin\/destination\/\d+\/edit$/.test(path))return true;if(crmRoute(path,true))return true;return path==='/org-responsibility/save'|| /^\/admin\/edit-location\/\d+$/.test(path)|| ['/admin/new-qr','/admin/new-campaign','/admin/assign','/admin/schedule','/org-programs'].includes(path)||/^\/admin\/edit-qr\/\d+$/.test(path)||/^\/org-programs\/\d+\/settings$/.test(path)|| /^\/admin\/edit-campaign\/\d+$/.test(path)||/^\/(?:org-)?campaign-help(?:\/\d+)?$/.test(path)||/^\/org-opportunity\/(?:new|edit\/\d+)$/.test(path)||path==='/org-location/new'||/^\/org-contract\/\d+\/(?:fulfillment|renew|renewal-review|renewal-approve|activate|activity)$/.test(path);}
+function routeAllowed(path){if(/^\/org-qr\/\d+$|^\/admin\/destination\/\d+\/clicks$/.test(path))return true;if(crmRoute(path))return true;if(/^\/demo-advertiser\/placement\/\d+$/.test(path))return true;return /^\/org-revenue-pipeline\/location\/\d+(?:\/revenue)?$/.test(path)|| readOnlyAdmin(path)|| /^\/admin\/view-(?:qr|location)\/\d+$/.test(path)||/^\/admin\/campaign\/\d+\/website-pages$/.test(path)||/^\/r\/\d+$/.test(path)|| /^\/admin\/(?:archive|restore)-(?:campaign|qr)\/\d+$/.test(path)|| path==='/admin/qr-setup-choice'||/^\/qr\/\d+\.png$/.test(path)|| editableRoute(path)|| simple.has(path)||path==='/org-organization/39'||/^\/advertise\/henry-ford-health-demo(?:\/(?:program|location)\/\d+(?:\/opportunity\/\d+)?)?$/.test(path)||/^\/org-(?:location|campaign|contract|advertising-request)\/\d+$/.test(path)||/^\/org-advertiser\/[^/]+$/.test(path)||/^\/admin\/view-campaign\/\d+$/.test(path);}
 function validToken(value){if(typeof value!=='string'||value.length>100)return false;return crypto.timingSafeEqual(crypto.createHash('sha256').update(value).digest(),Buffer.from(TOKEN_HASH,'hex'));}
 function install(source){
  const createMarker='// HFHS_REVIEW_CREATE_V1';
@@ -103,6 +103,11 @@ function register(app,{q}){
    let allowed=await require('./hfhs-demo-setup-scope').reportScope(q,user);
    allowed=await require('./demo-advertiser-account').select(req,q,user,review,allowed);
    if(!allowed)return notice();
+   if(/^\/admin\/destination\/\d+\/(?:edit|clicks)$/.test(req.path)){
+    user.demoAdvertiserId=Number(review.advertiserId);
+    if(!user.demoAdvertiserId)return notice();
+    allowed=await require('./demo-advertiser-account').narrow(q,user,allowed);
+   }
    const locations=(await q('SELECT id FROM spaces WHERE organization_id=$1 AND COALESCE(is_archived,false)=false',[ORG])).rows.map(r=>Number(r.id));
    for(const [keys,ids]of [[['location_id','space_id'],locations],[['campaign_id','campaign'],allowed.campaignIds],[['qr_id','qr','placement_id'],allowed.qrIds]])for(const key of keys){for(const v of [req.query[key],req.body?.[key]])if(v&&v!=='all'&&v!=='All'&&!ids.includes(Number(v)))return notice();}
    const pipelineLocation=req.path.match(/^\/org-revenue-pipeline\/location\/(\d+)(?:\/revenue)?$/);if(pipelineLocation&&!locations.includes(Number(pipelineLocation[1])))return notice();
@@ -113,6 +118,12 @@ function register(app,{q}){
     const record=req.path.match(/\/(task|opportunity)\/(\d+)(?:\/(?:edit|complete))?$/);
     if(record){const table=record[1]==='task'?'advertiser_relationship_tasks':'advertiser_sales_opportunities';if(!(await q('SELECT id FROM '+table+' WHERE id=$1 AND organization_id=$2 AND advertiser_id=$3',[Number(record[2]),ORG,Number(advertiser.id)])).rows.length)return notice();}
    }
+   const orgQr=req.path.match(/^\/org-qr\/(\d+)$/);if(orgQr&&!allowed.qrIds.includes(Number(orgQr[1])))return notice();
+   const assignment=req.path.match(/^\/admin\/edit-assignment\/(\d+)$/);
+   if(assignment&&!(await q('SELECT id FROM qr_campaigns WHERE id=$1 AND qr_id=ANY($2::int[]) AND campaign_id=ANY($3::int[])',[Number(assignment[1]),allowed.qrIds,allowed.campaignIds])).rows.length)return notice();
+   const newDestination=req.path.match(/^\/admin\/campaign\/(\d+)\/new-destination$/);if(newDestination&&!allowed.campaignIds.includes(Number(newDestination[1])))return notice();
+   const destination=req.path.match(/^\/admin\/destination\/(\d+)\/(?:edit|clicks)$/);
+   if(destination&&!(await q('SELECT id FROM campaign_destinations WHERE id=$1 AND campaign_id=ANY($2::int[])',[Number(destination[1]),allowed.campaignIds])).rows.length)return notice();
    let match=req.path.match(/^\/org-(location|campaign|contract|advertising-request)\/(\d+)$/);
    if(match){const kind=match[1],id=Number(match[2]);if(kind==='location'&&!locations.includes(id))return notice();if(kind==='campaign'&&!allowed.campaignIds.includes(id))return notice();if(kind==='contract'||kind==='advertising-request'){const table=kind==='contract'?'contracts':'organization_advertising_requests';if(!(await q('SELECT id FROM '+table+' WHERE id=$1 AND organization_id=$2',[id,ORG])).rows.length)return notice();}}
    match=req.path.match(/^\/admin\/(?:view|edit)-campaign\/(\d+)$/);if(match&&!allowed.campaignIds.includes(Number(match[1])))return notice();
@@ -143,10 +154,12 @@ function register(app,{q}){
     body=body.replace(/<form\b[^>]*>/gi,form=>/method=["']?post/i.test(form)?form.replace(/enctype=["']multipart\/form-data["']/i,'')+'<input type="hidden" name="_hfhs_review_csrf" value="'+req.session.hfhsReviewCsrf+'">':form);
     body=body.replace(/<input\b[^>]*type=["']file["'][^>]*>/gi,'<span>Photo uploads are available after demo onboarding.</span>');
     if(readOnlyAdmin(req.path)){body=body.replace(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi,(form,attrs,inside)=>/method=["']?post/i.test(attrs)&&! /action=["']\/org-responsibility\/save(?:\?|["'])/i.test(attrs)?'<div class="hfhs-admin-preview"><fieldset disabled style="border:0;margin:0;padding:0;min-width:0">'+inside+'</fieldset><p style="color:#64748b;font-size:13px">View-only demo — administrative changes are disabled.</p></div>':form);}
+    body=body.replace(/<a\b([^>]*?)href=["'](\/admin\/(?:advertiser-customer\/\d+\/users|import-qr|connectors\/[^"'?]+)|\/build-my-campaign)(?:\?[^"']*)?["']([^>]*)>([\s\S]*?)<\/a>/gi,(_,before,url,after,label)=>'<span'+before+after+' aria-disabled="true" title="Available after onboarding; unavailable in the shared demo" style="opacity:.6;cursor:not-allowed">'+label+' <small>(after onboarding)</small></span>');
     body=body.replace(/michaelandrewdevoe@gmail\.com/gi,'HFHS Demo Reviewer');
     body=/<body[^>]*>/i.test(body)?body.replace(/<body[^>]*>/i,m=>m+banner):banner+body;
     if(readOnlyAdmin(req.path))body=body.replace('HFHS interactive demo · Editing enabled','HFHS interactive demo · Administration is view-only');
    }return send.call(this,body);};
+   if(/^\/admin\/destination\/\d+\/edit$/.test(req.path))return await editDemoDestination(req,res,q,allowed);
    if(await require('./demo-advertiser-account').respond(req,res,q,ORG,allowed))return;
    next();
   }catch(e){console.error('HFHS REVIEW GUARD ERROR:',e.message);res.status(503).send('Demo review is temporarily unavailable.');}
@@ -168,3 +181,21 @@ function crmRoute(path,write=false){
 }
 
 module.exports.crmRoute=crmRoute;
+
+async function editDemoDestination(req,res,q,allowed){
+ const id=Number(req.path.split('/')[3]);
+ const row=(await q('SELECT d.*,c.name AS campaign_name FROM campaign_destinations d JOIN campaigns c ON c.id=d.campaign_id WHERE d.id=$1 AND c.organization_id=39 AND d.campaign_id=ANY($2::int[])',[id,allowed.campaignIds])).rows[0];
+ if(!row)return res.status(404).send('Destination not found in this demo account.');
+ const types=['website','order','offer','menu','reservation','appointment','directions','store_locator','phone','email','sms','registration','donation','tickets','pdf','video','social','app','other'];
+ if(req.method==='POST'){
+  const v=req.body,name=String(v.name||'').trim(),type=String(v.destination_type||'');
+  const normalize=value=>{const s=String(value||'').trim();if(!s)return '';return /^[a-z][a-z0-9+.-]*:/i.test(s)?s:'https://'+s;};
+  const url=normalize(v.destination_url),conversion=normalize(v.conversion_url),value=Number(v.estimated_value||0),order=Number(v.display_order||1);
+  if(!name||!types.includes(type)||! /^(https?:\/\/|mailto:|tel:|sms:)/i.test(url)||(conversion&&!/^https?:\/\//i.test(conversion))||!Number.isFinite(value)||value<0||!Number.isInteger(order)||order<1)return res.status(400).send('Enter a name, valid destination URL, nonnegative value and valid display order. Use Back to correct the form.');
+  await q('UPDATE campaign_destinations SET name=$1,destination_type=$2,destination_url=$3,conversion_url=$4,estimated_value=$5,display_order=$6,is_active=$7,updated_at=NOW() WHERE id=$8 AND campaign_id=$9',[name,type,url,conversion,value,order,v.is_active==='on',id,row.campaign_id]);
+  return res.redirect(303,'/admin/view-campaign/'+row.campaign_id);
+ }
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const field=(label,name,type='text')=>'<label>'+label+'<input name="'+name+'" type="'+type+'" value="'+esc(row[name])+'" '+(['name','destination_url'].includes(name)?'required':'')+(type==='number'?' min="'+(name==='display_order'?1:0)+'" step="'+(name==='display_order'?1:.01)+'"':'')+'></label>';
+ return res.send('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Edit Destination</title><style>body{font:15px system-ui;background:#f4f7f5;color:#183d29;margin:0}.wrap{max-width:850px;margin:28px auto;padding:0 18px}.card{background:white;border-radius:14px;padding:24px;box-shadow:0 5px 14px #0001}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}label{display:block;font-weight:600}input,select{display:block;box-sizing:border-box;width:100%;padding:11px;border:1px solid #dbe3df;border-radius:8px;margin-top:7px;font:inherit}.btn{display:inline-block;border:0;border-radius:8px;padding:12px 18px;background:#2f7d46;color:white;text-decoration:none;font:inherit;cursor:pointer}.secondary{background:#e9efeb;color:#183d29}</style></head><body><main class="wrap"><a href="/admin/view-campaign/'+row.campaign_id+'">← Back to campaign</a><h1>Edit Destination</h1><p>'+esc(row.campaign_name)+'</p><section class="card"><form method="post" action="/admin/destination/'+id+'/edit"><div class="grid">'+field('Destination Name','name')+'<label>Destination Type<select name="destination_type">'+types.map(t=>'<option value="'+t+'"'+(t===row.destination_type?' selected':'')+'>'+esc(t.replace(/_/g,' '))+'</option>').join('')+'</select></label>'+field('Destination URL','destination_url')+field('Conversion Page URL (Optional)','conversion_url')+field('Estimated Revenue Per Conversion ($)','estimated_value','number')+field('Display Order','display_order','number')+'</div><label style="margin:20px 0"><input type="checkbox" name="is_active" '+(row.is_active?'checked':'')+' style="display:inline;width:auto"> Active</label><button class="btn" type="submit">Save Destination</button> <a class="btn secondary" href="/admin/view-campaign/'+row.campaign_id+'">Cancel</a></form></section></main></body></html>');
+}
