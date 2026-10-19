@@ -11,6 +11,7 @@ const { scrapeProspectWebsite } = require('./prospect-scraper');
 const { safeReturnPath } = require('./review-access');
 const { assertIsolatedRuntime } = require('./runtime-guard');
 const views = require('./mirror-views');
+const prospectViews = require('./prospect-views');
 
 assertManifest(canonical);
 const runtime = assertIsolatedRuntime(process.env, canonical);
@@ -302,6 +303,28 @@ async function handle(request, response) {
       return response.end(views.builderPage(basePath, imports, error.message));
     }
   }
+  const prospectPortalMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/demo/(organization|marketplace|advertiser)$`));
+  if (prospectPortalMatch) {
+    const data = await database.prospectImport(Number(prospectPortalMatch[1]));
+    if (!data) return sendJson(response, 404, { error: 'Prospect import not found' });
+    const portal = prospectPortalMatch[2];
+    const pages = {
+      organization: () => prospectViews.prospectOrganizationPage(basePath, data, String(url.searchParams.get('section') || 'overview')),
+      marketplace: () => prospectViews.prospectMarketplacePage(basePath, data),
+      advertiser: () => prospectViews.prospectAdvertiserPage(basePath, data, Number(url.searchParams.get('opportunity_id')) || null)
+    };
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(pages[portal]());
+  }
+  const prospectOpportunityMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/demo/opportunity/(\\d+)$`));
+  if (prospectOpportunityMatch) {
+    const data = await database.prospectImport(Number(prospectOpportunityMatch[1]));
+    if (!data) return sendJson(response, 404, { error: 'Prospect import not found' });
+    const pageHtml = prospectViews.prospectOpportunityPage(basePath, data, Number(prospectOpportunityMatch[2]));
+    if (!pageHtml) return sendJson(response, 404, { error: 'Reviewed opportunity not found' });
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(pageHtml);
+  }
   const builderImportMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)$`));
   if (builderImportMatch) {
     const importId = Number(builderImportMatch[1]);
@@ -381,7 +404,7 @@ async function handle(request, response) {
     if (!data) return sendJson(response, 404, { error: 'Prospect import not found' });
     return sendJson(response, 200, {
       version: 1, sourceUrl: data.prospect.source_url,
-      organization: { name: data.prospect.brand_name, primaryColor: data.prospect.primary_color, logoUrl: data.prospect.logo_url },
+      organization: { name: data.prospect.brand_name, primaryColor: data.prospect.primary_color, logoUrl: data.prospect.logo_url, description: data.prospect.website_description, publicWebsite: data.prospect.source_url },
       opportunities: data.drafts.filter(item => ['approved', 'published'].includes(item.review_status)).map(item => ({ title: item.title, description: item.description, category: item.category, displayPrice: item.price_text, sourceUrl: item.source_url, imageUrl: item.image_url, responsibleRep: item.responsible_rep })),
       externalEffectsEnabled: false, sampleDataOnly: true
     });
