@@ -190,10 +190,11 @@ test('prospect importer blocks private network targets', () => {
 });
 
 test('prospect importer rejects tracking pixels and prioritizes reviewable artwork', () => {
-  const html = '<meta property="og:image" content="/hero.jpg"><img src="https://px.ads.linkedin.com/collect?id=1" width="1" height="1"><img src="/sponsor.jpg" width="800" height="600"><img src="https://cdn.example.net/partner.png">';
+  const html = '<meta property="og:image" content="/hero.jpg"><img src="https://px.ads.linkedin.com/collect?id=1" width="1" height="1"><img src="/sponsor.jpg" width="800" height="600"><img src="https://cdn.example.net/partner.png"><img src=""><img src="{{ data.sizes.full.url }}"><img data-lazy-src="/conference.webp">';
   const images = discoverImages(html, new URL('https://example.org/advertise'));
-  assert.deepEqual(images, ['https://example.org/hero.jpg', 'https://example.org/sponsor.jpg', 'https://cdn.example.net/partner.png']);
+  assert.deepEqual(images, ['https://example.org/hero.jpg', 'https://example.org/sponsor.jpg', 'https://example.org/conference.webp', 'https://cdn.example.net/partner.png']);
   assert.ok(images.every(url => !url.includes('linkedin')));
+  assert.ok(images.every(url => url !== 'https://example.org/advertise' && !/%7b|%7d/i.test(url)));
 });
 
 test('prospect importer carries public contacts into reviewable opportunity ownership', () => {
