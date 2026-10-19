@@ -295,12 +295,13 @@ async function handle(request, response) {
   }
   const builderImportMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)$`));
   if (builderImportMatch) {
-    const [data, locations] = await Promise.all([database.prospectImport(Number(builderImportMatch[1])), database.locations()]);
+    const importId = Number(builderImportMatch[1]);
+    const [data, locations, packages] = await Promise.all([database.prospectImport(importId), database.locations(), database.prospectPackages(importId)]);
     if (!data) return sendJson(response, 404, { error: 'Prospect import not found' });
     const messages = { created: 'Website analysis saved as reviewable drafts. Nothing has been published.', published: 'Approved drafts published to the isolated Marketplace.', reset: 'Only the Marketplace records from this import were removed.', saved: 'Changes saved.', reviewed: 'Review decision saved.' };
     const message = Object.entries(messages).find(([key]) => url.searchParams.get(key) === '1')?.[1] || '';
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
-    return response.end(views.builderImportPage(basePath, data, locations, message, url.searchParams.get('error') || ''));
+    return response.end(views.builderImportPage(basePath, data, locations, packages, message, url.searchParams.get('error') || ''));
   }
   const builderBrandMatch = request.method === 'POST' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/brand$`));
   if (builderBrandMatch) {
@@ -375,6 +376,29 @@ async function handle(request, response) {
       opportunities: data.drafts.filter(item => ['approved', 'published'].includes(item.review_status)).map(item => ({ title: item.title, description: item.description, category: item.category, displayPrice: item.price_text, sourceUrl: item.source_url, imageUrl: item.image_url, responsibleRep: item.responsible_rep })),
       externalEffectsEnabled: false, sampleDataOnly: true
     });
+  }
+  const builderPackageCreateMatch = request.method === 'POST' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/package$`));
+  if (builderPackageCreateMatch) {
+    try {
+      const packageRow = await database.createProspectPackage(Number(builderPackageCreateMatch[1]));
+      response.writeHead(303, { location: `${basePath}/builder/import/${builderPackageCreateMatch[1]}/package/${packageRow.id}?created=1`, 'cache-control': 'no-store' });
+    } catch (error) {
+      response.writeHead(303, { location: `${basePath}/builder/import/${builderPackageCreateMatch[1]}?error=${encodeURIComponent(error.message)}`, 'cache-control': 'no-store' });
+    }
+    return response.end();
+  }
+  const builderPackageMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/package/(\\d+)$`));
+  if (builderPackageMatch) {
+    const packageRow = await database.prospectPackage(Number(builderPackageMatch[1]), Number(builderPackageMatch[2]));
+    if (!packageRow) return sendJson(response, 404, { error: 'Demo package not found' });
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.provisionPackagePage(basePath, packageRow, url.searchParams.get('created') === '1'));
+  }
+  const builderPackageJsonMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/package/(\\d+)/(manifest|plan)\\.json$`));
+  if (builderPackageJsonMatch) {
+    const packageRow = await database.prospectPackage(Number(builderPackageJsonMatch[1]), Number(builderPackageJsonMatch[2]));
+    if (!packageRow) return sendJson(response, 404, { error: 'Demo package not found' });
+    return sendJson(response, 200, builderPackageJsonMatch[3] === 'manifest' ? packageRow.manifest : packageRow.clone_plan);
   }
   if (request.method === 'GET' && url.pathname === `${basePath}/comparison`) {
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
