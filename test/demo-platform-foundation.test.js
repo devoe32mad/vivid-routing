@@ -11,6 +11,7 @@ const { createClonePlan } = require('../demo-platform/clone-plan');
 const { assertIsolatedRuntime, databaseFingerprint } = require('../demo-platform/runtime-guard');
 const { auditStartCommand } = require('../demo-platform/startup-audit');
 const { auditChangedPaths } = require('../demo-platform/protected-change-audit');
+const { discoverOpportunities, isBlockedAddress } = require('../demo-platform/prospect-scraper');
 const mirrorViews = require('../demo-platform/mirror-views');
 const packageJson = require('../package.json');
 
@@ -146,4 +147,25 @@ test('canonical mirror includes source-of-truth placement, campaign and contract
   });
   assert.match(contract, /Contract Hierarchy/);
   assert.match(contract, /Benefit Fulfillment/);
+});
+
+test('advertiser mirror uses the current Vivid Core navigation hierarchy', () => {
+  const html = mirrorViews.advertiserSetupPage('/demo/canonical-vivid', [{ id: 1, name: 'Sample Advertiser' }], { id: 1, name: 'Sample Advertiser' }, [{
+    campaign_id: 1, campaign: 'Sample Campaign', inventory_id: 1, placement: 'Sample Placement', location: 'Main Campus', destination_url: 'https://example.invalid', starts_on: '2026-01-01', ends_on: '2026-12-31', status: 'active'
+  }]);
+  for (const label of ['My Setup', 'Reports', 'Performance Insights', 'Archive Center', 'Export Center', 'Help']) assert.match(html, new RegExp(label));
+  for (const buildingBlock of ['Locations', 'Placements &amp; QR Codes', 'Campaigns', 'Assignments', 'Schedule']) assert.match(html, new RegExp(buildingBlock));
+});
+
+test('prospect importer extracts reviewable sources without writing Marketplace data', () => {
+  const html = '<title>Example Association</title><h2>Annual Conference Sponsorship</h2><a href="/advertise">Advertise with us</a><a href="/media-kit.pdf">2027 Media Kit</a><p>Packages start at $2,500 per event.</p>';
+  const result = discoverOpportunities(html, new URL('https://example.org/'));
+  assert.equal(result.discoveredLinks.length, 2);
+  assert.ok(result.opportunities.some(item => /Advertise with us|Media Kit|Conference Sponsorship/.test(item.title)));
+  assert.deepEqual(result.priceMatches, ['$2,500 per event']);
+});
+
+test('prospect importer blocks private network targets', () => {
+  for (const address of ['127.0.0.1', '10.0.0.2', '172.16.0.4', '192.168.1.4', '::1', 'fd00::1', '::ffff:127.0.0.1']) assert.equal(isBlockedAddress(address), true);
+  assert.equal(isBlockedAddress('8.8.8.8'), false);
 });

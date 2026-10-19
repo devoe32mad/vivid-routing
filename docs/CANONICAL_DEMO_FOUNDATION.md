@@ -37,6 +37,17 @@ The first connected experience provides:
 - CSV performance export
 - Private review-token access and `noindex` headers
 
+The current parity layer also provides:
+
+- Organization routes matching Vivid's Overview, Locations, Advertisers, Advertising Inventory, Advertising Requests, Contracts, Renewals, Revenue Pipeline, Performance Insights, Reports, Sales Rep Report, Administration and Help hierarchy
+- Advertiser routes matching Vivid Core's My Setup, Reports, Performance Insights, Archive Center, Export Center and Help hierarchy
+- Source-of-truth drilldowns for locations, placements, advertisers, campaigns, contracts and benefit fulfillment
+- Date-filtered advertiser and organization reporting plus CSV, PDF and Excel exports
+- A review-first public website analyzer that discovers prospective advertising, sponsorship, event, publication and media-kit sources without writing to Marketplace data
+- A prospect-facing before/after view that explains the transition from fragmented selling and reporting to Vivid's connected workflow
+
+Website analysis is deliberately draft-only. A generated demo may not write extracted content into its Marketplace until a reviewer approves the title, description, price, category, image, location and responsible sales rep. Private network targets, credential-bearing URLs, nonstandard ports and oversized pages are blocked.
+
 ## Runtime variables
 
 The canonical runtime refuses to start unless all of these conditions are met:

@@ -7,6 +7,7 @@ const ExcelJS = require('exceljs');
 const canonical = require('./templates/canonical.json');
 const { createDatabase } = require('./database');
 const { assertManifest } = require('./manifest');
+const { scrapeProspectWebsite } = require('./prospect-scraper');
 const { assertIsolatedRuntime } = require('./runtime-guard');
 const views = require('./mirror-views');
 
@@ -265,6 +266,25 @@ async function handle(request, response) {
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
     return response.end(views.helpPage(basePath));
   }
+  if (request.method === 'GET' && url.pathname === `${basePath}/builder`) {
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.builderPage(basePath));
+  }
+  if (request.method === 'POST' && url.pathname === `${basePath}/builder`) {
+    const form = await readForm(request);
+    try {
+      const analysis = await scrapeProspectWebsite(form.get('websiteUrl'));
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+      return response.end(views.builderPage(basePath, analysis));
+    } catch (error) {
+      response.writeHead(422, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+      return response.end(views.builderPage(basePath, null, error.message));
+    }
+  }
+  if (request.method === 'GET' && url.pathname === `${basePath}/comparison`) {
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(views.comparisonPage(basePath));
+  }
   if (request.method === 'GET' && url.pathname === `${basePath}/marketplace`) {
     const data = await database.marketplace();
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
@@ -285,14 +305,24 @@ async function handle(request, response) {
     response.writeHead(303, { location: `${basePath}/marketplace?requested=1` });
     return response.end();
   }
-  if (request.method === 'GET' && url.pathname === `${basePath}/advertiser`) {
+  const advertiserPortalMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/advertiser(?:/(setup|reports|performance|archive|exports|help))?$`));
+  if (advertiserPortalMatch) {
+    const section = advertiserPortalMatch[1] || 'setup';
     const range = reportRange(url);
     const advertisers = await database.advertisers();
     const requestedId = Number(url.searchParams.get('advertiser_id'));
     const selected = advertisers.find(row => Number(row.id) === requestedId) || advertisers[0];
     const data = await database.advertiserDashboard(selected?.id || null, range.from, range.to);
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
-    return response.end(views.advertiserPortalPage(basePath, advertisers, selected, data, range.from, range.to));
+    const pages = {
+      setup: () => views.advertiserSetupPage(basePath, advertisers, selected, data),
+      reports: () => views.advertiserReportsPage(basePath, advertisers, selected, data, range.from, range.to),
+      performance: () => views.advertiserPerformancePage(basePath, advertisers, selected, data, range.from, range.to),
+      archive: () => views.advertiserArchivePage(basePath, advertisers, selected),
+      exports: () => views.advertiserExportsPage(basePath, advertisers, selected, range.from, range.to),
+      help: () => views.advertiserHelpPage(basePath, advertisers, selected)
+    };
+    return response.end(pages[section]());
   }
   const exportMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/exports/(executive|inventory|performance|contracts)\\.csv$`));
   if (exportMatch) {

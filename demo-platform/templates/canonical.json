@@ -34,7 +34,9 @@
     "performance",
     "exports",
     "renewals",
-    "revenue-pipeline"
+    "revenue-pipeline",
+    "prospect-website-import",
+    "before-after-comparison"
   ],
   "sampleData": {
     "label": "Illustrative sample data",
