@@ -104,6 +104,21 @@ CREATE TABLE IF NOT EXISTS demo_prospect_drafts (
   UNIQUE (import_id, title)
 );
 
+CREATE TABLE IF NOT EXISTS demo_provision_packages (
+  id BIGSERIAL PRIMARY KEY,
+  import_id BIGINT NOT NULL REFERENCES demo_prospect_imports(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL CHECK (version > 0),
+  slug TEXT NOT NULL,
+  manifest JSONB NOT NULL,
+  clone_plan JSONB NOT NULL,
+  manifest_sha256 TEXT NOT NULL CHECK (manifest_sha256 ~ '^[a-f0-9]{64}$'),
+  status TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('ready', 'provisioned', 'failed')),
+  external_effects_enabled BOOLEAN NOT NULL DEFAULT FALSE CHECK (external_effects_enabled = FALSE),
+  is_sample BOOLEAN NOT NULL DEFAULT TRUE CHECK (is_sample = TRUE),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (import_id, version)
+);
+
 CREATE TABLE IF NOT EXISTS demo_requests (
   id BIGSERIAL PRIMARY KEY,
   inventory_id BIGINT NOT NULL REFERENCES demo_inventory(id) ON DELETE CASCADE,
@@ -173,6 +188,7 @@ CREATE TABLE IF NOT EXISTS demo_performance (
 CREATE INDEX IF NOT EXISTS demo_inventory_status_idx ON demo_inventory(status);
 CREATE INDEX IF NOT EXISTS demo_inventory_prospect_import_idx ON demo_inventory(prospect_import_id);
 CREATE INDEX IF NOT EXISTS demo_prospect_drafts_import_idx ON demo_prospect_drafts(import_id, review_status);
+CREATE INDEX IF NOT EXISTS demo_provision_packages_import_idx ON demo_provision_packages(import_id, version DESC);
 CREATE INDEX IF NOT EXISTS demo_contracts_status_idx ON demo_contracts(status);
 CREATE INDEX IF NOT EXISTS demo_contract_benefits_contract_idx ON demo_contract_benefits(contract_id);
 CREATE INDEX IF NOT EXISTS demo_performance_campaign_idx ON demo_performance(campaign_id, recorded_on);
