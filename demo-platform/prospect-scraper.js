@@ -132,6 +132,24 @@ function uniqueBy(items, key) {
   });
 }
 
+function discoverImages(html, baseUrl) {
+  const candidates = [
+    { src: metaContent(html, 'property', 'og:image'), width: 0, height: 0, priority: 0 },
+    ...[...html.matchAll(/<img\b[^>]*>/gi)].map(match => ({
+      src: attribute(match[0], 'src'),
+      width: Number(attribute(match[0], 'width') || 0),
+      height: Number(attribute(match[0], 'height') || 0),
+      priority: 1
+    }))
+  ].map(item => ({ ...item, url: absoluteUrl(item.src, baseUrl) }))
+    .filter(item => item.url)
+    .filter(item => !(item.width > 0 && item.width <= 2) && !(item.height > 0 && item.height <= 2))
+    .filter(item => !/(?:pixel|tracking|analytics|\/collect(?:\?|$)|facebook\.com\/tr|doubleclick)/i.test(item.url))
+    .map(item => ({ ...item, sameOrigin: new URL(item.url).origin === baseUrl.origin }))
+    .sort((left, right) => left.priority - right.priority || Number(right.sameOrigin) - Number(left.sameOrigin));
+  return uniqueBy(candidates, item => item.url).map(item => item.url).slice(0, 12);
+}
+
 function discoverOpportunities(html, baseUrl) {
   const anchors = [...html.matchAll(/<a\b[^>]*href\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))[^>]*>([\s\S]*?)<\/a>/gi)].map(match => {
     const href = absoluteUrl(match[1] || match[2] || match[3], baseUrl);
@@ -162,10 +180,7 @@ async function scrapeProspectWebsite(input) {
   const { html, url } = await fetchPublicHtml(input);
   const title = stripTags((html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i) || [])[1]) || url.hostname;
   const description = metaContent(html, 'name', 'description') || metaContent(html, 'property', 'og:description');
-  const images = uniqueBy([
-    metaContent(html, 'property', 'og:image'),
-    ...[...html.matchAll(/<img\b[^>]*>/gi)].map(match => attribute(match[0], 'src'))
-  ].map(value => absoluteUrl(value, url)).filter(Boolean), value => value).slice(0, 12);
+  const images = discoverImages(html, url);
   const discovery = discoverOpportunities(html, url);
   return {
     sourceUrl: url.toString(),
@@ -178,4 +193,4 @@ async function scrapeProspectWebsite(input) {
   };
 }
 
-module.exports = { decodeHtml, discoverOpportunities, isBlockedAddress, scrapeProspectWebsite, validatePublicUrl };
+module.exports = { decodeHtml, discoverImages, discoverOpportunities, isBlockedAddress, scrapeProspectWebsite, validatePublicUrl };
