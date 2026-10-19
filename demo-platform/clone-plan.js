@@ -23,6 +23,8 @@ function createClonePlan(manifest) {
     requiredEnvironment: [
       'DATABASE_URL',
       'DEMO_DATABASE_FINGERPRINT',
+      'DEMO_DATABASE_NAME',
+      'DEMO_DATABASE_REFERENCE_MODE',
       'DEMO_DATABASE_SERVICE_ID',
       'DEMO_ENVIRONMENT_KIND',
       'DEMO_PLATFORM_ISOLATED',

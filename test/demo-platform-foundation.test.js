@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const canonical = require('../demo-platform/templates/canonical.json');
 const protectedResources = require('../demo-platform/protected-resources.json');
 const { assertManifest, validateManifest } = require('../demo-platform/manifest');
@@ -64,6 +66,24 @@ test('runtime guard accepts only the approved isolated project and database', ()
   assert.throws(() => assertIsolatedRuntime(safeEnvironment({ RESEND_API_KEY: 'must-not-be-here' }), canonical), /RESEND_API_KEY/);
 });
 
+test('runtime guard accepts only a private Railway database reference in the approved project', () => {
+  const environment = safeEnvironment({
+    DATABASE_URL: 'postgresql://postgres:secret@Postgres.railway.internal:5432/canonical_demo',
+    DEMO_DATABASE_FINGERPRINT: '',
+    DEMO_DATABASE_REFERENCE_MODE: 'railway-service',
+    DEMO_DATABASE_NAME: 'canonical_demo'
+  });
+  assert.equal(assertIsolatedRuntime(environment, canonical).databaseServiceId, isolatedDatabaseService);
+  assert.throws(
+    () => assertIsolatedRuntime({ ...environment, DATABASE_URL: 'postgresql://postgres:secret@production.example.com:5432/canonical_demo' }, canonical),
+    /private internal networking/
+  );
+  assert.throws(
+    () => assertIsolatedRuntime({ ...environment, DATABASE_URL: 'postgresql://postgres:secret@Postgres.railway.internal:5432/production' }, canonical),
+    /DEMO_DATABASE_NAME/
+  );
+});
+
 test('protected active demos are registered explicitly', () => {
   assert.deepEqual(Object.keys(protectedResources.protectedTenants).sort(), ['ccps', 'hfhs', 'rubber-world']);
   assert.deepEqual(Object.values(protectedResources.protectedTenants).map(value => value.organizationId).sort((a, b) => a - b), [13, 39, 40]);
@@ -83,4 +103,12 @@ test('audit detects current customer-specific and mutating production startup st
   assert.ok(result.customerSpecific.some(file => file.includes('rubber-world')));
   assert.ok(result.customerSpecific.some(file => file.includes('ccps')));
   assert.ok(result.mutating.some(file => file.startsWith('seed-')));
+});
+
+test('canonical schema is sample-only and binds itself to one demo environment', () => {
+  const sql = fs.readFileSync(path.join(__dirname, '..', 'demo-platform', 'schema.sql'), 'utf8');
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS demo_environment/);
+  assert.match(sql, /CHECK \(id = 1\)/);
+  assert.equal((sql.match(/CHECK \(is_sample = TRUE\)/g) || []).length, 8);
+  assert.doesNotMatch(sql, /ccps|hfhs|rubber.world/i);
 });

@@ -27,6 +27,16 @@ The first isolated control plane is now provisioned:
 - Application service: `canonical-vivid-demo` (`f4252a91-b9fc-4b27-a6fa-2351446ba46a`)
 - Application status: empty and source-unconnected; its safe start command and `/health` check are configured, but it cannot deploy until the database fingerprint and startup audit pass
 
+The canonical application now includes an isolated sample-only schema for organizations, locations, inventory, Marketplace requests, advertisers, contracts, campaigns and performance. Every business table enforces `is_sample = TRUE`. The database also stores the approved project, environment, database service and tenant identity; startup fails if any value differs.
+
+The first connected experience provides:
+
+- Organization executive metrics, location inventory, contracts and renewals
+- Public Marketplace availability, pricing and an internal-only sample request flow
+- Advertiser campaign metrics for scans, actions, conversions, revenue and ROI
+- CSV performance export
+- Private review-token access and `noindex` headers
+
 ## Runtime variables
 
 The canonical runtime refuses to start unless all of these conditions are met:

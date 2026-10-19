@@ -44,17 +44,24 @@ function assertIsolatedRuntime(env, manifest) {
     errors.push('DEMO_DATABASE_SERVICE_ID does not match the approved isolated database');
   }
   if (!env.DATABASE_URL) errors.push('DATABASE_URL is required');
-  if (!env.DEMO_DATABASE_FINGERPRINT) errors.push('DEMO_DATABASE_FINGERPRINT is required');
+  const railwayDatabaseReference = env.DEMO_DATABASE_REFERENCE_MODE === 'railway-service';
+  if (!railwayDatabaseReference && !env.DEMO_DATABASE_FINGERPRINT) errors.push('DEMO_DATABASE_FINGERPRINT is required');
   if (!env.DEMO_REVIEW_TOKEN || env.DEMO_REVIEW_TOKEN.length < 24) errors.push('DEMO_REVIEW_TOKEN must contain at least 24 characters');
   if (!env.SESSION_SECRET || env.SESSION_SECRET.length < 32) errors.push('SESSION_SECRET must contain at least 32 characters');
   if (!manifest || env.DEMO_TENANT_SLUG !== manifest.slug) errors.push('DEMO_TENANT_SLUG must match the manifest slug');
 
-  if (env.DATABASE_URL && env.DEMO_DATABASE_FINGERPRINT) {
+  if (env.DATABASE_URL) {
     try {
+      const parsed = new URL(env.DATABASE_URL);
       const actual = databaseFingerprint(env.DATABASE_URL);
-      if (actual !== env.DEMO_DATABASE_FINGERPRINT) errors.push('DATABASE_URL does not match the approved demo database fingerprint');
+      if (env.DEMO_DATABASE_FINGERPRINT && actual !== env.DEMO_DATABASE_FINGERPRINT) errors.push('DATABASE_URL does not match the approved demo database fingerprint');
       if (env.PRODUCTION_DATABASE_FINGERPRINT && actual === env.PRODUCTION_DATABASE_FINGERPRINT) {
         errors.push('Demo database resolves to the protected production database');
+      }
+      if (railwayDatabaseReference) {
+        if (!parsed.hostname.endsWith('.railway.internal')) errors.push('Railway demo database must use private internal networking');
+        if (!env.DEMO_DATABASE_NAME) errors.push('DEMO_DATABASE_NAME is required for a Railway database reference');
+        if (env.DEMO_DATABASE_NAME && parsed.pathname !== `/${env.DEMO_DATABASE_NAME}`) errors.push('DATABASE_URL does not match DEMO_DATABASE_NAME');
       }
     } catch {
       errors.push('DATABASE_URL is not a valid PostgreSQL connection string');
@@ -71,7 +78,7 @@ function assertIsolatedRuntime(env, manifest) {
     environmentId: env.RAILWAY_ENVIRONMENT_ID,
     databaseServiceId: env.DEMO_DATABASE_SERVICE_ID,
     tenantSlug: manifest.slug,
-    databaseFingerprint: env.DEMO_DATABASE_FINGERPRINT,
+    databaseFingerprint: databaseFingerprint(env.DATABASE_URL),
     externalEffectsEnabled: false
   });
 }
