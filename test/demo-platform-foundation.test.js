@@ -241,8 +241,11 @@ test('reviewed website data replaces generic content across prospect demo portal
     drafts: [{ id: 31, title: 'Annual Conference Sponsorship', description: 'Reach county commissioners and administrators.', category: 'Event', price_text: '$2,500 per event', source_url: 'https://wwc.fl-counties.com/sponsors/', image_url: 'https://wwc.fl-counties.com/conference.jpg', responsible_rep: 'Corporate Relations', review_status: 'approved' }]
   };
   const organization = prospectViews.prospectOrganizationPage('/demo/canonical-vivid', data, 'inventory');
+  const organizationReports = prospectViews.prospectOrganizationPage('/demo/canonical-vivid', data, 'reports');
   const marketplace = prospectViews.prospectMarketplacePage('/demo/canonical-vivid', data);
   const advertiser = prospectViews.prospectAdvertiserPage('/demo/canonical-vivid', data, 31);
+  const advertiserExports = prospectViews.prospectAdvertiserPage('/demo/canonical-vivid', data, 31, 'exports');
+  const onboarding = prospectViews.prospectOnboardingPage('/demo/canonical-vivid', data, 31);
   for (const html of [organization, marketplace, advertiser]) {
     assert.match(html, /Florida Association of Counties/);
     assert.match(html, /Annual Conference Sponsorship/);
@@ -250,8 +253,34 @@ test('reviewed website data replaces generic content across prospect demo portal
     assert.doesNotMatch(html, /Harbor Community Network/);
   }
   assert.match(organization, /Corporate Relations/);
+  assert.match(organizationReports, /exports\/inventory\.csv/);
+  assert.match(organizationReports, /exports\/executive\.pdf/);
+  assert.match(organizationReports, /exports\/report\.xlsx/);
   assert.match(marketplace, /View Opportunity/);
+  assert.match(marketplace, /Search opportunities/);
+  assert.match(marketplace, /Program \/ format/);
   assert.match(advertiser, /Illustrative performance only/);
+  for (const label of ['Overview', 'My Setup', 'Reports', 'Performance Insights', 'Archive Center', 'Export Center', 'Help']) assert.match(advertiser, new RegExp(label));
+  assert.match(advertiserExports, /Campaign Performance/);
+  assert.match(advertiserExports, /Executive Summary/);
+  assert.match(advertiserExports, /Complete Workbook/);
+  for (const label of ['Request', 'Approval', 'Advertiser setup', 'Campaign live']) assert.match(onboarding, new RegExp(label));
+  assert.match(onboarding, /demo@example\.invalid/);
+  assert.match(prospectViews.prospectOnboardingPage('/demo/canonical-vivid', data, 31, 'approval'), /No production action occurs/);
+});
+
+test('prospect Marketplace filters reviewed opportunities without changing source data', () => {
+  const data = {
+    prospect: { id: 22, brand_name: 'Example', website_title: 'Example', source_url: 'https://example.org/', primary_color: '#176b3a', logo_url: '' },
+    drafts: [
+      { id: 31, title: 'Conference Sponsorship', description: 'Event reach.', category: 'Event', price_text: '$2,500', source_url: 'https://example.org/event', image_url: '', responsible_rep: 'Events', review_status: 'approved' },
+      { id: 32, title: 'Magazine Advertising', description: 'Print reach.', category: 'Publication', price_text: '$500', source_url: 'https://example.org/magazine', image_url: '', responsible_rep: 'Publishing', review_status: 'approved' }
+    ]
+  };
+  const filtered = prospectViews.prospectMarketplacePage('/demo/canonical-vivid', data, { category: 'Publication', query: 'magazine' });
+  assert.match(filtered, /Magazine Advertising/);
+  assert.doesNotMatch(filtered, /Conference Sponsorship/);
+  assert.match(filtered, /1<\/strong> matching opportunity/);
 });
 
 test('prospect package refuses unreviewed opportunities', () => {
