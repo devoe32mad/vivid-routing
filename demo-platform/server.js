@@ -394,55 +394,61 @@ async function handle(request, response) {
     const muted = '#65776b';
     const card = (x, y, width, label, value, detail) => {
       doc.roundedRect(x, y, width, 66, 8).fillAndStroke('#f4f7f5', '#dbe4df');
-      doc.fillColor(muted).fontSize(8).text(label.toUpperCase(), x + 11, y + 10, { width: width - 22 });
-      doc.fillColor(navy).fontSize(19).text(value, x + 11, y + 25, { width: width - 22 });
-      doc.fillColor(muted).fontSize(7.5).text(detail, x + 11, y + 49, { width: width - 22 });
+      doc.font('Helvetica-Bold').fillColor(muted).fontSize(8).text(label.toUpperCase(), x + 11, y + 10, { width: width - 22 });
+      doc.font('Helvetica-Bold').fillColor(navy).fontSize(19).text(value, x + 11, y + 25, { width: width - 22 });
+      doc.font('Helvetica').fillColor(muted).fontSize(7.5).text(detail, x + 11, y + 49, { width: width - 22 });
     };
-    doc.fillColor(navy).fontSize(10).text('VIVID SPOTS', { characterSpacing: 1.4 });
-    doc.moveDown(.25).fontSize(22).text(data.prospect.brand_name);
+    doc.font('Helvetica-Bold').fillColor(navy).fontSize(10).text('VIVID SPOTS');
+    doc.moveDown(.35).fontSize(22).text(data.prospect.brand_name, { width: 520 });
     doc.fillColor(green).fontSize(15).text(reportLabel);
-    doc.moveDown(.25).fillColor(muted).fontSize(9).text(`${range.from} through ${range.to} · Private prospect demonstration`);
-    doc.moveTo(46, 113).lineTo(566, 113).lineWidth(2).strokeColor(green).stroke();
+    doc.moveDown(.2).font('Helvetica').fillColor(muted).fontSize(9).text(`${range.from} through ${range.to} · Private prospect demonstration`);
+    const ruleY = doc.y + 8;
+    doc.moveTo(46, ruleY).lineTo(566, ruleY).lineWidth(2).strokeColor(green).stroke();
+    const summaryY = ruleY + 14;
     if (advertiserScope && selected) {
-      doc.fillColor(ink).fontSize(11).text('Sample Local Business', 46, 127);
-      doc.fillColor(muted).fontSize(9).text(`Community response campaign · ${selected.title} · Tracking code VVD-${data.prospect.id}-${selected.id}`);
+      doc.font('Helvetica-Bold').fillColor(ink).fontSize(11).text('Sample Local Business', 46, summaryY);
+      doc.font('Helvetica').fillColor(muted).fontSize(9).text(`Community response campaign · ${selected.title} · Tracking code VVD-${data.prospect.id}-${selected.id}`);
     } else {
-      doc.fillColor(ink).fontSize(11).text(`${items.length} reviewed advertising opportunities`, 46, 127);
-      doc.fillColor(muted).fontSize(9).text('Public-source inventory connected to illustrative Vivid performance reporting.');
+      doc.font('Helvetica-Bold').fillColor(ink).fontSize(11).text(`${items.length} reviewed advertising opportunities`, 46, summaryY);
+      doc.font('Helvetica').fillColor(muted).fontSize(9).text('Public-source inventory connected to illustrative Vivid performance reporting.');
     }
+    const cardY = summaryY + 38;
     const cardWidth = 124;
-    card(46, 165, cardWidth, 'Scans', totals.scans.toLocaleString(), 'Placement engagement');
-    card(179, 165, cardWidth, 'Website actions', totals.clicks.toLocaleString(), `${totals.scans ? ((totals.clicks/totals.scans)*100).toFixed(1) : '0.0'}% action rate`);
-    card(312, 165, cardWidth, 'Conversions', totals.conversions.toLocaleString(), `${totals.clicks ? ((totals.conversions/totals.clicks)*100).toFixed(1) : '0.0'}% conversion rate`);
-    card(445, 165, 121, 'Attributed revenue', formatMoney(totals.revenue), 'Illustrative value');
-    doc.fillColor(navy).fontSize(14).text('Measurement funnel', 46, 252);
-    doc.fillColor(ink).fontSize(10).text(`${totals.scans.toLocaleString()} scans  →  ${totals.clicks.toLocaleString()} website actions  →  ${totals.conversions.toLocaleString()} conversions  →  ${formatMoney(totals.revenue)} attributed revenue`, 46, 273, { width: 520 });
+    card(46, cardY, cardWidth, 'Scans', totals.scans.toLocaleString(), 'Placement engagement');
+    card(179, cardY, cardWidth, 'Website actions', totals.clicks.toLocaleString(), `${totals.scans ? ((totals.clicks/totals.scans)*100).toFixed(1) : '0.0'}% action rate`);
+    card(312, cardY, cardWidth, 'Conversions', totals.conversions.toLocaleString(), `${totals.clicks ? ((totals.conversions/totals.clicks)*100).toFixed(1) : '0.0'}% conversion rate`);
+    card(445, cardY, 121, 'Attributed revenue', formatMoney(totals.revenue), 'Illustrative value');
+    const funnelY = cardY + 87;
+    doc.font('Helvetica-Bold').fillColor(navy).fontSize(14).text('Measurement funnel', 46, funnelY);
+    doc.font('Helvetica').fillColor(ink).fontSize(10).text(`${totals.scans.toLocaleString()} scans  >  ${totals.clicks.toLocaleString()} website actions  >  ${totals.conversions.toLocaleString()} conversions  >  ${formatMoney(totals.revenue)} attributed revenue`, 46, funnelY + 21, { width: 520 });
+    const detailY = funnelY + 64;
     if (advertiserScope && performance[0]) {
       const row = performance[0];
-      doc.fillColor(navy).fontSize(14).text('Placement and campaign', 46, 316);
+      doc.font('Helvetica-Bold').fillColor(navy).fontSize(14).text('Placement and campaign', 46, detailY);
       const detailRows = [
         ['Opportunity', row.item.title], ['Category', row.item.category], ['Published investment reference', row.item.price_text],
         ['Responsible contact', row.item.responsible_rep], ['Campaign status', 'Active demo campaign'], ['Campaign destination', row.item.source_url],
         ['Illustrative ROI', row.roi === null ? 'Not calculated — no published price' : `${Math.round(row.roi*100)}% (using published price as investment)`]
       ];
-      let y = 338;
+      let y = detailY + 22;
       for (const [label,value] of detailRows) {
-        doc.fillColor(muted).fontSize(8).text(label.toUpperCase(), 46, y, { width: 155 });
-        doc.fillColor(ink).fontSize(9).text(String(value), 205, y, { width: 361 });
+        doc.font('Helvetica-Bold').fillColor(muted).fontSize(8).text(label.toUpperCase(), 46, y, { width: 155 });
+        doc.font('Helvetica').fillColor(ink).fontSize(9).text(String(value), 205, y, { width: 361 });
         y += Math.max(20, doc.heightOfString(String(value), { width: 361 }) + 6);
       }
-      doc.fillColor(navy).fontSize(14).text('Renewal discussion', 46, Math.max(y + 6, 506));
-      doc.fillColor(ink).fontSize(9.5).text('Use this report to review placement reach, downstream actions, conversions, attributed value and the next campaign offer. Because the Vivid tracking code remains attached to the placement, the destination can change without replacing the physical asset.', 46, Math.max(y + 28, 528), { width: 520, lineGap: 2 });
+      const renewalY = Math.max(y + 6, 506);
+      doc.font('Helvetica-Bold').fillColor(navy).fontSize(14).text('Renewal discussion', 46, renewalY);
+      doc.font('Helvetica').fillColor(ink).fontSize(9.5).text('Use this report to review placement reach, downstream actions, conversions, attributed value and the next campaign offer. Because the Vivid tracking code remains attached to the placement, the destination can change without replacing the physical asset.', 46, renewalY + 22, { width: 520, lineGap: 2 });
     } else {
-      doc.fillColor(navy).fontSize(14).text('Reviewed opportunity inventory', 46, 316);
-      let y = 340;
+      doc.font('Helvetica-Bold').fillColor(navy).fontSize(14).text('Reviewed opportunity inventory', 46, detailY);
+      let y = detailY + 24;
       for (const item of items.slice(0, 8)) {
-        doc.fillColor(ink).fontSize(9).text(`${item.title} · ${item.category}`, 46, y, { width: 330 });
+        doc.font('Helvetica').fillColor(ink).fontSize(9).text(`${item.title} · ${item.category}`, 46, y, { width: 330 });
         doc.fillColor(muted).text(`${item.price_text} · ${item.responsible_rep}`, 380, y, { width: 186, align: 'right' });
         y += 21;
       }
     }
-    doc.fillColor(muted).fontSize(7.5).text(`DATA NOTICE: Opportunity details are based on reviewed public sources from ${data.prospect.source_url}. All engagement, conversion, revenue and ROI values are synthetic and do not represent results reported by ${data.prospect.brand_name}.`, 46, 704, { width: 520, align: 'left' });
+    doc.font('Helvetica').fillColor(muted).fontSize(7.5).text(`DATA NOTICE: Opportunity details are based on reviewed public sources from ${data.prospect.source_url}. All engagement, conversion, revenue and ROI values are synthetic and do not represent results reported by ${data.prospect.brand_name}.`, 46, 704, { width: 520, align: 'left' });
     doc.end();
     return;
   }
