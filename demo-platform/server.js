@@ -310,8 +310,11 @@ async function handle(request, response) {
     const portal = prospectPortalMatch[2];
     const pages = {
       organization: () => prospectViews.prospectOrganizationPage(basePath, data, String(url.searchParams.get('section') || 'overview')),
-      marketplace: () => prospectViews.prospectMarketplacePage(basePath, data),
-      advertiser: () => prospectViews.prospectAdvertiserPage(basePath, data, Number(url.searchParams.get('opportunity_id')) || null)
+      marketplace: () => prospectViews.prospectMarketplacePage(basePath, data, {
+        query: url.searchParams.get('q') || '',
+        category: url.searchParams.get('category') || ''
+      }),
+      advertiser: () => prospectViews.prospectAdvertiserPage(basePath, data, Number(url.searchParams.get('opportunity_id')) || null, String(url.searchParams.get('section') || 'overview'))
     };
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
     return response.end(pages[portal]());
@@ -324,6 +327,72 @@ async function handle(request, response) {
     if (!pageHtml) return sendJson(response, 404, { error: 'Reviewed opportunity not found' });
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
     return response.end(pageHtml);
+  }
+  const prospectOnboardingMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/demo/onboarding/(\\d+)$`));
+  if (prospectOnboardingMatch) {
+    const data = await database.prospectImport(Number(prospectOnboardingMatch[1]));
+    if (!data) return sendJson(response, 404, { error: 'Prospect import not found' });
+    const pageHtml = prospectViews.prospectOnboardingPage(basePath, data, Number(prospectOnboardingMatch[2]), String(url.searchParams.get('step') || 'request'));
+    if (!pageHtml) return sendJson(response, 404, { error: 'Reviewed opportunity not found' });
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow' });
+    return response.end(pageHtml);
+  }
+  const prospectCsvMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/demo/exports/(inventory|performance)\\.csv$`));
+  if (prospectCsvMatch) {
+    const data = await database.prospectImport(Number(prospectCsvMatch[1]));
+    if (!data) return sendJson(response, 404, { error: 'Prospect import not found' });
+    const items = prospectViews.reviewed(data);
+    const kind = prospectCsvMatch[2];
+    const rows = kind === 'inventory'
+      ? [['Opportunity','Category','Published price','Responsible contact','Source URL','Image URL','Review status'], ...items.map(item=>[item.title,item.category,item.price_text,item.responsible_rep,item.source_url,item.image_url||'',item.review_status])]
+      : [['Opportunity','Category','Scans','Website actions','Conversions','Attributed revenue','Data status'], ...items.map((item,index)=>{const metrics=prospectViews.sampleMetrics(item,index);return [item.title,item.category,metrics.scans,metrics.clicks,metrics.conversions,metrics.revenue,'Illustrative demo data'];})];
+    const csv = rows.map(row => row.map(csvCell).join(',')).join('\n');
+    response.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${data.prospect.brand_name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${kind}.csv"`, 'cache-control': 'no-store' });
+    return response.end(`${csv}\n`);
+  }
+  const prospectPdfMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/demo/exports/executive\\.pdf$`));
+  if (prospectPdfMatch) {
+    const data = await database.prospectImport(Number(prospectPdfMatch[1]));
+    if (!data) return sendJson(response, 404, { error: 'Prospect import not found' });
+    const items = prospectViews.reviewed(data);
+    const totals = prospectViews.totalsFor(items);
+    response.writeHead(200, { 'content-type': 'application/pdf', 'content-disposition': 'attachment; filename="vivid-prospect-executive.pdf"', 'cache-control': 'no-store' });
+    const doc = new PDFDocument({ margin: 46, size: 'LETTER' });
+    doc.pipe(response);
+    doc.fillColor('#0d2744').fontSize(21).text(`${data.prospect.brand_name} · Vivid Executive Summary`);
+    doc.fillColor('#65776b').fontSize(10).text('Private prospect demonstration · Reviewed public-source opportunities · Illustrative performance metrics');
+    doc.moveDown().fillColor('#17251e').fontSize(13).text(`Opportunities: ${items.length}   Scans: ${totals.scans.toLocaleString()}   Website actions: ${totals.clicks.toLocaleString()}`);
+    doc.text(`Conversions: ${totals.conversions}   Attributed revenue: ${formatMoney(totals.revenue)}`);
+    doc.moveDown().fillColor('#0d2744').fontSize(15).text('Reviewed opportunity inventory');
+    for (const item of items) doc.fillColor('#17251e').fontSize(10).text(`${item.title} · ${item.category} · ${item.price_text} · ${item.responsible_rep}`);
+    doc.moveDown().fillColor('#65776b').fontSize(9).text(`Sources were reviewed from ${data.prospect.source_url}. Performance values are synthetic and do not represent results reported by ${data.prospect.brand_name}.`);
+    doc.end();
+    return;
+  }
+  const prospectXlsxMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/demo/exports/report\\.xlsx$`));
+  if (prospectXlsxMatch) {
+    const data = await database.prospectImport(Number(prospectXlsxMatch[1]));
+    if (!data) return sendJson(response, 404, { error: 'Prospect import not found' });
+    const items = prospectViews.reviewed(data);
+    const totals = prospectViews.totalsFor(items);
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Vivid prospect demonstration';
+    const addSheet = (name, columns, rows) => {
+      const sheet = workbook.addWorksheet(name);
+      sheet.columns = columns.map(column => ({ header: column, key: column, width: Math.max(16, column.length + 3) }));
+      rows.forEach(row => sheet.addRow(Object.fromEntries(columns.map((column, index) => [column, row[index]]))));
+      sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D2744' } };
+      sheet.views = [{ state: 'frozen', ySplit: 1 }];
+      sheet.autoFilter = { from: 'A1', to: `${String.fromCharCode(64 + columns.length)}1` };
+    };
+    addSheet('Executive Summary', ['Organization','Opportunity Count','Scans','Website Actions','Conversions','Attributed Revenue','Data Status'], [[data.prospect.brand_name,items.length,totals.scans,totals.clicks,totals.conversions,totals.revenue,'Illustrative demo data']]);
+    addSheet('Inventory', ['Opportunity','Category','Published Price','Responsible Contact','Source URL','Image URL','Review Status'], items.map(item=>[item.title,item.category,item.price_text,item.responsible_rep,item.source_url,item.image_url||'',item.review_status]));
+    addSheet('Performance', ['Opportunity','Category','Scans','Website Actions','Conversions','Attributed Revenue','Data Status'], items.map((item,index)=>{const metrics=prospectViews.sampleMetrics(item,index);return [item.title,item.category,metrics.scans,metrics.clicks,metrics.conversions,metrics.revenue,'Illustrative demo data'];}));
+    addSheet('Sales Responsibility', ['Opportunity','Responsible Contact','Category','Published Price','Source URL'], items.map(item=>[item.title,item.responsible_rep,item.category,item.price_text,item.source_url]));
+    response.writeHead(200, { 'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'content-disposition': 'attachment; filename="vivid-prospect-report.xlsx"', 'cache-control': 'no-store' });
+    await workbook.xlsx.write(response);
+    return response.end();
   }
   const builderImportMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)$`));
   if (builderImportMatch) {
