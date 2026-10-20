@@ -109,7 +109,8 @@ function register(app,{q}){
     allowed=await require('./demo-advertiser-account').narrow(q,user,allowed);
    }
    const locations=(await q('SELECT id FROM spaces WHERE organization_id=$1 AND COALESCE(is_archived,false)=false',[ORG])).rows.map(r=>Number(r.id));
-   for(const [keys,ids]of [[['location_id','space_id'],locations],[['campaign_id','campaign'],allowed.campaignIds],[['qr_id','qr','placement_id'],allowed.qrIds]])for(const key of keys){for(const v of [req.query[key],req.body?.[key]])if(v&&v!=='all'&&v!=='All'&&!ids.includes(Number(v)))return notice();}
+   for(const [keys,ids]of [[['location_id','space_id'],locations],[['campaign_id','campaign'],allowed.campaignIds],[['qr_id','qr','placement_id'],allowed.qrIds]])for(const key of keys){if(key==='campaign'&&req.path==='/admin/marketing-command-center')continue; // MCC validates its channel-specific campaign/source keys.
+    for(const v of [req.query[key],req.body?.[key]])if(v&&v!=='all'&&v!=='All'&&!ids.includes(Number(v)))return notice();}
    const pipelineLocation=req.path.match(/^\/org-revenue-pipeline\/location\/(\d+)(?:\/revenue)?$/);if(pipelineLocation&&!locations.includes(Number(pipelineLocation[1])))return notice();
    if(crmRoute(req.path)||crmRoute(req.path,true)){
     let key;try{key=decodeURIComponent(req.path.split('/')[2]).trim().toLowerCase();}catch(e){return notice();}
