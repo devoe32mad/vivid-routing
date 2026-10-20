@@ -243,6 +243,7 @@ test('reviewed website data replaces generic content across prospect demo portal
   const organization = prospectViews.prospectOrganizationPage('/demo/canonical-vivid', data, 'inventory');
   const organizationReports = prospectViews.prospectOrganizationPage('/demo/canonical-vivid', data, 'reports');
   const marketplace = prospectViews.prospectMarketplacePage('/demo/canonical-vivid', data);
+  const opportunity = prospectViews.prospectOpportunityPage('/demo/canonical-vivid', data, 31);
   const advertiser = prospectViews.prospectAdvertiserPage('/demo/canonical-vivid', data, 31);
   const advertiserExports = prospectViews.prospectAdvertiserPage('/demo/canonical-vivid', data, 31, 'exports');
   const onboarding = prospectViews.prospectOnboardingPage('/demo/canonical-vivid', data, 31);
@@ -256,9 +257,16 @@ test('reviewed website data replaces generic content across prospect demo portal
   assert.match(organizationReports, /exports\/inventory\.csv/);
   assert.match(organizationReports, /exports\/executive\.pdf/);
   assert.match(organizationReports, /exports\/report\.xlsx/);
-  assert.match(marketplace, /View Opportunity/);
+  assert.match(marketplace, /View Details/);
   assert.match(marketplace, /Search opportunities/);
   assert.match(marketplace, /Program \/ format/);
+  assert.match(marketplace, /How the Vivid Marketplace works/);
+  assert.match(marketplace, /Available for advertiser requests|Open for advertiser requests/);
+  assert.doesNotMatch(marketplace, /Corporate Relations/);
+  assert.match(opportunity, /Request this opportunity/i);
+  assert.match(opportunity, /Submit Demo Request/);
+  assert.match(opportunity, /Business or organization/);
+  assert.doesNotMatch(opportunity, /Responsible contact/);
   assert.match(advertiser, /Illustrative performance only/);
   for (const label of ['Overview', 'My Setup', 'Reports', 'Performance Insights', 'Archive Center', 'Export Center', 'Help']) assert.match(advertiser, new RegExp(label));
   assert.match(advertiserExports, /Campaign Performance/);
@@ -291,7 +299,7 @@ test('prospect Marketplace filters reviewed opportunities without changing sourc
   const filtered = prospectViews.prospectMarketplacePage('/demo/canonical-vivid', data, { category: 'Publication', query: 'magazine' });
   assert.match(filtered, /Magazine Advertising/);
   assert.doesNotMatch(filtered, /Conference Sponsorship/);
-  assert.match(filtered, /1<\/strong> matching opportunity/);
+  assert.match(filtered, /1<\/strong> available opportunity/);
 });
 
 test('prospect package refuses unreviewed opportunities', () => {
