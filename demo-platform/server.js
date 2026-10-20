@@ -136,6 +136,32 @@ function csvCell(value) {
   return `"${String(value ?? '').replaceAll('"', '""')}"`;
 }
 
+function publishedAmount(value) {
+  const match = String(value || '').match(/\$\s?([\d,]+(?:\.\d{1,2})?)/);
+  return match ? Number(match[1].replaceAll(',', '')) : 0;
+}
+
+function fileSlug(value) {
+  return String(value || 'vivid-prospect').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'vivid-prospect';
+}
+
+function prospectExportContext(data, url) {
+  const allItems = prospectViews.reviewed(data);
+  const advertiserScope = url.searchParams.get('scope') === 'advertiser';
+  const requestedId = Number(url.searchParams.get('opportunity_id'));
+  const selected = allItems.find(item => Number(item.id) === requestedId) || allItems[0] || null;
+  const items = advertiserScope && selected ? [selected] : allItems;
+  const performance = items.map((item, index) => {
+    const metrics = prospectViews.sampleMetrics(item, advertiserScope ? 0 : index);
+    const investment = publishedAmount(item.price_text);
+    const actionRate = metrics.scans ? metrics.clicks / metrics.scans : 0;
+    const conversionRate = metrics.clicks ? metrics.conversions / metrics.clicks : 0;
+    const roi = investment ? (metrics.revenue - investment) / investment : null;
+    return { item, metrics, investment, actionRate, conversionRate, roi };
+  });
+  return { advertiserScope, selected, items, performance, totals: prospectViews.totalsFor(items), range: reportRange(url) };
+}
+
 async function handle(request, response) {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
   if (url.pathname === '/health') {
@@ -341,31 +367,82 @@ async function handle(request, response) {
   if (prospectCsvMatch) {
     const data = await database.prospectImport(Number(prospectCsvMatch[1]));
     if (!data) return sendJson(response, 404, { error: 'Prospect import not found' });
-    const items = prospectViews.reviewed(data);
+    const context = prospectExportContext(data, url);
+    const items = context.items;
     const kind = prospectCsvMatch[2];
     const rows = kind === 'inventory'
       ? [['Opportunity','Category','Published price','Responsible contact','Source URL','Image URL','Review status'], ...items.map(item=>[item.title,item.category,item.price_text,item.responsible_rep,item.source_url,item.image_url||'',item.review_status])]
-      : [['Opportunity','Category','Scans','Website actions','Conversions','Attributed revenue','Data status'], ...items.map((item,index)=>{const metrics=prospectViews.sampleMetrics(item,index);return [item.title,item.category,metrics.scans,metrics.clicks,metrics.conversions,metrics.revenue,'Illustrative demo data'];})];
+      : [['Advertiser','Campaign','Opportunity','Category','Campaign status','Report from','Report to','Tracking code','Scans','Website actions','Action rate','Conversions','Conversion rate','Attributed revenue','Published investment reference','Illustrative ROI','Responsible contact','Source URL','Data status'], ...context.performance.map(({item,metrics,investment,actionRate,conversionRate,roi})=>['Sample Local Business','Community response campaign',item.title,item.category,'Active demo campaign',context.range.from,context.range.to,`VVD-${data.prospect.id}-${item.id}`,metrics.scans,metrics.clicks,`${(actionRate*100).toFixed(1)}%`,metrics.conversions,`${(conversionRate*100).toFixed(1)}%`,metrics.revenue,investment||'',roi===null?'':`${Math.round(roi*100)}%`,item.responsible_rep,item.source_url,'Illustrative demo data'])];
     const csv = rows.map(row => row.map(csvCell).join(',')).join('\n');
-    response.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${data.prospect.brand_name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${kind}.csv"`, 'cache-control': 'no-store' });
+    const scopeLabel = context.advertiserScope ? 'advertiser-' : '';
+    response.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${fileSlug(data.prospect.brand_name)}-${scopeLabel}${kind}.csv"`, 'cache-control': 'no-store' });
     return response.end(`${csv}\n`);
   }
   const prospectPdfMatch = request.method === 'GET' && url.pathname.match(new RegExp(`^${basePath}/builder/import/(\\d+)/demo/exports/executive\\.pdf$`));
   if (prospectPdfMatch) {
     const data = await database.prospectImport(Number(prospectPdfMatch[1]));
     if (!data) return sendJson(response, 404, { error: 'Prospect import not found' });
-    const items = prospectViews.reviewed(data);
-    const totals = prospectViews.totalsFor(items);
-    response.writeHead(200, { 'content-type': 'application/pdf', 'content-disposition': 'attachment; filename="vivid-prospect-executive.pdf"', 'cache-control': 'no-store' });
+    const context = prospectExportContext(data, url);
+    const { items, totals, advertiserScope, selected, performance, range } = context;
+    const reportLabel = advertiserScope ? 'Advertiser Executive Report' : 'Publisher Executive Summary';
+    response.writeHead(200, { 'content-type': 'application/pdf', 'content-disposition': `attachment; filename="${fileSlug(data.prospect.brand_name)}-${advertiserScope?'advertiser-':''}executive.pdf"`, 'cache-control': 'no-store' });
     const doc = new PDFDocument({ margin: 46, size: 'LETTER' });
     doc.pipe(response);
-    doc.fillColor('#0d2744').fontSize(21).text(`${data.prospect.brand_name} · Vivid Executive Summary`);
-    doc.fillColor('#65776b').fontSize(10).text('Private prospect demonstration · Reviewed public-source opportunities · Illustrative performance metrics');
-    doc.moveDown().fillColor('#17251e').fontSize(13).text(`Opportunities: ${items.length}   Scans: ${totals.scans.toLocaleString()}   Website actions: ${totals.clicks.toLocaleString()}`);
-    doc.text(`Conversions: ${totals.conversions}   Attributed revenue: ${formatMoney(totals.revenue)}`);
-    doc.moveDown().fillColor('#0d2744').fontSize(15).text('Reviewed opportunity inventory');
-    for (const item of items) doc.fillColor('#17251e').fontSize(10).text(`${item.title} · ${item.category} · ${item.price_text} · ${item.responsible_rep}`);
-    doc.moveDown().fillColor('#65776b').fontSize(9).text(`Sources were reviewed from ${data.prospect.source_url}. Performance values are synthetic and do not represent results reported by ${data.prospect.brand_name}.`);
+    const navy = '#0d2744';
+    const green = '#176b3a';
+    const ink = '#17251e';
+    const muted = '#65776b';
+    const card = (x, y, width, label, value, detail) => {
+      doc.roundedRect(x, y, width, 66, 8).fillAndStroke('#f4f7f5', '#dbe4df');
+      doc.fillColor(muted).fontSize(8).text(label.toUpperCase(), x + 11, y + 10, { width: width - 22 });
+      doc.fillColor(navy).fontSize(19).text(value, x + 11, y + 25, { width: width - 22 });
+      doc.fillColor(muted).fontSize(7.5).text(detail, x + 11, y + 49, { width: width - 22 });
+    };
+    doc.fillColor(navy).fontSize(10).text('VIVID SPOTS', { characterSpacing: 1.4 });
+    doc.moveDown(.25).fontSize(22).text(data.prospect.brand_name);
+    doc.fillColor(green).fontSize(15).text(reportLabel);
+    doc.moveDown(.25).fillColor(muted).fontSize(9).text(`${range.from} through ${range.to} · Private prospect demonstration`);
+    doc.moveTo(46, 113).lineTo(566, 113).lineWidth(2).strokeColor(green).stroke();
+    if (advertiserScope && selected) {
+      doc.fillColor(ink).fontSize(11).text('Sample Local Business', 46, 127);
+      doc.fillColor(muted).fontSize(9).text(`Community response campaign · ${selected.title} · Tracking code VVD-${data.prospect.id}-${selected.id}`);
+    } else {
+      doc.fillColor(ink).fontSize(11).text(`${items.length} reviewed advertising opportunities`, 46, 127);
+      doc.fillColor(muted).fontSize(9).text('Public-source inventory connected to illustrative Vivid performance reporting.');
+    }
+    const cardWidth = 124;
+    card(46, 165, cardWidth, 'Scans', totals.scans.toLocaleString(), 'Placement engagement');
+    card(179, 165, cardWidth, 'Website actions', totals.clicks.toLocaleString(), `${totals.scans ? ((totals.clicks/totals.scans)*100).toFixed(1) : '0.0'}% action rate`);
+    card(312, 165, cardWidth, 'Conversions', totals.conversions.toLocaleString(), `${totals.clicks ? ((totals.conversions/totals.clicks)*100).toFixed(1) : '0.0'}% conversion rate`);
+    card(445, 165, 121, 'Attributed revenue', formatMoney(totals.revenue), 'Illustrative value');
+    doc.fillColor(navy).fontSize(14).text('Measurement funnel', 46, 252);
+    doc.fillColor(ink).fontSize(10).text(`${totals.scans.toLocaleString()} scans  →  ${totals.clicks.toLocaleString()} website actions  →  ${totals.conversions.toLocaleString()} conversions  →  ${formatMoney(totals.revenue)} attributed revenue`, 46, 273, { width: 520 });
+    if (advertiserScope && performance[0]) {
+      const row = performance[0];
+      doc.fillColor(navy).fontSize(14).text('Placement and campaign', 46, 316);
+      const detailRows = [
+        ['Opportunity', row.item.title], ['Category', row.item.category], ['Published investment reference', row.item.price_text],
+        ['Responsible contact', row.item.responsible_rep], ['Campaign status', 'Active demo campaign'], ['Campaign destination', row.item.source_url],
+        ['Illustrative ROI', row.roi === null ? 'Not calculated — no published price' : `${Math.round(row.roi*100)}% (using published price as investment)`]
+      ];
+      let y = 338;
+      for (const [label,value] of detailRows) {
+        doc.fillColor(muted).fontSize(8).text(label.toUpperCase(), 46, y, { width: 155 });
+        doc.fillColor(ink).fontSize(9).text(String(value), 205, y, { width: 361 });
+        y += Math.max(20, doc.heightOfString(String(value), { width: 361 }) + 6);
+      }
+      doc.fillColor(navy).fontSize(14).text('Renewal discussion', 46, Math.max(y + 6, 506));
+      doc.fillColor(ink).fontSize(9.5).text('Use this report to review placement reach, downstream actions, conversions, attributed value and the next campaign offer. Because the Vivid tracking code remains attached to the placement, the destination can change without replacing the physical asset.', 46, Math.max(y + 28, 528), { width: 520, lineGap: 2 });
+    } else {
+      doc.fillColor(navy).fontSize(14).text('Reviewed opportunity inventory', 46, 316);
+      let y = 340;
+      for (const item of items.slice(0, 8)) {
+        doc.fillColor(ink).fontSize(9).text(`${item.title} · ${item.category}`, 46, y, { width: 330 });
+        doc.fillColor(muted).text(`${item.price_text} · ${item.responsible_rep}`, 380, y, { width: 186, align: 'right' });
+        y += 21;
+      }
+    }
+    doc.fillColor(muted).fontSize(7.5).text(`DATA NOTICE: Opportunity details are based on reviewed public sources from ${data.prospect.source_url}. All engagement, conversion, revenue and ROI values are synthetic and do not represent results reported by ${data.prospect.brand_name}.`, 46, 704, { width: 520, align: 'left' });
     doc.end();
     return;
   }
@@ -373,8 +450,8 @@ async function handle(request, response) {
   if (prospectXlsxMatch) {
     const data = await database.prospectImport(Number(prospectXlsxMatch[1]));
     if (!data) return sendJson(response, 404, { error: 'Prospect import not found' });
-    const items = prospectViews.reviewed(data);
-    const totals = prospectViews.totalsFor(items);
+    const context = prospectExportContext(data, url);
+    const { items, totals, advertiserScope, selected, performance, range } = context;
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Vivid prospect demonstration';
     const addSheet = (name, columns, rows) => {
@@ -386,11 +463,79 @@ async function handle(request, response) {
       sheet.views = [{ state: 'frozen', ySplit: 1 }];
       sheet.autoFilter = { from: 'A1', to: `${String.fromCharCode(64 + columns.length)}1` };
     };
-    addSheet('Executive Summary', ['Organization','Opportunity Count','Scans','Website Actions','Conversions','Attributed Revenue','Data Status'], [[data.prospect.brand_name,items.length,totals.scans,totals.clicks,totals.conversions,totals.revenue,'Illustrative demo data']]);
-    addSheet('Inventory', ['Opportunity','Category','Published Price','Responsible Contact','Source URL','Image URL','Review Status'], items.map(item=>[item.title,item.category,item.price_text,item.responsible_rep,item.source_url,item.image_url||'',item.review_status]));
-    addSheet('Performance', ['Opportunity','Category','Scans','Website Actions','Conversions','Attributed Revenue','Data Status'], items.map((item,index)=>{const metrics=prospectViews.sampleMetrics(item,index);return [item.title,item.category,metrics.scans,metrics.clicks,metrics.conversions,metrics.revenue,'Illustrative demo data'];}));
-    addSheet('Sales Responsibility', ['Opportunity','Responsible Contact','Category','Published Price','Source URL'], items.map(item=>[item.title,item.responsible_rep,item.category,item.price_text,item.source_url]));
-    response.writeHead(200, { 'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'content-disposition': 'attachment; filename="vivid-prospect-report.xlsx"', 'cache-control': 'no-store' });
+    const addReportSheet = (name, title, subtitle, columns, rows) => {
+      const sheet = workbook.addWorksheet(name);
+      sheet.columns = columns.map((column, index) => ({ key: `c${index}`, width: Math.min(42, Math.max(15, column.length + 4)) }));
+      const lastColumn = String.fromCharCode(64 + columns.length);
+      sheet.mergeCells(`A1:${lastColumn}1`);
+      sheet.getCell('A1').value = title;
+      sheet.getCell('A1').font = { size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
+      sheet.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D2744' } };
+      sheet.getCell('A1').alignment = { vertical: 'middle' };
+      sheet.getRow(1).height = 30;
+      sheet.mergeCells(`A2:${lastColumn}2`);
+      sheet.getCell('A2').value = subtitle;
+      sheet.getCell('A2').font = { italic: true, color: { argb: 'FF65776B' } };
+      sheet.getRow(4).values = columns;
+      sheet.getRow(4).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      sheet.getRow(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF176B3A' } };
+      rows.forEach(row => sheet.addRow(row));
+      sheet.views = [{ state: 'frozen', ySplit: 4 }];
+      sheet.autoFilter = { from: 'A4', to: `${lastColumn}4` };
+      sheet.pageSetup = { orientation: columns.length > 6 ? 'landscape' : 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: .35, right: .35, top: .5, bottom: .5, header: .2, footer: .2 } };
+      sheet.headerFooter.oddFooter = '&LPrivate Vivid demonstration&RPage &P of &N';
+      for (let rowNumber = 5; rowNumber <= sheet.rowCount; rowNumber += 1) {
+        if (rowNumber % 2 === 0) sheet.getRow(rowNumber).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F7F5' } };
+        sheet.getRow(rowNumber).alignment = { vertical: 'top', wrapText: true };
+      }
+      return sheet;
+    };
+    if (advertiserScope && selected && performance[0]) {
+      const row = performance[0];
+      const reportSubtitle = `${data.prospect.brand_name} · Sample Local Business · ${range.from} through ${range.to} · Illustrative demo performance`;
+      const summary = addReportSheet('Executive Summary', 'Vivid Advertiser Executive Report', reportSubtitle, ['Metric','Value','What it shows'], [
+        ['Advertiser','Sample Local Business','Illustrative advertiser account'], ['Campaign','Community response campaign','Active demo campaign'], ['Placement',selected.title,'Reviewed public-source opportunity'],
+        ['Scans',row.metrics.scans,'Engagements with the placement'], ['Website Actions',row.metrics.clicks,`${(row.actionRate*100).toFixed(1)}% of scans continued to the destination`],
+        ['Conversions',row.metrics.conversions,`${(row.conversionRate*100).toFixed(1)}% of website actions converted`], ['Attributed Revenue',row.metrics.revenue,'Illustrative value associated with validated conversions'],
+        ['Published Investment Reference',row.investment||'Not published',selected.price_text], ['Illustrative ROI',row.roi===null?'Not calculated':row.roi,'Uses the published price reference as investment'],
+        ['Data Status','Illustrative demo data',`Not results reported by ${data.prospect.brand_name}`]
+      ]);
+      summary.getColumn(2).numFmt = 'General';
+      summary.getCell('B11').numFmt = '$#,##0';
+      summary.getCell('B12').numFmt = '$#,##0';
+      summary.getCell('B13').numFmt = '0%';
+      addReportSheet('Campaign Performance', 'Campaign Performance Detail', reportSubtitle, ['Advertiser','Campaign','Placement','Category','Status','Report From','Report To','Tracking Code','Scans','Website Actions','Action Rate','Conversions','Conversion Rate','Attributed Revenue','Investment Reference','Illustrative ROI','Data Status'], [[
+        'Sample Local Business','Community response campaign',selected.title,selected.category,'Active demo campaign',range.from,range.to,`VVD-${data.prospect.id}-${selected.id}`,row.metrics.scans,row.metrics.clicks,row.actionRate,row.metrics.conversions,row.conversionRate,row.metrics.revenue,row.investment||'',row.roi===null?'':row.roi,'Illustrative demo data'
+      ]]);
+      const performanceSheet = workbook.getWorksheet('Campaign Performance');
+      performanceSheet.getColumn(11).numFmt = '0.0%';
+      performanceSheet.getColumn(13).numFmt = '0.0%';
+      performanceSheet.getColumn(14).numFmt = '$#,##0';
+      performanceSheet.getColumn(15).numFmt = '$#,##0';
+      performanceSheet.getColumn(16).numFmt = '0%';
+      addReportSheet('Placement & Campaign', 'Placement and Campaign Setup', reportSubtitle, ['Field','Current demo value'], [
+        ['Opportunity',selected.title],['Description',selected.description],['Category',selected.category],['Published Price',selected.price_text],['Responsible Contact',selected.responsible_rep],
+        ['Tracking Code',`VVD-${data.prospect.id}-${selected.id}`],['Campaign','Community response campaign'],['Campaign Status','Active demo campaign'],['Destination',selected.source_url],
+        ['Campaign Flexibility','Destination and offer can change without replacing the permanent Vivid-powered placement']
+      ]);
+      addReportSheet('Source Evidence', 'Reviewed Source Evidence', `Source-backed fields used in this private ${data.prospect.brand_name} demonstration`, ['Field','Reviewed value','Public source','Data classification'], [
+        ['Organization',data.prospect.brand_name,data.prospect.source_url,'Public-source information'],['Opportunity',selected.title,selected.source_url,'Public-source information'],['Description',selected.description,selected.source_url,'Public-source information'],
+        ['Category',selected.category,selected.source_url,'Vivid classification based on source'],['Published Price',selected.price_text,selected.source_url,'Public-source information'],['Responsible Contact',selected.responsible_rep,selected.source_url,'Public-source information'],
+        ['Performance metrics','Synthetic demonstration values','Vivid demo engine','Illustrative demo data']
+      ]);
+      addReportSheet('Metric Definitions', 'Metric Definitions and Data Notes', 'Definitions used across the Vivid advertiser report', ['Metric','Definition','Demo status'], [
+        ['Scans','Recorded engagements with the Vivid-powered placement or QR code.','Illustrative'],['Website Actions','Downstream visits or actions after the initial engagement.','Illustrative'],
+        ['Action Rate','Website Actions divided by Scans.','Calculated from illustrative data'],['Conversions','Validated business outcomes attributed to the campaign.','Illustrative'],
+        ['Conversion Rate','Conversions divided by Website Actions.','Calculated from illustrative data'],['Attributed Revenue','Revenue value assigned to validated conversions.','Illustrative'],
+        ['Illustrative ROI','Attributed Revenue minus the published investment reference, divided by that reference.','Calculated demonstration only']
+      ]);
+    } else {
+      addSheet('Executive Summary', ['Organization','Opportunity Count','Scans','Website Actions','Conversions','Attributed Revenue','Data Status'], [[data.prospect.brand_name,items.length,totals.scans,totals.clicks,totals.conversions,totals.revenue,'Illustrative demo data']]);
+      addSheet('Inventory', ['Opportunity','Category','Published Price','Responsible Contact','Source URL','Image URL','Review Status'], items.map(item=>[item.title,item.category,item.price_text,item.responsible_rep,item.source_url,item.image_url||'',item.review_status]));
+      addSheet('Performance', ['Opportunity','Category','Scans','Website Actions','Conversions','Attributed Revenue','Data Status'], performance.map(({item,metrics})=>[item.title,item.category,metrics.scans,metrics.clicks,metrics.conversions,metrics.revenue,'Illustrative demo data']));
+      addSheet('Sales Responsibility', ['Opportunity','Responsible Contact','Category','Published Price','Source URL'], items.map(item=>[item.title,item.responsible_rep,item.category,item.price_text,item.source_url]));
+    }
+    response.writeHead(200, { 'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'content-disposition': `attachment; filename="${fileSlug(data.prospect.brand_name)}-${advertiserScope?'advertiser-':''}report.xlsx"`, 'cache-control': 'no-store' });
     await workbook.xlsx.write(response);
     return response.end();
   }
