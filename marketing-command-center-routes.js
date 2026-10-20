@@ -231,6 +231,7 @@ async function renderHfhsMarketingDemo({q,range,scope,user,platform="",campaign=
       AND e.created_at >= $3::date AND e.created_at < $4::date+INTERVAL '1 day'
     WHERE c.id=ANY($1::int[]) AND COALESCE(c.is_archived,false)=false GROUP BY c.id,c.name ORDER BY c.name`,[scope.campaignIds,scope.qrIds,range.from,range.to])).rows;
   const rubberWorld=require('./rubber-world-review').isDemo(user);
+  if(!rubberWorld&&!user.ccpsReview&&require('./hfhs-demo-setup-scope').isHfhsDemo(user))return renderHfhsChannelDemo({range,scope,user,campaigns,platform,campaign});
   const banner=rubberWorld?'<div class="wrap"><div class="note"><strong>Rubber World advertiser demonstration</strong><p>Placement results belong to this sample advertiser. Digital platforms show their connection status; no private accounts are connected.</p></div></div>':user.ccpsReview?'<div class="wrap" style="padding:20px"><strong>CCPS · Vivid Performance — $35/month per placement</strong><p>Gulf Coast is the paid-placement example. All displayed placement results are illustrative demo data; no payment was processed. Website and advertising connectors show what the sponsor can connect; no private accounts are connected in this demo.</p><a href="/reports">Back to Reports</a> · <a href="/my-setup">My Setup</a></div>':'<div class="wrap"><div class="note"><strong>HFHS demonstration</strong><p>Placement results use HFHS sample campaigns. Digital platforms show their connection status; no simulated advertising results or unrelated account data are included.</p></div></div>';
   return banner+renderCommandCenter({title:"Your marketing, together",scope:{kind:"advertiser",userId:Number(user.id),accountName:rubberWorld?"Rubber World advertiser demo":user.ccpsReview?"CCPS Performance demo":"HFHS advertiser demo",accountSelection:false,privateAdsAllowed:true},range,campaigns,
     squareStatus:"Not connected",googleEnabled:true,metaEnabled:true,linkedinEnabled:true,tiktokEnabled:true,redditEnabled:true,pinterestEnabled:true,youtubeEnabled:true,analyticsEnabled:true,
@@ -238,3 +239,62 @@ async function renderHfhsMarketingDemo({q,range,scope,user,platform="",campaign=
 }
 
 module.exports.renderHfhsMarketingDemo=renderHfhsMarketingDemo;
+
+
+// HFHS-only presentation fixtures. Never written to campaign, connector or event tables.
+function renderHfhsChannelDemo({range,scope,user,campaigns,platform,campaign}) {
+  const {buildPlatforms,platformCard,dashboardHref}=require('./marketing-platform-dashboard');
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const dates=Array.from({length:30},(_,i)=>new Date(Date.UTC(2026,8,21+i)).toISOString().slice(0,10));
+  const selectedDates=dates.filter(d=>d>=range.from&&d<=range.to);
+  const split=(total,i)=>Math.floor(total*(i+1)/30)-Math.floor(total*i/30);
+  const conn=id=>[{id,status:'connected',account_name:'HFHS demo sponsor · sample account',property_name:'Demo sponsor website',channel_name:'Demo sponsor stories',site_url:'Sample sponsor website',account_timezone:'America/New_York',last_synced_at:new Date().toISOString(),owner_user_id:Number(user.id)}];
+  const paid=(id,label,impressions,clicks,spend,conversions,value)=>{
+    const daily=[];
+    for(let c=0;c<2;c++)for(let i=0;i<30;i++)if(selectedDates.includes(dates[i])){
+      const share=c===0?.6:.4,amount=n=>split(Math.round(n*share),i);
+      daily.push({connection_id:id,campaign_id:c+1,campaign_name:label+' · '+(c===0?'Event discovery':'Sponsor offer'),campaign_status:'ENABLED',channel:'SEARCH',objective:'WEBSITE_CONVERSIONS',date:dates[i],currency_code:'USD',impressions:amount(impressions),clicks:amount(clicks),link_clicks:amount(clicks*.8),outbound_clicks:amount(clicks*.7),cost_micros:amount(spend*100)*10000,conversions:amount(conversions),purchases:amount(conversions),leads:amount(conversions*.5),conversion_value:amount(value),purchase_value:amount(value),conversion_value_micros:amount(value)*1e6,reactions:amount(clicks*.4),comments:amount(clicks*.08),shares:amount(clicks*.06),saves:amount(clicks*.1),video_views:amount(impressions*.35),video_views_2s:amount(impressions*.25),video_views_6s:amount(impressions*.12)});
+    }
+    return {connections:conn(id),rows:daily,daily};
+  };
+  const evidence={googleEvidence:paid(901,'Golf event',18000,540,810,18,2700),metaEvidence:paid(902,'Gala partnership',24000,432,540,12,1800),linkedinEvidence:paid(903,'Conference partnership',8500,102,510,4,1200),tiktokEvidence:paid(904,'Community event',16000,192,240,5,500),redditEvidence:paid(905,'Community discovery',6000,90,135,3,300),pinterestEvidence:paid(906,'Event inspiration',9000,135,180,4,400)};
+  const traffic=[['google','organic',360,270,230,18,1800],['google','cpc',420,330,265,20,2400],['facebook','paid_social',260,210,143,10,1000],['(direct)','(none)',300,250,198,16,1600],['instagram','organic_social',140,112,85,5,400],['chatgpt.com','referral',65,52,46,4,300],['perplexity.ai','referral',25,20,17,1,100],['linkedin','paid_social',80,65,52,4,600]];
+  const rows=traffic.map(([source,medium,sessions,users,engaged_sessions,key_events,revenue])=>{
+    const scale=v=>selectedDates.reduce((sum,d)=>sum+split(v,dates.indexOf(d)),0);
+    return {connection_id:907,source,medium,sessions:scale(sessions),users:scale(users),engaged_sessions:scale(engaged_sessions),event_count:scale(sessions*3),key_events:scale(key_events),revenue:scale(revenue)};
+  }).filter(r=>r.sessions>0);
+  evidence.analyticsEvidence={connections:conn(907),rows};
+  const searchRows=[['Sponsor event offers',8000,220,12.4],['Local community partners',5000,140,16.1]].map(([label,impressions,clicks,position])=>{const scale=v=>selectedDates.reduce((sum,d)=>sum+split(v,dates.indexOf(d)),0);return {connection_id:908,label,row_type:'query',impressions:scale(impressions),clicks:scale(clicks),position,ctr:impressions?clicks/impressions:0};});
+  evidence.searchConsoleEvidence={connections:conn(908),summary:searchRows,rows:searchRows};
+  const scale=v=>selectedDates.reduce((sum,d)=>sum+split(v,dates.indexOf(d)),0);
+  evidence.youtubeEvidence={connections:conn(909),rows:selectedDates.length?[{connection_id:909,video_id:1,video_title:'Golf partnership: meet the sponsor',views:scale(820),watch_minutes:scale(615),average_view_seconds:45,likes:scale(42),comments:scale(8),shares:scale(12),subscribers_gained:scale(9),subscribers_lost:0},{connection_id:909,video_id:2,video_title:'Community event: sponsor offer',views:scale(560),watch_minutes:scale(280),average_view_seconds:30,likes:scale(28),comments:scale(5),shares:scale(9),subscribers_gained:scale(6),subscribers_lost:0}]:[]};
+  const viewScope={kind:'advertiser',userId:Number(user.id),accountName:'HFHS demo sponsor · illustrative channel reporting',accountSelection:false,privateAdsAllowed:true};
+  const options={title:'Your marketing, together',scope:viewScope,range,campaigns,squareStatus:'Not connected',googleEnabled:true,metaEnabled:true,linkedinEnabled:true,tiktokEnabled:true,redditEnabled:true,pinterestEnabled:true,youtubeEnabled:true,analyticsEnabled:true,searchConsoleEnabled:true,platform,campaign,aiVisible:false,...evidence};
+  const platforms=buildPlatforms(options),active=platforms.find(p=>p.id===platform),chosen=active?.rows.find(r=>r.key===campaign);
+  let html=renderCommandCenter(options);
+  // Keep the production layout and drill-downs, without exposing connector actions for fixtures.
+  html=html.replace(/<section class="mcc-economics">[\s\S]*?<\/section>/,'');
+  html=html.replace(/<a\b[^>]*href="\/admin\/connectors\/[^\"]*"[^>]*>[\s\S]*?<\/a>/g,'');
+  html=html.replace(/Automatic hourly sync|Awaiting fresh reports/g,'Illustrative demo data').replace(/Live campaign records/g,'Saved HFHS demo campaign records');
+  html=html.replace(/<p class="mcc-freshness">[\s\S]*?<\/p>/g,'<p class="mcc-freshness">Demo reporting · selected dates · no live channel connection</p>');
+  html=html.replace(/Test campaigns are excluded; archived campaign results remain in period totals\./g,'This view includes the selected sponsor’s active HFHS demo campaigns.');
+  const yt=platforms.find(p=>p.id==='youtube');
+  if(!platform&&yt)html=html.replace('<section class="mcc-platform-grid">','<section class="mcc-platform-grid">'+platformCard({...yt,status:'Illustrative demo data',freshness:'Sample video results · selected dates'},viewScope,range));
+  let detail='';
+  if(platform==='ga4'||platform==='ai_traffic'){
+    const sourceRows=chosen?rows.filter(r=>`${r.connection_id}:${r.source}:${r.medium}`===campaign):platform==='ai_traffic'?rows.filter(r=>/chatgpt|perplexity/.test(r.source)):rows;
+    const pages=[['/event-partnership','Event partnership overview',.5],['/sponsor-offer','Sponsor offer and details',.3],['/contact','Contact / enquiry',.2]];
+    const totals=sourceRows.reduce((s,r)=>({sessions:s.sessions+r.sessions,engaged:s.engaged+r.engaged_sessions,actions:s.actions+r.key_events,revenue:s.revenue+r.revenue}),{sessions:0,engaged:0,actions:0,revenue:0});
+    const alloc=(n,i)=>i===0?Math.floor(n*.5):i===1?Math.floor(n*.3):n-Math.floor(n*.5)-Math.floor(n*.3);
+    detail='<h2>Landing-page breakdown</h2><p>Illustrative sponsor pages behind '+(chosen?esc(chosen.name):'these traffic totals')+'. Page rows reconcile to the selected source totals; these are sample paths, not live HFHS pages.</p><div class="mcc-scroll"><table><thead><tr><th>Page</th><th>Sessions</th><th>Engaged sessions</th><th>Key actions</th><th>Reported revenue</th></tr></thead><tbody>'+pages.map(([path,title],i)=>'<tr><td><strong>'+esc(title)+'</strong><br><small>'+path+'</small></td><td>'+alloc(totals.sessions,i)+'</td><td>'+alloc(totals.engaged,i)+'</td><td>'+alloc(totals.actions,i)+'</td><td>$'+alloc(totals.revenue,i)+'</td></tr>').join('')+'</tbody></table></div>';
+  } else if(chosen&&['linkedin','tiktok','reddit','pinterest'].includes(platform)){
+    const key={linkedin:'linkedinEvidence',tiktok:'tiktokEvidence',reddit:'redditEvidence',pinterest:'pinterestEvidence'}[platform];
+    const daily=evidence[key].daily.filter(r=>`${r.connection_id}:${r.campaign_id}`===campaign);
+    detail='<h2>Daily campaign detail</h2><div class="mcc-scroll"><table><thead><tr><th>Date</th><th>Impressions</th><th>Clicks</th><th>Spend</th><th>Conversions</th><th>Reported value</th></tr></thead><tbody>'+daily.map(r=>'<tr><td>'+r.date+'</td><td>'+r.impressions+'</td><td>'+r.clicks+'</td><td>$'+(r.cost_micros/1e6).toFixed(2)+'</td><td>'+r.conversions+'</td><td>$'+r.conversion_value+'</td></tr>').join('')+'</tbody></table></div>';
+  }
+  const definitions='<details class="mcc-panel"><summary><strong>What the numbers mean</strong></summary><p><strong>Impressions:</strong> ad displays, not unique people. <strong>CTR:</strong> clicks ÷ impressions. <strong>ROAS:</strong> reported conversion value ÷ ad spend. ROI is unavailable without a sponsor-provided margin.</p><p><strong>Website sessions:</strong> visits; visitors are summed source-level counts and may overlap across sources. <strong>Engaged sessions:</strong> meaningful visits. <strong>Key actions:</strong> sample enquiries or purchases, not necessarily unique customers.</p><p>Website, AI, organic and paid-channel results can overlap. Do not add them together as unique visitors or revenue. Channel figures are illustrative, not verified sales or HFHS sponsorship income. Vivid placement results come from saved HFHS demo records.</p></details>';
+  html=html.replace('</main>',(detail?'<section class="mcc-panel" id="hfhs-channel-evidence">'+detail+'</section>':'')+definitions+'</main>');
+  const colors={ga4:'#b45309',ai_traffic:'#6d28d9',organic:'#15803d',vivid:'#2563eb',google_ads:'#2563eb',meta:'#1d4ed8',linkedin:'#075985',tiktok:'#0f766e',reddit:'#c2410c',pinterest:'#be123c',youtube:'#b91c1c'};
+  const css=Object.entries(colors).map(([id,c])=>`#hfhs-mcc [data-platform="${id}"]{border-top:5px solid ${c};background:linear-gradient(160deg,${c}10,#fff 45%)}#hfhs-mcc [data-platform="${id}"] h3{color:${c}}`).join('');
+  return '<div id="hfhs-mcc"><style>'+css+'#hfhs-mcc .mcc-summary-card{border-top:5px solid #2563eb;background:linear-gradient(160deg,#eff6ff,#fff 45%)}#hfhs-mcc .mcc-platform:hover{box-shadow:0 8px 24px #102b5018}#hfhs-mcc .mcc-metrics>div{padding:10px;border-radius:10px;background:#f6f8fc}#hfhs-mcc .mcc-status{background:#eaf2ff;color:#183d67}#hfhs-mcc .mcc-ga4-table{overflow:auto}#hfhs-mcc .mcc-ga4-table table{min-width:720px}#hfhs-mcc .mcc-primary{background:#2563eb;color:white!important;padding:11px;border-radius:10px}#hfhs-mcc .mcc-panel>h2{margin-top:0}</style><div class="wrap"><div class="note"><strong>HFHS Marketing Command Center · illustrative channel data</strong><p>Explore every card, then open a campaign, video or traffic source. Sample digital activity covers September 21–October 20, 2026; date filters select activity within that window. No live advertising accounts are connected, and these examples do not change sponsorship or campaign records.</p><a class="btn" href="'+esc(dashboardHref(viewScope,{from:'2026-09-21',to:'2026-10-20'}))+'">View full sample period</a></div></div>'+html+'</div>';
+}
