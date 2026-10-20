@@ -262,11 +262,22 @@ test('reviewed website data replaces generic content across prospect demo portal
   assert.match(advertiser, /Illustrative performance only/);
   for (const label of ['Overview', 'My Setup', 'Reports', 'Performance Insights', 'Archive Center', 'Export Center', 'Help']) assert.match(advertiser, new RegExp(label));
   assert.match(advertiserExports, /Campaign Performance/);
-  assert.match(advertiserExports, /Executive Summary/);
-  assert.match(advertiserExports, /Complete Workbook/);
+  assert.match(advertiserExports, /Advertiser Executive PDF/);
+  assert.match(advertiserExports, /Advertiser Report Workbook/);
+  assert.match(advertiserExports, /Advertiser report scope/);
+  assert.match(advertiserExports, /scope=advertiser&amp;opportunity_id=31/);
+  assert.match(advertiserExports, /Source Evidence/);
   for (const label of ['Request', 'Approval', 'Advertiser setup', 'Campaign live']) assert.match(onboarding, new RegExp(label));
   assert.match(onboarding, /demo@example\.invalid/);
   assert.match(prospectViews.prospectOnboardingPage('/demo/canonical-vivid', data, 31, 'approval'), /No production action occurs/);
+});
+
+test('advertiser exports include decision-ready campaign and source evidence', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../demo-platform/server.js'), 'utf8');
+  for (const field of ['Action rate', 'Conversion rate', 'Illustrative ROI', 'Published investment reference', 'Responsible contact', 'Data status']) assert.match(source, new RegExp(field, 'i'));
+  for (const sheet of ['Executive Summary', 'Campaign Performance', 'Placement & Campaign', 'Source Evidence', 'Metric Definitions']) assert.match(source, new RegExp(sheet.replace('&', '\\&')));
+  assert.match(source, /scope.*advertiser/);
+  assert.match(source, /engagement, conversion, revenue and ROI values are synthetic/);
 });
 
 test('prospect Marketplace filters reviewed opportunities without changing source data', () => {
