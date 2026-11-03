@@ -1,5 +1,6 @@
 "use strict";
 const path = require("node:path");
+const {createContactClicks, renderContactClicks} = require("./hexpol-contact-clicks");
 const {configuredWebsitePages,configuredWebsiteTracking,polymerBooth} = require("./website-page-config");
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const uuid = value => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -136,7 +137,7 @@ async function mySetupWebsiteTracking({q,user,campaigns}) {
     return heading+'<p>Website page tracking is temporarily unavailable. Your other setup information is still available. Please try again.</p></section>';
   }
 }
-function renderReport(campaign, rows, days) {
+function renderReport(campaign, rows, days, contactRows) {
   return `<div class="topbar"><div class="brand">Vivid Spots</div><h1>Website page visits</h1>
     <p class="subtitle">${esc(campaign.advertiser)} — ${esc(campaign.name)}</p></div>
     <main class="wrap"><p><a href="/my-setup">My Setup</a> · <a href="/admin/edit-campaign/${campaign.id}">Campaign settings</a></p>
@@ -148,11 +149,21 @@ function renderReport(campaign, rows, days) {
     <div style="overflow-x:auto"><table><thead><tr><th>Page</th><th>URL</th><th>Page Visits</th><th>Last recorded visit</th></tr></thead><tbody>
     ${rows.length ? rows.map(r=>`<tr><td>${esc(r.page_name)}</td><td>${esc(r.page_url)}</td><td>${Number(r.visits)}</td><td>${esc(new Date(r.last_visit).toISOString().replace("T"," ").slice(0,19))}</td></tr>`).join("") : '<tr><td colspan="4">No attributed page visits recorded in this period. Install the website tracker on the landing page and each tracked page, then test with a fresh QR scan.</td></tr>'}
     </tbody></table></div></div>
+    ${renderContactClicks(contactRows)}
     <div class="card"><h2>Installation</h2><p>Use the Vivid website-visit snippet configured for this campaign (ID ${Number(campaign.id)}). Install it once on the QR landing page and all pages being measured, through the website’s consent controls. The separate conversion script remains for confirmed outcomes.</p>
     <p>Tracking depends on the advertiser installing the script. This report does not verify installation or infer zero activity from missing records.</p></div></main>`;
 }
 function registerWebsitePageTracking({app,q,page,requireLogin,express}) {
   const tracker = sharedTracker(q);
+  const contactClicks = createContactClicks(q);
+  app.post("/website/hexpol-contact-click", express.text({type:"text/plain",limit:"2kb"}), async(req,res) => {
+    try {
+      let data;
+      try { data = typeof req.body === "string" ? JSON.parse(req.body) : req.body; } catch (_) { return res.status(400).end(); }
+      await contactClicks.record(data,req.get("Origin"));
+      return res.status(204).end();
+    } catch (error) { console.error("Contact click tracking failed",error.code || "internal"); return res.status(503).end(); }
+  });
   app.get("/vivid-website.js", (req,res) => res.set("Cache-Control","public, max-age=300").sendFile(path.join(__dirname,"public/vivid-website.js")));
   app.post("/website/page-visit", express.text({type:"text/plain",limit:"4kb"}), async(req,res) => {
     try {
@@ -175,7 +186,7 @@ function registerWebsitePageTracking({app,q,page,requireLogin,express}) {
         FROM campaign_website_visits WHERE campaign_id=$1 AND created_at >= CURRENT_TIMESTAMP - ($2::int * INTERVAL '1 day')
         GROUP BY page_url ORDER BY visits DESC,page_url`,[campaign.id,days])).rows;
       res.set("Cache-Control","no-store");
-      return res.send(page("Website page visits",renderReport(campaign,rows,days)));
+      return res.send(page("Website page visits",renderReport(campaign,rows,days,await contactClicks.summary(campaign,days))));
     } catch(error) { console.error("Website page report failed",error.code || "internal"); return res.status(500).send("Unable to load website page visits. Please try again."); }
   });
 }

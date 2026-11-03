@@ -1,6 +1,7 @@
 "use strict";
 const {createTracker,cleanUrl}=require("./website-page-tracking");
 const {configuredWebsitePages}=require("./website-page-config");
+const {isContactCampaign}=require("./hexpol-contact-clicks");
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const note="Page Visits count each attributed QR journey once per page. Totals can include several pages from one journey; they are not unique people, conversions, or revenue. A dash means no records in this period, not verified zero activity or installation. Dates and times are UTC.";
 const trackers=new WeakMap();
@@ -83,7 +84,9 @@ const stamp=value=>value?new Date(value).toISOString().replace("T"," ").slice(0,
 function renderSection(report){
   if(report.basicMetricsHidden&&!report.campaigns.length)return '<section id="website-page-visits"><h2>Website Page Visits</h2><p>— Available with Vivid Performance.</p></section>';
   const query=new URLSearchParams({...report.filters,...(!report.filters.start_date||!report.filters.end_date?{all_time:"1"}:{})}).toString();
-  return `<section id="website-page-visits"><h2>Website Page Visits</h2>
+  const quality = (report.campaigns || []).find(isContactCampaign);
+  const contactLink = quality ? `<p><a href="/admin/campaign/${Number(quality.id)}/website-pages#contact-clicks">View Quality Journey contact email clicks</a></p>` : "";
+  return `<section id="website-page-visits"><h2>Website Page Visits</h2>${contactLink}
     <p>Page Visits recorded: <strong>${report.total||"—"}</strong></p><p>${note}</p>
     <p><a class="btn secondary" href="/export/website-pages.csv?${esc(query)}">Export Page Visits CSV</a>
       <a class="btn secondary" href="/export/website-pages.pdf?${esc(query)}">Export Page Visits PDF</a></p>

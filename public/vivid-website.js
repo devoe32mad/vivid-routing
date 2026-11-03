@@ -26,6 +26,35 @@
     var match = pages.find(function (p) { return p && typeof p.path === "string" && normalize(p.path) === normalize(window.location.pathname); });
     if (!match) return;
     // Never transmit query strings, fragments, page contents, or form fields.
+    // Keep the link's normal mail-app behavior. Count the activation only,
+    // without reading the recipient, subject, body, or the Cloudflare fragment.
+    if ((campaign === "55" || campaign === "93") && !window.__vividWebsite.hexpolEmailClicks &&
+        window.location.origin === "https://www.hexpol.com" &&
+        normalize(window.location.pathname) === "/rubber/what-we-offer/qualityjourney" &&
+        typeof document.addEventListener === "function") {
+      window.__vividWebsite.hexpolEmailClicks = true;
+      var clickEndpoint = new URL("/website/hexpol-contact-click", script.src).href;
+      var contactButtons = {
+        "contact us today": "contact_today",
+        "contact us to start the conversation": "start_conversation"
+      };
+      document.addEventListener("click", function (event) {
+        if (!event.isTrusted || event.button !== 0 || Date.now() - attribution.at >= maxAge ||
+            normalize(window.location.pathname) !== "/rubber/what-we-offer/qualityjourney") return;
+        var link = event.target && event.target.closest && event.target.closest("a[href]");
+        if (!link || !(link.protocol === "mailto:" ||
+            (link.origin === window.location.origin && link.pathname === "/cdn-cgi/l/email-protection"))) return;
+        var label = (link.textContent || "").trim().replace(/\s+/g," ").toLowerCase();
+        if (!Object.prototype.hasOwnProperty.call(contactButtons,label)) return;
+        if (!window.crypto || typeof window.crypto.randomUUID !== "function") return;
+        fetch(clickEndpoint, {
+          method:"POST", mode:"no-cors", credentials:"omit", keepalive:true, referrerPolicy:"no-referrer",
+          headers:{"Content-Type":"text/plain;charset=UTF-8"},
+          body:JSON.stringify({click_event_id:window.crypto.randomUUID(), vivid_click_id:attribution.id,
+            page_url:window.location.origin + normalize(window.location.pathname),button_key:contactButtons[label]})
+        }).catch(function () {});
+      }, true);
+    }
     var endpoint = new URL("/website/page-visit", script.src).href;
     fetch(endpoint, {
       method: "POST", mode: "no-cors", credentials: "omit", keepalive: true,
