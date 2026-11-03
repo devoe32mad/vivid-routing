@@ -28,7 +28,7 @@
     // Never transmit query strings, fragments, page contents, or form fields.
     // Keep the link's normal mail-app behavior. Count the activation only,
     // without reading the recipient, subject, body, or the Cloudflare fragment.
-    if ((campaign === "55" || campaign === "93") && !window.__vividWebsite.hexpolEmailClicks &&
+    if ((campaign === "55" || campaign === "93" || campaign === "94") && !window.__vividWebsite.hexpolEmailClicks &&
         window.location.origin === "https://www.hexpol.com" &&
         normalize(window.location.pathname) === "/rubber/what-we-offer/qualityjourney" &&
         typeof document.addEventListener === "function") {
@@ -50,7 +50,7 @@
         fetch(clickEndpoint, {
           method:"POST", mode:"no-cors", credentials:"omit", keepalive:true, referrerPolicy:"no-referrer",
           headers:{"Content-Type":"text/plain;charset=UTF-8"},
-          body:JSON.stringify({click_event_id:window.crypto.randomUUID(), vivid_click_id:attribution.id,
+          body:JSON.stringify({campaign_id:Number(campaign),click_event_id:window.crypto.randomUUID(), vivid_click_id:attribution.id,
             page_url:window.location.origin + normalize(window.location.pathname),button_key:contactButtons[label]})
         }).catch(function () {});
       }, true);

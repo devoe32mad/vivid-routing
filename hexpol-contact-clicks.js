@@ -1,4 +1,5 @@
 "use strict";
+const nativeEmail = require("./hexpol-quality-email");
 const {polymerBooth} = require("./website-page-config");
 const quality = polymerBooth.pages.find(page => page.name === "Quality Journey");
 const pageUrl = quality.url.replace(/\/$/, "");
@@ -27,6 +28,14 @@ function createContactClicks(q) {
     if (origin !== new URL(pageUrl).origin || data?.page_url !== pageUrl ||
         !buttons.has(data?.button_key) || !uuid(data.vivid_click_id) || !uuid(data.click_event_id)) return;
     await ensureSchema();
+    if (data.campaign_id != null && ![polymerBooth.installCampaignId,quality.campaignId,nativeEmail.campaignId].includes(data.campaign_id)) return;
+    // A cached tag may still identify itself as the original installation.
+    // Route by the actual booth scan; never credit an old scan to campaign 94.
+    if (data.campaign_id === nativeEmail.campaignId ||
+        (await q("SELECT 1 FROM events WHERE vivid_click_id=$1 AND qr_id=$2 AND campaign_id=$3 AND type='scan' LIMIT 1",
+          [data.vivid_click_id,polymerBooth.qrId,nativeEmail.campaignId])).rows.length) {
+      return nativeEmail.recordNativeEmailClick(q, data);
+    }
     // Accept only recent Summit scan IDs from HEXPOL's own campaigns. Recording
     // the action must not depend on which of the click/visit requests arrives first.
     await q(`INSERT INTO hexpol_contact_clicks(click_event_id,scan_event_id,campaign_id,qr_id,button_key)

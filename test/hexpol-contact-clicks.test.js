@@ -5,9 +5,9 @@ const {createContactClicks,renderContactClicks}=require("../hexpol-contact-click
 const trackerSource=fs.readFileSync(require.resolve("../public/vivid-website.js"),"utf8");
 const origin="https://www.hexpol.com",path="/rubber/what-we-offer/qualityjourney",url=origin+path;
 
-test("Quality Journey counts the two real email buttons, leaves default behavior alone and never sends email details",()=>{
+for (const tagId of [55,94]) test(`Quality Journey tag ${tagId} counts the two real email buttons without changing the mail link or sending email details`,()=>{
   const requests=[],listeners=[],scan=crypto.randomUUID();
-  const context={URL,URLSearchParams,Date,document:{currentScript:{src:"https://vivid.example/vivid-website.js",getAttribute:n=>n==="data-vivid-campaign"?"55":JSON.stringify([{path,label:"Quality Journey"}])},
+  const context={URL,URLSearchParams,Date,document:{currentScript:{src:"https://vivid.example/vivid-website.js",getAttribute:n=>n==="data-vivid-campaign"?String(tagId):JSON.stringify([{path,label:"Quality Journey"}])},
     addEventListener:(event,fn)=>listeners.push(fn)},window:{crypto,location:new URL(url+"/?vivid_click_id="+scan)},sessionStorage:{setItem(){},getItem(){return null}},
     fetch:(endpoint,options)=>{requests.push({endpoint,options,body:JSON.parse(options.body)});return Promise.resolve();}};
   vm.runInNewContext(trackerSource,context);vm.runInNewContext(trackerSource,context);
@@ -23,8 +23,8 @@ test("Quality Journey counts the two real email buttons, leaves default behavior
   assert.deepEqual(requests.slice(1).map(x=>x.body.button_key),["contact_today","start_conversation"]);
   assert.notEqual(requests[1].body.click_event_id,requests[2].body.click_event_id);
   for(const r of requests.slice(1)){
-    assert.deepEqual(Object.keys(r.body).sort(),["button_key","click_event_id","page_url","vivid_click_id"]);
-    assert.equal(r.body.page_url,url);assert.equal(r.body.vivid_click_id,scan);assert.equal(r.options.keepalive,true);
+    assert.deepEqual(Object.keys(r.body).sort(),["button_key","campaign_id","click_event_id","page_url","vivid_click_id"]);
+    assert.equal(r.body.page_url,url);assert.equal(r.body.campaign_id,tagId);assert.equal(r.body.vivid_click_id,scan);assert.equal(r.options.keepalive,true);
     assert.doesNotMatch(JSON.stringify(r.body),/private|sample@/);
   }
   context.window={location:new URL(url),crypto};vm.runInNewContext(trackerSource,context);
