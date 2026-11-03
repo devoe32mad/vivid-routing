@@ -36,10 +36,14 @@ if (require.main === module && process.env.RAILWAY_SERVICE_ID === "e7c635e4-6f2b
     const pool = new Pool({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false},connectionTimeoutMillis:10000});
     try {
       const client = await pool.connect();
-      try {await resume(client);} finally {client.release();}
+      try {
+        await resume(client);
+        const result = await require("./hexpol-quality-email").provisionContactEmail(client);
+        console.log("HEXPOL Quality Journey contact tracking:",result);
+      } finally {client.release();}
     } catch (error) {
       // This metadata update must not take other customers offline.
-      console.error("Polymer Booth end date update failed:",error.code || "internal");
+      console.error("Polymer Booth setup failed:",error.code || "internal");
     } finally {await pool.end();}
   })();
 }

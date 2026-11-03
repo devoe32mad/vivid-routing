@@ -1,6 +1,32 @@
 "use strict";
 const fs=require("node:fs"),path=require("node:path");
+// Website buttons are native reporting destinations, but are not choices to
+// project on a QR scan. Reading the optional key as JSON also works on other
+// deployments before or without the HEXPOL-specific column.
+function omitWebsiteButtonsFromRouting(source) {
+  const routes = [
+    ['app.get("/r/:qrId",', 'FROM campaign_destinations', 'WHERE campaign_id = $1', 'campaign_destinations'],
+    ['app.get("/debug/qr-customer-actions/:qrId",', 'FROM campaign_destinations', 'WHERE campaign_id = $1', 'campaign_destinations'],
+    ['app.get(\n  "/destination-click/:destinationId",', 'FROM campaign_destinations cd', 'WHERE cd.id = $1', 'cd']
+  ];
+  for (const [route, fromTable, where, alias] of routes) {
+    const start = source.indexOf(route);
+    const end = source.indexOf("\napp.",start+route.length);
+    if (start < 0 || end < 0) throw Error("Website action routing: missing route " + route);
+    const part = source.slice(start,end);
+    const filter = "AND (to_jsonb(" + alias + ")->>'website_click_key') IS NULL";
+    if (part.includes(filter)) continue;
+    const from = part.indexOf(fromTable);
+    const condition = part.indexOf(where,from);
+    if (from < 0 || condition < 0 || part.indexOf(where,condition+where.length) >= 0)
+      throw Error("Website action routing: expected one destination lookup in " + route);
+    const point = start + condition + where.length;
+    source = source.slice(0,point) + "\n            " + filter + source.slice(point);
+  }
+  return source;
+}
 function install(source) {
+  source = omitWebsiteButtonsFromRouting(source);
   const marker="// ATTRIBUTED_WEBSITE_PAGE_TRACKING";
   if(!source.includes(marker)) {
   const anchor='app.get("/vivid-conversion.js", (req, res) => {';
@@ -29,4 +55,4 @@ function install(source) {
   return require("./install-website-page-reporting").install(source);
 }
 if(require.main===module){const file=path.join(__dirname,"server.js");fs.writeFileSync(file,install(fs.readFileSync(file,"utf8")));console.log("Attributed website page tracking installed.");}
-module.exports={install};
+module.exports={install,omitWebsiteButtonsFromRouting};
