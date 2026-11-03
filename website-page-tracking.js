@@ -1,6 +1,6 @@
 "use strict";
 const path = require("node:path");
-const {configuredWebsitePages,configuredWebsiteTracking} = require("./website-page-config");
+const {configuredWebsitePages,configuredWebsiteTracking,polymerBooth} = require("./website-page-config");
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const uuid = value => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 function cleanUrl(value) {
@@ -42,23 +42,48 @@ function createTracker(q) {
     // from its designated QR even while that QR routes through a short-lived
     // event campaign. The QR allowlist prevents cross-customer attribution.
     const tracking= configuredWebsiteTracking(data.campaign_id);
-    if(!scan && tracking?.qrIds?.length)scan=(await q(`SELECT e.id,e.qr_id,$2::int AS campaign_id,c.campaign_url FROM events e
+    if(!scan && tracking?.qrIds?.length)scan=(await q(`SELECT e.id,e.qr_id,$2::int AS campaign_id,e.campaign_id AS source_campaign_id,c.campaign_url FROM events e
       JOIN campaigns c ON c.id=$2
       WHERE e.vivid_click_id=$1 AND e.type='scan' AND e.qr_id=ANY($3::int[])
         AND e.created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') - INTERVAL '24 hours'
         AND e.created_at <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
       ORDER BY e.created_at,e.id LIMIT 1`,[data.vivid_click_id,data.campaign_id,tracking.qrIds])).rows[0];
     if (!scan || !scan.qr_id) return false;
-    const destinations = (await q(`SELECT cd.destination_url FROM events e
-      JOIN campaign_destinations cd ON cd.id=e.campaign_destination_id
-      WHERE e.vivid_click_id=$1 AND e.qr_id=$2 AND e.type='destination_click'`, [data.vivid_click_id, scan.qr_id])).rows;
-    const allowed = [scan.campaign_url, ...destinations.map(d => d.destination_url)].some(value => cleanUrl(value)?.host === url.host);
-    if (!allowed) return false;
+    let reportCampaignId = scan.campaign_id;
+    let pageName = typeof data.page_name === "string" && data.page_name.trim()
+      ? data.page_name.trim().slice(0,100) : new URL(url.url).pathname;
+    const sourceId = Number(scan.source_campaign_id ?? scan.campaign_id);
+    // The existing WordPress snippet still sends installation ID 55. For a new
+    // Summit scan only, credit the actual page reached to its assigned campaign.
+    if (Number(scan.qr_id) === polymerBooth.qrId && polymerBooth.pages.some(p => p.campaignId === sourceId)) {
+      const page = polymerBooth.pages.find(p => cleanUrl(p.url).url === url.url);
+      if (!page || ![polymerBooth.installCampaignId, page.campaignId].includes(data.campaign_id)) return false;
+      const eligible = await q(`SELECT target.id FROM campaigns target
+        JOIN campaigns source ON source.id=$2 AND source.user_id=target.user_id
+        JOIN campaigns installation ON installation.id=$4 AND installation.user_id=target.user_id
+        JOIN qr_campaigns qc ON qc.campaign_id=target.id AND qc.qr_id=$3 AND COALESCE(qc.is_active,true)
+        WHERE target.id=$1 AND LOWER(TRIM(target.advertiser))='hexpol'
+          AND LOWER(TRIM(source.advertiser))='hexpol' AND LOWER(TRIM(installation.advertiser))='hexpol'
+          AND NOT COALESCE(target.is_archived,false)
+          AND (target.start_date IS NULL OR target.start_date<=CURRENT_DATE)
+          AND (target.end_date IS NULL OR target.end_date>=CURRENT_DATE)
+          AND EXISTS (SELECT 1 FROM campaign_destinations cd WHERE cd.campaign_id=target.id
+            AND COALESCE(cd.is_active,true) AND RTRIM(cd.destination_url,'/')=$5)
+        LIMIT 1`, [page.campaignId,sourceId,polymerBooth.qrId,polymerBooth.installCampaignId,url.url]);
+      if (!eligible.rows.length) return false;
+      reportCampaignId = page.campaignId;
+      pageName = page.name;
+    } else {
+      const destinations = (await q(`SELECT cd.destination_url FROM events e
+        JOIN campaign_destinations cd ON cd.id=e.campaign_destination_id
+        WHERE e.vivid_click_id=$1 AND e.qr_id=$2 AND e.type='destination_click'`, [data.vivid_click_id, scan.qr_id])).rows;
+      const allowed = [scan.campaign_url, ...destinations.map(d => d.destination_url)].some(value => cleanUrl(value)?.host === url.host);
+      if (!allowed) return false;
+    }
     await ensureSchema();
     await q(`INSERT INTO campaign_website_visits (scan_event_id,campaign_id,qr_id,vivid_click_id,page_url,page_name)
       VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (campaign_id,vivid_click_id,page_url) DO NOTHING`,
-    [scan.id,scan.campaign_id,scan.qr_id,data.vivid_click_id,url.url,
-      typeof data.page_name === "string" && data.page_name.trim() ? data.page_name.trim().slice(0,100) : new URL(url.url).pathname]);
+    [scan.id,reportCampaignId,scan.qr_id,data.vivid_click_id,url.url,pageName]);
     return true;
   }
   return {ensureSchema, record};
